@@ -1,0 +1,21 @@
+# Linux x86_64 reference artifacts. Every hash is SHA-256 of the downloaded archive.
+JDK_VERSION='21.0.12.1+1'
+JDK_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz'
+JDK_SHA256='ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94'
+
+DOTNET_VERSION='8.0.425'
+DOTNET_URL='https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.425/dotnet-sdk-8.0.425-linux-x64.tar.gz'
+DOTNET_SHA256='ec2c55738f3aa16c58b2c0c565ce10ad6fea83925574a6f08c920ba62a39712b'
+
+BDWGC_VERSION='8.2.8'
+BDWGC_URL='https://github.com/bdwgc/bdwgc/releases/download/v8.2.8/gc-8.2.8.tar.gz'
+BDWGC_SHA256='7649020621cb26325e1fb5c8742590d92fb48ce5c259b502faf7d9fb5dabb160'
+
+LLVM_VERSION='18.1.8'
+LLVM_URL='https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang%2Bllvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz'
+LLVM_SHA256='54ec30358afcc9fb8aa74307db3046f5187f9fb89fb37064cdde906e062ebf36'
+
+# Runtime dependency of the official LLVM 18 Ubuntu 18.04 binary on Ubuntu 22.04.
+LIBTINFO5_VERSION='6.3-2ubuntu0.3'
+LIBTINFO5_URL='https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_amd64.deb'
+LIBTINFO5_SHA256='4df4288404108f1a156d014e8764a064e977e34e6d44931ab60451694c03c90d'

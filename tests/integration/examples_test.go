@@ -26,7 +26,11 @@ func TestExamples(t *testing.T) {
 		f.Unordered = testutil.HasDirective(string(src), "unordered")
 		t.Run(f.Name, func(t *testing.T) {
 			t.Parallel()
-			testutil.RunFixture(t, f, cfg.TargetNames())
+			targets := cfg.TargetNames()
+			if testing.Short() {
+				targets = []string{"go", "typescript"}
+			}
+			testutil.RunFixture(t, f, targets)
 		})
 	}
 }

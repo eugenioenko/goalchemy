@@ -14,6 +14,9 @@ var targets = []string{"go", "typescript", "python", "java", "csharp", "rust", "
 
 func TestFixtures(t *testing.T) {
 	targets := targets
+	if testing.Short() {
+		targets = targets[:2]
+	}
 	if only := os.Getenv("GOALCHEMY_TEST_TARGETS"); only != "" {
 		targets = strings.Split(only, ",")
 	}

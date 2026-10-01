@@ -362,12 +362,14 @@ Use a project configuration file for roots, build tags, source profile, mappings
 
 Complete the narrow Go/TypeScript vertical slice before implementing every advanced feature. Do not build a sophisticated fuzzer or all module adapters before generated programs can run.
 
-Milestone 11 evidence is in [the hardening workflow](docs/hardening.md) and
-the versioned `reports/` snapshots. The bounded differential campaign covers
-stateful sequential operations, recovered panics, and synchronized channel
-handoffs. The compatibility run checks contract cases, source observations,
-and repeatable generated builds on all seven targets; the performance run
-records compile and execution baselines for the same target set.
+Milestone 11 evidence is in [the hardening workflow](docs/hardening.md),
+`toolchains.lock`, and the versioned `reports/` snapshots. The bounded
+differential campaign covers integer widths, conversions, control flow,
+aggregate copies, interfaces, closures, aliasing, recovered panics, and
+synchronized channel handoffs. The compatibility run checks contract cases,
+source observations, and repeatable generated builds on all seven targets;
+the performance run records compile and execution baselines for the same
+target set.
 
 ## 14. Change control and working rules
 

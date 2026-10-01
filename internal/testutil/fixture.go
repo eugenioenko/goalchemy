@@ -23,6 +23,30 @@ import (
 	"goalchemy/internal/subset"
 )
 
+var llvmVersion = regexp.MustCompile(`(?m)^LLVM_VERSION='([^']+)'$`)
+
+// SanitizerClang returns the clang installed from toolchains.lock.
+func SanitizerClang() (string, error) {
+	tc := driver.ToolchainRoot()
+	if tc == "" {
+		return "", fmt.Errorf(".toolchains not found; run scripts/fetch-toolchains.sh llvm")
+	}
+	lock, err := os.ReadFile(filepath.Join(filepath.Dir(tc), "toolchains.lock"))
+	if err != nil {
+		return "", err
+	}
+	m := llvmVersion.FindStringSubmatch(string(lock))
+	if m == nil {
+		return "", fmt.Errorf("toolchains.lock has no LLVM_VERSION")
+	}
+	clang := filepath.Join(tc, "llvm-"+m[1], "bin", "clang")
+	st, err := os.Stat(clang)
+	if err != nil || st.IsDir() || st.Mode()&0o111 == 0 {
+		return "", fmt.Errorf("pinned clang unavailable at %s; run scripts/fetch-toolchains.sh llvm", clang)
+	}
+	return clang, nil
+}
+
 // Observation is what a fixture run produced.
 type Observation struct {
 	Stdout string
@@ -148,16 +172,18 @@ var Runners = map[string]Runner{
 	"c": func(out string) (Observation, error) {
 		return run(out, 3*time.Minute, "sh", "run.sh")
 	},
-	// c-sanitize builds the C target with clang's address and
-	// undefined-behavior sanitizers; it runs without address-space
-	// randomization, which older ASan releases cannot start under on
-	// kernels with high mmap randomization.
+	// c-sanitize uses the pinned clang and its address and undefined-behavior
+	// sanitizers with normal address-space randomization.
 	"c-sanitize": func(out string) (Observation, error) {
+		clang, err := SanitizerClang()
+		if err != nil {
+			return Observation{}, err
+		}
 		return runEnv(out, 5*time.Minute, []string{
-			"CC=clang",
+			"CC=" + clang,
 			"CFLAGS=-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
 			"ASAN_OPTIONS=detect_leaks=0:detect_stack_use_after_return=0",
-		}, "setarch", "-R", "sh", "run.sh")
+		}, "sh", "run.sh")
 	},
 	"rust": func(out string) (Observation, error) {
 		return run(out, 5*time.Minute, "sh", "run.sh")
@@ -191,6 +217,22 @@ type Fixture struct {
 
 var directive = regexp.MustCompile(`(?m)^// goalchemy:(\w+)(?: (.*))?$`)
 
+// ParseDirectives reads the fixture directives understood by Discover.
+func ParseDirectives(src string) Fixture {
+	var f Fixture
+	for _, m := range directive.FindAllStringSubmatch(src, -1) {
+		switch m[1] {
+		case "unordered":
+			f.Unordered = true
+		case "reject":
+			f.Reject = strings.Fields(m[2])
+		case "gate":
+			f.Gate = strings.TrimSpace(m[2])
+		}
+	}
+	return f
+}
+
 func Discover(root string) ([]Fixture, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -203,18 +245,10 @@ func Discover(root string) ([]Fixture, error) {
 		}
 		f := Fixture{Name: e.Name(), Dir: filepath.Join(root, e.Name())}
 		src, _ := os.ReadFile(filepath.Join(f.Dir, "main.go"))
+		parsed := ParseDirectives(string(src))
+		f.Unordered, f.Reject, f.Gate = parsed.Unordered, parsed.Reject, parsed.Gate
 		if want, err := os.ReadFile(filepath.Join(f.Dir, "want.txt")); err == nil {
 			f.Golden = string(want)
-		}
-		for _, m := range directive.FindAllStringSubmatch(string(src), -1) {
-			switch m[1] {
-			case "unordered":
-				f.Unordered = true
-			case "reject":
-				f.Reject = strings.Fields(m[2])
-			case "gate":
-				f.Gate = strings.TrimSpace(m[2])
-			}
 		}
 		out = append(out, f)
 	}

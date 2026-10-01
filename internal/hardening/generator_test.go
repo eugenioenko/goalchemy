@@ -43,3 +43,17 @@ func TestGeneratedProgramsTypeCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryOperationCanStandAlone(t *testing.T) {
+	for kind := 0; kind < 23; kind++ {
+		fset := token.NewFileSet()
+		p := Program{Operations: []Operation{{Kind: kind, Arg: 97}}}
+		file, err := parser.ParseFile(fset, "main.go", p.Source(), 0)
+		if err != nil {
+			t.Fatalf("operation %d: %v", kind, err)
+		}
+		if _, err := (&types.Config{}).Check("generated", fset, []*ast.File{file}, nil); err != nil {
+			t.Fatalf("operation %d: %v", kind, err)
+		}
+	}
+}

@@ -37,6 +37,9 @@ func TestTargetConformance(t *testing.T) {
 		if tgt.Harness == nil {
 			continue
 		}
+		if testing.Short() && name != "go" && name != "typescript" {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			results, err := conformance.Run(cat, root, name)
 			if err != nil {

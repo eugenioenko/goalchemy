@@ -9,22 +9,31 @@ import (
 
 // ToolEnv returns the environment for running target toolchains: toolchains
 // unpacked under a .toolchains directory in the working directory or one of
-// its parents are put first on PATH, and JAVA_HOME and DOTNET_ROOT are set
-// when unset.
+// its parents are put first on PATH, and the matching environment paths take
+// precedence over ambient toolchain settings.
 func ToolEnv() []string {
 	env := os.Environ()
+	tc := ToolchainRoot()
+	if tc == "" {
+		return env
+	}
+	return withToolchains(env, tc)
+}
+
+// ToolchainRoot finds the nearest repository-local .toolchains directory.
+func ToolchainRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		return env
+		return ""
 	}
 	for {
 		tc := filepath.Join(dir, ".toolchains")
 		if st, err := os.Stat(tc); err == nil && st.IsDir() {
-			return withToolchains(env, tc)
+			return tc
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return env
+			return ""
 		}
 		dir = parent
 	}
@@ -33,6 +42,12 @@ func ToolEnv() []string {
 func withToolchains(env []string, tc string) []string {
 	var bins []string
 	set := map[string]string{}
+	libDir := filepath.Join(tc, "libtinfo5", "lib", "x86_64-linux-gnu")
+	if _, err := os.Stat(filepath.Join(libDir, "libtinfo.so.5")); err == nil {
+		set["LD_LIBRARY_PATH"] = libDir
+	} else {
+		libDir = ""
+	}
 	if jdks, _ := filepath.Glob(filepath.Join(tc, "jdk-*")); len(jdks) > 0 {
 		sort.Strings(jdks)
 		j := jdks[len(jdks)-1]
@@ -56,7 +71,11 @@ func withToolchains(env []string, tc string) []string {
 		switch {
 		case k == "PATH" && len(bins) > 0:
 			kv = "PATH=" + strings.Join(bins, string(os.PathListSeparator)) + string(os.PathListSeparator) + v
+		case k == "LD_LIBRARY_PATH" && libDir != "":
+			kv = "LD_LIBRARY_PATH=" + libDir + string(os.PathListSeparator) + v
+			delete(set, k)
 		case set[k] != "":
+			kv = k + "=" + set[k]
 			delete(set, k)
 		}
 		out = append(out, kv)

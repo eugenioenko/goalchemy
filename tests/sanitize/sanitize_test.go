@@ -6,7 +6,6 @@
 package sanitize
 
 import (
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -14,10 +13,11 @@ import (
 )
 
 func TestSanitizedC(t *testing.T) {
-	for _, tool := range []string{"clang", "setarch"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Skipf("%s not available", tool)
-		}
+	if testing.Short() {
+		t.Skip("sanitizer matrix runs in the full suite")
+	}
+	if _, err := testutil.SanitizerClang(); err != nil {
+		t.Fatal(err)
 	}
 	for _, root := range []string{"../language/testdata", "../corpus"} {
 		fixtures, err := testutil.Discover(root)

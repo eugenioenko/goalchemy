@@ -59,6 +59,11 @@ Each target directory contains the generated program, the runtime files it needs
 Compiling a package other than `main` for the C target produces a library instead of a program: `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected. Library builds are available only on the C target.
 
 When the working directory or a parent has a `.toolchains` directory holding `jdk-*` or `dotnet`, `goalchemy run` and the test suites use those toolchains.
+On Linux x64, `scripts/fetch-toolchains.sh` installs the versions and verified
+archives in `toolchains.lock`, including bdwgc and the clang used by
+`tests/sanitize`. The sanitizer runner uses that clang with normal address
+randomization. `scripts/fetch-toolchains.sh llvm` installs only clang and its
+private `libtinfo5` dependency.
 
 Programs write output with Go's `print` and `println` builtins, which go to standard error. An unrecovered panic prints `panic: <value>` and exits with status 2, as Go does.
 

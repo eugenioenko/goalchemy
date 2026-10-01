@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTreeHashUsesFileNamesAndContents(t *testing.T) {
@@ -31,6 +35,39 @@ func TestTreeHashUsesFileNamesAndContents(t *testing.T) {
 	c, err := treeHash(dir)
 	if err != nil || b == c {
 		t.Fatalf("path change not detected: %v", err)
+	}
+}
+
+func TestBDWGCVersion(t *testing.T) {
+	version, err := parseBDWGCVersion([]byte("#define GC_TMP_VERSION_MAJOR 8\n#define GC_TMP_VERSION_MINOR 2\n#define GC_TMP_VERSION_MICRO 8 /* 8.2.8 */\n"))
+	if err != nil || version != "8.2.8" {
+		t.Fatalf("got %q, %v", version, err)
+	}
+	if _, err := parseBDWGCVersion([]byte("#define GC_TMP_VERSION_MAJOR 8\n")); err == nil {
+		t.Fatal("incomplete header accepted")
+	}
+}
+
+func TestFuzzCommandSmoke(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	path := filepath.Join(t.TempDir(), "report.json")
+	cmd := exec.CommandContext(ctx, "go", "run", ".", "-mode", "fuzz", "-root", "../..",
+		"-target", "go", "-cases", "1", "-ops", "8", "-budget", "1m", "-out", path)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("fuzz command: %v\n%s", err, output)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r report
+	if err := json.Unmarshal(data, &r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Results) != 1 || r.Results[0].Status != "pass" || r.Results[0].Cases != 1 || r.ToolchainsLockSHA256 == "" {
+		t.Fatalf("unexpected smoke report: %+v", r)
 	}
 }
 

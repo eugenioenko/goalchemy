@@ -15,7 +15,8 @@ bin/goalchemy features                                 # supported feature matri
 bin/goalchemy spec validate                            # validate the contract catalog
 bin/goalchemy spec generate [-check]                   # regenerate target specs and harness bindings
 bin/goalchemy test                                     # run contract cases through target harnesses
-go test ./...                                          # unit, contract, language, and integration tests
+go test -timeout 30m ./...                             # full seven-target suite
+go test -short -timeout 5m ./...                        # development check
 ```
 
 ## Layout
@@ -28,6 +29,9 @@ go test ./...                                          # unit, contract, languag
 - `tests/language/testdata`: source fixtures compared against native Go; `tests/corpus`: saved regressions with metadata; `examples/`: documented programs.
 
 Diagnostic codes are listed in [specs/diagnostics.md](specs/diagnostics.md).
+
+Run `scripts/fetch-toolchains.sh` to install the pinned Linux x64 JDK, .NET
+SDK, bdwgc, and LLVM toolchains before the full test suite.
 
 For seven-target differential campaigns, performance baselines, and toolchain
 upgrade reports, see [docs/hardening.md](docs/hardening.md).

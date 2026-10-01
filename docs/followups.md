@@ -4,14 +4,6 @@ Known gaps and deferred improvements, recorded so they can be picked up later.
 
 ## C target
 
-### Sanitizer runs need a newer LLVM
-
-`tests/sanitize` builds the C target with clang's address and undefined-behavior sanitizers. The machine's clang is 14 (the Ubuntu 22.04 default). Its AddressSanitizer predates support for high ASLR entropy, so on recent kernels (seen on 6.8) about one start in four segfaults before `main`, even for an empty program. The collector and generated code are not involved.
-
-Current workaround: the `c-sanitize` runner (`internal/testutil/fixture.go`) runs programs under `setarch -R`, which disables address-space randomization for those processes only.
-
-To fix: pin LLVM 18 or later, where the ASan fix landed. Either download the official release tarball into `.toolchains/`, as with the JDK and .NET, and have the sanitizer runner prefer it, or install a newer clang system-wide. Then drop `setarch -R`. This fits Milestone 11's pinned-toolchain work.
-
 ### Library mode is narrow
 
 Non-`main` packages build as C libraries (`goalchemy.h`, `libgoalchemy.a`). Current limits:

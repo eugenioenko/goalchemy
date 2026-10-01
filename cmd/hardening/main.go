@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,6 +74,7 @@ type report struct {
 	Revision              string            `json:"revision"`
 	Dirty                 bool              `json:"dirty"`
 	ContractCatalogSHA256 string            `json:"contract_catalog_sha256"`
+	ToolchainsLockSHA256  string            `json:"toolchains_lock_sha256"`
 	Toolchains            map[string]string `json:"toolchains"`
 	Host                  map[string]string `json:"host"`
 	Seed                  uint64            `json:"seed,omitempty"`
@@ -92,7 +94,7 @@ func main() {
 	previous := flag.String("previous", "", "previous compatible report for upgrade comparison")
 	seed := flag.Uint64("seed", 1, "fuzz campaign seed")
 	cases := flag.Int("cases", 2, "maximum fuzz programs")
-	ops := flag.Int("ops", 24, "operations per fuzz program")
+	ops := flag.Int("ops", 64, "operations per fuzz program")
 	budget := flag.Duration("budget", 15*time.Minute, "campaign wall-time budget, checked between target runs")
 	samples := flag.Int("samples", 2, "baseline measurements per target")
 	var targets targetList
@@ -124,9 +126,14 @@ func main() {
 		fail(fmt.Errorf("%s is not the repository root: %w", abs, err))
 	}
 	start := time.Now()
+	lock, err := os.ReadFile("toolchains.lock")
+	if err != nil {
+		fail(err)
+	}
 	r := report{SchemaVersion: reportVersion, Mode: *mode, Compiler: link.CompilerVersion,
 		SourceProfile: frontend.SourceLanguage, Revision: command("git", "rev-parse", "HEAD"),
-		Dirty: command("git", "status", "--porcelain") != "", Toolchains: toolchains(), Host: host(),
+		Dirty: command("git", "status", "--porcelain") != "", ToolchainsLockSHA256: hashText(string(lock)),
+		Toolchains: toolchains(), Host: host(),
 		BudgetSeconds: int(budget.Seconds())}
 	deadline := start.Add(*budget)
 	switch *mode {
@@ -191,19 +198,21 @@ func fail(err error) {
 
 func command(name string, args ...string) string {
 	env := driver.ToolEnv()
-	for _, item := range env {
-		key, value, ok := strings.Cut(item, "=")
-		if key != "PATH" || !ok {
-			continue
-		}
-		for _, dir := range filepath.SplitList(value) {
-			candidate := filepath.Join(dir, name)
-			if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
-				name = candidate
-				break
+	if !filepath.IsAbs(name) {
+		for _, item := range env {
+			key, value, ok := strings.Cut(item, "=")
+			if key != "PATH" || !ok {
+				continue
 			}
+			for _, dir := range filepath.SplitList(value) {
+				candidate := filepath.Join(dir, name)
+				if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+					name = candidate
+					break
+				}
+			}
+			break
 		}
-		break
 	}
 	c := exec.Command(name, args...)
 	c.Env = env
@@ -219,15 +228,49 @@ func toolchains() map[string]string {
 		"go": command("go", "version"), "node": command("node", "--version"),
 		"python": command("python3", "--version"), "java": command("javac", "-version"),
 		"dotnet": command("dotnet", "--version"), "rust": command("rustc", "--version"),
-		"c": command("cc", "--version"), "bdwgc": command("pkg-config", "--modversion", "bdw-gc"),
+		"c": command("cc", "--version"), "bdwgc": bdwgcVersion(),
 	}
-	if strings.HasPrefix(out["bdwgc"], "unavailable:") {
-		if matches, _ := filepath.Glob(".toolchains/gc-*"); len(matches) > 0 {
-			sort.Strings(matches)
-			out["bdwgc"] = filepath.Base(matches[len(matches)-1])
-		}
+	if clang, err := testutil.SanitizerClang(); err == nil {
+		out["clang"] = command(clang, "--version")
+	} else {
+		out["clang"] = "unavailable: " + err.Error()
 	}
 	return out
+}
+
+func bdwgcVersion() string {
+	tc := driver.ToolchainRoot()
+	if tc == "" {
+		return "unavailable: .toolchains not found"
+	}
+	data, err := os.ReadFile(filepath.Join(tc, "bdwgc", "include", "gc", "gc_version.h"))
+	if err != nil {
+		return "unavailable: " + err.Error()
+	}
+	version, err := parseBDWGCVersion(data)
+	if err != nil {
+		return "unavailable: " + err.Error()
+	}
+	return version
+}
+
+func parseBDWGCVersion(data []byte) (string, error) {
+	want := []string{"GC_TMP_VERSION_MAJOR", "GC_TMP_VERSION_MINOR", "GC_TMP_VERSION_MICRO"}
+	values := map[string]string{}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == "#define" {
+			if _, err := strconv.Atoi(fields[2]); err == nil {
+				values[fields[1]] = fields[2]
+			}
+		}
+	}
+	for _, key := range want {
+		if values[key] == "" {
+			return "", fmt.Errorf("gc_version.h lacks %s", key)
+		}
+	}
+	return values[want[0]] + "." + values[want[1]] + "." + values[want[2]], nil
 }
 
 func host() map[string]string {
@@ -270,6 +313,9 @@ func changes(old, now report) []string {
 	}
 	if old.ContractCatalogSHA256 != now.ContractCatalogSHA256 {
 		out = append(out, "canonical contract catalog changed")
+	}
+	if old.ToolchainsLockSHA256 != now.ToolchainsLockSHA256 {
+		out = append(out, "toolchains.lock changed")
 	}
 	if old.Compiler != now.Compiler || old.SourceProfile != now.SourceProfile {
 		out = append(out, fmt.Sprintf("compiler/profile: %s/%s -> %s/%s", old.Compiler, old.SourceProfile, now.Compiler, now.SourceProfile))
@@ -348,8 +394,10 @@ func median(values []int64) int64 {
 func build(dir, target, out string) ([]diagnostics.Diagnostic, time.Duration) {
 	start := time.Now()
 	gate := subset.Sequential
-	if src, err := os.ReadFile(filepath.Join(dir, "main.go")); err == nil && testutil.HasDirective(string(src), "gate") {
-		gate = subset.Cooperative
+	if src, err := os.ReadFile(filepath.Join(dir, "main.go")); err == nil {
+		if value := testutil.ParseDirectives(string(src)).Gate; value != "" {
+			gate = subset.Gate(value)
+		}
 	}
 	res, ds := driver.Build(context.Background(), driver.Options{Dir: dir, Gate: gate})
 	if !diagnostics.HasErrors(ds) {
@@ -399,7 +447,7 @@ type measurement struct {
 	runMS           int64
 }
 
-func fixture(dir, target string, repeat bool) (measurement, error) {
+func fixture(dir, target string, repeat bool, expected *testutil.Observation) (measurement, error) {
 	var m measurement
 	out, err := os.MkdirTemp("", "goalchemy-hardening-out-")
 	if err != nil {
@@ -435,9 +483,14 @@ func fixture(dir, target string, repeat bool) (measurement, error) {
 	if err != nil {
 		return m, err
 	}
-	want, err := testutil.Native(dir, out)
-	if err != nil {
-		return m, err
+	var want testutil.Observation
+	if expected == nil {
+		want, err = testutil.Native(dir, out)
+		if err != nil {
+			return m, err
+		}
+	} else {
+		want = *expected
 	}
 	got, want = testutil.Normalize(got), testutil.Normalize(want)
 	m.observationHash = hashText(got.String())
@@ -445,6 +498,16 @@ func fixture(dir, target string, repeat bool) (measurement, error) {
 		return m, fmt.Errorf("observation mismatch: native %s target %s", want, got)
 	}
 	return m, nil
+}
+
+func native(dir string) (testutil.Observation, error) {
+	work, err := os.MkdirTemp("", "goalchemy-hardening-native-")
+	if err != nil {
+		return testutil.Observation{}, err
+	}
+	defer os.RemoveAll(work)
+	got, err := testutil.Native(dir, work)
+	return testutil.Normalize(got), err
 }
 
 func hashText(value string) string {
@@ -491,7 +554,7 @@ func compatibility(root string, targets []string, deadline time.Time) []result {
 				r.Status = "budget_exhausted"
 				break
 			}
-			m, err := fixture(filepath.Join(root, name), target, true)
+			m, err := fixture(filepath.Join(root, name), target, true, nil)
 			r.Cases++
 			r.CompileMS, r.RunMS = append(r.CompileMS, m.compileMS), append(r.RunMS, m.runMS)
 			if name == fixtures[0] {
@@ -521,7 +584,7 @@ func baseline(root string, targets []string, samples int, deadline time.Time) []
 				r.Status = "budget_exhausted"
 				break
 			}
-			m, err := fixture(dir, target, false)
+			m, err := fixture(dir, target, false, nil)
 			r.Cases++
 			r.CompileMS, r.RunMS = append(r.CompileMS, m.compileMS), append(r.RunMS, m.runMS)
 			if i == 0 {
@@ -565,6 +628,13 @@ func fuzz(root string, targets []string, seed uint64, cases, ops int, deadline t
 		if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(program.Source()), 0o644); err != nil {
 			fail(err)
 		}
+		want, err := native(dir)
+		if err != nil {
+			results[0].Status = "fail"
+			results[0].Failures = append(results[0].Failures, fmt.Sprintf("seed %d native Go: %v", program.Seed, err))
+			markUnrun(results, cases)
+			return results, ""
+		}
 		for i, target := range targets {
 			if time.Now().After(deadline) {
 				for j := range results {
@@ -575,7 +645,7 @@ func fuzz(root string, targets []string, seed uint64, cases, ops int, deadline t
 				}
 				return results, ""
 			}
-			m, err := fixture(dir, target, false)
+			m, err := fixture(dir, target, false, &want)
 			r := &results[i]
 			r.Cases++
 			r.CompileMS, r.RunMS = append(r.CompileMS, m.compileMS), append(r.RunMS, m.runMS)
@@ -598,7 +668,11 @@ func fuzz(root string, targets []string, seed uint64, cases, ops int, deadline t
 				if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(candidate.Source()), 0o644); err != nil {
 					return false
 				}
-				_, e := fixture(dir, target, false)
+				want, e := native(dir)
+				if e != nil {
+					return false
+				}
+				_, e = fixture(dir, target, false, &want)
 				return e != nil && strings.Contains(e.Error(), "observation mismatch")
 			}
 			reduced, _ := hardening.Reduce(program, check, 24)

@@ -14,6 +14,10 @@ import (
 var targets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}
 
 func TestRegressions(t *testing.T) {
+	targets := targets
+	if testing.Short() {
+		targets = targets[:2]
+	}
 	fixtures, err := testutil.Discover(".")
 	if err != nil {
 		t.Fatal(err)

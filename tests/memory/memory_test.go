@@ -16,6 +16,9 @@ import (
 var stats = regexp.MustCompile(`heap: peak (\d+) live (\d+) collections (\d+)\n`)
 
 func TestRustHeap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("heap stress tests run in the full suite")
+	}
 	cases := []struct {
 		name      string
 		gate      string
@@ -70,6 +73,9 @@ var cStats = regexp.MustCompile(`heap: size (\d+) collections (\d+)\n`)
 // TestCHeap runs the same programs on the C target, whose Boehm collector
 // must keep the heap bounded while retaining every live object.
 func TestCHeap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("heap stress tests run in the full suite")
+	}
 	for _, c := range []struct{ name, gate string }{
 		{"cycles", ""}, {"retained", ""}, {"interior", ""}, {"tasks", "cooperative"},
 	} {
