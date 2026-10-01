@@ -1,0 +1,15 @@
+{
+  "name": "goalchemy-typescript-runtime",
+  "private": true,
+  "type": "module",
+  "description": "Goalchemy TypeScript target runtime and conformance harness.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4"
+  }
+}

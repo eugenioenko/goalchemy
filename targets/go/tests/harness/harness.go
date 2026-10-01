@@ -236,3 +236,11 @@ func EncMap[K comparable, V any](m *rt.Map[K, V], ek func(K) any, ev func(V) any
 	}
 	return map[string]any{"map": items}
 }
+
+func EncArray[T any](s []T, enc func(T) any) any {
+	items := make([]any, len(s))
+	for i, e := range s {
+		items[i] = enc(e)
+	}
+	return map[string]any{"array": items}
+}

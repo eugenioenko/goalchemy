@@ -63,3 +63,5 @@ functions:
   - {id: core.map.clear, contract_version: 1.0.0, symbol: "(*rt.Map).Clear", implementation: runtime/map_clear.go, harness: "{0}.Clear()"}
   - {id: core.map.iterate, contract_version: 1.0.0, symbol: "(*rt.Map).Iter", implementation: runtime/map_iterate.go, requires: [core.map.len], harness: "rt.MapKeys({0})"}
   - {id: core.print, contract_version: 1.0.0, symbol: "rt.PrintString", implementation: runtime/print.go, harness: "rt.PrintString({0})"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: rt.SliceClear, implementation: runtime/slice_clear.go, harness: "rt.SliceClear({0})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "[N]T(s)", implementation: runtime/slice_to_array.go, harness: "rt.SliceToArray2({0})"}

@@ -1,0 +1,38 @@
+id: core.slice.clear
+schema_version: 1
+version: 1.0.0
+summary: "clear(s): set every element of s[0:len(s)] to its zero value."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: s, type: "[]T"}
+  outputs: []
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Elements become the zero value of T."
+  nil: "Clearing a nil slice does nothing."
+  bounds: "Only elements below the length are cleared; capacity beyond it is untouched."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Writes shared backing storage; aliases observe the zeroed elements."
+  aliasing: "Slices share backing storage."
+  allocation: "No semantic storage is allocated."
+  errors: "Not applicable."
+  panics: "Never panics."
+  observations: "The cleared elements."
+cases:
+  - name: shared
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3"], "cap": "4"}}
+      - {name: t, type: "[]T", value: {"view": "s", "lo": "1", "hi": "2"}}
+    call: ["t"]
+    expect:
+      results: []
+      after:
+        - {name: s, value: {"slice": ["1", "0", "3"], "cap": "4"}}

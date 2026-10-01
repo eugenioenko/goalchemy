@@ -4,6 +4,7 @@ package contracts
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 
 	"goalchemy/internal/catalog"
@@ -47,5 +48,20 @@ func TestTargetConformance(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTypeScriptRuntimeTypechecks(t *testing.T) {
+	dir := root + "/targets/typescript"
+	if _, err := os.Stat(dir + "/node_modules/@types/node"); err != nil {
+		t.Skip("run npm install in targets/typescript to enable the type check")
+	}
+	if _, err := exec.LookPath("tsc"); err != nil {
+		t.Skip("tsc not installed")
+	}
+	cmd := exec.Command("tsc", "-p", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("tsc: %v\n%s", err, out)
 	}
 }

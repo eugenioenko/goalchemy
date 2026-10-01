@@ -658,6 +658,15 @@ var cases = map[string]func(h *H) []any{
 		h.After("s", EncSlice(v_s, func(e int) any { return EncInt(e) }))
 		return []any{EncSlice(r0, func(e int) any { return EncInt(e) })}
 	},
+	"core.slice.clear/shared": func(h *H) []any {
+		v_s := DecSlice(h.Let("s"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_s
+		v_t := View(v_s, h.Let("t"))
+		_ = v_t
+		rt.SliceClear(v_t)
+		h.After("s", EncSlice(v_s, func(e int) any { return EncInt(e) }))
+		return []any{}
+	},
 	"core.slice.copy/overlap_forward": func(h *H) []any {
 		v_s := DecSlice(h.Let("s"), func(r json.RawMessage) int { return DecInt[int](r) })
 		_ = v_s
@@ -808,6 +817,18 @@ var cases = map[string]func(h *H) []any{
 		_ = v_v
 		rt.SliceStore(v_s, v_i, v_v)
 		return []any{}
+	},
+	"core.slice.to_array/prefix": func(h *H) []any {
+		v_s := DecSlice(h.Let("s"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_s
+		r0 := rt.SliceToArray2(v_s)
+		return []any{EncArray(r0[:], func(e int) any { return EncInt(e) })}
+	},
+	"core.slice.to_array/short": func(h *H) []any {
+		v_s := DecSlice(h.Let("s"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_s
+		r0 := rt.SliceToArray2(v_s)
+		return []any{EncArray(r0[:], func(e int) any { return EncInt(e) })}
 	},
 	"core.string.compare/equal": func(h *H) []any {
 		v_a := DecString(h.Let("a"))

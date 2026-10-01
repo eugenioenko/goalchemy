@@ -43,6 +43,8 @@ func goDecode(t *contracts.TypeExpr, raw string) string {
 
 func goEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "array":
+		return fmt.Sprintf("EncArray(%s[:], func(e %s) any { return %s })", v, goType(t.Elem), goEncode(t.Elem, "e"))
 	case "slice":
 		return fmt.Sprintf("EncSlice(%s, func(e %s) any { return %s })", v, goType(t.Elem), goEncode(t.Elem, "e"))
 	case "map":

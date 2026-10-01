@@ -13,4 +13,4 @@ notes: >-
   An empty non-nil slice is distinguishable from nil. When append exceeds the
   capacity, the new capacity is max(required, max(1, 2*old_cap)), saturating at the
   representable maximum; existing aliases keep the old storage.
-exercised_by: [core.slice.make, core.slice.index, core.slice.store, core.slice.slice, core.slice.append, core.slice.copy]
+exercised_by: [core.slice.make, core.slice.index, core.slice.store, core.slice.slice, core.slice.append, core.slice.copy, core.slice.clear, core.slice.to_array]

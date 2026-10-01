@@ -11,7 +11,7 @@ import (
 	"goalchemy/internal/testutil"
 )
 
-var targets = []string{"go"}
+var targets = []string{"go", "typescript"}
 
 func TestFixtures(t *testing.T) {
 	fixtures, err := testutil.Discover("testdata")

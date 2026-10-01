@@ -32,7 +32,7 @@ func readTree(t *testing.T, dir string) map[string][]byte {
 }
 
 func TestReproducibleOutput(t *testing.T) {
-	for _, target := range []string{"go"} {
+	for _, target := range []string{"go", "typescript"} {
 		for _, f := range fixtures {
 			a, b := t.TempDir(), t.TempDir()
 			if ds := testutil.Compile(f, target, a); len(ds) > 0 {

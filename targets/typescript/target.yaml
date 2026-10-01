@@ -1,0 +1,67 @@
+schema_version: 1
+target: typescript
+version: 0.1.0
+status: experimental
+environment:
+  runtime: Node.js with TypeScript type stripping
+  minimum: Node.js 22.6 (ES2022)
+  build: node main.ts
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: JavaScript boolean.}
+  - {type: type.integer, contract_version: 1.0.0, representation: "8-, 16-, and 32-bit kinds are numbers kept in range by explicit wrapping; int, uint, int64, and uint64 are BigInt values normalized with BigInt.asIntN/asUintN (types/integer.ts)."}
+  - {type: type.string, contract_version: 1.0.0, representation: "Binary JavaScript strings holding one byte per UTF-16 code unit; comparison and concatenation are bytewise."}
+  - {type: type.array, contract_version: 1.0.0, representation: "JavaScript arrays with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.struct, contract_version: 1.0.0, representation: "One generated class per struct type; variables and fields of struct type are stable objects updated in place by $set, so field pointers stay valid."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers {a, o, l, c} over shared JavaScript arrays (types/slice.ts); rt.NIL is the nil slice."}
+  - {type: type.map, contract_version: 1.0.0, representation: "GoMap: a host Map from encoded keys to entries plus an insertion-ordered entry list for snapshot iteration (types/map.ts); nil is null."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are the objects themselves; other pointers are Cell or canonical FieldRef objects with a v accessor (types/ref.ts); nil is null."}
+  - {type: type.interface, contract_version: 1.0.0, representation: "null or a Box {t: TypeDesc, v} with per-type equality, key encoding, and method tables (types/iface.ts)."}
+  - {type: type.function, contract_version: 1.0.0, representation: "JavaScript functions tagged with $fid for recover identity; closures capture cells; nil is null."}
+  - {type: type.error, contract_version: 1.0.0, representation: "Interface Boxes; runtime errors use the RUNTIME_ERROR, PLAIN_ERROR, and TYPE_ASSERTION_ERROR descriptors (types/panic.ts)."}
+harness:
+  support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
+  generated: tests/harness/harness_gen.ts
+  command: [node, targets/typescript/tests/harness/harness.ts]
+support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.ts, harness: "rt.add_{T.kind}({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.ts, harness: "rt.sub_{T.kind}({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.mul_<k>", implementation: runtime/integer_mul.ts, harness: "rt.mul_{T.kind}({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "rt.div_<k>", implementation: runtime/integer_div.ts, harness: "rt.div_{T.kind}({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "rt.rem_<k>", implementation: runtime/integer_rem.ts, harness: "rt.rem_{T.kind}({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "rt.and_<k>", implementation: runtime/integer_and.ts, harness: "rt.and_{T.kind}({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "rt.or_<k>", implementation: runtime/integer_or.ts, harness: "rt.or_{T.kind}({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "rt.xor_<k>", implementation: runtime/integer_xor.ts, harness: "rt.xor_{T.kind}({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "rt.andnot_<k>", implementation: runtime/integer_andnot.ts, harness: "rt.andnot_{T.kind}({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "rt.neg_<k>", implementation: runtime/integer_neg.ts, harness: "rt.neg_{T.kind}({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "rt.not_<k>", implementation: runtime/integer_not.ts, harness: "rt.not_{T.kind}({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "rt.shl_<k>", implementation: runtime/integer_shl.ts, harness: "rt.shl_{T.kind}({0}, {1})"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "rt.shr_<k>", implementation: runtime/integer_shr.ts, harness: "rt.shr_{T.kind}({0}, {1})"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "rt.to_<k>", implementation: runtime/integer_convert.ts, harness: "rt.to_{U.kind}({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "rt.compare_int", implementation: runtime/integer_compare.ts, harness: "rt.compare_int({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "rt.sindex", implementation: runtime/string_index.ts, harness: "rt.sindex({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "rt.sslice", implementation: runtime/string_slice.ts, harness: "rt.sslice({0}, {1}, {2})"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "rt.concat", implementation: runtime/string_concat.ts, harness: "rt.concat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "rt.scompare", implementation: runtime/string_compare.ts, harness: "rt.scompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "rt.decodeRune", implementation: runtime/string_decode_rune.ts, harness: "rt.decodeRune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "rt.fromBytes", implementation: runtime/string_from_bytes.ts, harness: "rt.fromBytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "rt.toBytes", implementation: runtime/string_to_bytes.ts, harness: "rt.toBytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "rt.fromRunes", implementation: runtime/string_from_runes.ts, harness: "rt.fromRunes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "rt.toRunes", implementation: runtime/string_to_runes.ts, harness: "rt.toRunes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "rt.fromRune", implementation: runtime/string_from_rune.ts, harness: "rt.fromRune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "rt.makeSlice", implementation: runtime/slice_make.ts, harness: "rt.makeSlice({0}, {1}, () => {T.zero})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.sget", implementation: runtime/slice_index.ts, harness: "rt.sget({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.sset", implementation: runtime/slice_store.ts, harness: "rt.sset({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.reslice", implementation: runtime/slice_slice.ts, harness: "rt.reslice({0}, {1}, {2}, {3})"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.appendSlice", implementation: runtime/slice_append.ts, harness: "rt.appendSlice({0}, {1})"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "rt.copy", implementation: runtime/slice_copy.ts, harness: "rt.copy({0}, {1})"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: "rt.clearSlice", implementation: runtime/slice_clear.ts, harness: "rt.clearSlice({0}, () => {T.zero})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "rt.sliceToArray", implementation: runtime/slice_to_array.ts, harness: "rt.sliceToArray({0}, 2)"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "rt.makeMap", implementation: runtime/map_make.ts, harness: "rt.makeMap(rt.identityKey)"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "rt.mapGet", implementation: runtime/map_lookup.ts, harness: "rt.mapGet({0}, {1}, rt.identityKey, () => {V.zero})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "rt.mapSet", implementation: runtime/map_store.ts, harness: "rt.mapSet({0}, {1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "rt.mapDelete", implementation: runtime/map_delete.ts, harness: "rt.mapDelete({0}, {1}, rt.identityKey)"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "rt.mapLen", implementation: runtime/map_len.ts, harness: "rt.mapLen({0})"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "rt.mapClear", implementation: runtime/map_clear.ts, harness: "rt.mapClear({0})"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "rt.mapIter", implementation: runtime/map_iterate.ts, harness: "rt.mapKeys({0})", requires: [core.map.len]}
+  - {id: core.print, contract_version: 1.0.0, symbol: "rt.print", implementation: runtime/print.ts, harness: "rt.printString({0})"}

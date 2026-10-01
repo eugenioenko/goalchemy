@@ -1,0 +1,46 @@
+id: core.slice.to_array
+schema_version: 1
+version: 1.0.0
+summary: "[N]T(s): copy the first N elements of a slice into a new array value."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: s, type: "[]T"}
+  outputs:
+    - {name: a, type: "[2]T"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.array, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "A nil slice converts only to a zero-length array."
+  bounds: "len(s) must be at least N."
+  conversions: "Elements are copied by value."
+  overflow: "Not applicable."
+  mutations: "No source storage is mutated."
+  aliasing: "The array does not alias the slice."
+  allocation: "Produces a new array value."
+  errors: "Not applicable."
+  panics: "A short slice panics with runtime error: cannot convert slice with length L to array or pointer to array with length N."
+  observations: "The array elements."
+panic_categories: [slice_convert]
+notes: "Cases use N = 2; implementations are generic in N."
+cases:
+  - name: prefix
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["7", "8", "9"]}}
+    call: ["s"]
+    expect:
+      results: [{"array": ["7", "8"]}]
+  - name: short
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["7"]}}
+    call: ["s"]
+    expect:
+      panic: {category: slice_convert, message: "runtime error: cannot convert slice with length 1 to array or pointer to array with length 2"}
