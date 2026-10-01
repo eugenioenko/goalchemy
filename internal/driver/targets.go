@@ -8,15 +8,15 @@ import (
 	"sort"
 	"strings"
 
-	"goalchemy/internal/diagnostics"
-	cemit "goalchemy/internal/emit/c"
-	"goalchemy/internal/emit/csharp"
-	"goalchemy/internal/emit/golang"
-	"goalchemy/internal/emit/java"
-	"goalchemy/internal/emit/py"
-	"goalchemy/internal/emit/rust"
-	"goalchemy/internal/emit/ts"
-	"goalchemy/internal/link"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	cemit "github.com/eugenioenko/goalchemy/internal/emit/c"
+	"github.com/eugenioenko/goalchemy/internal/emit/csharp"
+	"github.com/eugenioenko/goalchemy/internal/emit/golang"
+	"github.com/eugenioenko/goalchemy/internal/emit/java"
+	"github.com/eugenioenko/goalchemy/internal/emit/py"
+	"github.com/eugenioenko/goalchemy/internal/emit/rust"
+	"github.com/eugenioenko/goalchemy/internal/emit/ts"
+	"github.com/eugenioenko/goalchemy/internal/link"
 )
 
 func init() {

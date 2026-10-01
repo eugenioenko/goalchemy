@@ -14,7 +14,7 @@ import (
 	"sort"
 	"sync"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 type Result struct {

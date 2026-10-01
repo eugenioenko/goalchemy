@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "context.DeadlineExceeded: the sentinel error for context deadline exceeded."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/context.DeadlineExceeded"
+  symbol: "github.com/eugenioenko/goalchemy/lib/context.DeadlineExceeded"
   type_parameters: []
   inputs: []
   outputs:

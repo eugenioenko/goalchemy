@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "errors.New: a distinct error value with the given message."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/errors.New"
+  symbol: "github.com/eugenioenko/goalchemy/lib/errors.New"
   type_parameters: []
   inputs:
     - {name: text, type: string}

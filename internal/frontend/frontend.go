@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 
 	"golang.org/x/tools/go/packages"
 )

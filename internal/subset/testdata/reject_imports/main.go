@@ -6,7 +6,7 @@ import (
 	"strings" // want GCS002
 	"unsafe"  // want GCS002
 
-	"goalchemy/lib/sync"
+	"github.com/eugenioenko/goalchemy/lib/sync"
 )
 
 //go:noinline

@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"goalchemy/internal/contracts"
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
 )
 
 const CompilerVersion = "0.1.0-dev"

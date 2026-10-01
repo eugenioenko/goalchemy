@@ -5,7 +5,7 @@ package main
 import (
 	"encoding/json"
 
-	rt "goalchemy/targets/go/runtime"
+	rt "github.com/eugenioenko/goalchemy/targets/go/runtime"
 )
 
 var _ json.RawMessage

@@ -2,7 +2,7 @@
 target: c
 function: std.context.canceled
 contract_version: 1.0.0
-contract_hash: 6594f9d4da23c69942d43aad674990bf0da58e61767a8a5b499e87c78fb0acac
+contract_hash: 0c1a19e1ab75a63a170e55240b353ce9daaeed17f95e72ccae68645d55e7b150
 symbol: "gx_std_context_canceled"
 implementation: runtime/std_context_canceled.c
 implementation_hash: 75ea9ac6f3a3d4700cc47f7cb64c1edd22a25ba30659ec3822274324bff5319e

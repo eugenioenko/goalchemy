@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goalchemy/internal/link"
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/link"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 var fixtures = []string{"../language/testdata/calls_results", "../language/testdata/globals_init"}

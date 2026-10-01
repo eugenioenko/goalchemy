@@ -11,7 +11,7 @@ import (
 	"os"
 	"strconv"
 
-	rt "goalchemy/targets/go/runtime"
+	rt "github.com/eugenioenko/goalchemy/targets/go/runtime"
 )
 
 const protocolVersion = 1

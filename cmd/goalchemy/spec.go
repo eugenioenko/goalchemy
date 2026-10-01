@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/link"
-	"goalchemy/internal/specgen"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/link"
+	"github.com/eugenioenko/goalchemy/internal/specgen"
 )
 
 func runSpec(ctx context.Context, args []string, stdout, stderr io.Writer) int {

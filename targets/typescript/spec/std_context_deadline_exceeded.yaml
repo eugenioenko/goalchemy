@@ -2,7 +2,7 @@
 target: typescript
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
+contract_hash: 1f1f4479245e4047f3da7baf331fbdb9fe975961cd85e43cc8d6d4368a216dff
 symbol: "rt.stdContextDeadlineExceeded"
 implementation: runtime/std_context_deadline_exceeded.ts
 implementation_hash: 7bece14a4253f95be33f59498a07feac3d2e4cb942b0e7c789805a8ce7580dc4

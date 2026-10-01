@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 func TestHarnessContextStopsBlockedRead(t *testing.T) {

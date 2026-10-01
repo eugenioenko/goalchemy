@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/ir"
 )
 
 type Output struct {

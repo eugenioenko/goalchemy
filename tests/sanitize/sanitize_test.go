@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 func TestSanitizedC(t *testing.T) {

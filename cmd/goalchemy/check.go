@@ -7,10 +7,10 @@ import (
 	"io"
 	"strings"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/frontend"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 type sourceFlags struct {

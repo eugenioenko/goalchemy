@@ -1,6 +1,6 @@
 package inner
 
-import "goalchemy/tests/language/testdata/multipkg/inner/deep"
+import "github.com/eugenioenko/goalchemy/tests/language/testdata/multipkg/inner/deep"
 
 var Value = deep.Base + 1
 

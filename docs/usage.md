@@ -75,20 +75,20 @@ Programs write output with Go's `print` and `println` builtins, which go to stan
 - `unsafe`, cgo, `goto`, and range over functions
 - pointers to slice or array elements, including pointer-receiver calls on elements
 - concurrency under the default sequential gate (compile with `-gate cooperative`)
-- imports other than module source and `goalchemy/lib/...` packages, including the standard library
+- imports other than module source and `github.com/eugenioenko/goalchemy/lib/...` packages, including the standard library
 
-Capabilities come from Goalchemy's library, imported under `goalchemy/lib/`. The packages keep the standard names, so code reads as ordinary Go:
+Capabilities come from Goalchemy's library, imported under `github.com/eugenioenko/goalchemy/lib/`. The packages keep the standard names, so code reads as ordinary Go:
 
 | Import | Provides |
 | --- | --- |
-| `goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
-| `goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
-| `goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
-| `goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
-| `goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
-| `goalchemy/lib/task` | `All` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
+| `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/task` | `All` (cooperative gate) |
 
-Each package is ordinary Go that wraps the standard library, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` directly is rejected with a remedy naming its `goalchemy/lib` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
+Each package is ordinary Go that wraps the standard library, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` directly is rejected with a remedy naming its `github.com/eugenioenko/goalchemy/lib` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 
 ## Cooperative execution
 
@@ -107,7 +107,7 @@ Every target follows the same scheduler contract and the same shared lowering:
 
 No target relies on native coroutines or threads for source tasks.
 
-`goalchemy/lib/task` provides `task.All(fns ...func())`. It runs each function as a task, in argument order and one at a time, and returns when all have finished. With the Go toolchain the same package runs the functions as goroutines.
+`github.com/eugenioenko/goalchemy/lib/task` provides `task.All(fns ...func())`. It runs each function as a task, in argument order and one at a time, and returns when all have finished. With the Go toolchain the same package runs the functions as goroutines.
 
 ## Behavior Go leaves open
 

@@ -2,7 +2,7 @@
 target: csharp
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: d508e02c62b7f34f7e17a417d2cbb020a6ebead9c18f60e02aa63cb5796ffc76
+contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
 symbol: "R.stdContextWithTimeout"
 implementation: runtime/StdContextWithTimeout.cs
 implementation_hash: 0decce7b793b938b51a02f253b0f23fb0660f49498b73a41ce8240d786fa0bea

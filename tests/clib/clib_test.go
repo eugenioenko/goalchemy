@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goalchemy/internal/driver"
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 func TestCHost(t *testing.T) {

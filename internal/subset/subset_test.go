@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/frontend"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 var wantRE = regexp.MustCompile(`// want(:-?\d+)? ((?:GC[A-Z]\d{3} ?)+)`)

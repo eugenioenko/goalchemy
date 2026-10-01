@@ -9,10 +9,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/driver"
-	"goalchemy/internal/project"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/project"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int {

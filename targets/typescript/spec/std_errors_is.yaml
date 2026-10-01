@@ -2,7 +2,7 @@
 target: typescript
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
+contract_hash: d5a4ff7fb1ecc4d0232969d48db2118c1fa5902cd96073a12cb7a09d563e3eb8
 symbol: "rt.stdErrorsIs"
 implementation: runtime/std_errors_is.ts
 implementation_hash: 73a065f737757733ca0c11f86c440508c6ee77cb135da155a9a125bfb29ea2e6

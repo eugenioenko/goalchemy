@@ -1,6 +1,6 @@
 package lower
 
-import "goalchemy/internal/ir"
+import "github.com/eugenioenko/goalchemy/internal/ir"
 
 // prune removes blocks unreachable from the entry and renumbers the rest.
 func prune(f *ir.Func) {

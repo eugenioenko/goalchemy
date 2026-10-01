@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )

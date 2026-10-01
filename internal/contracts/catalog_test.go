@@ -6,9 +6,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"goalchemy"
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 func baseFS(t *testing.T) fstest.MapFS {

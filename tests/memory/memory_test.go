@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 var stats = regexp.MustCompile(`heap: peak (\d+) live (\d+) collections (\d+)\n`)

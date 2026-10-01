@@ -2,7 +2,7 @@
 target: rust
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: d508e02c62b7f34f7e17a417d2cbb020a6ebead9c18f60e02aa63cb5796ffc76
+contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
 symbol: "std_context_with_timeout"
 implementation: runtime/std_context_with_timeout.rs
 implementation_hash: 5db6d886647a9a64be9b49e6e576c32fd6ae4652793b3e24e277008dbfacaa14

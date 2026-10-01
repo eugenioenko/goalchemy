@@ -2,7 +2,7 @@
 target: csharp
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
+contract_hash: 1f1f4479245e4047f3da7baf331fbdb9fe975961cd85e43cc8d6d4368a216dff
 symbol: "R.stdContextDeadlineExceeded"
 implementation: runtime/StdContextDeadlineExceeded.cs
 implementation_hash: 5d5656fc58ad14fd546e0d369de53b58f04325410bded341de793d4a46da4d44

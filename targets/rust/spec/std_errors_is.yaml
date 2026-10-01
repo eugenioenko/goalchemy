@@ -2,7 +2,7 @@
 target: rust
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
+contract_hash: d5a4ff7fb1ecc4d0232969d48db2118c1fa5902cd96073a12cb7a09d563e3eb8
 symbol: "std_errors_is"
 implementation: runtime/std_errors_is.rs
 implementation_hash: ddb5795a53da68f7c4b22f55406a75069bc59daebb986fe6fd5bc7c34ad1eac3

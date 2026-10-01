@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"goalchemy"
-	"goalchemy/internal/contracts"
-	"goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 )
 
 // FS returns the catalog root: GOALCHEMY_ROOT when set, else the embedded copy.

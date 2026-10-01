@@ -1,7 +1,7 @@
 // Package calc is a library compiled to C and called from a C host.
 package calc
 
-import "goalchemy/lib/errors"
+import "github.com/eugenioenko/goalchemy/lib/errors"
 
 var calls int
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"go/format"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 func init() { harnessGenerators["go"] = goHarness }
@@ -95,7 +95,7 @@ func goHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		return nil, err
 	}
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "// %s\n\npackage main\n\nimport (\n\t\"encoding/json\"\n\n\trt \"goalchemy/targets/go/runtime\"\n)\n\n", Marker)
+	fmt.Fprintf(&b, "// %s\n\npackage main\n\nimport (\n\t\"encoding/json\"\n\n\trt \"github.com/eugenioenko/goalchemy/targets/go/runtime\"\n)\n\n", Marker)
 	b.WriteString("var _ json.RawMessage\n\nvar cases = map[string]func(h *H) []any{\n")
 	for _, ci := range cases {
 		fmt.Fprintf(&b, "\t%q: func(h *H) []any {\n", ci.ID())

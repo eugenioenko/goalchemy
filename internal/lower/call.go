@@ -6,8 +6,8 @@ import (
 	"go/token"
 	"go/types"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/ir"
 )
 
 func (fl *fnLowerer) callExpr(e *ast.CallExpr) []ir.Value {

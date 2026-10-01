@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "errors.Unwrap: the result of err's Unwrap() error method, or nil."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/errors.Unwrap"
+  symbol: "github.com/eugenioenko/goalchemy/lib/errors.Unwrap"
   type_parameters: []
   inputs:
     - {name: err, type: error}

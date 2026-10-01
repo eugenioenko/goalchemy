@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"testing"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/conformance"
-	"goalchemy/internal/specgen"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/conformance"
+	"github.com/eugenioenko/goalchemy/internal/specgen"
 )
 
 const root = "../.."

@@ -2,7 +2,7 @@
 target: go
 function: lib.task.all
 contract_version: 1.0.0
-contract_hash: ba5187d6c5b24e3465b1052a4117cf9e667330ee0ba6ffbe60e1133122a61e22
+contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "rt.LibTaskAll"
 implementation: runtime/lib_task_all.go
 implementation_hash: 077e03a3bf18bf258a98c1299c0347e7a5f24ae4f80beeddb73d977d461f1eef

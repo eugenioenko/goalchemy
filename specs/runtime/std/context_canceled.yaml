@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "context.Canceled: the sentinel error for context canceled."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/context.Canceled"
+  symbol: "github.com/eugenioenko/goalchemy/lib/context.Canceled"
   type_parameters: []
   inputs: []
   outputs:

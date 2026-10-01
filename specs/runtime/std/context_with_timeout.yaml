@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/context.WithTimeout"
+  symbol: "github.com/eugenioenko/goalchemy/lib/context.WithTimeout"
   type_parameters: []
   inputs:
     - {name: parent, type: "context.Context"}

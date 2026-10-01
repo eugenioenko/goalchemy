@@ -2,7 +2,7 @@
 target: python
 function: std.context.with_cancel
 contract_version: 1.0.0
-contract_hash: d90062f83fbcbe80f504ae8178f42b0abb25458e3a6db280b7e2f13d6959de73
+contract_hash: 208de37d85af203a26b0db5f3c7b990b4df05a97babf689de54e1c8a893da6d8
 symbol: "rt.std_context_with_cancel"
 implementation: runtime/std_context_with_cancel.py
 implementation_hash: cb22b248f1621845860ed1cc372dd6509eeab869c324a3548c485d8e2e44f6b7

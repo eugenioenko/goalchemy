@@ -1,4 +1,4 @@
-module goalchemy
+module github.com/eugenioenko/goalchemy
 
 go 1.25
 

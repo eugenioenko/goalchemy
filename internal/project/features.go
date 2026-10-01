@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 type GateStatus struct {

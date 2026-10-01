@@ -10,8 +10,8 @@ import (
 	"go/types"
 	"strings"
 
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -117,12 +117,12 @@ func (c *checker) file(f *ast.File) {
 		case c.prog.IsSource(path), c.opts.ExternalPackage(path):
 		case libReplacement[path]:
 			c.report(imp, "GCS002", "import "+path,
-				fmt.Sprintf("import %q is outside goalchemy/lib", path),
-				fmt.Sprintf("Import \"goalchemy/lib/%s\" instead; it provides the supported subset with the same names.", path))
+				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/lib", path),
+				fmt.Sprintf("Import \"github.com/eugenioenko/goalchemy/lib/%s\" instead; it provides the supported subset with the same names.", path))
 		default:
 			c.report(imp, "GCS002", "import "+path,
-				fmt.Sprintf("import %q is neither included source nor a goalchemy/lib package", path),
-				"Include the package as module source or use a goalchemy/lib package.")
+				fmt.Sprintf("import %q is neither included source nor a github.com/eugenioenko/goalchemy/lib package", path),
+				"Include the package as module source or use a github.com/eugenioenko/goalchemy/lib package.")
 		}
 	}
 	for _, d := range f.Decls {
@@ -130,7 +130,7 @@ func (c *checker) file(f *ast.File) {
 	}
 }
 
-// libReplacement lists standard packages that goalchemy/lib replaces.
+// libReplacement lists standard packages that github.com/eugenioenko/goalchemy/lib replaces.
 var libReplacement = map[string]bool{"sync": true, "errors": true, "context": true, "time": true, "runtime": true}
 
 func (c *checker) decl(d ast.Decl) {

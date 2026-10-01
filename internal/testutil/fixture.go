@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/driver"
-	"goalchemy/internal/frontend"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 var llvmVersion = regexp.MustCompile(`(?m)^LLVM_VERSION='([^']+)'$`)

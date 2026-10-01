@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "runtime.Gosched: move the running task to the end of the run queue."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/runtime.Gosched"
+  symbol: "github.com/eugenioenko/goalchemy/lib/runtime.Gosched"
   type_parameters: []
   inputs: []
   outputs: []

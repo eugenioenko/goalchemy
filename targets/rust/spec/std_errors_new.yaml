@@ -2,7 +2,7 @@
 target: rust
 function: std.errors.new
 contract_version: 1.0.0
-contract_hash: 0816e67bd3ca48df493b64b9ed9f5e4cfdf6ae10722a49312bfb475a5eb58b61
+contract_hash: 8531874a68183c89a390bcac51dd6a5d39a51eb4399f2f0113f763329618702a
 symbol: "std_errors_new"
 implementation: runtime/std_errors_new.rs
 implementation_hash: f382f098fbe370bd542d13b6b4530e503544fbbe8470b41e6ed60bb6532a1331

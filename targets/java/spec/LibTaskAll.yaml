@@ -2,7 +2,7 @@
 target: java
 function: lib.task.all
 contract_version: 1.0.0
-contract_hash: ba5187d6c5b24e3465b1052a4117cf9e667330ee0ba6ffbe60e1133122a61e22
+contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "LibTaskAll.libTaskAll"
 implementation: runtime/LibTaskAll.java
 implementation_hash: d1707c00df0398452833d9cee2fd03e6202b5fb39f08832e92853d482a21b262

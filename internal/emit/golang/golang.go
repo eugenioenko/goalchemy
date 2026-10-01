@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/ir"
 )
 
 // Output is the generated main package plus the runtime contracts it needs.

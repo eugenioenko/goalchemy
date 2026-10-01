@@ -1,6 +1,6 @@
 package main
 
-import "goalchemy/lib/errors"
+import "github.com/eugenioenko/goalchemy/lib/errors"
 
 var ErrNotFound = errors.New("not found")
 

@@ -2,7 +2,7 @@
 target: c
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
+contract_hash: 1f1f4479245e4047f3da7baf331fbdb9fe975961cd85e43cc8d6d4368a216dff
 symbol: "gx_std_context_deadline_exceeded"
 implementation: runtime/std_context_deadline_exceeded.c
 implementation_hash: 6223ebfe7eb62bb3a613d6eb7a6d11e8a516d7bc146b32d4be86a8ac9bc17de8

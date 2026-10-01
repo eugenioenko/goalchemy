@@ -3,8 +3,8 @@ package main
 import (
 	"strings"
 
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/driver"
 )
 
 func targetNames() string { return strings.Join(driver.Targets(), ", ") }

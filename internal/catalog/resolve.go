@@ -11,20 +11,20 @@ import (
 	"path"
 	"strings"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
-// stdPackages lists the standard packages behind the goalchemy/lib
+// stdPackages lists the standard packages behind the github.com/eugenioenko/goalchemy/lib
 // aliases; contracts name their methods (sync.(Mutex).Lock) because alias
 // methods keep the standard identity. Programs cannot import them.
 var stdPackages = map[string]bool{"errors": true, "sync": true, "runtime": true, "context": true, "time": true}
 
 // LibModule is the import path prefix of Goalchemy's own capability
 // packages, whose Go source doubles as their declarations.
-const LibModule = "goalchemy/lib/"
+const LibModule = "github.com/eugenioenko/goalchemy/lib/"
 
 // DeclarationModule is the module path under which specs/declarations lives.
-const DeclarationModule = "goalchemy/specs/declarations/"
+const DeclarationModule = "github.com/eugenioenko/goalchemy/specs/declarations/"
 
 // Resolver type-checks Go declaration packages from the catalog filesystem
 // and returns their signatures in contract type syntax.

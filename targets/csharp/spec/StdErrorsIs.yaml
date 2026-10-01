@@ -2,7 +2,7 @@
 target: csharp
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
+contract_hash: d5a4ff7fb1ecc4d0232969d48db2118c1fa5902cd96073a12cb7a09d563e3eb8
 symbol: "R.stdErrorsIs"
 implementation: runtime/StdErrorsIs.cs
 implementation_hash: 68ca3301f4ae3ff2b86c9832a6d0cc1869475bb33fe0d6f7e3db0906d57f2a80

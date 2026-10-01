@@ -2,7 +2,7 @@
 target: c
 function: std.runtime.gosched
 contract_version: 1.0.0
-contract_hash: 1c98b80b269425eb370d3aa82cae2c257522640f337b11d84cae4d6b76e70b6e
+contract_hash: 0a7e2e0ecf3f19e719d7c1d47a8c2836d89518d9412c5e5f476558f26f342b4e
 symbol: "gx_std_runtime_gosched"
 implementation: runtime/std_runtime_gosched.c
 implementation_hash: 0b21f31964e2a1883d00bd0ae6a1d51877e990326aaed2d2fe850d111849da3e

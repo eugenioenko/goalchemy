@@ -2,7 +2,7 @@
 target: java
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 42221f239baf27af2d3fa3e285388014fe00549d562f0818f7eccf7bf5e87ba9
+contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
 symbol: "StdTimeSleep.stdTimeSleep"
 implementation: runtime/StdTimeSleep.java
 implementation_hash: f24c0031473d68abeab55b411321889b130cf101b0aff9902b24291a11a10851

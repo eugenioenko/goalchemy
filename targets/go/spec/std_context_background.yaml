@@ -2,7 +2,7 @@
 target: go
 function: std.context.background
 contract_version: 1.0.0
-contract_hash: 1d73bf6894c9feef360022afa69bebdd95bba2516d9d20146eefa216d95f6a45
+contract_hash: ea070b0ec06bd902a475fc9e09047cd020bbe0a39e65a294784e7fc899f5ad1a
 symbol: "rt.StdContextBackground"
 implementation: runtime/std_context_background.go
 implementation_hash: e6c7c0ef0e2c51397f8aeb935229683c8d5cf3e55a37019c3ec8c5f8c0804335

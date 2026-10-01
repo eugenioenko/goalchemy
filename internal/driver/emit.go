@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 )
 
 // Emitter writes a complete target build directory.

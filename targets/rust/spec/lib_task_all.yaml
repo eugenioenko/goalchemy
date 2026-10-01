@@ -2,7 +2,7 @@
 target: rust
 function: lib.task.all
 contract_version: 1.0.0
-contract_hash: ba5187d6c5b24e3465b1052a4117cf9e667330ee0ba6ffbe60e1133122a61e22
+contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "lib_task_all"
 implementation: runtime/lib_task_all.rs
 implementation_hash: ddbae6f47a6fe0a9afa544d4d7255d04ff8079e01d8cd8d9879878848aa7dab9

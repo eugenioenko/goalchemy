@@ -62,7 +62,7 @@ The installed workspace toolchain was Go 1.25.1 when this plan was written. Boot
 ## 3. Repository layout
 
 ```text
-goalchemy/
+github.com/eugenioenko/goalchemy/
   plan.md
   specs/
     language.md
@@ -85,7 +85,7 @@ goalchemy/
         slice_append.yaml
         integer_add.yaml
       concurrency/
-  cmd/goalchemy/
+  cmd/github.com/eugenioenko/goalchemy/
   internal/
     frontend/
     subset/

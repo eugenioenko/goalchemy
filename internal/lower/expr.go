@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/ir"
 )
 
 // expr lowers an expression producing exactly one value.

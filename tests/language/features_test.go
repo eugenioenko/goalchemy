@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goalchemy/internal/project"
+	"github.com/eugenioenko/goalchemy/internal/project"
 )
 
 // TestFeatureManifest checks that every supported or rejected feature names

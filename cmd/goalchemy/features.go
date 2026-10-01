@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/project"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/project"
 )
 
 func runFeatures(_ context.Context, _ []string, stdout, stderr io.Writer) int {

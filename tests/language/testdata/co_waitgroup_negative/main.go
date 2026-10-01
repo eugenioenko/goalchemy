@@ -2,7 +2,7 @@ package main
 
 // goalchemy:gate cooperative
 
-import "goalchemy/lib/sync"
+import "github.com/eugenioenko/goalchemy/lib/sync"
 
 func main() {
 	var wg sync.WaitGroup

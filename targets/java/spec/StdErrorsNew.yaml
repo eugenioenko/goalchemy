@@ -2,7 +2,7 @@
 target: java
 function: std.errors.new
 contract_version: 1.0.0
-contract_hash: 0816e67bd3ca48df493b64b9ed9f5e4cfdf6ae10722a49312bfb475a5eb58b61
+contract_hash: 8531874a68183c89a390bcac51dd6a5d39a51eb4399f2f0113f763329618702a
 symbol: "StdErrorsNew.stdErrorsNew"
 implementation: runtime/StdErrorsNew.java
 implementation_hash: 88b0c9b0eb6d1105ab223661d318ba20adeb403920a3ee10d15c79e6bf06468e

@@ -21,15 +21,15 @@ import (
 	"strings"
 	"time"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/conformance"
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/driver"
-	"goalchemy/internal/frontend"
-	"goalchemy/internal/hardening"
-	"goalchemy/internal/link"
-	"goalchemy/internal/subset"
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/conformance"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/hardening"
+	"github.com/eugenioenko/goalchemy/internal/link"
+	"github.com/eugenioenko/goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 const reportVersion = 2

@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "errors.Is: whether any error in err's Unwrap chain matches target."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/errors.Is"
+  symbol: "github.com/eugenioenko/goalchemy/lib/errors.Is"
   type_parameters: []
   inputs:
     - {name: err, type: error}

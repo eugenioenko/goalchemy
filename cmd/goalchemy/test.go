@@ -8,9 +8,9 @@ import (
 	"os"
 	"sort"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/conformance"
-	"goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/conformance"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 )
 
 func runTest(ctx context.Context, args []string, stdout, stderr io.Writer) int {

@@ -2,7 +2,7 @@
 target: java
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
+contract_hash: d5a4ff7fb1ecc4d0232969d48db2118c1fa5902cd96073a12cb7a09d563e3eb8
 symbol: "StdErrorsIs.stdErrorsIs"
 implementation: runtime/StdErrorsIs.java
 implementation_hash: 1d43ea3b16e1a449597eb9a202eba319d25b968b8ec19dc0c1ec8ff507602d01

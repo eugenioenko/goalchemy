@@ -2,7 +2,7 @@ package main
 
 // goalchemy:gate cooperative
 
-import "goalchemy/lib/task"
+import "github.com/eugenioenko/goalchemy/lib/task"
 
 func main() {
 	total := 0

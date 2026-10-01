@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "task.All: run each function as a task, in order, and resume the caller when all have finished."
 signature:
   source: declaration
-  symbol: "goalchemy/lib/task.All"
+  symbol: "github.com/eugenioenko/goalchemy/lib/task.All"
   type_parameters: []
   inputs:
     - {name: fns, type: "[]func()"}

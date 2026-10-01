@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/driver"
-	"goalchemy/internal/ir"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 func runCompile(ctx context.Context, args []string, stdout, stderr io.Writer) int {

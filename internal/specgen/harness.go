@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 // caseInfo carries a case with its instantiated types for generators.

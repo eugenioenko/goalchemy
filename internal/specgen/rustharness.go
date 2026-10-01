@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 func init() { harnessGenerators["rust"] = rustHarness }

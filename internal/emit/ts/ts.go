@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"goalchemy/internal/ir"
-	"goalchemy/internal/sourcemap"
+	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/sourcemap"
 )
 
 type Output struct {

@@ -2,7 +2,7 @@ package main
 
 // goalchemy:gate cooperative
 
-import "goalchemy/lib/context"
+import "github.com/eugenioenko/goalchemy/lib/context"
 
 func worker(ctx context.Context, in <-chan int, out chan<- int) {
 	for {

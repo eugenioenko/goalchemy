@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 func init() { harnessGenerators["java"] = javaHarness }

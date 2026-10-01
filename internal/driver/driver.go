@@ -4,13 +4,13 @@ package driver
 import (
 	"context"
 
-	"goalchemy/internal/catalog"
-	"goalchemy/internal/contracts"
-	"goalchemy/internal/diagnostics"
-	"goalchemy/internal/frontend"
-	"goalchemy/internal/ir"
-	"goalchemy/internal/lower"
-	"goalchemy/internal/subset"
+	"github.com/eugenioenko/goalchemy/internal/catalog"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/lower"
+	"github.com/eugenioenko/goalchemy/internal/subset"
 )
 
 type Options struct {

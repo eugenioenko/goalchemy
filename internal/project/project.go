@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"goalchemy/internal/contracts"
+	"github.com/eugenioenko/goalchemy/internal/contracts"
 )
 
 const FileName = "goalchemy.yaml"

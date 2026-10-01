@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goalchemy/internal/project"
-	"goalchemy/internal/testutil"
+	"github.com/eugenioenko/goalchemy/internal/project"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 var targets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}

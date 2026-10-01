@@ -7,7 +7,7 @@ import (
 	"context"
 	stdtime "time"
 
-	"goalchemy/lib/time"
+	"github.com/eugenioenko/goalchemy/lib/time"
 )
 
 // Context carries cancellation across tasks.

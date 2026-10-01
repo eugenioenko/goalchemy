@@ -4,8 +4,8 @@ package main
 // goalchemy:golden
 
 import (
-	"goalchemy/lib/runtime"
-	"goalchemy/lib/sync"
+	"github.com/eugenioenko/goalchemy/lib/runtime"
+	"github.com/eugenioenko/goalchemy/lib/sync"
 )
 
 func main() {

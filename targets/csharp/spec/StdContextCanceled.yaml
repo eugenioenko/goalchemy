@@ -2,7 +2,7 @@
 target: csharp
 function: std.context.canceled
 contract_version: 1.0.0
-contract_hash: 6594f9d4da23c69942d43aad674990bf0da58e61767a8a5b499e87c78fb0acac
+contract_hash: 0c1a19e1ab75a63a170e55240b353ce9daaeed17f95e72ccae68645d55e7b150
 symbol: "R.stdContextCanceled"
 implementation: runtime/StdContextCanceled.cs
 implementation_hash: 8a217f05afffedee2eb03e023ea2cd062f5068ff1d5d34c9dcd3171852941f6e

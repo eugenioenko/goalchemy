@@ -2,7 +2,7 @@
 target: python
 function: lib.task.all
 contract_version: 1.0.0
-contract_hash: ba5187d6c5b24e3465b1052a4117cf9e667330ee0ba6ffbe60e1133122a61e22
+contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "rt.lib_task_all"
 implementation: runtime/lib_task_all.py
 implementation_hash: 8a6af6722468e198866538d83eb77455306e7a6f22db5eb1d2713fedc1d86a6b

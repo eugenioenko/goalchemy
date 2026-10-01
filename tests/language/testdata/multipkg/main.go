@@ -1,6 +1,6 @@
 package main
 
-import "goalchemy/tests/language/testdata/multipkg/inner"
+import "github.com/eugenioenko/goalchemy/tests/language/testdata/multipkg/inner"
 
 var top = inner.Value * 2
 
