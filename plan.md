@@ -1,6 +1,6 @@
 # Goalchemy implementation plan
 
-Status: implementation baseline. Updated September 30, 2026.
+Status: implementation baseline. Updated October 1, 2026.
 
 Goalchemy is a transpiler for a restricted, Go-compatible source language. It lowers one typed program into Go, TypeScript, Python, Java, C#, Rust, and C. A shared semantic model, individually specified runtime functions, and differential tests keep those outputs consistent.
 
@@ -361,6 +361,13 @@ Use a project configuration file for roots, build tags, source profile, mappings
 | 11. Hardening | Broader fuzzing, performance baselines, upgrade workflow | Repeatable builds, bounded test budgets, and versioned compatibility reports for all seven targets |
 
 Complete the narrow Go/TypeScript vertical slice before implementing every advanced feature. Do not build a sophisticated fuzzer or all module adapters before generated programs can run.
+
+Milestone 11 evidence is in [the hardening workflow](docs/hardening.md) and
+the versioned `reports/` snapshots. The bounded differential campaign covers
+stateful sequential operations, recovered panics, and synchronized channel
+handoffs. The compatibility run checks contract cases, source observations,
+and repeatable generated builds on all seven targets; the performance run
+records compile and execution baselines for the same target set.
 
 ## 14. Change control and working rules
 

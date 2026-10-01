@@ -4,6 +4,7 @@ package conformance
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"sync"
 
 	"goalchemy/internal/contracts"
 )
@@ -47,10 +49,15 @@ type Harness struct {
 }
 
 func Start(root string, t *contracts.Target) (*Harness, error) {
+	return StartContext(context.Background(), root, t)
+}
+
+// StartContext ties the harness process lifetime to ctx.
+func StartContext(ctx context.Context, root string, t *contracts.Target) (*Harness, error) {
 	if t.Harness == nil {
 		return nil, fmt.Errorf("target %s has no harness", t.Target)
 	}
-	cmd := exec.Command(t.Harness.Command[0], t.Harness.Command[1:]...)
+	cmd := exec.CommandContext(ctx, t.Harness.Command[0], t.Harness.Command[1:]...)
 	cmd.Dir = root
 	in, err := cmd.StdinPipe()
 	if err != nil {
@@ -69,9 +76,23 @@ func Start(root string, t *contracts.Target) (*Harness, error) {
 	return &Harness{cmd: cmd, in: in, out: sc}, nil
 }
 
-type prefixWriter struct{ buf []byte }
+type prefixWriter struct {
+	mu  sync.Mutex
+	buf []byte
+}
 
-func (p *prefixWriter) Write(b []byte) (int, error) { p.buf = append(p.buf, b...); return len(b), nil }
+func (p *prefixWriter) Write(b []byte) (int, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.buf = append(p.buf, b...)
+	return len(b), nil
+}
+
+func (p *prefixWriter) String() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return string(p.buf)
+}
 
 func (h *Harness) Close() error {
 	h.in.Close()
@@ -83,10 +104,10 @@ func (h *Harness) call(req request) (response, error) {
 	req.V, req.ID = 1, fmt.Sprintf("r%d", h.n)
 	data, _ := json.Marshal(req)
 	if _, err := h.in.Write(append(data, '\n')); err != nil {
-		return response{}, fmt.Errorf("process failure: %v: %s", err, h.cmd.Stderr.(*prefixWriter).buf)
+		return response{}, fmt.Errorf("process failure: %v: %s", err, h.cmd.Stderr.(*prefixWriter).String())
 	}
 	if !h.out.Scan() {
-		return response{}, fmt.Errorf("process failure: harness exited: %s", h.cmd.Stderr.(*prefixWriter).buf)
+		return response{}, fmt.Errorf("process failure: harness exited: %s", h.cmd.Stderr.(*prefixWriter).String())
 	}
 	var resp response
 	if err := json.Unmarshal(h.out.Bytes(), &resp); err != nil {
@@ -100,11 +121,16 @@ func (h *Harness) call(req request) (response, error) {
 
 // Run executes every case of every function the target implements.
 func Run(cat *contracts.Catalog, root, target string) ([]Result, error) {
+	return RunContext(context.Background(), cat, root, target)
+}
+
+// RunContext runs contract cases with a bound on the harness process lifetime.
+func RunContext(ctx context.Context, cat *contracts.Catalog, root, target string) ([]Result, error) {
 	t, ok := cat.Targets[target]
 	if !ok {
 		return nil, fmt.Errorf("unknown target %s", target)
 	}
-	h, err := Start(filepath.Clean(root), t)
+	h, err := StartContext(ctx, filepath.Clean(root), t)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +146,9 @@ func Run(cat *contracts.Catalog, root, target string) ([]Result, error) {
 	for _, id := range ids {
 		fc := cat.Functions[id]
 		for _, c := range fc.Cases {
+			if err := ctx.Err(); err != nil {
+				return results, err
+			}
 			r := runCase(h, fc, c)
 			results = append(results, r)
 		}

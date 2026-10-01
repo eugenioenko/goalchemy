@@ -1,0 +1,149 @@
+{
+  "schema_version": 2,
+  "mode": "compat",
+  "compiler": "0.1.0-dev",
+  "source_profile": "go1.25",
+  "revision": "bdc5b7a177b6b5ee755987cd922ea6e060b8fc08",
+  "dirty": true,
+  "contract_catalog_sha256": "6ce4fff204c4d6ff0d5759a337aace11f857cd7dcc548e01375e21f64bb922ea",
+  "toolchains": {
+    "bdwgc": "gc-8.2.8",
+    "c": "cc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+    "dotnet": "8.0.425",
+    "go": "go version go1.27.1 linux/amd64",
+    "java": "javac 21.0.12.1",
+    "node": "v24.15.0",
+    "python": "Python 3.10.12",
+    "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+  },
+  "host": {
+    "cpu_model": "AMD Ryzen 7 6800H with Radeon Graphics",
+    "goarch": "amd64",
+    "goos": "linux",
+    "kernel": "Linux 6.8.0-87-generic",
+    "logical_cpus": "16"
+  },
+  "budget_seconds": 900,
+  "elapsed_ms": 36460,
+  "results": [
+    {
+      "target": "go",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "d1b60645d194b400b2f53372b2c67748f42382ba54685070a34eb7276d4cebc2",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        610,
+        609
+      ],
+      "run_ms": [
+        176,
+        181
+      ]
+    },
+    {
+      "target": "typescript",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "b33db485ca50675ea89ce68575da7705db16d930f7560591de137fb9f0942a92",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        614,
+        612
+      ],
+      "run_ms": [
+        96,
+        98
+      ]
+    },
+    {
+      "target": "python",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "c410536b4e005fe8dd5bc7e4180834fb6ef98be5855830f99eb9700a1068018a",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        615,
+        613
+      ],
+      "run_ms": [
+        24,
+        22
+      ]
+    },
+    {
+      "target": "java",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "a5897668fc8f1b1675e9cc9ebb9511f3ff37b08233f5bfa527e0567bcbe72967",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        603,
+        600
+      ],
+      "run_ms": [
+        709,
+        764
+      ]
+    },
+    {
+      "target": "csharp",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "25c854b1975773e3d25b19a62efc7f8ce4f1f5bcacb9b27e09d38afb5531dbbb",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        621,
+        623
+      ],
+      "run_ms": [
+        580,
+        608
+      ]
+    },
+    {
+      "target": "rust",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "4c1fc5015ca360d2527e3968dcd2b7ed7cc09bf66c607fa92f748ed8d8339e9a",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        607,
+        607
+      ],
+      "run_ms": [
+        606,
+        1033
+      ]
+    },
+    {
+      "target": "c",
+      "target_version": "0.1.0",
+      "status": "pass",
+      "cases": 2,
+      "contract_cases": 179,
+      "build_sha256": "7bf830041c47952737ad4e258a038c9cd6ea4638069b13a48d2883426ef357c4",
+      "observation_sha256": "501148427e2efad414c94f6ce85ce492019f7bfbc9e2fd9fdf1b96a1e82b5e8b",
+      "compile_ms": [
+        612,
+        623
+      ],
+      "run_ms": [
+        796,
+        959
+      ]
+    }
+  ]
+}

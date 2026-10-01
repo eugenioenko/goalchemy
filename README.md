@@ -28,3 +28,6 @@ go test ./...                                          # unit, contract, languag
 - `tests/language/testdata`: source fixtures compared against native Go; `tests/corpus`: saved regressions with metadata; `examples/`: documented programs.
 
 Diagnostic codes are listed in [specs/diagnostics.md](specs/diagnostics.md).
+
+For seven-target differential campaigns, performance baselines, and toolchain
+upgrade reports, see [docs/hardening.md](docs/hardening.md).
