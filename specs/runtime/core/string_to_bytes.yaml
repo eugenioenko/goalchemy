@@ -1,0 +1,43 @@
+id: core.string.to_bytes
+schema_version: 1
+version: 1.0.0
+summary: "[]byte(s) conversion."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: s, type: "string"}
+  outputs:
+    - {name: result, type: "[]uint8"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "The empty string converts to an empty non-nil slice."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Allocates fresh storage with capacity equal to length."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: basic
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "00ff"}}
+    call: ["s"]
+    expect:
+      results: [{"slice": ["0", "255"], "cap": "2"}]
+  - name: empty
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": ""}}
+    call: ["s"]
+    expect:
+      results: [{"slice": [], "cap": "0"}]

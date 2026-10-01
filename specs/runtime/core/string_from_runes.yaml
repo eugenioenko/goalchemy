@@ -1,0 +1,43 @@
+id: core.string.from_runes
+schema_version: 1
+version: 1.0.0
+summary: "string(r) for a rune slice."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: r, type: "[]int32"}
+  outputs:
+    - {name: result, type: "string"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Invalid code points and surrogates encode as U+FFFD."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: basic
+    types: {}
+    let:
+      - {name: r, type: "[]int32", value: {"slice": ["104", "233"]}}
+    call: ["r"]
+    expect:
+      results: [{"str": "hé"}]
+  - name: invalid
+    types: {}
+    let:
+      - {name: r, type: "[]int32", value: {"slice": ["-1", "55296", "1114112"]}}
+    call: ["r"]
+    expect:
+      results: [{"hex": "efbfbdefbfbdefbfbd"}]

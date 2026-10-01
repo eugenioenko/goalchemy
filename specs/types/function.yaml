@@ -1,0 +1,12 @@
+id: type.function
+schema_version: 1
+version: 1.0.0
+family: function
+summary: Function values and closures.
+semantics:
+  zero: nil
+  copying: Copying a function value shares its closure environment.
+  identity: Closures capture variables, not values; each loop iteration gets its own loop variables.
+  equality: Functions compare only with nil.
+  panics: Calling a nil function value panics.
+exercised_by: []

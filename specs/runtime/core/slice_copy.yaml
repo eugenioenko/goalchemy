@@ -1,0 +1,52 @@
+id: core.slice.copy
+schema_version: 1
+version: 1.0.0
+summary: "copy(dst, src) for slices; returns the count copied."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: dst, type: "[]T"}
+    - {name: src, type: "[]T"}
+  outputs:
+    - {name: n, type: "int"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Writes min(len(dst), len(src)) elements of dst."
+  aliasing: "Overlapping ranges copy as if through a temporary buffer."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: overlap_forward
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3", "4"]}}
+      - {name: d, type: "[]T", value: {"view": "s", "lo": "1", "hi": "4"}}
+      - {name: src, type: "[]T", value: {"view": "s", "lo": "0", "hi": "3"}}
+    call: ["d", "src"]
+    expect:
+      results: ["3"]
+      after:
+        - {name: s, value: {"slice": ["1", "1", "2", "3"], "cap": "4"}}
+  - name: short_dst
+    types: {"T": "uint8"}
+    let:
+      - {name: d, type: "[]T", value: {"slice": ["0"]}}
+      - {name: src, type: "[]T", value: {"slice": ["7", "8"]}}
+    call: ["d", "src"]
+    expect:
+      results: ["1"]
+      after:
+        - {name: d, value: {"slice": ["7"], "cap": "1"}}

@@ -1,0 +1,54 @@
+id: core.slice.store
+schema_version: 1
+version: 1.0.0
+summary: "Write s[i] = v."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+    - {name: I, family: type.integer}
+  inputs:
+    - {name: s, type: "[]T"}
+    - {name: i, type: "I"}
+    - {name: v, type: "T"}
+  outputs: []
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "0 <= i < len(s)."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Mutates shared backing storage; every alias observes the new element."
+  aliasing: "Slices share backing storage; headers are copied."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Out-of-range indices panic with runtime error: index out of range [i] with length n."
+  observations: "Not applicable."
+panic_categories: [index_out_of_range]
+cases:
+  - name: alias_visible
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3"]}}
+      - {name: t, type: "[]T", value: {"view": "s", "lo": "1", "hi": "3"}}
+      - {name: i, type: "I", value: "0"}
+      - {name: v, type: "T", value: "9"}
+    call: ["t", "i", "v"]
+    expect:
+      results: []
+      after:
+        - {name: s, value: {"slice": ["1", "9", "3"], "cap": "3"}}
+  - name: oob
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1"]}}
+      - {name: i, type: "I", value: "5"}
+      - {name: v, type: "T", value: "0"}
+    call: ["s", "i", "v"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [5] with length 1"}

@@ -1,0 +1,36 @@
+id: core.string.to_runes
+schema_version: 1
+version: 1.0.0
+summary: "[]rune(s) conversion."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: s, type: "string"}
+  outputs:
+    - {name: result, type: "[]int32"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Decodes as range over string does."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Fresh storage with capacity equal to length."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: mixed
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "61ffc3a9"}}
+    call: ["s"]
+    expect:
+      results: [{"slice": ["97", "65533", "233"], "cap": "3"}]

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goalchemy.dev/schema/function.schema.json",
+  "title": "Goalchemy runtime function contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "version", "summary", "signature", "depends_on", "suspension", "determinism", "behavior", "cases"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
+    "schema_version": {"const": 1},
+    "version": {"$ref": "#/$defs/semver"},
+    "summary": {"type": "string", "minLength": 1},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "type_parameters", "inputs", "outputs"],
+      "properties": {
+        "source": {"enum": ["intrinsic", "declaration"]},
+        "symbol": {"type": "string", "minLength": 1},
+        "type_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "family"],
+            "properties": {
+              "name": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"},
+              "family": {"type": "string", "pattern": "^(any|type\\.[a-z][a-z0-9_]*)$"},
+              "comparable": {"type": "boolean"}
+            }
+          }
+        },
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/parameter"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/parameter"}},
+        "variadic": {"type": "boolean"}
+      },
+      "if": {"properties": {"source": {"const": "declaration"}}},
+      "then": {"required": ["symbol"]},
+      "else": {"not": {"required": ["symbol"]}}
+    },
+    "depends_on": {"type": "array", "items": {"$ref": "#/$defs/dependency"}},
+    "suspension": {"enum": ["never", "may"]},
+    "determinism": {"enum": ["deterministic", "controlled", "nondeterministic"]},
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zero", "nil", "bounds", "conversions", "overflow", "mutations", "aliasing", "allocation", "errors", "panics", "observations"],
+      "properties": {
+        "zero": {"type": "string"}, "nil": {"type": "string"},
+        "bounds": {"type": "string"}, "conversions": {"type": "string"},
+        "overflow": {"type": "string"}, "mutations": {"type": "string"},
+        "aliasing": {"type": "string"}, "allocation": {"type": "string"},
+        "errors": {"type": "string"}, "panics": {"type": "string"},
+        "observations": {"type": "string"}
+      }
+    },
+    "panic_categories": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}},
+    "notes": {"type": "string"},
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "semver": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "type_expr": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_\\[\\]\\*\\.]+$"},
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "type": {"$ref": "#/$defs/type_expr"}
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"$ref": "#/$defs/semver"}
+      }
+    },
+    "value": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "object", "additionalProperties": false, "required": ["str"], "properties": {"str": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["hex"], "properties": {"hex": {"type": "string", "pattern": "^([0-9a-f]{2})*$"}}},
+        {"type": "object", "additionalProperties": false, "required": ["nil"], "properties": {"nil": {"const": true}}},
+        {"type": "object", "additionalProperties": false, "required": ["slice"], "properties": {"slice": {"type": "array", "items": {"$ref": "#/$defs/value"}}, "cap": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["array"], "properties": {"array": {"type": "array", "items": {"$ref": "#/$defs/value"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["view"], "properties": {"view": {"type": "string"}, "lo": {"type": "string"}, "hi": {"type": "string"}, "max": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["map"], "properties": {"map": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"$ref": "#/$defs/value"}, "value": {"$ref": "#/$defs/value"}}}}}},
+        {"type": "object", "additionalProperties": false, "required": ["ref"], "properties": {"ref": {"type": "string"}}}
+      ]
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "value"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "type": {"$ref": "#/$defs/type_expr"},
+        "value": {"$ref": "#/$defs/value"}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "types", "let", "call", "expect"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "types": {"type": "object", "additionalProperties": {"$ref": "#/$defs/type_expr"}},
+        "let": {"type": "array", "items": {"$ref": "#/$defs/binding"}},
+        "call": {"type": "array", "items": {"type": "string"}},
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "results": {"type": "array", "items": {"$ref": "#/$defs/value"}},
+            "panic": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["category", "message"],
+              "properties": {"category": {"type": "string"}, "message": {"type": "string"}}
+            },
+            "after": {"type": "array", "items": {
+              "type": "object", "additionalProperties": false, "required": ["name", "value"],
+              "properties": {"name": {"type": "string"}, "value": {"$ref": "#/$defs/value"}}
+            }}
+          },
+          "oneOf": [{"required": ["results"]}, {"required": ["panic"]}]
+        }
+      }
+    }
+  }
+}

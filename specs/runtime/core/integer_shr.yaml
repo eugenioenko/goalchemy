@@ -1,0 +1,80 @@
+id: core.integer.shr
+schema_version: 1
+version: 1.0.0
+summary: "Right shift: arithmetic for signed types, logical for unsigned."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+    - {name: S, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+    - {name: b, type: "S"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Counts at or beyond the width shift every bit out."
+  conversions: "The count may have any integer type; it is not converted to T."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "A negative signed count panics with runtime error: negative shift amount."
+  observations: "Not applicable."
+panic_categories: [negative_shift]
+cases:
+  - name: arith
+    types: {"T": "int", "S": "uint"}
+    let:
+      - {name: a, type: "T", value: "-8"}
+      - {name: b, type: "S", value: "1"}
+    call: ["a", "b"]
+    expect:
+      results: ["-4"]
+  - name: arith_wide
+    types: {"T": "int8", "S": "int"}
+    let:
+      - {name: a, type: "T", value: "-1"}
+      - {name: b, type: "S", value: "100"}
+    call: ["a", "b"]
+    expect:
+      results: ["-1"]
+  - name: logical
+    types: {"T": "uint8", "S": "int"}
+    let:
+      - {name: a, type: "T", value: "128"}
+      - {name: b, type: "S", value: "7"}
+    call: ["a", "b"]
+    expect:
+      results: ["1"]
+  - name: logical_wide
+    types: {"T": "uint64", "S": "uint"}
+    let:
+      - {name: a, type: "T", value: "18446744073709551615"}
+      - {name: b, type: "S", value: "64"}
+    call: ["a", "b"]
+    expect:
+      results: ["0"]
+  - name: pos_wide
+    types: {"T": "int32", "S": "int"}
+    let:
+      - {name: a, type: "T", value: "5"}
+      - {name: b, type: "S", value: "40"}
+    call: ["a", "b"]
+    expect:
+      results: ["0"]
+  - name: negative
+    types: {"T": "int8", "S": "int64"}
+    let:
+      - {name: a, type: "T", value: "1"}
+      - {name: b, type: "S", value: "-5"}
+    call: ["a", "b"]
+    expect:
+      panic: {category: negative_shift, message: "runtime error: negative shift amount"}

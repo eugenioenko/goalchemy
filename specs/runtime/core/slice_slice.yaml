@@ -1,0 +1,84 @@
+id: core.slice.slice
+schema_version: 1
+version: 1.0.0
+summary: "Full slice expression s[lo:hi:max]."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: s, type: "[]T"}
+    - {name: lo, type: "int"}
+    - {name: hi, type: "int"}
+    - {name: max, type: "int"}
+  outputs:
+    - {name: result, type: "[]T"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Requires 0 <= lo <= hi <= max <= cap(s). Two-index forms pass max = cap(s) and hi = len(s) when omitted."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "The result shares backing storage with s at offset lo."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Violations panic with Go's slice bounds messages, checking max, then hi, then lo."
+  observations: "Not applicable."
+panic_categories: [slice_bounds]
+cases:
+  - name: share
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3", "4"]}}
+      - {name: lo, type: "int", value: "1"}
+      - {name: hi, type: "int", value: "3"}
+      - {name: max, type: "int", value: "4"}
+    call: ["s", "lo", "hi", "max"]
+    expect:
+      results: [{"slice": ["2", "3"], "cap": "3"}]
+  - name: max_oob
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1"], "cap": "2"}}
+      - {name: lo, type: "int", value: "0"}
+      - {name: hi, type: "int", value: "1"}
+      - {name: max, type: "int", value: "3"}
+    call: ["s", "lo", "hi", "max"]
+    expect:
+      panic: {category: slice_bounds, message: "runtime error: slice bounds out of range [::3] with capacity 2"}
+  - name: hi_gt_max
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2"]}}
+      - {name: lo, type: "int", value: "0"}
+      - {name: hi, type: "int", value: "2"}
+      - {name: max, type: "int", value: "1"}
+    call: ["s", "lo", "hi", "max"]
+    expect:
+      panic: {category: slice_bounds, message: "runtime error: slice bounds out of range [:2:1]"}
+  - name: lo_gt_hi
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2"]}}
+      - {name: lo, type: "int", value: "2"}
+      - {name: hi, type: "int", value: "1"}
+      - {name: max, type: "int", value: "2"}
+    call: ["s", "lo", "hi", "max"]
+    expect:
+      panic: {category: slice_bounds, message: "runtime error: slice bounds out of range [2:1:]"}
+  - name: nil_empty
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"nil": true}}
+      - {name: lo, type: "int", value: "0"}
+      - {name: hi, type: "int", value: "0"}
+      - {name: max, type: "int", value: "0"}
+    call: ["s", "lo", "hi", "max"]
+    expect:
+      results: [{"nil": true}]

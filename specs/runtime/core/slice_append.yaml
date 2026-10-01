@@ -1,0 +1,84 @@
+id: core.slice.append
+schema_version: 1
+version: 1.0.0
+summary: "append(s, vs...)."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: s, type: "[]T"}
+    - {name: vs, type: "[]T"}
+  outputs:
+    - {name: result, type: "[]T"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Appending nothing to nil yields nil."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "When capacity suffices, writes into shared storage beyond len(s), which aliases observe."
+  aliasing: "Overlapping source and destination behave as if vs were copied first."
+  allocation: "When len(s)+len(vs) exceeds cap(s), allocates capacity max(required, max(1, 2*cap(s))) and copies; otherwise reuses the backing storage."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: in_place
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2"], "cap": "4"}}
+      - {name: t, type: "[]T", value: {"view": "s", "lo": "0", "hi": "2"}}
+      - {name: vs, type: "[]T", value: {"slice": ["3"]}}
+    call: ["s", "vs"]
+    expect:
+      results: [{"slice": ["1", "2", "3"], "cap": "4"}]
+      after:
+        - {name: t, value: {"slice": ["1", "2"], "cap": "4"}}
+  - name: grow_doubles
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3"]}}
+      - {name: vs, type: "[]T", value: {"slice": ["4"]}}
+    call: ["s", "vs"]
+    expect:
+      results: [{"slice": ["1", "2", "3", "4"], "cap": "6"}]
+  - name: grow_required
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1"]}}
+      - {name: vs, type: "[]T", value: {"slice": ["2", "3", "4"]}}
+    call: ["s", "vs"]
+    expect:
+      results: [{"slice": ["1", "2", "3", "4"], "cap": "4"}]
+  - name: nil_empty
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"nil": true}}
+      - {name: vs, type: "[]T", value: {"nil": true}}
+    call: ["s", "vs"]
+    expect:
+      results: [{"nil": true}]
+  - name: from_nil
+    types: {"T": "string"}
+    let:
+      - {name: s, type: "[]T", value: {"nil": true}}
+      - {name: vs, type: "[]T", value: {"slice": [{"str": "a"}]}}
+    call: ["s", "vs"]
+    expect:
+      results: [{"slice": [{"str": "a"}], "cap": "1"}]
+  - name: overlap
+    types: {"T": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["1", "2", "3"], "cap": "6"}}
+      - {name: a, type: "[]T", value: {"view": "s", "lo": "0", "hi": "1"}}
+      - {name: vs, type: "[]T", value: {"view": "s", "lo": "0", "hi": "3"}}
+    call: ["a", "vs"]
+    expect:
+      results: [{"slice": ["1", "1", "2", "3"], "cap": "6"}]
+      after:
+        - {name: s, value: {"slice": ["1", "1", "2"], "cap": "6"}}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goalchemy.dev/schema/type.schema.json",
+  "title": "Goalchemy canonical type contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "version", "family", "summary", "semantics", "exercised_by"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^type\\.[a-z][a-z0-9_]*$"},
+    "schema_version": {"const": 1},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "family": {"enum": ["boolean", "integer", "string", "array", "struct", "slice", "map", "pointer", "interface", "function", "error", "task", "channel"]},
+    "summary": {"type": "string", "minLength": 1},
+    "semantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zero", "copying", "identity", "equality", "panics"],
+      "properties": {
+        "zero": {"type": "string", "minLength": 1},
+        "copying": {"type": "string", "minLength": 1},
+        "identity": {"type": "string", "minLength": 1},
+        "equality": {"type": "string", "minLength": 1},
+        "panics": {"type": "string", "minLength": 1}
+      }
+    },
+    "members": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*$"}
+    },
+    "notes": {"type": "string"},
+    "exercised_by": {"type": "array", "items": {"type": "string"}}
+  }
+}

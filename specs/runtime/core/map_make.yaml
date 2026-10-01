@@ -1,0 +1,35 @@
+id: core.map.make
+schema_version: 1
+version: 1.0.0
+summary: "make(map[K]V)."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: K, family: any, comparable: true}
+    - {name: V, family: any}
+  inputs: []
+  outputs:
+    - {name: result, type: "map[K]V"}
+depends_on:
+  - {id: type.map, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "All copies of a map value share entries."
+  allocation: "Allocates an empty map."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: empty
+    types: {"K": "string", "V": "int"}
+    let: []
+    call: []
+    expect:
+      results: [{"map": []}]

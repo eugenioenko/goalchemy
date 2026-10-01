@@ -1,0 +1,52 @@
+id: core.map.store
+schema_version: 1
+version: 1.0.0
+summary: "m[k] = v."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: K, family: any, comparable: true}
+    - {name: V, family: any}
+  inputs:
+    - {name: m, type: "map[K]V"}
+    - {name: k, type: "K"}
+    - {name: v, type: "V"}
+  outputs: []
+depends_on:
+  - {id: type.map, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Inserts or updates the entry; updating keeps its iteration position."
+  aliasing: "All copies of a map value share entries."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Storing into a nil map panics with assignment to entry in nil map."
+  observations: "Not applicable."
+panic_categories: [nil_map_write]
+cases:
+  - name: update_keeps_order
+    types: {"K": "int", "V": "int"}
+    let:
+      - {name: m, type: "map[K]V", value: {"map": [{"key": "1", "value": "1"}, {"key": "2", "value": "2"}]}}
+      - {name: k, type: "K", value: "1"}
+      - {name: v, type: "V", value: "9"}
+    call: ["m", "k", "v"]
+    expect:
+      results: []
+      after:
+        - {name: m, value: {"map": [{"key": "1", "value": "9"}, {"key": "2", "value": "2"}]}}
+  - name: nil_map
+    types: {"K": "int", "V": "int"}
+    let:
+      - {name: m, type: "map[K]V", value: {"nil": true}}
+      - {name: k, type: "K", value: "1"}
+      - {name: v, type: "V", value: "1"}
+    call: ["m", "k", "v"]
+    expect:
+      panic: {category: nil_map_write, message: "assignment to entry in nil map"}

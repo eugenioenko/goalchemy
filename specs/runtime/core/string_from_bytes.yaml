@@ -1,0 +1,43 @@
+id: core.string.from_bytes
+schema_version: 1
+version: 1.0.0
+summary: "string(b) for a byte slice."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: b, type: "[]uint8"}
+  outputs:
+    - {name: result, type: "string"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.slice, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "A nil slice converts to the empty string."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "The string does not alias the slice; later slice mutation does not change it."
+  allocation: "Copies the bytes."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: basic
+    types: {}
+    let:
+      - {name: b, type: "[]uint8", value: {"slice": ["104", "105"]}}
+    call: ["b"]
+    expect:
+      results: [{"str": "hi"}]
+  - name: nil
+    types: {}
+    let:
+      - {name: b, type: "[]uint8", value: {"nil": true}}
+    call: ["b"]
+    expect:
+      results: [{"str": ""}]

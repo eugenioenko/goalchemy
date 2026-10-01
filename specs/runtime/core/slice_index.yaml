@@ -1,0 +1,57 @@
+id: core.slice.index
+schema_version: 1
+version: 1.0.0
+summary: "Read s[i]."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+    - {name: I, family: type.integer}
+  inputs:
+    - {name: s, type: "[]T"}
+    - {name: i, type: "I"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "A nil slice has length 0."
+  bounds: "i must satisfy 0 <= i < len(s); capacity is not consulted."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Slices share backing storage; headers are copied."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Out-of-range indices panic with runtime error: index out of range [i] with length n."
+  observations: "Not applicable."
+panic_categories: [index_out_of_range]
+cases:
+  - name: basic
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["5", "6"]}}
+      - {name: i, type: "I", value: "1"}
+    call: ["s", "i"]
+    expect:
+      results: ["6"]
+  - name: beyond_len
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"slice": ["5"], "cap": "3"}}
+      - {name: i, type: "I", value: "1"}
+    call: ["s", "i"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [1] with length 1"}
+  - name: nil
+    types: {"T": "string", "I": "int"}
+    let:
+      - {name: s, type: "[]T", value: {"nil": true}}
+      - {name: i, type: "I", value: "0"}
+    call: ["s", "i"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [0] with length 0"}

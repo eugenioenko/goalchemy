@@ -1,0 +1,46 @@
+id: core.integer.xor
+schema_version: 1
+version: 1.0.0
+summary: "Bitwise exclusive OR."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+    - {name: b, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Bitwise results are always representable in T."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The typed result."
+cases:
+  - name: u64
+    types: {"T": "uint64"}
+    let:
+      - {name: a, type: "T", value: "18446744073709551615"}
+      - {name: b, type: "T", value: "1"}
+    call: ["a", "b"]
+    expect:
+      results: ["18446744073709551614"]
+  - name: i32
+    types: {"T": "int32"}
+    let:
+      - {name: a, type: "T", value: "-1"}
+      - {name: b, type: "T", value: "2147483647"}
+    call: ["a", "b"]
+    expect:
+      results: ["-2147483648"]

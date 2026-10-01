@@ -1,0 +1,48 @@
+id: core.map.lookup
+schema_version: 1
+version: 1.0.0
+summary: "v, ok := m[k]."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: K, family: any, comparable: true}
+    - {name: V, family: any}
+  inputs:
+    - {name: m, type: "map[K]V"}
+    - {name: k, type: "K"}
+  outputs:
+    - {name: value, type: "V"}
+    - {name: ok, type: "bool"}
+depends_on:
+  - {id: type.map, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Missing keys yield the zero value of V."
+  nil: "Lookup in a nil map returns the zero value and false."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "All copies of a map value share entries."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: present
+    types: {"K": "string", "V": "int"}
+    let:
+      - {name: m, type: "map[K]V", value: {"map": [{"key": {"str": "a"}, "value": "1"}]}}
+      - {name: k, type: "K", value: {"str": "a"}}
+    call: ["m", "k"]
+    expect:
+      results: ["1", "true"]
+  - name: nil_map
+    types: {"K": "int", "V": "string"}
+    let:
+      - {name: m, type: "map[K]V", value: {"nil": true}}
+      - {name: k, type: "K", value: "3"}
+    call: ["m", "k"]
+    expect:
+      results: [{"str": ""}, "false"]

@@ -1,0 +1,45 @@
+id: core.map.len
+schema_version: 1
+version: 1.0.0
+summary: "len(m)."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: K, family: any, comparable: true}
+    - {name: V, family: any}
+  inputs:
+    - {name: m, type: "map[K]V"}
+  outputs:
+    - {name: n, type: "int"}
+depends_on:
+  - {id: type.map, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "A nil map has length 0."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "All copies of a map value share entries."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: nil
+    types: {"K": "int", "V": "int"}
+    let:
+      - {name: m, type: "map[K]V", value: {"nil": true}}
+    call: ["m"]
+    expect:
+      results: ["0"]
+  - name: two
+    types: {"K": "int", "V": "int"}
+    let:
+      - {name: m, type: "map[K]V", value: {"map": [{"key": "1", "value": "1"}, {"key": "2", "value": "2"}]}}
+    call: ["m"]
+    expect:
+      results: ["2"]

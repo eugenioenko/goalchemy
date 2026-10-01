@@ -1,0 +1,12 @@
+id: type.array
+schema_version: 1
+version: 1.0.0
+family: array
+summary: Fixed-length value arrays.
+semantics:
+  zero: Every element holds its zero value.
+  copying: Assignment, argument passing, and return copy every element by value.
+  identity: An array variable is storage; its elements are not separately addressable in 0.1.
+  equality: Comparable when the element type is comparable; equal when all elements are equal.
+  panics: Indexing outside [0, len) panics.
+exercised_by: []

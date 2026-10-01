@@ -1,0 +1,58 @@
+id: core.string.from_rune
+schema_version: 1
+version: 1.0.0
+summary: "string(x) for an integer value, encoding one code point."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: I, family: type.integer}
+  inputs:
+    - {name: r, type: "I"}
+  outputs:
+    - {name: result, type: "string"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Values outside the valid code point range, including surrogates and huge unsigned values, yield U+FFFD."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: ascii
+    types: {"I": "int32"}
+    let:
+      - {name: r, type: "I", value: "65"}
+    call: ["r"]
+    expect:
+      results: [{"str": "A"}]
+  - name: surrogate
+    types: {"I": "int"}
+    let:
+      - {name: r, type: "I", value: "55296"}
+    call: ["r"]
+    expect:
+      results: [{"str": "�"}]
+  - name: huge
+    types: {"I": "int64"}
+    let:
+      - {name: r, type: "I", value: "4294967361"}
+    call: ["r"]
+    expect:
+      results: [{"str": "�"}]
+  - name: negative
+    types: {"I": "int8"}
+    let:
+      - {name: r, type: "I", value: "-1"}
+    call: ["r"]
+    expect:
+      results: [{"str": "�"}]

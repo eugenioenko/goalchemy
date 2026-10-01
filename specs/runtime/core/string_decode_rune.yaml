@@ -1,0 +1,87 @@
+id: core.string.decode_rune
+schema_version: 1
+version: 1.0.0
+summary: "Decode one UTF-8 rune at a byte offset, as range over string does."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: s, type: "string"}
+    - {name: i, type: "int"}
+  outputs:
+    - {name: r, type: "int32"}
+    - {name: width, type: "int"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "The offset must satisfy 0 <= i < len(s); callers guarantee this."
+  conversions: "Invalid encodings, surrogates, and overlong forms yield U+FFFD with width 1."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: ascii
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "a"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["97", "1"]
+  - name: two
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "é"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["233", "2"]
+  - name: four
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "😀"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["128512", "4"]
+  - name: invalid
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "ff"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["65533", "1"]
+  - name: truncated
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "e282"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["65533", "1"]
+  - name: surrogate
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "eda080"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["65533", "1"]
+  - name: overlong
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"hex": "c0af"}}
+      - {name: i, type: "int", value: "0"}
+    call: ["s", "i"]
+    expect:
+      results: ["65533", "1"]

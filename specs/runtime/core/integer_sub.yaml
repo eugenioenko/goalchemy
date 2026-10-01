@@ -1,0 +1,62 @@
+id: core.integer.sub
+schema_version: 1
+version: 1.0.0
+summary: "Wrapping subtraction."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+    - {name: b, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Operands share the type T; no implicit conversion occurs."
+  overflow: "The result wraps modulo 2^width and is reinterpreted with the type's signedness."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The typed result."
+cases:
+  - name: uint8_wrap
+    types: {"T": "uint8"}
+    let:
+      - {name: a, type: "T", value: "0"}
+      - {name: b, type: "T", value: "1"}
+    call: ["a", "b"]
+    expect:
+      results: ["255"]
+  - name: int16_wrap
+    types: {"T": "int16"}
+    let:
+      - {name: a, type: "T", value: "-32768"}
+      - {name: b, type: "T", value: "1"}
+    call: ["a", "b"]
+    expect:
+      results: ["32767"]
+  - name: uint_wrap
+    types: {"T": "uint"}
+    let:
+      - {name: a, type: "T", value: "0"}
+      - {name: b, type: "T", value: "1"}
+    call: ["a", "b"]
+    expect:
+      results: ["18446744073709551615"]
+  - name: int_plain
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "T", value: "5"}
+      - {name: b, type: "T", value: "7"}
+    call: ["a", "b"]
+    expect:
+      results: ["-2"]

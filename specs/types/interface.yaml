@@ -1,0 +1,12 @@
+id: type.interface
+schema_version: 1
+version: 1.0.0
+family: interface
+summary: Dynamic type and value pairs.
+semantics:
+  zero: The nil interface, which holds no dynamic type.
+  copying: Boxing copies the dynamic value; copying an interface shares nothing mutable.
+  identity: A typed nil pointer in an interface is not a nil interface.
+  equality: Equal when dynamic types are identical and dynamic values are equal; comparing uncomparable dynamic values panics.
+  panics: Failed non-comma-ok assertions panic with a runtime type assertion error, and calling a method on a nil interface panics.
+exercised_by: []

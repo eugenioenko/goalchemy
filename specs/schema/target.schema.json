@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goalchemy.dev/schema/target.schema.json",
+  "title": "Goalchemy target mapping",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target", "version", "status", "environment", "representations", "functions"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "target": {"enum": ["go", "typescript", "python", "java", "csharp", "rust", "c"]},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "status": {"enum": ["planned", "experimental", "released"]},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime", "minimum"],
+      "properties": {
+        "runtime": {"type": "string"},
+        "minimum": {"type": "string"},
+        "build": {"type": "string"}
+      }
+    },
+    "representations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "contract_version", "representation"],
+        "properties": {
+          "type": {"type": "string", "pattern": "^type\\.[a-z][a-z0-9_]*$"},
+          "contract_version": {"type": "string"},
+          "representation": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contract_version", "symbol", "implementation"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "contract_version": {"type": "string"},
+          "symbol": {"type": "string", "minLength": 1},
+          "implementation": {"type": "string", "minLength": 1},
+          "requires": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "support_files": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}

@@ -1,0 +1,45 @@
+id: core.string.concat
+schema_version: 1
+version: 1.0.0
+summary: "Concatenation of two strings."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: a, type: "string"}
+    - {name: b, type: "string"}
+  outputs:
+    - {name: result, type: "string"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Allocates a new immutable string."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Bytes of a followed by bytes of b."
+cases:
+  - name: basic
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"str": "ab"}}
+      - {name: b, type: "string", value: {"str": "cd"}}
+    call: ["a", "b"]
+    expect:
+      results: [{"str": "abcd"}]
+  - name: raw_bytes
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"hex": "ff"}}
+      - {name: b, type: "string", value: {"hex": "00fe"}}
+    call: ["a", "b"]
+    expect:
+      results: [{"hex": "ff00fe"}]

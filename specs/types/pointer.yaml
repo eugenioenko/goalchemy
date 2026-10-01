@@ -1,0 +1,13 @@
+id: type.pointer
+schema_version: 1
+version: 1.0.0
+family: pointer
+summary: References to logical storage locations.
+semantics:
+  zero: nil
+  copying: Copying a pointer preserves the identity of the location.
+  identity: Two pointers are equal when they designate the same variable, field, or allocation.
+  equality: Pointers of the same type are comparable; nil equals only nil.
+  panics: Dereferencing nil, including through field access, panics.
+notes: Pointers to slice or array elements are rejected in 0.1. Host addresses are never exposed.
+exercised_by: []

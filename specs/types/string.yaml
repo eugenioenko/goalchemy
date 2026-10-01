@@ -1,0 +1,15 @@
+id: type.string
+schema_version: 1
+version: 1.0.0
+family: string
+summary: Immutable sequences of arbitrary bytes.
+semantics:
+  zero: The empty string.
+  copying: Strings are immutable, so copying shares no observable state.
+  identity: Strings have no identity beyond their bytes.
+  equality: Equal when lengths and all bytes are equal; ordering is bytewise lexicographic.
+  panics: Byte indexing and slicing outside the bounds panic.
+notes: >-
+  Length and indices count bytes. Range iteration decodes UTF-8; each invalid
+  byte yields U+FFFD with width 1. Conversion from a byte or rune slice copies.
+exercised_by: [core.string.index, core.string.slice, core.string.concat, core.string.decode_rune, core.string.from_bytes, core.string.to_bytes, core.string.from_runes, core.string.to_runes, core.string.from_rune, core.string.compare]

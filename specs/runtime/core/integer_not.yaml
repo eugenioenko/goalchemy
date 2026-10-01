@@ -1,0 +1,50 @@
+id: core.integer.not
+schema_version: 1
+version: 1.0.0
+summary: "Bitwise complement."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Always representable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: signed
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "T", value: "0"}
+    call: ["a"]
+    expect:
+      results: ["-1"]
+  - name: u32
+    types: {"T": "uint32"}
+    let:
+      - {name: a, type: "T", value: "0"}
+    call: ["a"]
+    expect:
+      results: ["4294967295"]
+  - name: u8
+    types: {"T": "uint8"}
+    let:
+      - {name: a, type: "T", value: "15"}
+    call: ["a"]
+    expect:
+      results: ["240"]

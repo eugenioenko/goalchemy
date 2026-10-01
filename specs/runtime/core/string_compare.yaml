@@ -1,0 +1,61 @@
+id: core.string.compare
+schema_version: 1
+version: 1.0.0
+summary: "Bytewise lexicographic three-way comparison."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: a, type: "string"}
+    - {name: b, type: "string"}
+  outputs:
+    - {name: result, type: "int"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Bytes compare as unsigned values; no Unicode collation is applied."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: less
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"str": "ab"}}
+      - {name: b, type: "string", value: {"str": "b"}}
+    call: ["a", "b"]
+    expect:
+      results: ["-1"]
+  - name: prefix
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"str": "ab"}}
+      - {name: b, type: "string", value: {"str": "a"}}
+    call: ["a", "b"]
+    expect:
+      results: ["1"]
+  - name: high_byte
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"hex": "ff"}}
+      - {name: b, type: "string", value: {"hex": "7f"}}
+    call: ["a", "b"]
+    expect:
+      results: ["1"]
+  - name: equal
+    types: {}
+    let:
+      - {name: a, type: "string", value: {"str": "x"}}
+      - {name: b, type: "string", value: {"str": "x"}}
+    call: ["a", "b"]
+    expect:
+      results: ["0"]

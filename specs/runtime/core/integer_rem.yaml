@@ -1,0 +1,71 @@
+id: core.integer.rem
+schema_version: 1
+version: 1.0.0
+summary: "Truncating integer remainder; the result has the sign of the dividend."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+    - {name: b, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "The most negative value modulo -1 is 0."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "A zero divisor panics with runtime error: integer divide by zero."
+  observations: "The remainder."
+panic_categories: [divide_by_zero]
+cases:
+  - name: neg_dividend
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "T", value: "-7"}
+      - {name: b, type: "T", value: "2"}
+    call: ["a", "b"]
+    expect:
+      results: ["-1"]
+  - name: neg_divisor
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "T", value: "7"}
+      - {name: b, type: "T", value: "-2"}
+    call: ["a", "b"]
+    expect:
+      results: ["1"]
+  - name: min_neg1
+    types: {"T": "int64"}
+    let:
+      - {name: a, type: "T", value: "-9223372036854775808"}
+      - {name: b, type: "T", value: "-1"}
+    call: ["a", "b"]
+    expect:
+      results: ["0"]
+  - name: uint
+    types: {"T": "uint32"}
+    let:
+      - {name: a, type: "T", value: "4294967295"}
+      - {name: b, type: "T", value: "10"}
+    call: ["a", "b"]
+    expect:
+      results: ["5"]
+  - name: by_zero
+    types: {"T": "uint8"}
+    let:
+      - {name: a, type: "T", value: "1"}
+      - {name: b, type: "T", value: "0"}
+    call: ["a", "b"]
+    expect:
+      panic: {category: divide_by_zero, message: "runtime error: integer divide by zero"}

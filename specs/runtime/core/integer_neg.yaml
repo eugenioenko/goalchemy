@@ -1,0 +1,57 @@
+id: core.integer.neg
+schema_version: 1
+version: 1.0.0
+summary: "Wrapping negation."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Negating the most negative signed value yields itself; unsigned negation is 2^width - a."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: min
+    types: {"T": "int32"}
+    let:
+      - {name: a, type: "T", value: "-2147483648"}
+    call: ["a"]
+    expect:
+      results: ["-2147483648"]
+  - name: unsigned
+    types: {"T": "uint8"}
+    let:
+      - {name: a, type: "T", value: "1"}
+    call: ["a"]
+    expect:
+      results: ["255"]
+  - name: plain
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "T", value: "5"}
+    call: ["a"]
+    expect:
+      results: ["-5"]
+  - name: u64
+    types: {"T": "uint64"}
+    let:
+      - {name: a, type: "T", value: "1"}
+    call: ["a"]
+    expect:
+      results: ["18446744073709551615"]

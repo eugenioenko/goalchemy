@@ -1,0 +1,12 @@
+id: type.struct
+schema_version: 1
+version: 1.0.0
+family: struct
+summary: Struct values with named and embedded fields.
+semantics:
+  zero: Every field holds its zero value.
+  copying: Assignment, argument passing, return, and boxing copy fields by value; reference fields keep their referent.
+  identity: Struct storage locations are stable, so pointers to a variable or field survive assignment to the enclosing value.
+  equality: Comparable when every field is comparable; equal when all fields are equal in declaration order.
+  panics: Comparing a struct whose interface field holds an uncomparable dynamic value panics.
+exercised_by: []

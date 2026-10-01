@@ -1,0 +1,68 @@
+id: core.string.slice
+schema_version: 1
+version: 1.0.0
+summary: "Substring by byte bounds lo and hi."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs:
+    - {name: s, type: "string"}
+    - {name: lo, type: "int"}
+    - {name: hi, type: "int"}
+  outputs:
+    - {name: result, type: "string"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Indices are byte offsets checked against the length."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Bounds violations panic with Go's slice bounds messages using the string length."
+  observations: "Results are byte strings."
+panic_categories: [slice_bounds]
+cases:
+  - name: mid
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "hello"}}
+      - {name: lo, type: "int", value: "1"}
+      - {name: hi, type: "int", value: "3"}
+    call: ["s", "lo", "hi"]
+    expect:
+      results: [{"str": "el"}]
+  - name: hi_oob
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "abc"}}
+      - {name: lo, type: "int", value: "0"}
+      - {name: hi, type: "int", value: "4"}
+    call: ["s", "lo", "hi"]
+    expect:
+      panic: {category: slice_bounds, message: "runtime error: slice bounds out of range [:4] with length 3"}
+  - name: inverted
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "abc"}}
+      - {name: lo, type: "int", value: "2"}
+      - {name: hi, type: "int", value: "1"}
+    call: ["s", "lo", "hi"]
+    expect:
+      panic: {category: slice_bounds, message: "runtime error: slice bounds out of range [2:1]"}
+  - name: split_rune
+    types: {}
+    let:
+      - {name: s, type: "string", value: {"str": "é"}}
+      - {name: lo, type: "int", value: "1"}
+      - {name: hi, type: "int", value: "2"}
+    call: ["s", "lo", "hi"]
+    expect:
+      results: [{"hex": "a9"}]

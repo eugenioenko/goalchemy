@@ -1,0 +1,13 @@
+id: type.boolean
+schema_version: 1
+version: 1.0.0
+family: boolean
+summary: Go bool values.
+semantics:
+  zero: "false"
+  copying: Assignment and argument passing copy the value.
+  identity: Booleans have no identity beyond their value.
+  equality: Equal when both are true or both are false.
+  panics: Boolean operations never panic.
+notes: Conjunction and disjunction evaluate their right operand only when needed.
+exercised_by: [core.print]

@@ -1,0 +1,59 @@
+id: core.print
+schema_version: 1
+version: 1.0.0
+summary: "print/println of Booleans, integers, and strings to standard error."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: v, type: "T"}
+  outputs:
+    - {name: text, type: "string"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+  - {id: type.string, version: 1.0.0}
+  - {id: type.boolean, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "No quoting or escaping is applied."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Integers print in decimal, Booleans as true or false, strings as raw bytes. println separates operands by one space and ends with a newline."
+cases:
+  - name: int
+    types: {"T": "int"}
+    let:
+      - {name: v, type: "T", value: "-12"}
+    call: ["v"]
+    expect:
+      results: [{"str": "-12"}]
+  - name: bool
+    types: {"T": "bool"}
+    let:
+      - {name: v, type: "T", value: "true"}
+    call: ["v"]
+    expect:
+      results: [{"str": "true"}]
+  - name: bytes
+    types: {"T": "string"}
+    let:
+      - {name: v, type: "T", value: {"hex": "ff41"}}
+    call: ["v"]
+    expect:
+      results: [{"hex": "ff41"}]
+  - name: u64
+    types: {"T": "uint64"}
+    let:
+      - {name: v, type: "T", value: "18446744073709551615"}
+    call: ["v"]
+    expect:
+      results: [{"str": "18446744073709551615"}]

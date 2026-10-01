@@ -1,0 +1,13 @@
+id: type.error
+schema_version: 1
+version: 1.0.0
+family: error
+summary: The predeclared error interface and runtime error values.
+semantics:
+  zero: The nil error.
+  copying: Errors are interface values and copy as interfaces.
+  identity: Distinct errors.New calls produce distinct, unequal error values with equal messages.
+  equality: Interface equality; pointer-backed errors compare by identity.
+  panics: Runtime panics carry runtime.Error values whose Error() text matches Go.
+notes: Error messages observable through Error() are part of the contract.
+exercised_by: []

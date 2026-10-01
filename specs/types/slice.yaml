@@ -1,0 +1,16 @@
+id: type.slice
+schema_version: 1
+version: 1.0.0
+family: slice
+summary: Slice headers over shared backing storage.
+semantics:
+  zero: The nil slice, with no backing storage and zero length and capacity.
+  copying: Copying a slice copies its header; element storage stays shared.
+  identity: Backing storage identity is observable through element mutation via any alias.
+  equality: Slices compare only with nil.
+  panics: Indexing outside [0, len) and slicing outside 0 <= lo <= hi <= max <= cap panic.
+notes: >-
+  An empty non-nil slice is distinguishable from nil. When append exceeds the
+  capacity, the new capacity is max(required, max(1, 2*old_cap)), saturating at the
+  representable maximum; existing aliases keep the old storage.
+exercised_by: [core.slice.make, core.slice.index, core.slice.store, core.slice.slice, core.slice.append, core.slice.copy]

@@ -1,0 +1,19 @@
+id: type.integer
+schema_version: 1
+version: 1.0.0
+family: integer
+summary: Fixed-width two's-complement integers, with int and uint fixed at 64 bits.
+semantics:
+  zero: "0"
+  copying: Assignment and argument passing copy the value.
+  identity: Integers have no identity beyond their value.
+  equality: Equal when the typed values are numerically equal.
+  panics: Integer division or remainder by zero and negative shift counts panic; nothing else does.
+members: [int8, int16, int32, int64, int, uint8, uint16, uint32, uint64, uint]
+notes: >-
+  Arithmetic wraps modulo 2^width. Signed division truncates toward zero and the
+  most negative value divided by -1 wraps to itself. Shift counts greater than or
+  equal to the width produce 0, or -1 for a right shift of a negative signed value.
+  Conversions truncate to the target width and reinterpret signedness.
+  Compile-time constants use arbitrary precision and never pass through host floats.
+exercised_by: [core.integer.add, core.integer.sub, core.integer.mul, core.integer.div, core.integer.rem, core.integer.shl, core.integer.shr, core.integer.convert]

@@ -1,0 +1,57 @@
+id: core.slice.make
+schema_version: 1
+version: 1.0.0
+summary: "make([]T, len, cap)."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+    - {name: I, family: type.integer}
+  inputs:
+    - {name: len, type: "I"}
+    - {name: cap, type: "I"}
+  outputs:
+    - {name: result, type: "[]T"}
+depends_on:
+  - {id: type.slice, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Every element holds the zero value of T."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Slices share backing storage; headers are copied."
+  allocation: "Allocates cap elements of fresh storage."
+  errors: "Not applicable."
+  panics: "A negative or out-of-range length panics with runtime error: makeslice: len out of range; a capacity below the length panics with runtime error: makeslice: cap out of range."
+  observations: "Not applicable."
+panic_categories: [makeslice]
+cases:
+  - name: basic
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: len, type: "I", value: "2"}
+      - {name: cap, type: "I", value: "4"}
+    call: ["len", "cap"]
+    expect:
+      results: [{"slice": ["0", "0"], "cap": "4"}]
+  - name: neg_len
+    types: {"T": "int", "I": "int"}
+    let:
+      - {name: len, type: "I", value: "-1"}
+      - {name: cap, type: "I", value: "4"}
+    call: ["len", "cap"]
+    expect:
+      panic: {category: makeslice, message: "runtime error: makeslice: len out of range"}
+  - name: cap_lt_len
+    types: {"T": "uint8", "I": "int"}
+    let:
+      - {name: len, type: "I", value: "3"}
+      - {name: cap, type: "I", value: "2"}
+    call: ["len", "cap"]
+    expect:
+      panic: {category: makeslice, message: "runtime error: makeslice: cap out of range"}

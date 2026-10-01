@@ -1,0 +1,64 @@
+id: core.string.index
+schema_version: 1
+version: 1.0.0
+summary: "Byte at an index of a string."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: I, family: type.integer}
+  inputs:
+    - {name: s, type: "string"}
+    - {name: i, type: "I"}
+  outputs:
+    - {name: b, type: "uint8"}
+depends_on:
+  - {id: type.string, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Indices are byte offsets checked against the length."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "An index outside [0, len) panics with runtime error: index out of range [i] with length n."
+  observations: "Results are byte strings."
+panic_categories: [index_out_of_range]
+cases:
+  - name: first
+    types: {"I": "int"}
+    let:
+      - {name: s, type: "string", value: {"str": "héllo"}}
+      - {name: i, type: "I", value: "1"}
+    call: ["s", "i"]
+    expect:
+      results: ["195"]
+  - name: oob
+    types: {"I": "int"}
+    let:
+      - {name: s, type: "string", value: {"str": "abc"}}
+      - {name: i, type: "I", value: "3"}
+    call: ["s", "i"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [3] with length 3"}
+  - name: negative
+    types: {"I": "int"}
+    let:
+      - {name: s, type: "string", value: {"str": "abc"}}
+      - {name: i, type: "I", value: "-1"}
+    call: ["s", "i"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [-1]"}
+  - name: unsigned_huge
+    types: {"I": "uint64"}
+    let:
+      - {name: s, type: "string", value: {"str": "abc"}}
+      - {name: i, type: "I", value: "18446744073709551615"}
+    call: ["s", "i"]
+    expect:
+      panic: {category: index_out_of_range, message: "runtime error: index out of range [18446744073709551615] with length 3"}

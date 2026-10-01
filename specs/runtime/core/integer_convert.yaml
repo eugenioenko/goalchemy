@@ -1,0 +1,72 @@
+id: core.integer.convert
+schema_version: 1
+version: 1.0.0
+summary: "Integer conversion between widths and signedness."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.integer}
+    - {name: U, family: type.integer}
+  inputs:
+    - {name: a, type: "T"}
+  outputs:
+    - {name: result, type: "U"}
+depends_on:
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Truncates to the width of U, then interprets the bits with U's signedness; widening sign-extends signed sources."
+  overflow: "Values are reduced modulo 2^width(U)."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Not applicable."
+cases:
+  - name: truncate
+    types: {"T": "int", "U": "int8"}
+    let:
+      - {name: a, type: "T", value: "300"}
+    call: ["a"]
+    expect:
+      results: ["44"]
+  - name: sign_extend
+    types: {"T": "int8", "U": "uint64"}
+    let:
+      - {name: a, type: "T", value: "-1"}
+    call: ["a"]
+    expect:
+      results: ["18446744073709551615"]
+  - name: unsigned_wrap
+    types: {"T": "uint64", "U": "int64"}
+    let:
+      - {name: a, type: "T", value: "18446744073709551615"}
+    call: ["a"]
+    expect:
+      results: ["-1"]
+  - name: narrow_unsigned
+    types: {"T": "int32", "U": "uint16"}
+    let:
+      - {name: a, type: "T", value: "-1"}
+    call: ["a"]
+    expect:
+      results: ["65535"]
+  - name: same
+    types: {"T": "int", "U": "int"}
+    let:
+      - {name: a, type: "T", value: "7"}
+    call: ["a"]
+    expect:
+      results: ["7"]
+  - name: u32_to_i32
+    types: {"T": "uint32", "U": "int32"}
+    let:
+      - {name: a, type: "T", value: "4294967295"}
+    call: ["a"]
+    expect:
+      results: ["-1"]

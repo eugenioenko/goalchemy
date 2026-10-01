@@ -1,0 +1,18 @@
+id: type.map
+schema_version: 1
+version: 1.0.0
+family: map
+summary: References to shared mutable hash maps.
+semantics:
+  zero: The nil map, which has length zero and reads as empty.
+  copying: Copying a map value shares the same map storage.
+  identity: All copies of a map value observe the same entries.
+  equality: Maps compare only with nil.
+  panics: Storing into a nil map panics; hashing an uncomparable interface key panics.
+notes: >-
+  Goalchemy iterates in insertion order. Iteration snapshots entry identities at
+  start, skips entries deleted before they are visited, excludes entries inserted
+  during iteration, and reads each value when it is visited. Updating a key keeps
+  its position; deleting then reinserting creates a new entry at the end.
+  Native Go comparisons allow any Go-permitted order.
+exercised_by: [core.map.make, core.map.lookup, core.map.store, core.map.delete, core.map.len, core.map.clear, core.map.iterate]
