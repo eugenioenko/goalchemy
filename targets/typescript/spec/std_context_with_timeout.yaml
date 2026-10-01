@@ -2,7 +2,7 @@
 target: typescript
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 3f50472320e12e48e2515a6fb16febc33a5a8b40a48f7dfd84da90cf8b8f2cb7
+contract_hash: d508e02c62b7f34f7e17a417d2cbb020a6ebead9c18f60e02aa63cb5796ffc76
 symbol: "rt.stdContextWithTimeout"
 implementation: runtime/std_context_with_timeout.ts
 implementation_hash: 009585a43c41ece5e85b1e18b95fd8bc9ad9161627d5c3bb69da5bb56a1323a4

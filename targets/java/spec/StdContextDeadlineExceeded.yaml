@@ -2,7 +2,7 @@
 target: java
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 3d163fdc4d3063be59cdc9f763c8eaa27f92a41493b8141a2df464b7a2074ac2
+contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
 symbol: "StdContextDeadlineExceeded.stdContextDeadlineExceeded"
 implementation: runtime/StdContextDeadlineExceeded.java
 implementation_hash: 3b6dda4847139e6de7d6f44ff893f38fad016e00fcd1329c7b2b0a468ef08f99

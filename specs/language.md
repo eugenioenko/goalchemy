@@ -171,6 +171,8 @@ Cycles are permitted in the semantic object graph. Each target must preserve the
 
 ## 11. Diagnostics and support claims
 
+A program imports only its own module's packages and Goalchemy library packages under `goalchemy/lib/`; every other import, including the Go standard library, is rejected. Library packages keep standard names (`goalchemy/lib/sync`, `goalchemy/lib/errors`, `goalchemy/lib/context`, `goalchemy/lib/time`, `goalchemy/lib/runtime`) and are native Go wrappers when the program runs with the Go toolchain.
+
 Unsupported syntax, types, operations, imports, effects, and target capabilities are compile errors. Each diagnostic includes a stable code, source span, symbol context when available, and a concrete remedy.
 
 The compiler reports independently discoverable errors together. It may stop analysis of a malformed expression or package when Go typing cannot provide enough information, and must identify that limitation.

@@ -2,7 +2,7 @@
 target: python
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 3f50472320e12e48e2515a6fb16febc33a5a8b40a48f7dfd84da90cf8b8f2cb7
+contract_hash: d508e02c62b7f34f7e17a417d2cbb020a6ebead9c18f60e02aa63cb5796ffc76
 symbol: "rt.std_context_with_timeout"
 implementation: runtime/std_context_with_timeout.py
 implementation_hash: 9c89be843bcbb64677cb24db4d600038d097f279a5cc1ca8a210034e40124e6b

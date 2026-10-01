@@ -2,7 +2,7 @@
 target: typescript
 function: std.context.with_cancel
 contract_version: 1.0.0
-contract_hash: ec27b5332bc375f942b8743302c3e150d464b8ff4ad18cd13071994aafd58d20
+contract_hash: d90062f83fbcbe80f504ae8178f42b0abb25458e3a6db280b7e2f13d6959de73
 symbol: "rt.stdContextWithCancel"
 implementation: runtime/std_context_with_cancel.ts
 implementation_hash: b31d867b6c147353071899d32ff6f9c38962d40eb2692f464be68e573428644f

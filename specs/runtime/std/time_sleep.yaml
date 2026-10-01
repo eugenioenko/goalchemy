@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "time.Sleep: suspend for a duration of virtual time."
 signature:
   source: declaration
-  symbol: "time.Sleep"
+  symbol: "goalchemy/lib/time.Sleep"
   type_parameters: []
   inputs:
     - {name: d, type: "time.Duration"}

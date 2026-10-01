@@ -1,16 +1,19 @@
 package main
 
 import (
-	"errors"
+	"errors"  // want GCS002
 	"fmt"     // want GCS002
 	"strings" // want GCS002
 	"unsafe"  // want GCS002
+
+	"goalchemy/lib/sync"
 )
 
 //go:noinline
 func f() {} // want:-1 GCS001
 
 func main() {
-	fmt.Println(strings.ToUpper("x"), unsafe.Sizeof(0))
-	_ = errors.Join // want GCS008
+	var mu sync.Mutex
+	fmt.Println(strings.ToUpper("x"), unsafe.Sizeof(0), errors.New("x"))
+	_ = mu.TryLock // want GCS008
 }

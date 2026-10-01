@@ -2,7 +2,7 @@
 target: csharp
 function: std.runtime.gosched
 contract_version: 1.0.0
-contract_hash: a0864086c243fec66262ff03d7b8c05ae576a139729c74d043697057d14ca3dd
+contract_hash: 1c98b80b269425eb370d3aa82cae2c257522640f337b11d84cae4d6b76e70b6e
 symbol: "R.stdRuntimeGosched"
 implementation: runtime/StdRuntimeGosched.cs
 implementation_hash: ee7b33c84d381009cffa477ba6397aa1c52ea74eb8582eb0a013daf7e84c8f4a

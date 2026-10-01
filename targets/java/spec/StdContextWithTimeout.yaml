@@ -2,7 +2,7 @@
 target: java
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 3f50472320e12e48e2515a6fb16febc33a5a8b40a48f7dfd84da90cf8b8f2cb7
+contract_hash: d508e02c62b7f34f7e17a417d2cbb020a6ebead9c18f60e02aa63cb5796ffc76
 symbol: "StdContextWithTimeout.stdContextWithTimeout"
 implementation: runtime/StdContextWithTimeout.java
 implementation_hash: 3069139aebb23e8295de1bbaeab837c3cb622aeda2b2069336859566873df7c2

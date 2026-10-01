@@ -3,8 +3,8 @@ package main
 // goalchemy:gate cooperative
 
 import (
-	"context"
-	"time"
+	"goalchemy/lib/context"
+	"goalchemy/lib/time"
 )
 
 func main() {

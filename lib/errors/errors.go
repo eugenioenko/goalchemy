@@ -1,0 +1,14 @@
+// Package errors provides Goalchemy's error values. This file is the native
+// Go implementation used when the program runs with the Go toolchain.
+package errors
+
+import "errors"
+
+// New returns a distinct error whose message is text.
+func New(text string) error { return errors.New(text) }
+
+// Is reports whether any error in err's Unwrap chain matches target.
+func Is(err, target error) bool { return errors.Is(err, target) }
+
+// Unwrap returns the result of err's Unwrap method, or nil.
+func Unwrap(err error) error { return errors.Unwrap(err) }

@@ -2,7 +2,7 @@
 target: typescript
 function: std.runtime.gosched
 contract_version: 1.0.0
-contract_hash: a0864086c243fec66262ff03d7b8c05ae576a139729c74d043697057d14ca3dd
+contract_hash: 1c98b80b269425eb370d3aa82cae2c257522640f337b11d84cae4d6b76e70b6e
 symbol: "rt.stdRuntimeGosched"
 implementation: runtime/std_runtime_gosched.ts
 implementation_hash: 10eb79782020f1a4163bc96b9af9076ed311c9990b57187611d1ff6c9b4aece6

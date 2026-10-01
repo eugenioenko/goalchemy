@@ -2,7 +2,7 @@
 // audit logging.
 package main
 
-import "errors"
+import "goalchemy/lib/errors"
 
 var ErrInsufficient = errors.New("insufficient funds")
 

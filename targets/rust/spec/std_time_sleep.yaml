@@ -2,7 +2,7 @@
 target: rust
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 0314aab192eaccebd9bc47b63f466cedd8c0d1bb882b45ded05bb3b5ed7c4abc
+contract_hash: 42221f239baf27af2d3fa3e285388014fe00549d562f0818f7eccf7bf5e87ba9
 symbol: "std_time_sleep"
 implementation: runtime/std_time_sleep.rs
 implementation_hash: 1c0cf98402d8aaab23e6158678bb7929296e2ea8a2f0965c8cf4ad30c231313e

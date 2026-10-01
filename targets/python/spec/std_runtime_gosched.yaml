@@ -2,7 +2,7 @@
 target: python
 function: std.runtime.gosched
 contract_version: 1.0.0
-contract_hash: a0864086c243fec66262ff03d7b8c05ae576a139729c74d043697057d14ca3dd
+contract_hash: 1c98b80b269425eb370d3aa82cae2c257522640f337b11d84cae4d6b76e70b6e
 symbol: "rt.std_runtime_gosched"
 implementation: runtime/std_runtime_gosched.py
 implementation_hash: 94fd0b5f3c8e9a957607b0a6d368ab99963d228dff4f26ed37766fa0d4600b1b

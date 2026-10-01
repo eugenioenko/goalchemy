@@ -2,7 +2,7 @@
 target: go
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: 36dd740c92a9143eb3a501293d22581484a05f87727def22bf830d1ae1ea2d23
+contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
 symbol: "rt.StdErrorsIs"
 implementation: runtime/std_errors_is.go
 implementation_hash: bbd5f3f4dc1ffa6ff4d5373618983f5a3de470ced98b3f59cbbe9d463156a969

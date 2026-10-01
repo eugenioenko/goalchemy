@@ -115,16 +115,23 @@ func (c *checker) file(f *ast.File) {
 		case path == "unsafe":
 			c.report(imp, "GCS002", "import unsafe", "package unsafe is rejected", "Remove unsafe operations.")
 		case c.prog.IsSource(path), c.opts.ExternalPackage(path):
+		case libReplacement[path]:
+			c.report(imp, "GCS002", "import "+path,
+				fmt.Sprintf("import %q is outside goalchemy/lib", path),
+				fmt.Sprintf("Import \"goalchemy/lib/%s\" instead; it provides the supported subset with the same names.", path))
 		default:
 			c.report(imp, "GCS002", "import "+path,
-				fmt.Sprintf("import %q is neither included source nor a registered capability", path),
-				"Include the package as module source or declare an external capability for it.")
+				fmt.Sprintf("import %q is neither included source nor a goalchemy/lib package", path),
+				"Include the package as module source or use a goalchemy/lib package.")
 		}
 	}
 	for _, d := range f.Decls {
 		c.decl(d)
 	}
 }
+
+// libReplacement lists standard packages that goalchemy/lib replaces.
+var libReplacement = map[string]bool{"sync": true, "errors": true, "context": true, "time": true, "runtime": true}
 
 func (c *checker) decl(d ast.Decl) {
 	switch d := d.(type) {

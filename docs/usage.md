@@ -64,9 +64,20 @@ Programs write output with Go's `print` and `println` builtins, which go to stan
 - `unsafe`, cgo, `goto`, and range over functions
 - pointers to slice or array elements, including pointer-receiver calls on elements
 - concurrency under the default sequential gate (compile with `-gate cooperative`)
-- imports other than module source and registered capabilities
+- imports other than module source and `goalchemy/lib/...` packages, including the standard library
 
-Registered standard-library capabilities are `errors.New`, `errors.Is`, and `errors.Unwrap`, plus `goalchemy/lib/task.All`, and, under the cooperative gate, `sync.Mutex`, `sync.WaitGroup`, `runtime.Gosched`, `time.Sleep`, and `context.Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, `Done`, and `Err`. `errors.As`, `errors.Join`, and `fmt` are not available.
+Capabilities come from Goalchemy's library, imported under `goalchemy/lib/`. The packages keep the standard names, so code reads as ordinary Go:
+
+| Import | Provides |
+| --- | --- |
+| `goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
+| `goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
+| `goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
+| `goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
+| `goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
+| `goalchemy/lib/task` | `All` (cooperative gate) |
+
+Each package is ordinary Go that wraps the standard library, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` directly is rejected with a remedy naming its `goalchemy/lib` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 
 ## Cooperative execution
 

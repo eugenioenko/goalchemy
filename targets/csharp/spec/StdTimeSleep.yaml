@@ -2,7 +2,7 @@
 target: csharp
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 0314aab192eaccebd9bc47b63f466cedd8c0d1bb882b45ded05bb3b5ed7c4abc
+contract_hash: 42221f239baf27af2d3fa3e285388014fe00549d562f0818f7eccf7bf5e87ba9
 symbol: "R.stdTimeSleep"
 implementation: runtime/StdTimeSleep.cs
 implementation_hash: 625511412cf5d92bad73cb2f251646ab1c1804c2b51958237f23f58e63ba0053

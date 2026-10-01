@@ -2,7 +2,7 @@
 target: rust
 function: std.context.with_cancel
 contract_version: 1.0.0
-contract_hash: ec27b5332bc375f942b8743302c3e150d464b8ff4ad18cd13071994aafd58d20
+contract_hash: d90062f83fbcbe80f504ae8178f42b0abb25458e3a6db280b7e2f13d6959de73
 symbol: "std_context_with_cancel"
 implementation: runtime/std_context_with_cancel.rs
 implementation_hash: 16d76f470dae8c2eacdb9cf35928485168d0dd40e5eb577c82a097336d7056e5

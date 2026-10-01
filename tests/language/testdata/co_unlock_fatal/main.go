@@ -2,7 +2,7 @@ package main
 
 // goalchemy:gate cooperative
 
-import "sync"
+import "goalchemy/lib/sync"
 
 func main() {
 	var mu sync.Mutex

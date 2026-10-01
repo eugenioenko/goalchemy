@@ -2,7 +2,7 @@
 target: java
 function: std.context.canceled
 contract_version: 1.0.0
-contract_hash: 77a8fde78b8536c85e69ca651cd2c38534db5e78d3503cce9555d574c8370916
+contract_hash: 6594f9d4da23c69942d43aad674990bf0da58e61767a8a5b499e87c78fb0acac
 symbol: "StdContextCanceled.stdContextCanceled"
 implementation: runtime/StdContextCanceled.java
 implementation_hash: 81a80ac63746daa61b8b804c7533c2d5d7d28d84ab0df0351908b1485b54a5f6

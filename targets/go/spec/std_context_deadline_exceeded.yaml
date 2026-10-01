@@ -2,7 +2,7 @@
 target: go
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 3d163fdc4d3063be59cdc9f763c8eaa27f92a41493b8141a2df464b7a2074ac2
+contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
 symbol: "rt.StdContextDeadlineExceeded"
 implementation: runtime/std_context_deadline_exceeded.go
 implementation_hash: b08c6e5d1da178adfce695982d62e69e21224c375a561bda5627deac739f877f

@@ -86,14 +86,20 @@ func (r *Registry) External(obj types.Object) bool {
 	if obj.Pkg() == nil {
 		return false
 	}
+	lib := r.Packages[obj.Pkg().Path()] || strings.HasPrefix(obj.Pkg().Path(), LibModule)
 	switch o := obj.(type) {
 	case *types.Const:
-		return r.Packages[obj.Pkg().Path()]
+		return lib
 	case *types.TypeName:
+		if o.IsAlias() {
+			if n, ok := types.Unalias(o.Type()).(*types.Named); ok && r.IsOpaque(n.Obj()) {
+				return true
+			}
+		}
 		if r.Opaque[obj.Pkg().Path()+"."+obj.Name()] {
 			return true
 		}
-		if !r.Packages[obj.Pkg().Path()] {
+		if !lib {
 			return false
 		}
 		switch o.Type().Underlying().(type) {
@@ -111,4 +117,6 @@ func (r *Registry) IsOpaque(obj *types.TypeName) bool {
 	return obj.Pkg() != nil && r.Opaque[obj.Pkg().Path()+"."+obj.Name()]
 }
 
-func (r *Registry) Package(path string) bool { return r.Packages[path] }
+// Package reports whether a program may import path as a capability
+// package: only Goalchemy's library packages qualify.
+func (r *Registry) Package(path string) bool { return strings.HasPrefix(path, LibModule) }

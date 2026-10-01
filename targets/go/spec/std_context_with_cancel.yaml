@@ -2,7 +2,7 @@
 target: go
 function: std.context.with_cancel
 contract_version: 1.0.0
-contract_hash: ec27b5332bc375f942b8743302c3e150d464b8ff4ad18cd13071994aafd58d20
+contract_hash: d90062f83fbcbe80f504ae8178f42b0abb25458e3a6db280b7e2f13d6959de73
 symbol: "rt.StdContextWithCancel"
 implementation: runtime/std_context_with_cancel.go
 implementation_hash: b4995ed09b8f2622b8d5da6e5fd767066821c00cf10fdc6eb60099babeda120e

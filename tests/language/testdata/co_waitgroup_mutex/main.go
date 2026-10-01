@@ -2,7 +2,7 @@ package main
 
 // goalchemy:gate cooperative
 
-import "sync"
+import "goalchemy/lib/sync"
 
 type Counter struct {
 	mu sync.Mutex

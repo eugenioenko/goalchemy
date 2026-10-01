@@ -2,7 +2,7 @@
 target: python
 function: std.errors.is
 contract_version: 1.0.0
-contract_hash: 36dd740c92a9143eb3a501293d22581484a05f87727def22bf830d1ae1ea2d23
+contract_hash: d8676f6c9d84021b98a1162d0d6675e8a549ab078e8b9d1e25c10695dc967e6e
 symbol: "rt.std_errors_is"
 implementation: runtime/std_errors_is.py
 implementation_hash: a48772a7364ab7d08d49ad972015579d716a749cca8a9307546b1524ab23846f

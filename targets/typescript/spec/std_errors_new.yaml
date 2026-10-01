@@ -2,7 +2,7 @@
 target: typescript
 function: std.errors.new
 contract_version: 1.0.0
-contract_hash: 984ccfc75d1856f52f20cb0da2a6affb3c9f456930f0f733c4670b7eaed8e20d
+contract_hash: 0816e67bd3ca48df493b64b9ed9f5e4cfdf6ae10722a49312bfb475a5eb58b61
 symbol: "rt.stdErrorsNew"
 implementation: runtime/std_errors_new.ts
 implementation_hash: 086f5a41394fdd5e9ef77e379dba32aaf65cf9315fd19d4418b2ac127ebc7dae

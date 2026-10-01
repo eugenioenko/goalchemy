@@ -14,7 +14,9 @@ import (
 	"goalchemy/internal/contracts"
 )
 
-// stdPackages lists standard packages whose symbols may be mapped.
+// stdPackages lists the standard packages behind the goalchemy/lib
+// aliases; contracts name their methods (sync.(Mutex).Lock) because alias
+// methods keep the standard identity. Programs cannot import them.
 var stdPackages = map[string]bool{"errors": true, "sync": true, "runtime": true, "context": true, "time": true}
 
 // LibModule is the import path prefix of Goalchemy's own capability

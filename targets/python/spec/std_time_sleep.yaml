@@ -2,7 +2,7 @@
 target: python
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 0314aab192eaccebd9bc47b63f466cedd8c0d1bb882b45ded05bb3b5ed7c4abc
+contract_hash: 42221f239baf27af2d3fa3e285388014fe00549d562f0818f7eccf7bf5e87ba9
 symbol: "rt.std_time_sleep"
 implementation: runtime/std_time_sleep.py
 implementation_hash: 52010fbde41959e70998fd3f21e18b848ddf023261d21e0872342aad97af0a3a

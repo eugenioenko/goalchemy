@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "context.WithCancel: a child whose cancel function closes Done and sets Err to context.Canceled."
 signature:
   source: declaration
-  symbol: "context.WithCancel"
+  symbol: "goalchemy/lib/context.WithCancel"
   type_parameters: []
   inputs:
     - {name: parent, type: "context.Context"}

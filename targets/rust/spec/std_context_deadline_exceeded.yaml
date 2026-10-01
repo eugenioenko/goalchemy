@@ -2,7 +2,7 @@
 target: rust
 function: std.context.deadline_exceeded
 contract_version: 1.0.0
-contract_hash: 3d163fdc4d3063be59cdc9f763c8eaa27f92a41493b8141a2df464b7a2074ac2
+contract_hash: 83743de053c1b1eb3fc3476cb1e8d61443b4126f319dc8a44df09b4a09f674f3
 symbol: "std_context_deadline_exceeded"
 implementation: runtime/std_context_deadline_exceeded.rs
 implementation_hash: 6adde83304c6fe90c22b46c05540041333316d8d146d68e287090e8401021b63

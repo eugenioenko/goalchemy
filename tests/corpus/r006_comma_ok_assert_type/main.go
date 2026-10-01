@@ -1,6 +1,6 @@
 package main
 
-import "errors"
+import "goalchemy/lib/errors"
 
 func main() {
 	var v any = errors.New("e")

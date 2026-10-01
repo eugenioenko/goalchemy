@@ -4,7 +4,7 @@ version: 1.0.0
 summary: "context.Background: the never-cancelled root context."
 signature:
   source: declaration
-  symbol: "context.Background"
+  symbol: "goalchemy/lib/context.Background"
   type_parameters: []
   inputs: []
   outputs:
