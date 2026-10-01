@@ -1,0 +1,7 @@
+exit=0
+--- stdout
+--- stderr
+c a b e d 
+c=1 a=10 e=1 d=1 b=20 
+c:1 a:10 d:99 b:20 
+5

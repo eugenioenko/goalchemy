@@ -3,9 +3,9 @@ target: go
 function: core.map.clear
 contract_version: 1.0.0
 contract_hash: afc9251629736d253ea8b5e0ea5589b4bb5f71fe989b087189a47ab7b9bc115f
-symbol: "(*rt.Map).Clear"
+symbol: "(rt.Map).Clear"
 implementation: runtime/map_clear.go
-implementation_hash: 66b0bf859fc326caba91ea370886bfed6861f22c62f471add4e21f208d630602
+implementation_hash: ce9e0fa6c92ec12f1d2f1df4cdc7bb765665f63d29eff3dee8a9cee0ea13c163
 summary: "clear(m)."
 suspension: never
 determinism: deterministic

@@ -3,9 +3,9 @@ target: go
 function: core.map.len
 contract_version: 1.0.0
 contract_hash: 46d9fca75b2e5656e8336d98991091d5e40a2f5bf047f0ec658215235423b6a3
-symbol: "(*rt.Map).Len"
+symbol: "(rt.Map).Len"
 implementation: runtime/map_len.go
-implementation_hash: fcdbfbfdf271106c755918e56061fd99f23a30c97adfc5993c65e9787d5fb2ed
+implementation_hash: c4484bdd470f5657f9850fd7b0f33fabb6379d9ea8a0cfdef7e550d31ee8a222
 summary: "len(m)."
 suspension: never
 determinism: deterministic

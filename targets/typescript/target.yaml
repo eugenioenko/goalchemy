@@ -65,3 +65,6 @@ functions:
   - {id: core.map.clear, contract_version: 1.0.0, symbol: "rt.mapClear", implementation: runtime/map_clear.ts, harness: "rt.mapClear({0})"}
   - {id: core.map.iterate, contract_version: 1.0.0, symbol: "rt.mapIter", implementation: runtime/map_iterate.ts, harness: "rt.mapKeys({0})", requires: [core.map.len]}
   - {id: core.print, contract_version: 1.0.0, symbol: "rt.print", implementation: runtime/print.ts, harness: "rt.printString({0})"}
+  - {id: std.errors.new, contract_version: 1.0.0, symbol: rt.stdErrorsNew, implementation: runtime/std_errors_new.ts, harness: "rt.stdErrorsNew({0})"}
+  - {id: std.errors.is, contract_version: 1.0.0, symbol: rt.stdErrorsIs, implementation: runtime/std_errors_is.ts, harness: "rt.stdErrorsIs({0}, {1})"}
+  - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: rt.stdErrorsUnwrap, implementation: runtime/std_errors_unwrap.ts, harness: "rt.stdErrorsUnwrap({0})"}

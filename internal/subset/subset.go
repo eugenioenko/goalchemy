@@ -479,9 +479,18 @@ func (c *checker) call(n *ast.CallExpr) bool {
 			if c.typeProblem(t) != "" {
 				continue
 			}
-			if bt, ok := t.Underlying().(*types.Basic); !ok || bt.Info()&(types.IsBoolean|types.IsInteger|types.IsString) == 0 {
-				c.unsupported(a, "GCS006", "print of "+types.TypeString(t, nil),
-					"Print only Booleans, integers, and strings; format other values first.")
+			elems := []types.Type{t}
+			if tup, ok := t.(*types.Tuple); ok {
+				elems = elems[:0]
+				for i := 0; i < tup.Len(); i++ {
+					elems = append(elems, tup.At(i).Type())
+				}
+			}
+			for _, et := range elems {
+				if bt, ok := et.Underlying().(*types.Basic); !ok || bt.Info()&(types.IsBoolean|types.IsInteger|types.IsString) == 0 {
+					c.unsupported(a, "GCS006", "print of "+types.TypeString(et, nil),
+						"Print only Booleans, integers, and strings; format other values first.")
+				}
 			}
 		}
 	}

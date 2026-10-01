@@ -48,3 +48,6 @@ export * from "../../runtime/map_len.ts";
 export * from "../../runtime/map_clear.ts";
 export * from "../../runtime/map_iterate.ts";
 export * from "../../runtime/print.ts";
+export * from "../../runtime/std_errors_new.ts";
+export * from "../../runtime/std_errors_is.ts";
+export * from "../../runtime/std_errors_unwrap.ts";

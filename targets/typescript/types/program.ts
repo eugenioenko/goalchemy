@@ -20,7 +20,7 @@ const PANIC_NIL_ERROR: TypeDesc = typeDesc({
   kind: "runtime_error",
   eq: (a, b) => a === b,
   key: (a) => String(a),
-  methods: { Error: () => "panic called with nil argument", RuntimeError: () => {} },
+  methods: { Error: () => "runtime error: panic called with nil argument", RuntimeError: () => {} },
 });
 
 /** panic(v): a nil interface becomes *runtime.PanicNilError as in Go 1.21+. */
@@ -107,7 +107,7 @@ export function fid(f: Fn | null): unknown {
 /** Builds the error for a failed non-comma-ok type assertion. */
 export function assertPanic(x: Box | null, iface: string, target: string, missing: string | null): GoPanic {
   let msg: string;
-  if (x === null) msg = "interface conversion: interface is nil, not " + target;
+  if (x === null) msg = "interface conversion: " + iface + " is nil, not " + target;
   else if (missing !== null) msg = "interface conversion: " + x.t.name + " is not " + target + ": missing method " + missing;
   else msg = "interface conversion: " + iface + " is " + x.t.name + ", not " + target;
   return new GoPanic(box(TYPE_ASSERTION_ERROR, msg));

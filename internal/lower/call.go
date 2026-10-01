@@ -286,8 +286,12 @@ func (fl *fnLowerer) builtin(e *ast.CallExpr, name string) []ir.Value {
 		return []ir.Value{dst}
 	case "print", "println":
 		var vals []ir.Value
-		for _, a := range e.Args {
-			vals = append(vals, fl.expr(a))
+		if len(e.Args) == 1 && isTupleCall(fl.info, e.Args[0]) {
+			vals = fl.exprN(e.Args[0])
+		} else {
+			for _, a := range e.Args {
+				vals = append(vals, fl.expr(a))
+			}
 		}
 		fl.emit(&ir.Print{At: at(e), Args: vals, Newline: name == "println"})
 		return nil
@@ -398,12 +402,19 @@ func (fl *fnLowerer) deferBuiltin(s *ast.DeferStmt, name string) {
 // methodExprFunc returns a function taking the receiver as its first
 // parameter for the method expression sel on recvT.
 func (l *Lowerer) methodExprFunc(recvT *ir.Type, sel *types.Selection) *ir.Func {
-	return l.methodFunc(recvT, sel)
+	return l.wrapper(recvT, sel, true)
 }
 
 // methodFunc returns the function implementing sel's method for receiver
 // type t: the declared method when its receiver matches, else a wrapper.
 func (l *Lowerer) methodFunc(t *ir.Type, sel *types.Selection) *ir.Func {
+	return l.wrapper(t, sel, false)
+}
+
+// wrapper builds the receiver-adapting function. Method expressions report
+// a nil pointer receiver of a value method with Go's panicwrap message;
+// method-set wrappers dereference and fault like inlined dispatch.
+func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir.Func {
 	m := sel.Obj().(*types.Func)
 	path := sel.Index()[:len(sel.Index())-1]
 	if len(path) == 0 && !t.IsInterface() {
@@ -413,6 +424,9 @@ func (l *Lowerer) methodFunc(t *ir.Type, sel *types.Selection) *ir.Func {
 		}
 	}
 	key := t.Go.String() + "|" + m.Id() + "|" + itoa(len(path))
+	if methodExpr {
+		key += "|expr"
+	}
 	for _, i := range path {
 		key += "." + itoa(i)
 	}
@@ -460,7 +474,7 @@ func (l *Lowerer) methodFunc(t *ir.Type, sel *types.Selection) *ir.Func {
 	case t.IsInterface():
 		rv, iface = recv, true
 	case t.U().Kind == ir.KPointer:
-		if len(path) == 0 && !wantPtr {
+		if len(path) == 0 && !wantPtr && methodExpr {
 			// A value method called through a pointer: Go panics with a
 			// specific message for nil.
 			isNil := fl.temp(l.ts.Bool())

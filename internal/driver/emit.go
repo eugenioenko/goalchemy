@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"sort"
 
 	"goalchemy/internal/diagnostics"
@@ -22,7 +23,14 @@ func Targets() []string {
 	return out
 }
 
-func Emit(name string, res *Result, out string) []diagnostics.Diagnostic {
+func Emit(name string, res *Result, out string) (ds []diagnostics.Diagnostic) {
+	defer func() {
+		if r := recover(); r != nil {
+			ds = []diagnostics.Diagnostic{{Code: "GCE004", Severity: diagnostics.Error, Feature: "emission",
+				Message: fmt.Sprintf("%s emitter failed: %v", name, r),
+				Remedy:  "This is a compiler defect; please report it with the source program."}}
+		}
+	}()
 	e, ok := emitters[name]
 	if !ok {
 		return []diagnostics.Diagnostic{{Code: "GCE001", Severity: diagnostics.Error, Feature: "target",

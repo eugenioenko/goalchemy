@@ -4,6 +4,17 @@ import { GoMap, identityKey } from "../../types/map.ts";
 import { mapSet } from "../../runtime/map_store.ts";
 import { mapIter, mapNext } from "../../runtime/map_iterate.ts";
 import { fromHost } from "../../types/utf8.ts";
+import { stdErrorsNew } from "../../runtime/std_errors_new.ts";
+import type { Box } from "../../types/iface.ts";
+
+export function decError(raw: any): Box | null {
+  return raw.nil ? null : stdErrorsNew(fromHost(raw.error));
+}
+
+export function encError(v: Box | null): unknown {
+  if (v === null) return { nil: true };
+  return { error: Buffer.from(String(v.t.methods["Error"](v.v)), "latin1").toString("utf8") };
+}
 
 export interface H {
   let(name: string): any;

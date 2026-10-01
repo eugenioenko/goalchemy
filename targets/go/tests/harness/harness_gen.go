@@ -1072,4 +1072,40 @@ var cases = map[string]func(h *H) []any{
 		r0 := rt.StringToRunes(v_s)
 		return []any{EncSlice(r0, func(e int32) any { return EncInt(e) })}
 	},
+	"std.errors.is/distinct": func(h *H) []any {
+		v_err := DecError(h.Let("err"))
+		_ = v_err
+		v_target := DecError(h.Let("target"))
+		_ = v_target
+		r0 := rt.StdErrorsIs(v_err, v_target)
+		return []any{EncBool(r0)}
+	},
+	"std.errors.is/nils": func(h *H) []any {
+		v_err := DecError(h.Let("err"))
+		_ = v_err
+		v_target := DecError(h.Let("target"))
+		_ = v_target
+		r0 := rt.StdErrorsIs(v_err, v_target)
+		return []any{EncBool(r0)}
+	},
+	"std.errors.is/same": func(h *H) []any {
+		v_err := DecError(h.Let("err"))
+		_ = v_err
+		v_target := v_err
+		_ = v_target
+		r0 := rt.StdErrorsIs(v_err, v_target)
+		return []any{EncBool(r0)}
+	},
+	"std.errors.new/message": func(h *H) []any {
+		v_text := DecString(h.Let("text"))
+		_ = v_text
+		r0 := rt.StdErrorsNew(v_text)
+		return []any{EncError(r0)}
+	},
+	"std.errors.unwrap/plain": func(h *H) []any {
+		v_err := DecError(h.Let("err"))
+		_ = v_err
+		r0 := rt.StdErrorsUnwrap(v_err)
+		return []any{EncError(r0)}
+	},
 }

@@ -1,0 +1,36 @@
+id: std.errors.unwrap
+schema_version: 1
+version: 1.0.0
+summary: "errors.Unwrap: the result of err's Unwrap() error method, or nil."
+signature:
+  source: declaration
+  symbol: errors.Unwrap
+  type_parameters: []
+  inputs:
+    - {name: err, type: error}
+  outputs:
+    - {name: inner, type: error}
+depends_on:
+  - {id: type.error, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Unwrap(nil) is nil; errors without an Unwrap() error method unwrap to nil."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Calls the source Unwrap method."
+  aliasing: "Returns the wrapped error value itself."
+  allocation: "No semantic storage is allocated."
+  errors: "Not applicable."
+  panics: "Panics only if the source method panics."
+  observations: "The returned error."
+cases:
+  - name: plain
+    types: {}
+    let:
+      - {name: err, type: error, value: {"error": "x"}}
+    call: ["err"]
+    expect:
+      results: [{"nil": true}]

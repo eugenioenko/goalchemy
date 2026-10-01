@@ -3,9 +3,9 @@ target: go
 function: core.map.store
 contract_version: 1.0.0
 contract_hash: b6804c38fc61ecf08d02e975242d533df10887e11b211a2db63070bcf1d5204f
-symbol: "(*rt.Map).Set"
+symbol: "(rt.Map).Set"
 implementation: runtime/map_store.go
-implementation_hash: 01247124bd6ff9d723ba92b25d0b5508c66010257feea0ada26828d58318ba70
+implementation_hash: ee7d5191a9852a9b79ccf4a0adf32576843a3e256f09e8d63b5359d635cc401d
 summary: "m[k] = v."
 suspension: never
 determinism: deterministic

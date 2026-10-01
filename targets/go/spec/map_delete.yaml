@@ -3,9 +3,9 @@ target: go
 function: core.map.delete
 contract_version: 1.0.0
 contract_hash: c24b2629d940218ab532c9b6212aef6e17423caa7c58075485e4fafdc7339d09
-symbol: "(*rt.Map).Delete"
+symbol: "(rt.Map).Delete"
 implementation: runtime/map_delete.go
-implementation_hash: 3cd325be021d13e6653ff970abfdd237d15adfd76fe8a38f29f1a5e98bccb04b
+implementation_hash: 857bbdf9404fa8738da40edf41e3f7e8fa6cf0c5833b65915a798d8401716567
 summary: "delete(m, k)."
 suspension: never
 determinism: deterministic

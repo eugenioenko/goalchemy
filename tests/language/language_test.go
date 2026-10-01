@@ -44,11 +44,16 @@ func TestFixtures(t *testing.T) {
 				}
 				return
 			}
-			native, err := testutil.Native(f.Dir, work)
-			if err != nil {
-				t.Fatal(err)
+			var want testutil.Observation
+			if f.Golden != "" {
+				want = testutil.ParseObservation(f.Golden)
+			} else {
+				native, err := testutil.Native(f.Dir, work)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want = testutil.Normalize(native)
 			}
-			want := testutil.Normalize(native)
 			var first *testutil.Observation
 			for _, target := range targets {
 				out := filepath.Join(work, target)
@@ -69,7 +74,7 @@ func TestFixtures(t *testing.T) {
 					cmpWant, cmpGot = testutil.Unordered(want), testutil.Unordered(got)
 				}
 				if cmpGot != cmpWant {
-					t.Errorf("%s differs from native Go\n=== native\n%s=== %s\n%s", target, want, target, got)
+					t.Errorf("%s differs from expected\n=== native\n%s=== %s\n%s", target, want, target, got)
 				}
 				if first == nil {
 					first = &got

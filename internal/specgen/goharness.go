@@ -17,7 +17,7 @@ func goType(t *contracts.TypeExpr) string {
 	case "array":
 		return fmt.Sprintf("[%d]%s", t.Len, goType(t.Elem))
 	case "map":
-		return "*rt.Map[" + goType(t.Key) + ", " + goType(t.Elem) + "]"
+		return "rt.Map[" + goType(t.Key) + ", " + goType(t.Elem) + "]"
 	case "pointer":
 		return "*" + goType(t.Elem)
 	}
@@ -33,6 +33,8 @@ func goDecode(t *contracts.TypeExpr, raw string) string {
 			raw, goType(t.Key), goDecode(t.Key, "r"), goType(t.Elem), goDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "error":
+		return "DecError(" + raw + ")"
 	case "bool":
 		return "DecBool(" + raw + ")"
 	case "string":
@@ -52,6 +54,8 @@ func goEncode(t *contracts.TypeExpr, v string) string {
 			v, goType(t.Key), goEncode(t.Key, "e"), goType(t.Elem), goEncode(t.Elem, "e"))
 	}
 	switch t.Name {
+	case "error":
+		return "EncError(" + v + ")"
 	case "bool":
 		return "EncBool(" + v + ")"
 	case "string":

@@ -130,6 +130,21 @@ func DecInt[T rt.Integer](raw json.RawMessage) T {
 	return T(n.Uint64())
 }
 
+func DecError(raw json.RawMessage) error {
+	m := object(raw)
+	if _, ok := m["nil"]; ok {
+		return nil
+	}
+	return rt.StdErrorsNew(str(m["error"]))
+}
+
+func EncError(err error) any {
+	if err == nil {
+		return map[string]any{"nil": true}
+	}
+	return map[string]any{"error": err.Error()}
+}
+
 func DecBool(raw json.RawMessage) bool { return str(raw) == "true" }
 
 func DecString(raw json.RawMessage) string {
@@ -179,10 +194,10 @@ func View[T any](base []T, raw json.RawMessage) []T {
 	return base[lo:hi:mx]
 }
 
-func DecMap[K comparable, V any](raw json.RawMessage, dk func(json.RawMessage) K, dv func(json.RawMessage) V) *rt.Map[K, V] {
+func DecMap[K comparable, V any](raw json.RawMessage, dk func(json.RawMessage) K, dv func(json.RawMessage) V) rt.Map[K, V] {
 	m := object(raw)
 	if _, ok := m["nil"]; ok {
-		return nil
+		return rt.Map[K, V]{}
 	}
 	var entries []struct {
 		Key   json.RawMessage `json:"key"`
@@ -221,8 +236,8 @@ func EncSlice[T any](s []T, enc func(T) any) any {
 	return map[string]any{"slice": items, "cap": strconv.Itoa(cap(s))}
 }
 
-func EncMap[K comparable, V any](m *rt.Map[K, V], ek func(K) any, ev func(V) any) any {
-	if m == nil {
+func EncMap[K comparable, V any](m rt.Map[K, V], ek func(K) any, ev func(V) any) any {
+	if m.IsNil() {
 		return map[string]any{"nil": true}
 	}
 	items := []any{}

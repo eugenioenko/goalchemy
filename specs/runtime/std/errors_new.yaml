@@ -1,0 +1,37 @@
+id: std.errors.new
+schema_version: 1
+version: 1.0.0
+summary: "errors.New: a distinct error value with the given message."
+signature:
+  source: declaration
+  symbol: errors.New
+  type_parameters: []
+  inputs:
+    - {name: text, type: string}
+  outputs:
+    - {name: err, type: error}
+depends_on:
+  - {id: type.error, version: 1.0.0}
+  - {id: type.string, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "The empty message is allowed."
+  nil: "The result is never nil."
+  bounds: "Not applicable."
+  conversions: "The message bytes are kept exactly."
+  overflow: "Not applicable."
+  mutations: "No source storage is mutated."
+  aliasing: "Each call allocates a distinct *errors.errorString."
+  allocation: "Allocates one error value."
+  errors: "Error() returns the message."
+  panics: "Never panics."
+  observations: "Error() text, the dynamic type name *errors.errorString, and pointer identity: two calls are never equal."
+cases:
+  - name: message
+    types: {}
+    let:
+      - {name: text, type: string, value: {"str": "boom"}}
+    call: ["text"]
+    expect:
+      results: [{"error": "boom"}]

@@ -3,9 +3,9 @@ target: go
 function: core.map.lookup
 contract_version: 1.0.0
 contract_hash: 7aae08a172bfb49095832fe6b65352bc10c6d803d413b4741d1c2be6fa5d2fd6
-symbol: "(*rt.Map).Get"
+symbol: "(rt.Map).Get"
 implementation: runtime/map_lookup.go
-implementation_hash: 993d9dce44e9344ea328fc92cace0d49c3c7ad4a310c44db365b282095de23f2
+implementation_hash: 50a34b60f46428c1f4c2e7cd01e36d57dc6a7b1abac990ab0e199a2ba294ec7c
 summary: "v, ok := m[k]."
 suspension: never
 determinism: deterministic

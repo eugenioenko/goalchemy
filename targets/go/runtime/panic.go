@@ -26,12 +26,51 @@ type TypeAssertionError struct{ msg string }
 func (e *TypeAssertionError) Error() string { return e.msg }
 func (e *TypeAssertionError) RuntimeError() {}
 
+// CheckKey panics as Go map hashing does when k holds an unhashable value.
+func CheckKey(k any) {
+	if t := badKey(reflect.ValueOf(k)); t != nil {
+		panic(RuntimeError("hash of unhashable type " + TypeName(t)))
+	}
+}
+
+func badKey(v reflect.Value) reflect.Type {
+	if !v.IsValid() {
+		return nil
+	}
+	switch v.Kind() {
+	case reflect.Interface:
+		if v.IsNil() {
+			return nil
+		}
+		return badKey(v.Elem())
+	case reflect.Slice, reflect.Map, reflect.Func:
+		return v.Type()
+	case reflect.Struct:
+		if m, ok := v.Interface().(sourceMap); ok {
+			_ = m
+			return v.Type()
+		}
+		for i := 0; i < v.NumField(); i++ {
+			if t := badKey(v.Field(i)); t != nil {
+				return t
+			}
+		}
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			if t := badKey(v.Index(i)); t != nil {
+				return t
+			}
+		}
+	}
+	return nil
+}
+
 // PanicAssert panics for a failed type assertion of x (static type iface) to
 // target. Missing lists the target's interface methods as goName/srcName
 // pairs, or is nil for a concrete target.
 func PanicAssert(x any, iface, target string, methods ...string) {
 	if x == nil {
-		panic(&TypeAssertionError{"interface conversion: interface is nil, not " + target})
+		panic(&TypeAssertionError{"interface conversion: " + iface + " is nil, not " + target})
 	}
 	dyn := TypeName(reflect.TypeOf(x))
 	if methods != nil {
@@ -60,12 +99,14 @@ func TypeName(t reflect.Type) string {
 	if n, ok := names[t]; ok {
 		return n
 	}
-	switch t.Kind() {
-	case reflect.Pointer:
+	if t.Kind() == reflect.Struct {
 		if m, ok := reflect.Zero(t).Interface().(sourceMap); ok {
 			k, v := m.sourceMapTypes()
 			return "map[" + TypeName(k) + "]" + TypeName(v)
 		}
+	}
+	switch t.Kind() {
+	case reflect.Pointer:
 		return "*" + TypeName(t.Elem())
 	case reflect.Slice:
 		return "[]" + TypeName(t.Elem())

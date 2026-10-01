@@ -10,4 +10,4 @@ semantics:
   equality: Interface equality; pointer-backed errors compare by identity.
   panics: Runtime panics carry runtime.Error values whose Error() text matches Go.
 notes: Error messages observable through Error() are part of the contract.
-exercised_by: []
+exercised_by: [std.errors.new, std.errors.is, std.errors.unwrap]

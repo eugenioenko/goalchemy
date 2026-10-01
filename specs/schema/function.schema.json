@@ -89,7 +89,8 @@
         {"type": "object", "additionalProperties": false, "required": ["array"], "properties": {"array": {"type": "array", "items": {"$ref": "#/$defs/value"}}}},
         {"type": "object", "additionalProperties": false, "required": ["view"], "properties": {"view": {"type": "string"}, "lo": {"type": "string"}, "hi": {"type": "string"}, "max": {"type": "string"}}},
         {"type": "object", "additionalProperties": false, "required": ["map"], "properties": {"map": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"$ref": "#/$defs/value"}, "value": {"$ref": "#/$defs/value"}}}}}},
-        {"type": "object", "additionalProperties": false, "required": ["ref"], "properties": {"ref": {"type": "string"}}}
+        {"type": "object", "additionalProperties": false, "required": ["ref"], "properties": {"ref": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"type": "string"}}}
       ]
     },
     "binding": {

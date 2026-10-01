@@ -49,6 +49,8 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 		return fmt.Sprintf("decMap(%s, (r: any) => %s, (r: any) => %s)", raw, tsDecode(t.Key, "r"), tsDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "error":
+		return "decError(" + raw + ")"
 	case "bool":
 		return "decBool(" + raw + ")"
 	case "string":
@@ -71,6 +73,8 @@ func tsEncode(t *contracts.TypeExpr, v string) string {
 		return fmt.Sprintf("encMap(%s, (e: any) => %s, (e: any) => %s)", v, tsEncode(t.Key, "e"), tsEncode(t.Elem, "e"))
 	}
 	switch t.Name {
+	case "error":
+		return "encError(" + v + ")"
 	case "bool":
 		return "encBool(" + v + ")"
 	case "string":
@@ -86,7 +90,7 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// %s\nimport * as rt from \"./runtime_index.ts\";\n", Marker)
-	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, view, encInt, encBool, encString, encSlice, encArray, encMap, type H } from \"./codec.ts\";\n\n")
+	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, type H } from \"./codec.ts\";\n\n")
 	b.WriteString("export const cases: Record<string, (h: H) => unknown[]> = {\n")
 	for _, ci := range cases {
 		fmt.Fprintf(&b, "  %q: (h: H) => {\n", ci.ID())

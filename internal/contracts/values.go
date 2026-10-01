@@ -13,7 +13,7 @@ import (
 // strings so that no host numeric precision is involved.
 type Value struct {
 	Type    *TypeExpr
-	Kind    string // int, bool, string, slice, nil, array, map, view, ref
+	Kind    string // int, bool, string, slice, nil, array, map, view, ref, error
 	Int     *big.Int
 	Bool    bool
 	Bytes   []byte
@@ -211,6 +211,15 @@ func decodeValue(v any, t *TypeExpr, scope Scope) (*Value, error) {
 		if out.Max, err = num("max"); err != nil {
 			return nil, err
 		}
+	case m["error"] != nil:
+		if t.Kind != "name" || t.Name != "error" {
+			return nil, fmt.Errorf("error value given for %s", t)
+		}
+		msg, ok := m["error"].(string)
+		if !ok {
+			return nil, fmt.Errorf("error message must be a string")
+		}
+		out.Kind, out.Bytes = "error", []byte(msg)
 	case m["ref"] != nil:
 		name := m["ref"].(string)
 		bt, ok := scope[name]
@@ -270,6 +279,8 @@ func (v *Value) Encode() any {
 		return m
 	case "ref":
 		return map[string]any{"ref": v.Name}
+	case "error":
+		return map[string]any{"error": string(v.Bytes)}
 	}
 	return nil
 }

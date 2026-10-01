@@ -3,9 +3,9 @@ target: go
 function: core.map.iterate
 contract_version: 1.0.0
 contract_hash: 567473acf9104f3bac9b76472828d0c81f809a9c88cb91d69a908ee8f037ff23
-symbol: "(*rt.Map).Iter"
+symbol: "(rt.Map).Iter"
 implementation: runtime/map_iterate.go
-implementation_hash: 7d8946c035f326937299017edfb266343872f6a86da949e9040138676392f9b9
+implementation_hash: f7acd2f18a0f27955957a0d6e79845ccae68b7f0a97d0e17156477690a280303
 summary: "Snapshot iteration: the keys in visiting order when nothing changes during iteration."
 suspension: never
 determinism: deterministic

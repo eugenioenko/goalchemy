@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: ea5ddd590828b82dcf2b81e49fa5d4ab8dc4430432a8e3503dcfb0dfb8810c8c
 symbol: "rt.NewMap"
 implementation: runtime/map_make.go
-implementation_hash: 853325460662b9047ff033d16e9d36b940d8c9556133ab8a47da1378680ef62a
+implementation_hash: e5eea7e7134f6fa7bd12f988fc4960f64e79608aa92607baf9271c1b48b73edf
 summary: "make(map[K]V)."
 suspension: never
 determinism: deterministic

@@ -1,0 +1,55 @@
+id: std.errors.is
+schema_version: 1
+version: 1.0.0
+summary: "errors.Is: whether any error in err's Unwrap chain matches target."
+signature:
+  source: declaration
+  symbol: errors.Is
+  type_parameters: []
+  inputs:
+    - {name: err, type: error}
+    - {name: target, type: error}
+  outputs:
+    - {name: ok, type: bool}
+depends_on:
+  - {id: type.error, version: 1.0.0}
+  - {id: type.boolean, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Is(nil, nil) is true; a nil err or target otherwise matches only nil."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Calls Is and Unwrap methods, which may observe source state."
+  aliasing: "Not applicable."
+  allocation: "No semantic storage is allocated."
+  errors: "Matches by interface equality when target's dynamic type is comparable, then by an Is(error) bool method, following Unwrap() error."
+  panics: "Panics only if a source method panics."
+  observations: "The Boolean result."
+cases:
+  - name: same
+    types: {}
+    let:
+      - {name: err, type: error, value: {"error": "x"}}
+      - {name: target, type: error, value: {"ref": "err"}}
+    call: ["err", "target"]
+    expect:
+      results: ["true"]
+  - name: distinct
+    types: {}
+    let:
+      - {name: err, type: error, value: {"error": "x"}}
+      - {name: target, type: error, value: {"error": "x"}}
+    call: ["err", "target"]
+    expect:
+      results: ["false"]
+  - name: nils
+    types: {}
+    let:
+      - {name: err, type: error, value: {"nil": true}}
+      - {name: target, type: error, value: {"nil": true}}
+    call: ["err", "target"]
+    expect:
+      results: ["true"]

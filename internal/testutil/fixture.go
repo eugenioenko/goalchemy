@@ -130,6 +130,9 @@ type Fixture struct {
 	Unordered bool
 	// Reject lists diagnostic codes the fixture must produce.
 	Reject []string
+	// Golden holds the expected normalized observation for fixtures that
+	// assert Goalchemy-selected behavior native Go does not share.
+	Golden string
 }
 
 var directive = regexp.MustCompile(`(?m)^// goalchemy:(\w+)(?: (.*))?$`)
@@ -146,6 +149,9 @@ func Discover(root string) ([]Fixture, error) {
 		}
 		f := Fixture{Name: e.Name(), Dir: filepath.Join(root, e.Name())}
 		src, _ := os.ReadFile(filepath.Join(f.Dir, "main.go"))
+		if want, err := os.ReadFile(filepath.Join(f.Dir, "want.txt")); err == nil {
+			f.Golden = string(want)
+		}
 		for _, m := range directive.FindAllStringSubmatch(string(src), -1) {
 			switch m[1] {
 			case "unordered":
@@ -157,4 +163,13 @@ func Discover(root string) ([]Fixture, error) {
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// ParseObservation parses the String form of an Observation.
+func ParseObservation(s string) Observation {
+	var o Observation
+	head, rest, _ := strings.Cut(s, "\n--- stdout\n")
+	fmt.Sscanf(head, "exit=%d", &o.Exit)
+	o.Stdout, o.Stderr, _ = strings.Cut(rest, "--- stderr\n")
+	return o
 }

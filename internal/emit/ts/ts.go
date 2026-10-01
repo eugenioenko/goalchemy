@@ -349,6 +349,9 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 		if basic != "" {
 			fmt.Fprintf(b, ", basic: %q", basic)
 		}
+		if !t.Comparable() {
+			b.WriteString(", comparable: false")
+		}
 		b.WriteString("});\n")
 	}
 	e.flushHelpers()
@@ -956,7 +959,13 @@ func (fe *fnEmitter) binop(i *ir.BinOp) {
 	switch i.Op {
 	case ir.Eq, ir.Ne:
 		var eq string
+		xc, xnil := i.X.(*ir.Const)
+		yc, ynil := i.Y.(*ir.Const)
+		xnil = xnil && xc.Nil
+		ynil = ynil && yc.Nil
 		switch {
+		case (xnil || ynil) && t.U().Kind != ir.KSlice && t.U().Kind != ir.KInterface:
+			eq = x + " === " + y
 		case t.U().Kind == ir.KSlice:
 			if c, ok := i.Y.(*ir.Const); ok && c.Nil {
 				eq = x + ".a === null"

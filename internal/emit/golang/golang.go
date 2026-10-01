@@ -156,7 +156,7 @@ func (e *emitter) typ(t *ir.Type) string {
 	case ir.KPointer:
 		return "*" + e.typ(t.Elem)
 	case ir.KMap:
-		return "*rt.Map[" + e.typ(t.Key) + ", " + e.typ(t.Elem) + "]"
+		return "rt.Map[" + e.typ(t.Key) + ", " + e.typ(t.Elem) + "]"
 	case ir.KMapIter:
 		m := t.Elem.U()
 		return "*rt.MapIter[" + e.typ(m.Key) + ", " + e.typ(m.Elem) + "]"
@@ -306,6 +306,9 @@ func methodShortName(f *ir.Func) string {
 func (e *emitter) constant(c *ir.Const) string {
 	t := e.typ(c.Type)
 	if c.Nil {
+		if c.Type.U().Kind == ir.KMap {
+			return "(" + t + "{})"
+		}
 		return "(" + t + ")(nil)"
 	}
 	switch c.Val.Kind() {
@@ -386,8 +389,15 @@ func (e *emitter) signature(f *ir.Func, fe *fnEmitter, skipRecv bool) string {
 	}
 	s := "(" + strings.Join(ps, ", ") + ")"
 	var rs []string
-	for _, r := range f.Results {
-		rs = append(rs, e.typ(r.Type))
+	for i, r := range f.Results {
+		if hasDefer(f) {
+			rs = append(rs, fmt.Sprintf("gres%d %s", i, e.typ(r.Type)))
+		} else {
+			rs = append(rs, e.typ(r.Type))
+		}
+	}
+	if hasDefer(f) && len(rs) == 1 {
+		return s + " (" + rs[0] + ")"
 	}
 	switch len(rs) {
 	case 0:
@@ -445,6 +455,14 @@ func (fe *fnEmitter) body() {
 		if p.Boxed {
 			fe.w("%s = &p_%s\n", fe.local(p), fe.local(p))
 		}
+	}
+	if hasDefer(f) && len(f.Results) > 0 {
+		// Runs after every source defer, so results reflect deferred writes.
+		fe.w("defer func() {\n")
+		for i, r := range f.Results {
+			fe.w("gres%d = %s\n", i, fe.val(r))
+		}
+		fe.w("}()\n")
 	}
 	targets := map[*ir.Block]bool{}
 	for _, b := range f.Blocks {
@@ -575,7 +593,15 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case ir.Min, ir.Max:
 			fe.w("%s = %s(%s, %s)\n", fe.val(i.Dst), i.Op, fe.val(i.X), fe.val(i.Y))
 		default:
-			fe.w("%s = %s %s %s\n", fe.val(i.Dst), fe.val(i.X), i.Op, fe.val(i.Y))
+			x, y := fe.val(i.X), fe.val(i.Y)
+			isMap := i.X.IRType().U().Kind == ir.KMap
+			if c, ok := i.X.(*ir.Const); ok && c.Nil && !isMap {
+				x = "nil"
+			}
+			if c, ok := i.Y.(*ir.Const); ok && c.Nil && !isMap {
+				y = "nil"
+			}
+			fe.w("%s = %s %s %s\n", fe.val(i.Dst), x, i.Op, y)
 		}
 	case *ir.Convert:
 		switch i.Kind {
@@ -633,7 +659,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 	case *ir.Len:
 		if i.X.IRType().U().Kind == ir.KMap {
 			e.use("core.map.len")
-			fe.w("%s = %s.Len()\n", fe.val(i.Dst), fe.val(i.X))
+			fe.w("%s = %s.Len()\n", fe.val(i.Dst), fe.mapVal(i.X))
 			return
 		}
 		fe.w("%s = len(%s)\n", fe.val(i.Dst), fe.val(i.X))
@@ -644,7 +670,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 	case *ir.MakeMap:
 		e.use("core.map.make")
 		m := i.Dst.Type.U()
-		fe.w("%s = rt.NewMap[%s, %s]()\n", fe.val(i.Dst), e.typ(m.Key), e.typ(m.Elem))
+		if i.Dst.Type.Kind == ir.KNamed {
+			fe.w("%s = %s(rt.NewMap[%s, %s]())\n", fe.val(i.Dst), e.typ(i.Dst.Type), e.typ(m.Key), e.typ(m.Elem))
+		} else {
+			fe.w("%s = rt.NewMap[%s, %s]()\n", fe.val(i.Dst), e.typ(m.Key), e.typ(m.Elem))
+		}
 	case *ir.Append:
 		e.use("core.slice.append")
 		switch {
@@ -680,17 +710,17 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		}
 	case *ir.MapLookup:
 		e.use("core.map.lookup")
-		fe.w("%s, %s = %s.Get(%s)\n", fe.val(i.Dst), fe.assignDst(i.Ok), fe.val(i.M), fe.val(i.K))
+		fe.w("%s, %s = %s.Get(%s)\n", fe.val(i.Dst), fe.assignDst(i.Ok), fe.mapVal(i.M), fe.val(i.K))
 	case *ir.MapStore:
 		e.use("core.map.store")
-		fe.w("%s.Set(%s, %s)\n", fe.val(i.M), fe.val(i.K), fe.val(i.V))
+		fe.w("%s.Set(%s, %s)\n", fe.mapVal(i.M), fe.val(i.K), fe.val(i.V))
 	case *ir.MapDelete:
 		e.use("core.map.delete")
-		fe.w("%s.Delete(%s)\n", fe.val(i.M), fe.val(i.K))
+		fe.w("%s.Delete(%s)\n", fe.mapVal(i.M), fe.val(i.K))
 	case *ir.Clear:
 		if i.X.IRType().U().Kind == ir.KMap {
 			e.use("core.map.clear")
-			fe.w("%s.Clear()\n", fe.val(i.X))
+			fe.w("%s.Clear()\n", fe.mapVal(i.X))
 		} else {
 			fe.w("clear(%s)\n", fe.val(i.X))
 		}
@@ -699,7 +729,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		fe.w("%s, %s = rt.DecodeRune(%s, %s)\n", fe.val(i.Rune), fe.val(i.Width), fe.val(i.S), fe.val(i.I))
 	case *ir.MapIterInit:
 		e.use("core.map.iterate")
-		fe.w("%s = %s.Iter()\n", fe.val(i.Iter), fe.val(i.M))
+		fe.w("%s = %s.Iter()\n", fe.val(i.Iter), fe.mapVal(i.M))
 	case *ir.MapIterNext:
 		fe.w("%s, %s, %s = %s.Next()\n", fe.val(i.Ok), fe.assignDst(i.Key), fe.assignDst(i.Val), fe.val(i.Iter))
 	case *ir.Print:
@@ -724,6 +754,17 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 	}
 }
 
+// mapVal renders a map operand as the runtime map type, converting named
+// map types, which do not have the runtime's methods.
+func (fe *fnEmitter) mapVal(v ir.Value) string {
+	t := v.IRType()
+	if t.Kind == ir.KNamed {
+		u := t.U()
+		return "rt.Map[" + fe.e.typ(u.Key) + ", " + fe.e.typ(u.Elem) + "](" + fe.val(v) + ")"
+	}
+	return fe.val(v)
+}
+
 func parenType(t string) string {
 	if strings.HasPrefix(t, "*") || strings.HasPrefix(t, "func") || strings.HasPrefix(t, "<-") {
 		return "(" + t + ")"
@@ -738,6 +779,10 @@ func (fe *fnEmitter) term(t ir.Terminator) {
 	case *ir.If:
 		fe.w("if %s {\ngoto b%d\n}\ngoto b%d\n", fe.val(t.Cond), t.Then.ID, t.Else.ID)
 	case *ir.Return:
+		if hasDefer(fe.f) {
+			fe.w("return\n")
+			return
+		}
 		var rs []string
 		for _, r := range fe.f.Results {
 			rs = append(rs, fe.val(r))
@@ -770,4 +815,15 @@ func (fe *fnEmitter) closure(i *ir.MakeClosure) {
 	fe.w("%s = func(%s) %s {\nreturn func%s {\n", fe.val(i.Dst), strings.Join(envParams, ", "), fe.e.typ(f.Sig), fe.e.signature(f, ce, false))
 	fe.b.Write(body.Bytes())
 	fe.w("}\n}(%s)\n", strings.Join(envArgs, ", "))
+}
+
+func hasDefer(f *ir.Func) bool {
+	for _, b := range f.Blocks {
+		for _, in := range b.Instrs {
+			if _, ok := in.(*ir.Defer); ok {
+				return true
+			}
+		}
+	}
+	return false
 }

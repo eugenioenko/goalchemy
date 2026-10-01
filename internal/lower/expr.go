@@ -56,7 +56,7 @@ func (fl *fnLowerer) exprN1(e ast.Expr, want int) []ir.Value {
 	case *ast.SliceExpr:
 		return []ir.Value{fl.sliceExpr(x)}
 	case *ast.TypeAssertExpr:
-		t := fl.typeOf(x)
+		t := fl.typ(fl.info.Types[x.Type].Type)
 		v := fl.expr(x.X)
 		fl.markBoxed(t)
 		dst := fl.temp(t)

@@ -14,6 +14,9 @@ import (
 	"goalchemy/internal/contracts"
 )
 
+// stdPackages lists standard packages whose symbols may be mapped.
+var stdPackages = map[string]bool{"errors": true}
+
 // DeclarationModule is the module path under which specs/declarations lives.
 const DeclarationModule = "goalchemy/specs/declarations/"
 
@@ -23,14 +26,20 @@ func Resolver(fsys fs.FS) contracts.SymbolResolver {
 	cache := map[string]*types.Package{}
 	return func(symbol string) ([]string, []string, error) {
 		i := strings.LastIndex(symbol, ".")
-		if i < 0 || !strings.HasPrefix(symbol, DeclarationModule) {
-			return nil, nil, fmt.Errorf("symbol must be under %s", DeclarationModule)
+		if i < 0 {
+			return nil, nil, fmt.Errorf("symbol %s is not package-qualified", symbol)
 		}
 		pkgPath, name := symbol[:i], symbol[i+1:]
 		pkg, ok := cache[pkgPath]
 		if !ok {
 			var err error
-			pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
+			if strings.HasPrefix(symbol, DeclarationModule) {
+				pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
+			} else if stdPackages[pkgPath] {
+				pkg, err = importer.Default().Import(pkgPath)
+			} else {
+				err = fmt.Errorf("symbol must be in a standard package or under %s", DeclarationModule)
+			}
 			if err != nil {
 				return nil, nil, err
 			}

@@ -12,6 +12,8 @@ export interface TypeDesc {
   key: (a: any) => unknown;
   /** Method table keyed by Go method identity. */
   methods: Record<string, Method>;
+  /** False when values of the type are not comparable. */
+  comparable?: boolean;
   /** Format for uncaught panic printing, if the type is a named basic type. */
   basic?: "int" | "bool" | "string";
 }
