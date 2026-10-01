@@ -70,8 +70,8 @@ func TestMalformedContracts(t *testing.T) {
 		"undeclared panic": {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\n" +
 			`cases: [{name: c, types: {T: int}, let: [{name: a, type: T, value: "1"}, {name: b, type: T, value: "2"}], call: [a, b], expect: {panic: {category: boom, message: x}}}]` + "\n", "not declared"},
 		"duplicate key": {"specs/types/integer.yaml", "id: type.integer\nid: type.integer\n", "duplicate key"},
-		"duplicate id": {"specs/runtime/core/zz_dup.yaml", "", "duplicate function contract core.integer.sub"},
-		"cycle": {"specs/runtime/core/zz_cycle.yaml", "", "dependency cycle"},
+		"duplicate id":  {"specs/runtime/core/zz_dup.yaml", "", "duplicate function contract core.integer.sub"},
+		"cycle":         {"specs/runtime/core/zz_cycle.yaml", "", "dependency cycle"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

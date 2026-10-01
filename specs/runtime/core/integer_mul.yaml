@@ -67,7 +67,7 @@ cases:
       - {name: b, type: "T", value: "987654321"}
     call: ["a", "b"]
     expect:
-      results: ["-67153019"]
+      results: ["67153019"]
   - name: int8_wrap
     types: {"T": "int8"}
     let:

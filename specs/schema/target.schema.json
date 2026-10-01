@@ -44,8 +44,19 @@
           "contract_version": {"type": "string"},
           "symbol": {"type": "string", "minLength": 1},
           "implementation": {"type": "string", "minLength": 1},
-          "requires": {"type": "array", "items": {"type": "string"}}
+          "requires": {"type": "array", "items": {"type": "string"}},
+          "harness": {"type": "string", "minLength": 1, "description": "Call template for generated harness bindings: {0}.. are inputs, {T} type arguments."}
         }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["support", "generated", "command"],
+      "properties": {
+        "support": {"type": "array", "items": {"type": "string"}},
+        "generated": {"type": "string"},
+        "command": {"type": "array", "items": {"type": "string"}, "minItems": 1}
       }
     },
     "support_files": {

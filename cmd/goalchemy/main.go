@@ -21,7 +21,9 @@ var commands []command
 func init() {
 	commands = []command{
 		{"check", "load, type-check, and validate packages against the language gate", runCheck},
+		{"compile", "compile a program: compile -target <name> -out <dir> [packages]", runCompile},
 		{"spec", "validate or generate contract specifications (spec validate | spec generate)", runSpec},
+		{"test", "run runtime contract cases through target harnesses", runTest},
 		{"version", "print the compiler version", func(_ context.Context, _ []string, stdout, _ io.Writer) int {
 			fmt.Fprintln(stdout, "goalchemy", Version)
 			return 0

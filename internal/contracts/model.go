@@ -104,6 +104,13 @@ type Implementation struct {
 	Symbol          string   `json:"symbol"`
 	Implementation  string   `json:"implementation"`
 	Requires        []string `json:"requires,omitempty"`
+	Harness         string   `json:"harness,omitempty"`
+}
+
+type HarnessConfig struct {
+	Support   []string `json:"support"`
+	Generated string   `json:"generated"`
+	Command   []string `json:"command"`
 }
 
 type Environment struct {
@@ -121,6 +128,7 @@ type Target struct {
 	Representations []Representation `json:"representations"`
 	Functions       []Implementation `json:"functions"`
 	SupportFiles    []string         `json:"support_files,omitempty"`
+	Harness         *HarnessConfig   `json:"harness,omitempty"`
 
 	Path string `json:"-"`
 	// Dir is the target directory relative to the catalog root.

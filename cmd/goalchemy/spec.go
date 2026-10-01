@@ -9,6 +9,8 @@ import (
 
 	"goalchemy/internal/catalog"
 	"goalchemy/internal/diagnostics"
+	"goalchemy/internal/link"
+	"goalchemy/internal/specgen"
 )
 
 func runSpec(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -42,6 +44,44 @@ func runSpec(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		if diagnostics.HasErrors(ds) {
 			return 1
 		}
+		return 0
+	case "generate":
+		fs := flag.NewFlagSet("spec generate", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		check := fs.Bool("check", false, "verify generated files are current instead of writing them")
+		root := fs.String("root", ".", "repository root")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 2
+		}
+		cat, ds := catalog.Load(os.DirFS(*root))
+		if diagnostics.HasErrors(ds) {
+			_ = diagnostics.Write(stderr, ds, false)
+			return 1
+		}
+		files, err := specgen.Generate(cat)
+		if err != nil {
+			fmt.Fprintln(stderr, "spec generate:", err)
+			return 1
+		}
+		if *check {
+			problems := specgen.Check(cat, files)
+			for _, p := range problems {
+				fmt.Fprintln(stderr, "GCC009:", p)
+			}
+			if len(problems) > 0 {
+				fmt.Fprintln(stderr, "run goalchemy spec generate to refresh generated files")
+				return 1
+			}
+			fmt.Fprintf(stdout, "ok: %d generated files are current\n", len(files))
+			return 0
+		}
+		for p, data := range files {
+			if err := link.WriteFile(*root, p, data); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		}
+		fmt.Fprintf(stdout, "wrote %d generated files\n", len(files))
 		return 0
 	}
 	fmt.Fprintf(stderr, "goalchemy spec: unknown subcommand %q\n", args[0])

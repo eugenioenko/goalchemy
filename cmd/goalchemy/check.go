@@ -14,10 +14,10 @@ import (
 )
 
 type sourceFlags struct {
-	json  bool
-	tags  string
-	gate  string
-	dir   string
+	json bool
+	tags string
+	gate string
+	dir  string
 }
 
 func (s *sourceFlags) register(fs *flag.FlagSet) {

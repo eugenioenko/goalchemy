@@ -1,0 +1,65 @@
+schema_version: 1
+target: go
+version: 0.1.0
+status: experimental
+environment:
+  runtime: Go 1.27.1 reference toolchain
+  minimum: go1.25
+  build: go build
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: Go bool.}
+  - {type: type.integer, contract_version: 1.0.0, representation: "Native Go integer types; int and uint are 64-bit on the linux/amd64 source profile and Go operators have identical semantics."}
+  - {type: type.string, contract_version: 1.0.0, representation: Native Go string.}
+  - {type: type.array, contract_version: 1.0.0, representation: Native Go arrays.}
+  - {type: type.struct, contract_version: 1.0.0, representation: "Native Go structs; embedded fields keep native embedding for method promotion."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Native Go slices; append goes through rt.Append for the selected growth rule."}
+  - {type: type.map, contract_version: 1.0.0, representation: "*rt.Map[K, V] (runtime/type_map.go), an insertion-ordered map over a native index."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: Native Go pointers.}
+  - {type: type.interface, contract_version: 1.0.0, representation: "Native Go interfaces; unexported method names carry a package suffix."}
+  - {type: type.function, contract_version: 1.0.0, representation: Native Go function values and literals.}
+  - {type: type.error, contract_version: 1.0.0, representation: "Native error; runtime errors use rt.RuntimeError, rt.PlainError, and rt.TypeAssertionError."}
+harness:
+  support: [tests/harness/harness.go]
+  generated: tests/harness/harness_gen.go
+  command: [go, run, ./targets/go/tests/harness]
+support_files: [runtime/rt.go, runtime/panic.go, runtime/type_integer.go, runtime/type_map.go]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.IntAdd", implementation: runtime/integer_add.go, harness: "rt.IntAdd({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.IntSub", implementation: runtime/integer_sub.go, harness: "rt.IntSub({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.IntMul", implementation: runtime/integer_mul.go, harness: "rt.IntMul({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "rt.IntDiv", implementation: runtime/integer_div.go, harness: "rt.IntDiv({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "rt.IntRem", implementation: runtime/integer_rem.go, harness: "rt.IntRem({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "rt.IntAnd", implementation: runtime/integer_and.go, harness: "rt.IntAnd({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "rt.IntOr", implementation: runtime/integer_or.go, harness: "rt.IntOr({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "rt.IntXor", implementation: runtime/integer_xor.go, harness: "rt.IntXor({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "rt.IntAndNot", implementation: runtime/integer_andnot.go, harness: "rt.IntAndNot({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "rt.IntNeg", implementation: runtime/integer_neg.go, harness: "rt.IntNeg({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "rt.IntNot", implementation: runtime/integer_not.go, harness: "rt.IntNot({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "rt.IntShl", implementation: runtime/integer_shl.go, harness: "rt.IntShl({0}, {1})"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "rt.IntShr", implementation: runtime/integer_shr.go, harness: "rt.IntShr({0}, {1})"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "rt.IntConvert", implementation: runtime/integer_convert.go, harness: "rt.IntConvert[{U}]({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "rt.IntCompare", implementation: runtime/integer_compare.go, harness: "rt.IntCompare({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "rt.StringIndex", implementation: runtime/string_index.go, harness: "rt.StringIndex({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "rt.StringSlice", implementation: runtime/string_slice.go, harness: "rt.StringSlice({0}, {1}, {2})"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "rt.StringConcat", implementation: runtime/string_concat.go, harness: "rt.StringConcat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "rt.StringCompare", implementation: runtime/string_compare.go, harness: "rt.StringCompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "rt.DecodeRune", implementation: runtime/string_decode_rune.go, harness: "rt.DecodeRune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "rt.StringFromBytes", implementation: runtime/string_from_bytes.go, harness: "rt.StringFromBytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "rt.StringToBytes", implementation: runtime/string_to_bytes.go, harness: "rt.StringToBytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "rt.StringFromRunes", implementation: runtime/string_from_runes.go, harness: "rt.StringFromRunes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "rt.StringToRunes", implementation: runtime/string_to_runes.go, harness: "rt.StringToRunes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "rt.StringFromRune", implementation: runtime/string_from_rune.go, harness: "rt.StringFromRune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "rt.SliceMake", implementation: runtime/slice_make.go, harness: "rt.SliceMake[{T}]({0}, {1})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.SliceIndex", implementation: runtime/slice_index.go, harness: "rt.SliceIndex({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.SliceStore", implementation: runtime/slice_store.go, harness: "rt.SliceStore({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.SliceSlice", implementation: runtime/slice_slice.go, harness: "rt.SliceSlice({0}, {1}, {2}, {3})"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.Append", implementation: runtime/slice_append.go, harness: "rt.Append({0}, {1}...)"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "rt.SliceCopy", implementation: runtime/slice_copy.go, harness: "rt.SliceCopy({0}, {1})"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "rt.NewMap", implementation: runtime/map_make.go, harness: "rt.NewMap[{K}, {V}]()"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "(*rt.Map).Get", implementation: runtime/map_lookup.go, harness: "{0}.Get({1})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "(*rt.Map).Set", implementation: runtime/map_store.go, harness: "{0}.Set({1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "(*rt.Map).Delete", implementation: runtime/map_delete.go, harness: "{0}.Delete({1})"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "(*rt.Map).Len", implementation: runtime/map_len.go, harness: "{0}.Len()"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "(*rt.Map).Clear", implementation: runtime/map_clear.go, harness: "{0}.Clear()"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "(*rt.Map).Iter", implementation: runtime/map_iterate.go, requires: [core.map.len], harness: "rt.MapKeys({0})"}
+  - {id: core.print, contract_version: 1.0.0, symbol: "rt.PrintString", implementation: runtime/print.go, harness: "rt.PrintString({0})"}
