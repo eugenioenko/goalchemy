@@ -3,12 +3,14 @@
   "mode": "baseline",
   "compiler": "0.1.0-dev",
   "source_profile": "go1.25",
-  "revision": "bdc5b7a177b6b5ee755987cd922ea6e060b8fc08",
-  "dirty": true,
+  "revision": "e2c892a44f35490884bd4069e79805936795525d",
+  "dirty": false,
   "contract_catalog_sha256": "6ce4fff204c4d6ff0d5759a337aace11f857cd7dcc548e01375e21f64bb922ea",
+  "toolchains_lock_sha256": "1af4d40587c8d0857807d14711c3726ac7c9e8ebc74fdd03e58684530e21b63e",
   "toolchains": {
-    "bdwgc": "gc-8.2.8",
+    "bdwgc": "8.2.8",
     "c": "cc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+    "clang": "clang version 18.1.8",
     "dotnet": "8.0.425",
     "go": "go version go1.27.1 linux/amd64",
     "java": "javac 21.0.12.1",
@@ -24,7 +26,7 @@
     "logical_cpus": "16"
   },
   "budget_seconds": 900,
-  "elapsed_ms": 29881,
+  "elapsed_ms": 28813,
   "results": [
     {
       "target": "go",
@@ -34,14 +36,14 @@
       "build_sha256": "b91568f934109ad0e3503810b2a37a58e0e54acee2d9489e3e7f334855ac07d5",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        696,
-        618,
-        624
+        661,
+        591,
+        592
       ],
       "run_ms": [
-        206,
-        214,
-        205
+        198,
+        197,
+        201
       ]
     },
     {
@@ -52,14 +54,14 @@
       "build_sha256": "5795b539da61b1192430990d0b31b4818c7f45ae0a88c1a89e8d44611e475b0a",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        608,
-        611,
-        609
+        597,
+        589,
+        597
       ],
       "run_ms": [
-        102,
-        103,
-        102
+        96,
+        98,
+        104
       ]
     },
     {
@@ -70,14 +72,14 @@
       "build_sha256": "3fd0cae2452169701a2ef04f5a5d0b37173729f02dba10b74cf1a8161c7afb00",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        619,
-        608,
-        612
+        589,
+        599,
+        592
       ],
       "run_ms": [
-        28,
-        26,
-        28
+        27,
+        27,
+        25
       ]
     },
     {
@@ -88,14 +90,14 @@
       "build_sha256": "f70c442f094f90c8ce78b62ab728e64f3f74cdee137731955ec1ece6f6ca61a4",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        623,
-        605,
-        612
+        591,
+        589,
+        588
       ],
       "run_ms": [
-        812,
-        808,
-        805
+        772,
+        783,
+        762
       ]
     },
     {
@@ -106,14 +108,14 @@
       "build_sha256": "53810c0afa33bc79d2f06e92dc9ab7fe33cf05c64ff7d4a3f89ea2e3cd808ced",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        614,
-        614,
-        617
+        600,
+        596,
+        587
       ],
       "run_ms": [
-        608,
-        598,
-        611
+        583,
+        596,
+        578
       ]
     },
     {
@@ -124,14 +126,14 @@
       "build_sha256": "16dd894cf66f48a47fa10b7d47a81bf80d32e41bc91baff6e877dd8a4654b5ce",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        617,
-        622,
-        617
+        599,
+        597,
+        595
       ],
       "run_ms": [
-        1777,
-        1752,
-        1776
+        1706,
+        1666,
+        1697
       ]
     },
     {
@@ -142,14 +144,14 @@
       "build_sha256": "65206b5696bea3889365348979722edd3f46aabe76808ef78a114f8cb1da8612",
       "observation_sha256": "b8cd5d1485dd482607df1b07a16c5f172f7112b19194897f439774a89cfd720a",
       "compile_ms": [
-        610,
-        611,
-        619
+        595,
+        588,
+        586
       ],
       "run_ms": [
-        1038,
-        1043,
-        1034
+        1002,
+        1007,
+        1004
       ]
     }
   ]
