@@ -1,0 +1,6 @@
+id: r002
+summary: Methods on named map types failed to compile in lowered Go when maps were pointer types.
+found_by: language fixture trees_recursive
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go, typescript]

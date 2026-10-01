@@ -1,0 +1,7 @@
+id: r005
+summary: Appending one element to a nil slice grew capacity to 2 instead of max(1, 2*0) = 1.
+found_by: contract case core.slice.append/from_nil
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go]
+golden: true

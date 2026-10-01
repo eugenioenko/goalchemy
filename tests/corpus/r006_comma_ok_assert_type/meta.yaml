@@ -1,0 +1,6 @@
+id: r006
+summary: The comma-ok type assertion used the tuple type for its value temporary.
+found_by: language fixture pointers
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go, typescript]

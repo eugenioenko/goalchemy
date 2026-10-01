@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"go/constant"
 	"go/format"
+	"go/token"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +27,7 @@ type Output struct {
 
 type emitter struct {
 	p         *ir.Program
+	outDir    string
 	typeNames map[*ir.Type]string
 	syms      map[string]bool
 	contracts map[string]bool
@@ -32,8 +35,10 @@ type emitter struct {
 	closures  map[*ir.Func]bool
 }
 
-func Emit(p *ir.Program) (*Output, error) {
-	e := &emitter{p: p, typeNames: map[*ir.Type]string{}, syms: map[string]bool{}, contracts: map[string]bool{}, closures: map[*ir.Func]bool{}}
+// Emit generates the main package; outDir anchors relative source paths
+// in line directives.
+func Emit(p *ir.Program, outDir string) (*Output, error) {
+	e := &emitter{p: p, outDir: outDir, typeNames: map[*ir.Type]string{}, syms: map[string]bool{}, contracts: map[string]bool{}, closures: map[*ir.Func]bool{}}
 	for _, f := range p.Funcs {
 		if f.Closure {
 			e.closures[f] = true
@@ -475,10 +480,26 @@ func (fe *fnEmitter) body() {
 			fe.w("b%d:\n", b.ID)
 		}
 		for _, in := range b.Instrs {
+			fe.line(in.Position())
 			fe.instr(in)
 		}
+		fe.line(b.Term.Position())
 		fe.term(b.Term)
 	}
+}
+
+// line emits a line directive so compiler and runtime positions refer to
+// the Goalchemy source.
+func (fe *fnEmitter) line(pos token.Pos) {
+	if !pos.IsValid() || fe.e.p.Fset == nil {
+		return
+	}
+	p := fe.e.p.Fset.Position(pos)
+	name := p.Filename
+	if rel, err := filepath.Rel(fe.e.outDir, name); err == nil && fe.e.outDir != "" {
+		name = filepath.ToSlash(rel)
+	}
+	fe.w("/*line %s:%d:%d*/", name, p.Line, p.Column)
 }
 
 func containsLocal(ls []*ir.Local, l *ir.Local) bool {

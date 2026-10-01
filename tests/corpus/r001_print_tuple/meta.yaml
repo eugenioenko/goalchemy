@@ -1,0 +1,6 @@
+id: r001
+summary: println with a multi-value call argument was rejected and mis-lowered.
+found_by: language fixture defer_recover
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go, typescript]

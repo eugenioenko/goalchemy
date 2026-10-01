@@ -1,0 +1,117 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"goalchemy/internal/diagnostics"
+	"goalchemy/internal/driver"
+	"goalchemy/internal/project"
+	"goalchemy/internal/subset"
+)
+
+func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("build", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	cfgPath := fs.String("config", project.FileName, "project configuration file")
+	asJSON := fs.Bool("json", false, "write diagnostics as JSON")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	cfg, err := project.Load(*cfgPath)
+	if err != nil {
+		fmt.Fprintln(stderr, "goalchemy build:", err)
+		return 2
+	}
+	res, ds := driver.Build(ctx, driver.Options{Dir: cfg.Dir, Patterns: cfg.Packages, Tags: cfg.Tags, Gate: subset.Gate(cfg.Gate)})
+	if diagnostics.HasErrors(ds) {
+		_ = diagnostics.Write(stderr, ds, *asJSON)
+		return 1
+	}
+	for _, t := range cfg.TargetNames() {
+		out := cfg.OutDir(t)
+		if err := os.MkdirAll(out, 0o755); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		if eds := driver.Emit(t, res, out); len(eds) > 0 {
+			_ = diagnostics.Write(stderr, eds, *asJSON)
+			return 1
+		}
+		fmt.Fprintf(stdout, "%s: wrote %s\n", t, out)
+	}
+	return 0
+}
+
+// runRun compiles a program to a temporary directory and runs it.
+func runRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var sf sourceFlags
+	sf.register(fs)
+	target := fs.String("target", "typescript", "target to run")
+	keep := fs.Bool("keep", false, "keep the generated directory and print its path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	res, ds := driver.Build(ctx, driver.Options{Dir: sf.dir, Patterns: fs.Args(), Tags: sf.tagList(), Gate: subset.Gate(sf.gate)})
+	if diagnostics.HasErrors(ds) {
+		_ = diagnostics.Write(stderr, ds, sf.json)
+		return 1
+	}
+	out, err := os.MkdirTemp("", "goalchemy-run-")
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	if *keep {
+		fmt.Fprintln(stderr, "generated:", out)
+	} else {
+		defer os.RemoveAll(out)
+	}
+	if eds := driver.Emit(*target, res, out); len(eds) > 0 {
+		_ = diagnostics.Write(stderr, eds, sf.json)
+		return 1
+	}
+	var cmd *exec.Cmd
+	switch *target {
+	case "go":
+		build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(out, "prog"), ".")
+		build.Dir, build.Stdout, build.Stderr = out, stderr, stderr
+		if err := build.Run(); err != nil {
+			return 1
+		}
+		cmd = exec.CommandContext(ctx, filepath.Join(out, "prog"))
+	case "typescript":
+		cmd = exec.CommandContext(ctx, "node", "--enable-source-maps", filepath.Join(out, "main.ts"))
+	default:
+		cmd = runnerFor(ctx, *target, out)
+		if cmd == nil {
+			fmt.Fprintf(stderr, "goalchemy run: no runner for target %s\n", *target)
+			return 2
+		}
+	}
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, stdout, stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	return 0
+}
+
+var runners = map[string]func(ctx context.Context, out string) *exec.Cmd{}
+
+func runnerFor(ctx context.Context, target, out string) *exec.Cmd {
+	if r, ok := runners[target]; ok {
+		return r(ctx, out)
+	}
+	return nil
+}

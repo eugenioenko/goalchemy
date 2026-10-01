@@ -7,17 +7,22 @@ import (
 	"bytes"
 	"fmt"
 	"go/constant"
+	"go/token"
 	"sort"
 	"strconv"
 	"strings"
 
 	"goalchemy/internal/ir"
+	"goalchemy/internal/sourcemap"
 )
 
 type Output struct {
 	Source    []byte
 	Contracts []string
+	SourceMap *sourcemap.Map
 }
+
+const marker = "\x00@"
 
 type emitter struct {
 	p         *ir.Program
@@ -29,6 +34,7 @@ type emitter struct {
 	helperQ   []*ir.Type
 	helperOut bytes.Buffer
 	seenHelp  map[*ir.Type]bool
+	positions []ir.At
 }
 
 func Emit(p *ir.Program) (*Output, error) {
@@ -76,7 +82,34 @@ func Emit(p *ir.Program) (*Output, error) {
 		cs = append(cs, c)
 	}
 	sort.Strings(cs)
-	return &Output{Source: e.out.Bytes(), Contracts: cs}, nil
+	src, sm := e.resolveMarkers(e.out.String())
+	src += "//# sourceMappingURL=main.ts.map\n"
+	return &Output{Source: []byte(src), Contracts: cs, SourceMap: sm}, nil
+}
+
+// resolveMarkers strips position markers, recording a mapping for each.
+func (e *emitter) resolveMarkers(src string) (string, *sourcemap.Map) {
+	sm := &sourcemap.Map{File: "main.ts"}
+	lines := strings.Split(src, "\n")
+	for i, ln := range lines {
+		for {
+			j := strings.Index(ln, marker)
+			if j < 0 {
+				break
+			}
+			k := strings.IndexByte(ln[j+len(marker):], 0)
+			idx, _ := strconv.Atoi(ln[j+len(marker) : j+len(marker)+k])
+			ln = ln[:j] + ln[j+len(marker)+k+1:]
+			if e.p.Fset != nil {
+				pos := e.p.Fset.Position(e.positions[idx].Pos)
+				if pos.IsValid() {
+					sm.Add(sourcemap.Mapping{GenLine: i, GenCol: j, Source: pos.Filename, SrcLine: pos.Line - 1, SrcCol: pos.Column - 1})
+				}
+			}
+		}
+		lines[i] = ln
+	}
+	return strings.Join(lines, "\n"), sm
 }
 
 func (e *emitter) use(c string) { e.contracts[c] = true }
@@ -630,9 +663,19 @@ func (fe *fnEmitter) results() string {
 func (fe *fnEmitter) block(b *ir.Block, next int) {
 	for _, in := range b.Instrs {
 		fe.w("    ")
+		fe.mark(in.Position())
 		fe.instr(in)
 	}
+	fe.mark(b.Term.Position())
 	fe.term(b.Term, next)
+}
+
+func (fe *fnEmitter) mark(pos token.Pos) {
+	if !pos.IsValid() {
+		return
+	}
+	fe.e.positions = append(fe.e.positions, ir.At{Pos: pos})
+	fe.w("%s%d\x00", marker, len(fe.e.positions)-1)
 }
 
 func (fe *fnEmitter) goTo(target *ir.Block, next int) {

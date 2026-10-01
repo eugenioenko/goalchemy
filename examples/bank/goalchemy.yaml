@@ -1,0 +1,5 @@
+schema_version: 1
+packages: [.]
+targets:
+  go: {out: ../../out/examples/bank/go}
+  typescript: {out: ../../out/examples/bank/typescript}

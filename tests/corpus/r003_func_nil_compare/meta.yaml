@@ -1,0 +1,6 @@
+id: r003
+summary: Comparing a function value with nil panicked as uncomparable in TypeScript.
+found_by: language fixture closures
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [typescript]

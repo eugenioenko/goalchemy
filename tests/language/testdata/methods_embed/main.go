@@ -2,7 +2,7 @@ package main
 
 type Animal struct{ Name string }
 
-func (a Animal) Speak() string  { return a.Name + " makes a sound" }
+func (a Animal) Speak() string    { return a.Name + " makes a sound" }
 func (a *Animal) Rename(n string) { a.Name = n }
 
 type Dog struct {

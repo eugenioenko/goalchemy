@@ -1,0 +1,6 @@
+id: r004
+summary: Lowered Go returned result values before deferred closures updated named results.
+found_by: language fixture defer_recover
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go]

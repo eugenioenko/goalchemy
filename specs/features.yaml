@@ -1,0 +1,31 @@
+# Supported-feature manifest. A feature is "supported" for a target only when
+# the listed fixtures pass on it; tests/language enforces the fixture lists.
+schema_version: 1
+release: 0.1.0
+gates:
+  - {name: sequential, status: released, targets: [go, typescript]}
+  - {name: cooperative, status: planned, targets: []}
+features:
+  - {id: packages_init, gate: sequential, status: supported, targets: [go, typescript], fixtures: [globals_init, multipkg, globals_addr]}
+  - {id: constants, gate: sequential, status: supported, targets: [go, typescript], fixtures: [consts_iota, int_convert]}
+  - {id: functions_results_variadic, gate: sequential, status: supported, targets: [go, typescript], fixtures: [calls_results, variadic_any]}
+  - {id: methods, gate: sequential, status: supported, targets: [go, typescript], fixtures: [methods_embed, embed_iface]}
+  - {id: closures, gate: sequential, status: supported, targets: [go, typescript], fixtures: [closures]}
+  - {id: named_types_aliases, gate: sequential, status: supported, targets: [go, typescript], fixtures: [shadow_scopes, int_convert]}
+  - {id: booleans_integers, gate: sequential, status: supported, targets: [go, typescript], fixtures: [int_arith, int_convert, short_circuit, div_zero, shift_negative]}
+  - {id: strings, gate: sequential, status: supported, targets: [go, typescript], fixtures: [strings_bytes]}
+  - {id: structs_arrays, gate: sequential, status: supported, targets: [go, typescript], fixtures: [structs_values, arrays_values]}
+  - {id: slices, gate: sequential, status: supported, targets: [go, typescript], fixtures: [slices_alias, slice_growth]}
+  - {id: maps, gate: sequential, status: supported, targets: [go, typescript], fixtures: [maps_basic, map_iteration, composite_keys]}
+  - {id: embedding_promotion, gate: sequential, status: supported, targets: [go, typescript], fixtures: [methods_embed, embed_iface]}
+  - {id: pointers, gate: sequential, status: supported, targets: [go, typescript], fixtures: [pointers, globals_addr, trees_recursive]}
+  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript], fixtures: [interfaces, variadic_any, runtime_panics]}
+  - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript], fixtures: [control_flow, switch_forms]}
+  - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript], fixtures: [defer_recover, runtime_panics, panic_custom]}
+  - {id: errors, gate: sequential, status: supported, targets: [go, typescript], fixtures: [errors_values]}
+  - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript], fixtures: [eval_order]}
+  - {id: tasks_channels_select, gate: cooperative, status: planned, targets: [], fixtures: []}
+  - {id: generics, gate: rejected, status: rejected, targets: [], fixtures: [reject_generic]}
+  - {id: floating_point, gate: rejected, status: rejected, targets: [], fixtures: [reject_float]}
+  - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}
+  - {id: goroutines_in_sequential, gate: rejected, status: rejected, targets: [], fixtures: [reject_goroutine]}

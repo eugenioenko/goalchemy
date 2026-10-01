@@ -1,0 +1,6 @@
+id: r007
+summary: Lowered Go reported Go's internal map hashing message instead of the runtime error text.
+found_by: language fixture runtime_panics
+compiler: 0.1.0-dev
+toolchain: go1.27.1
+targets: [go]

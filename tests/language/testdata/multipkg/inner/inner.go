@@ -17,7 +17,7 @@ type Counter struct{ total int }
 
 func NewCounter(start int) *Counter { return &Counter{start} }
 
-func (c *Counter) Add(n int) { c.total += n }
+func (c *Counter) Add(n int)  { c.total += n }
 func (c *Counter) Total() int { return c.total }
 
 type Shape interface{ Area() int }

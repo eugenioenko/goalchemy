@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"goalchemy/internal/diagnostics"
@@ -172,4 +173,71 @@ func ParseObservation(s string) Observation {
 	fmt.Sscanf(head, "exit=%d", &o.Exit)
 	o.Stdout, o.Stderr, _ = strings.Cut(rest, "--- stderr\n")
 	return o
+}
+
+// RunFixture runs one fixture through targets and reports mismatches.
+func RunFixture(t *testing.T, f Fixture, targets []string) {
+	t.Helper()
+	work := t.TempDir()
+	if len(f.Reject) > 0 {
+		ds := Compile(f.Dir, targets[0], filepath.Join(work, targets[0]))
+		got := map[string]bool{}
+		for _, d := range ds {
+			got[d.Code] = true
+		}
+		for _, c := range f.Reject {
+			if !got[c] {
+				t.Errorf("expected diagnostic %s, got %v", c, ds)
+			}
+		}
+		return
+	}
+	var want Observation
+	if f.Golden != "" {
+		want = ParseObservation(f.Golden)
+	} else {
+		native, err := Native(f.Dir, work)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want = Normalize(native)
+	}
+	var first *Observation
+	for _, target := range targets {
+		out := filepath.Join(work, target)
+		if ds := Compile(f.Dir, target, out); len(ds) > 0 {
+			for _, d := range ds {
+				t.Errorf("%s: %s", target, d)
+			}
+			continue
+		}
+		obs, err := Runners[target](out)
+		if err != nil {
+			t.Errorf("%s: %v", target, err)
+			continue
+		}
+		got := Normalize(obs)
+		cmpWant, cmpGot := want, got
+		if f.Unordered {
+			cmpWant, cmpGot = Unordered(want), Unordered(got)
+		}
+		if cmpGot != cmpWant {
+			t.Errorf("%s differs from expected\n=== expected\n%s=== %s\n%s", target, want, target, got)
+		}
+		if first == nil {
+			first = &got
+		} else if got != *first {
+			t.Errorf("%s differs from %s\n=== %s\n%s=== %s\n%s", target, targets[0], targets[0], *first, target, got)
+		}
+	}
+}
+
+// HasDirective reports whether src carries "// goalchemy:<name>".
+func HasDirective(src, name string) bool {
+	for _, m := range directive.FindAllStringSubmatch(src, -1) {
+		if m[1] == name {
+			return true
+		}
+	}
+	return false
 }
