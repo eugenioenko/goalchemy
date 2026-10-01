@@ -27,6 +27,8 @@ features:
   - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
   - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
   - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_context, co_sleep_order]}
+  - {id: task_all_series, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_task_all]}
+  - {id: resumable_frames, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_frames, co_sched_trace]}
   - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_deadlock, co_goroutine_panic]}
   - {id: generics, gate: rejected, status: rejected, targets: [], fixtures: [reject_generic]}
   - {id: floating_point, gate: rejected, status: rejected, targets: [], fixtures: [reject_float]}

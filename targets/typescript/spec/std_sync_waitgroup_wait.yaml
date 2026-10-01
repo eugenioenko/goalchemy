@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9afbf60a5a7a9a11c938ef9846572110995b41ffdfc4823ac4cfad5b984a6fbf
 symbol: "rt.stdSyncWaitgroupWait"
 implementation: runtime/std_sync_waitgroup_wait.ts
-implementation_hash: 89dac2827eca5b7ebe69fdad11c9cd4013a967f94857b8ebc1970f9416437aeb
+implementation_hash: a82992eb49b4e7beb6cf7967c9da19218e9c85239f1ab6751d06e2dd50273e34
 summary: "sync.WaitGroup.Wait: return at zero, otherwise wait."
 suspension: may
 determinism: controlled

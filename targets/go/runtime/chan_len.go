@@ -20,3 +20,13 @@ func ChanBuffered[T any](c Chan[T]) []T {
 
 // ChanClosed reports whether the channel is closed, for inspection.
 func ChanClosed[T any](c Chan[T]) bool { return c.c != nil && c.c.closed }
+
+// ChanWith builds a channel holding buffered values, for inspection tools.
+func ChanWith[T any](size int, vals []T, closed bool) Chan[T] {
+	c := MakeChan[T](size)
+	for _, v := range vals {
+		c.c.buf = append(c.c.buf, v)
+	}
+	c.c.closed = closed
+	return c
+}

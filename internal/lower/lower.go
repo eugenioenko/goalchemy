@@ -79,10 +79,12 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 	}
 	l.guard(token.NoPos, l.lowerInit)
 	l.completeMethodSets()
+	l.entry()
 	for _, f := range l.out.Funcs {
 		prune(f)
 	}
 	ir.ComputeEffects(l.out)
+	ir.SplitPauses(l.out)
 	for _, f := range l.out.Funcs {
 		if err := ir.Verify(f); err != nil {
 			l.diags = append(l.diags, diagnostics.Diagnostic{Code: "GCI002", Severity: diagnostics.Error,
@@ -381,6 +383,21 @@ func (l *Lowerer) lowerInit() {
 		}
 	}
 	fl.finish()
+}
+
+// entry builds the program entry: package initialization, then main.
+func (l *Lowerer) entry() {
+	if l.out.Init == nil {
+		return
+	}
+	f := l.addFunc(&ir.Func{Name: "$entry", Sym: l.sym("goalchemy_entry"), Sig: l.out.Init.Sig})
+	b := f.NewBlock("entry")
+	b.Instrs = append(b.Instrs, &ir.Call{Kind: ir.CallStatic, Func: l.out.Init})
+	if l.out.Main != nil {
+		b.Instrs = append(b.Instrs, &ir.Call{Kind: ir.CallStatic, Func: l.out.Main})
+	}
+	b.Term = &ir.Return{}
+	l.out.Entry = f
 }
 
 // completeMethodSets fills the method set of every boxed type, creating

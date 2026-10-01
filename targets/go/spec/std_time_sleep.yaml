@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 0314aab192eaccebd9bc47b63f466cedd8c0d1bb882b45ded05bb3b5ed7c4abc
 symbol: "rt.StdTimeSleep"
 implementation: runtime/std_time_sleep.go
-implementation_hash: fe7cc4a9ff179c3a92adddb419d0f50728a288abdf041d5e737c0f9bd0a8c20a
+implementation_hash: e9c6e20743f7084bfa027c0cca1bbc85478a64f9da0a5842acd89d82adaeb84d
 summary: "time.Sleep: suspend for a duration of virtual time."
 suspension: may
 determinism: controlled

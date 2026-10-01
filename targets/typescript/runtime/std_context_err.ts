@@ -28,7 +28,7 @@ export function cancelContext(c: Context, err: Box): void {
 }
 
 export function newChild(parent: Context): Context {
-  const c = new Context(makeChan(0));
+  const c = new Context(makeChan(0, () => ({})));
   if (parent.err !== null) cancelContext(c, parent.err);
   else if (parent !== BACKGROUND) parent.children.push(c);
   return c;

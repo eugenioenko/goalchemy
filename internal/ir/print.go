@@ -222,6 +222,24 @@ func InstrString(in any) string {
 		return fmt.Sprintf("jump b%d", i.Target.ID)
 	case *If:
 		return fmt.Sprintf("if %s b%d else b%d", ValueString(i.Cond), i.Then.ID, i.Else.ID)
+	case *Pause:
+		return fmt.Sprintf("pause %s -> b%d", InstrString(i.Op), i.Next.ID)
+	case *MakeChan:
+		return localName(i.Dst) + " = makechan " + ValueString(i.Size)
+	case *Send:
+		return ValueString(i.Ch) + " <- " + ValueString(i.V)
+	case *Recv:
+		d := "_"
+		if i.Dst != nil {
+			d = localName(i.Dst)
+		}
+		return d + " = <-" + ValueString(i.Ch)
+	case *Close:
+		return "close " + ValueString(i.Ch)
+	case *Select:
+		return fmt.Sprintf("%s = select(%d cases, default=%v)", localName(i.Index), len(i.Cases), i.Default)
+	case *Go:
+		return "go " + InstrString(i.Call)
 	case *Return:
 		return "return"
 	case *Panic:

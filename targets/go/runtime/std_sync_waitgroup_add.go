@@ -3,7 +3,7 @@ package rt
 // WaitGroup is sync.WaitGroup: a counter and the tasks waiting for zero.
 type WaitGroup struct {
 	n       int64
-	waiters []*task
+	waiters []*Task
 }
 
 func StdSyncWaitgroupAdd(wg *WaitGroup, d int) {

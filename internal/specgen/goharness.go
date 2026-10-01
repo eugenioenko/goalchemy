@@ -3,6 +3,7 @@ package specgen
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"go/format"
 
 	"goalchemy/internal/contracts"
@@ -47,6 +48,8 @@ func goDecode(t *contracts.TypeExpr, raw string) string {
 			raw, goType(t.Key), goDecode(t.Key, "r"), goType(t.Elem), goDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "func()":
+		return "nil"
 	case "context.Context":
 		return "rt.StdContextBackground()"
 	case "struct{}":
@@ -121,7 +124,12 @@ func goHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		for i := range ci.outs {
 			rs = append(rs, fmt.Sprintf("r%d", i))
 		}
-		if len(rs) > 0 {
+		if strings.HasPrefix(call, "await:") {
+			fmt.Fprintf(&b, "\t\trv := Await(func(t *rt.Task) { %s })\n\t\t_ = rv\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
+			for i, o := range ci.outs {
+				fmt.Fprintf(&b, "\t\tr%d := rt.As[%s](rv[%d])\n", i, goType(o), i)
+			}
+		} else if len(rs) > 0 {
 			fmt.Fprintf(&b, "\t\t%s := %s\n", join(rs), call)
 		} else {
 			fmt.Fprintf(&b, "\t\t%s\n", call)

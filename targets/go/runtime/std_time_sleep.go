@@ -1,13 +1,12 @@
 package rt
 
-// StdTimeSleep suspends the current task for d nanoseconds of virtual
+// StdTimeSleep is a pause primitive suspending for d nanoseconds of virtual
 // time. Virtual time advances only when no task can run.
-func StdTimeSleep(d int64) {
-	s := sched
+func StdTimeSleep(t *Task, d int64) {
 	if d <= 0 {
-		Gosched()
+		yieldTask(t)
 		return
 	}
-	s.addTimer(d, s.cur, nil)
-	s.park()
+	sched.addTimer(d, t, nil)
+	sched.block(t)
 }

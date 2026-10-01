@@ -162,6 +162,10 @@ func Verify(f *Func) error {
 			}
 		case *Panic:
 			checkVal(b, t.X)
+		case *Pause:
+			if !blocks[t.Next] || t.Next.ResumeOf != t.Op {
+				bad(b, "pause continuation is not its resume block")
+			}
 		}
 	}
 	if len(errs) > 0 {
@@ -177,6 +181,8 @@ func Successors(t Terminator) []*Block {
 		return []*Block{t.Target}
 	case *If:
 		return []*Block{t.Then, t.Else}
+	case *Pause:
+		return []*Block{t.Next}
 	}
 	return nil
 }

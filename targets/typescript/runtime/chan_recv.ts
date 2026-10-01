@@ -1,16 +1,18 @@
-// core.chan.recv: v, ok := <-ch.
+// core.chan.recv: v, ok := <-ch, a pause primitive; results arrive in
+// t.rv as [value, ok].
 import { tryRecv, Waiter, type Chan } from "./chan_make.ts";
-import { park, sched } from "./task_spawn.ts";
+import { sched, type Task } from "./task_spawn.ts";
 
-export function* chanRecv(ch: Chan | null, zero: () => unknown): Generator<unknown, [unknown, boolean], unknown> {
+export function chanRecv(t: Task, ch: Chan | null): void {
   if (ch === null) {
-    yield* park();
-    return [zero(), false];
+    sched.block(t);
+    return;
   }
   const [v, ok, done] = tryRecv(ch);
-  if (done) return ok ? [v, true] : [zero(), false];
-  const w = new Waiter(sched.cur, undefined);
-  ch.recvq.push(w);
-  yield* park();
-  return w.ok ? [w.val, true] : [zero(), false];
+  if (done) {
+    t.rv = [v, ok];
+    return;
+  }
+  ch.recvq.push(new Waiter(t, undefined));
+  sched.block(t);
 }

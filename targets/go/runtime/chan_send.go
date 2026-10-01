@@ -1,28 +1,24 @@
 package rt
 
-// Send implements c <- v.
-func (c Chan[T]) Send(v T) {
+// Send implements c <- v as a pause primitive.
+func (c Chan[T]) Send(t *Task, v T) {
 	ch := c.c
 	s := sched
 	if ch == nil {
-		s.park()
+		s.block(t)
 		return
 	}
 	if ch.closed {
 		panic(PlainError("send on closed channel"))
 	}
 	if w := dequeue(&ch.recvq); w != nil {
-		w.complete(v, true, false)
+		w.recvDone(v, true)
 		return
 	}
 	if len(ch.buf) < ch.size {
 		ch.buf = append(ch.buf, v)
 		return
 	}
-	w := &waiter{t: s.cur, val: v}
-	ch.sendq = append(ch.sendq, w)
-	s.park()
-	if w.closed {
-		panic(PlainError("send on closed channel"))
-	}
+	ch.sendq = append(ch.sendq, &waiter{t: t, val: v})
+	s.block(t)
 }

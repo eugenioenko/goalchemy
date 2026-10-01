@@ -8,6 +8,8 @@ export interface Deferred {
   f: ((...args: any[]) => any) | null;
   args: any[];
   fid: unknown;
+  /** Set when f starts a frame (a suspending callee). */
+  start?: boolean;
 }
 
 /** Per-task recover state: the panic visible to recover and the identity of
@@ -71,34 +73,6 @@ export function runDefers(ds: Deferred[], p: GoPanic | null): void {
   if (panicking !== null) throw panicking;
 }
 
-/** runDefers for suspending functions: deferred calls may suspend. */
-export function* runDefersG(ds: Deferred[], p: GoPanic | null): Generator<unknown, void, unknown> {
-  let panicking = p;
-  while (ds.length > 0) {
-    const d = ds.pop()!;
-    const st = panicState.current();
-    const savedPanic = st.curPanic;
-    const savedTarget = st.deferTarget;
-    st.curPanic = panicking;
-    st.deferTarget = d.fid;
-    try {
-      if (d.f === null) throw nilDeref();
-      const r = d.f(...d.args);
-      if (isGen(d.f)) yield* r;
-    } catch (e) {
-      const np = catchPanic(e);
-      if (np !== panicking && np.prev === null) np.prev = panicking;
-      panicking = np;
-      continue;
-    } finally {
-      st.curPanic = savedPanic;
-      st.deferTarget = savedTarget;
-    }
-    if (panicking !== null && panicking.recovered) panicking = null;
-  }
-  if (panicking !== null) throw panicking;
-}
-
 /** recover() called from the function identified by fid. */
 export function recover(fid: unknown): Box | null {
   const st = panicState.current();
@@ -108,23 +82,16 @@ export function recover(fid: unknown): Box | null {
   return p.value;
 }
 
-/** Reports whether a function value returns a generator (it may suspend). */
-export function isGen(f: unknown): boolean {
-  return f !== null && (f as { $gen?: boolean }).$gen === true;
-}
+type Fn = ((...args: any[]) => any) & { $fid?: unknown };
 
-type Fn = ((...args: any[]) => any) & { $fid?: unknown; $gen?: boolean };
-
-/** Tags a function value with the identity recover compares against, and
- * whether calling it returns a generator. */
-export function closure<F extends Fn>(fid: unknown, f: F, gen?: boolean): F {
+/** Tags a function value with the identity recover compares against. */
+export function closure<F extends Fn>(fid: unknown, f: F): F {
   f.$fid = fid;
-  if (gen) f.$gen = true;
   return f;
 }
 
 export function bound(fid: unknown, f: Fn, recv: any): Fn {
-  return closure(fid, (...a: any[]) => f(recv, ...a), f.$gen === true);
+  return closure(fid, (...a: any[]) => f(recv, ...a));
 }
 
 export function ichk(x: Box | null): Box {
@@ -136,7 +103,7 @@ export function ichk(x: Box | null): Box {
 export function ibound(x: Box | null, id: string): Fn {
   const b = ichk(x);
   const m = b.t.methods[id] as Fn;
-  return closure(m.$fid, (...a: any[]) => m(b.v, ...a), m.$gen === true);
+  return closure(m.$fid, (...a: any[]) => m(b.v, ...a));
 }
 
 export function fnchk<F>(f: F | null): F {

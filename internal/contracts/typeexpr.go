@@ -86,6 +86,8 @@ func parseType(s string) (*TypeExpr, string, error) {
 	case strings.HasPrefix(s, "chan "):
 		e, rest, err := parseType(s[5:])
 		return &TypeExpr{Kind: "chan", Elem: e}, rest, err
+	case strings.HasPrefix(s, "func()"):
+		return &TypeExpr{Kind: "name", Name: "func()"}, s[len("func()"):], nil
 	case strings.HasPrefix(s, "struct{}"):
 		return &TypeExpr{Kind: "name", Name: "struct{}"}, s[len("struct{}"):], nil
 	case strings.HasPrefix(s, "*"):
@@ -137,7 +139,7 @@ func IntInfo(name string) (bits uint, signed bool, ok bool) {
 	return r.bits, r.signed, ok
 }
 
-var concreteNames = map[string]bool{"bool": true, "string": true, "error": true, "any": true, "struct{}": true}
+var concreteNames = map[string]bool{"bool": true, "string": true, "error": true, "any": true, "struct{}": true, "func()": true}
 
 // Concrete reports whether a type expression contains only concrete names.
 func (t *TypeExpr) Concrete() bool {

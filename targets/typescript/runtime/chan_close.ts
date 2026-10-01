@@ -6,6 +6,6 @@ export function chanClose(ch: Chan | null): void {
   if (ch === null) throw plainPanic("close of nil channel");
   if (ch.closed) throw plainPanic("close of closed channel");
   ch.closed = true;
-  for (let w = dequeue(ch.recvq); w !== null; w = dequeue(ch.recvq)) w.complete(undefined, false, false);
-  for (let w = dequeue(ch.sendq); w !== null; w = dequeue(ch.sendq)) w.complete(undefined, false, true);
+  for (let w = dequeue(ch.recvq); w !== null; w = dequeue(ch.recvq)) w.recvDone(ch.zero(), false);
+  for (let w = dequeue(ch.sendq); w !== null; w = dequeue(ch.sendq)) w.sendDone(true);
 }

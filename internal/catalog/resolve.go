@@ -17,6 +17,10 @@ import (
 // stdPackages lists standard packages whose symbols may be mapped.
 var stdPackages = map[string]bool{"errors": true, "sync": true, "runtime": true, "context": true, "time": true}
 
+// LibModule is the import path prefix of Goalchemy's own capability
+// packages, whose Go source doubles as their declarations.
+const LibModule = "goalchemy/lib/"
+
 // DeclarationModule is the module path under which specs/declarations lives.
 const DeclarationModule = "goalchemy/specs/declarations/"
 
@@ -86,10 +90,12 @@ func lookupPackage(fsys fs.FS, cache map[string]*types.Package, pkgPath string) 
 	var err error
 	if strings.HasPrefix(pkgPath, DeclarationModule) {
 		pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
+	} else if strings.HasPrefix(pkgPath, LibModule) {
+		pkg, err = checkDir(fsys, "lib/"+strings.TrimPrefix(pkgPath, LibModule), pkgPath)
 	} else if stdPackages[pkgPath] {
 		pkg, err = importer.Default().Import(pkgPath)
 	} else {
-		err = fmt.Errorf("package %s is neither standard nor under %s", pkgPath, DeclarationModule)
+		err = fmt.Errorf("package %s is neither standard nor under %s or %s", pkgPath, DeclarationModule, LibModule)
 	}
 	if err != nil {
 		return nil, err
@@ -132,6 +138,6 @@ func checkDir(fsys fs.FS, dir, pkgPath string) (*types.Package, error) {
 		}
 		files = append(files, f)
 	}
-	conf := types.Config{Importer: importer.Default(), GoVersion: "go1.25"}
+	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil), GoVersion: "go1.25"}
 	return conf.Check(pkgPath, fset, files, nil)
 }

@@ -6,18 +6,18 @@ package ir
 // to every function in the program that could be the callee: functions
 // whose value is taken with a matching signature, and methods of boxed
 // types with the called method identity. Effects propagate through the call
-// graph to a fixed point. The result marks Func.MaySuspend and
-// Call.Suspends, and sets Program.Cooperative.
+// graph to a fixed point.
+//
+// The analysis also classifies function types and method identities: a
+// function type is suspending when any value of it may suspend, and every
+// value of such a type uses the resumable calling convention (a starter
+// returning a frame). The same holds for interface methods. The result marks
+// Func.MaySuspend, Call.Suspends, Program.SuspTypes, Program.SuspMethods,
+// and Program.Cooperative.
 func ComputeEffects(p *Program) {
-	valueFuncs := map[*Type][]*Func{} // by value signature
+	valueFuncs := map[*Type][]*Func{}
 	methodImpls := map[string][]*Func{}
-	sigOf := func(f *Func, dropRecv bool) *Type {
-		if !dropRecv {
-			return f.Sig
-		}
-		return nil
-	}
-	_ = sigOf
+	ibound := map[*Type][]string{}
 	for _, f := range p.Funcs {
 		for _, b := range f.Blocks {
 			for _, in := range b.Instrs {
@@ -26,6 +26,8 @@ func ComputeEffects(p *Program) {
 					valueFuncs[i.Dst.Type.U()] = append(valueFuncs[i.Dst.Type.U()], i.Func)
 				case *MakeBound:
 					valueFuncs[i.Dst.Type.U()] = append(valueFuncs[i.Dst.Type.U()], i.Func)
+				case *MakeIfaceBound:
+					ibound[i.Dst.Type.U()] = append(ibound[i.Dst.Type.U()], i.Method)
 				}
 				forEachValue(in, func(v Value) {
 					if fr, ok := v.(*FuncRef); ok {
@@ -40,27 +42,8 @@ func ComputeEffects(p *Program) {
 			methodImpls[m.ID] = append(methodImpls[m.ID], m.Func)
 		}
 	}
-	candidates := func(c *Call) []*Func {
-		switch c.Kind {
-		case CallStatic:
-			return []*Func{c.Func}
-		case CallValue:
-			return valueFuncs[c.Fn.IRType().U()]
-		case CallInterface:
-			return methodImpls[c.Method]
-		}
-		return nil
-	}
-	// Bound interface method values may call any implementation.
-	for _, f := range p.Funcs {
-		for _, b := range f.Blocks {
-			for _, in := range b.Instrs {
-				if ib, ok := in.(*MakeIfaceBound); ok {
-					valueFuncs[ib.Dst.Type.U()] = append(valueFuncs[ib.Dst.Type.U()], methodImpls[ib.Method]...)
-				}
-			}
-		}
-	}
+	p.SuspTypes = map[*Type]bool{}
+	p.SuspMethods = map[string]bool{}
 	direct := func(in Instr) bool {
 		switch i := in.(type) {
 		case *Send, *Recv, *Select:
@@ -88,8 +71,57 @@ func ComputeEffects(p *Program) {
 			}
 		}
 	}
+	callSuspends := func(c *Call) bool {
+		switch c.Kind {
+		case CallStatic:
+			return c.Func.MaySuspend
+		case CallValue:
+			return p.SuspTypes[c.Fn.IRType().U()]
+		case CallInterface:
+			return p.SuspMethods[c.Method]
+		case CallExtern:
+			return c.Extern.MaySuspend
+		}
+		return false
+	}
 	for changed := true; changed; {
 		changed = false
+		for id, impls := range methodImpls {
+			if p.SuspMethods[id] {
+				continue
+			}
+			for _, f := range impls {
+				if f.MaySuspend {
+					p.SuspMethods[id] = true
+					changed = true
+					break
+				}
+			}
+		}
+		for t, fs := range valueFuncs {
+			if p.SuspTypes[t] {
+				continue
+			}
+			for _, f := range fs {
+				if f.MaySuspend {
+					p.SuspTypes[t] = true
+					changed = true
+					break
+				}
+			}
+		}
+		for t, ids := range ibound {
+			if p.SuspTypes[t] {
+				continue
+			}
+			for _, id := range ids {
+				if p.SuspMethods[id] {
+					p.SuspTypes[t] = true
+					changed = true
+					break
+				}
+			}
+		}
 		for _, f := range p.Funcs {
 			if f.MaySuspend {
 				continue
@@ -104,15 +136,10 @@ func ComputeEffects(p *Program) {
 					case *Defer:
 						c = i.Call
 					}
-					if c == nil {
-						continue
-					}
-					for _, cand := range candidates(c) {
-						if cand.MaySuspend {
-							f.MaySuspend = true
-							changed = true
-							break scan
-						}
+					if c != nil && callSuspends(c) {
+						f.MaySuspend = true
+						changed = true
+						break scan
 					}
 				}
 			}
@@ -121,29 +148,61 @@ func ComputeEffects(p *Program) {
 	for _, f := range p.Funcs {
 		for _, b := range f.Blocks {
 			for _, in := range b.Instrs {
-				var c *Call
 				switch i := in.(type) {
 				case *Call:
-					c = i
+					i.Suspends = callSuspends(i)
 				case *Defer:
-					c = i.Call
+					i.Call.Suspends = callSuspends(i.Call)
 				case *Go:
-					c = i.Call
-				}
-				if c == nil {
-					continue
-				}
-				if c.Kind == CallExtern {
-					c.Suspends = c.Extern.MaySuspend
-					continue
-				}
-				for _, cand := range candidates(c) {
-					if cand.MaySuspend {
-						c.Suspends = true
-						break
-					}
+					i.Call.Suspends = callSuspends(i.Call)
 				}
 			}
+		}
+	}
+	if p.Entry != nil && p.Entry.MaySuspend {
+		p.Cooperative = true
+	}
+}
+
+// IsPause reports whether an instruction in a suspending function is a
+// pause point: the task may stop there and resume later.
+func IsPause(in Instr) bool {
+	switch i := in.(type) {
+	case *Send, *Recv, *Select:
+		return true
+	case *Call:
+		return i.Suspends
+	}
+	return false
+}
+
+// SplitPauses lowers every suspending function to resumable form: each
+// pause point ends its block with a Pause terminator whose continuation
+// block starts by receiving the paused operation's results. Together with
+// a frame holding the function's locals, the block index of a continuation
+// is the whole resumption state, so every target can resume a function
+// without native coroutines.
+func SplitPauses(p *Program) {
+	for _, f := range p.Funcs {
+		if !f.MaySuspend {
+			continue
+		}
+		for bi := 0; bi < len(f.Blocks); bi++ {
+			b := f.Blocks[bi]
+			for k, in := range b.Instrs {
+				if !IsPause(in) {
+					continue
+				}
+				next := &Block{Comment: "resume", Instrs: append([]Instr(nil), b.Instrs[k+1:]...), Term: b.Term}
+				next.ResumeOf = in
+				b.Instrs = b.Instrs[:k]
+				b.Term = &Pause{At: At{Pos: in.Position()}, Op: in, Next: next}
+				f.Blocks = append(f.Blocks, next)
+				break
+			}
+		}
+		for i, b := range f.Blocks {
+			b.ID = i
 		}
 	}
 }

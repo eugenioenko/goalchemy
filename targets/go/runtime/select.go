@@ -5,20 +5,25 @@ type SelectCase struct {
 	Ch   *chanCore
 	Send bool
 	Val  any
+	Zero any
 }
 
-// Case adapts a typed channel for Select.
+// Case adapts a typed channel send for Select.
 func Case[T any](c Chan[T], send bool, v T) SelectCase {
-	return SelectCase{Ch: c.c, Send: send, Val: v}
+	var zero T
+	return SelectCase{Ch: c.c, Send: send, Val: v, Zero: zero}
 }
 
 // RecvCase adapts a typed channel receive for Select.
-func RecvCase[T any](c Chan[T]) SelectCase { return SelectCase{Ch: c.c} }
+func RecvCase[T any](c Chan[T]) SelectCase {
+	var zero T
+	return SelectCase{Ch: c.c, Zero: zero}
+}
 
 // Select commits one ready case, chosen uniformly by the scheduler's choice
-// source; it returns -1 when hasDefault is set and nothing is ready, and
-// suspends otherwise. The received value and ok are returned for receives.
-func Select(cases []SelectCase, hasDefault bool) (int, any, bool) {
+// source; the results {index, value, ok} arrive in t.RV, with index -1 for
+// the default. It is a pause primitive.
+func Select(t *Task, cases []SelectCase, hasDefault bool) {
 	s := sched
 	var ready []int
 	for i, c := range cases {
@@ -42,26 +47,30 @@ func Select(cases []SelectCase, hasDefault bool) (int, any, bool) {
 				panic(PlainError("send on closed channel"))
 			}
 			if w := dequeue(&c.Ch.recvq); w != nil {
-				w.complete(c.Val, true, false)
+				w.recvDone(c.Val, true)
 			} else {
 				c.Ch.buf = append(c.Ch.buf, c.Val)
 			}
-			return i, nil, false
+			t.RV = []any{i, nil, false}
+			return
 		}
 		v, ok, _ := c.Ch.tryRecv()
-		return i, v, ok
+		if !ok {
+			v = c.Zero
+		}
+		t.RV = []any{i, v, ok}
+		return
 	}
 	if hasDefault {
-		return -1, nil, false
+		t.RV = []any{-1, nil, false}
+		return
 	}
 	st := &selectState{}
-	ws := make([]*waiter, len(cases))
 	for i, c := range cases {
 		if c.Ch == nil {
 			continue
 		}
-		w := &waiter{t: s.cur, sel: st, idx: i}
-		ws[i] = w
+		w := &waiter{t: t, sel: st, idx: i}
 		if c.Send {
 			w.val = c.Val
 			c.Ch.sendq = append(c.Ch.sendq, w)
@@ -69,18 +78,15 @@ func Select(cases []SelectCase, hasDefault bool) (int, any, bool) {
 			c.Ch.recvq = append(c.Ch.recvq, w)
 		}
 	}
-	s.park()
-	for i, c := range cases {
-		if c.Ch != nil {
-			unregister(&c.Ch.sendq, ws[i])
-			unregister(&c.Ch.recvq, ws[i])
+	s.block(t)
+	t.cleanup = func() {
+		for _, c := range cases {
+			if c.Ch != nil {
+				unregister(&c.Ch.sendq, st)
+				unregister(&c.Ch.recvq, st)
+			}
 		}
 	}
-	w := ws[st.index]
-	if cases[st.index].Send && w.closed {
-		panic(PlainError("send on closed channel"))
-	}
-	return st.index, w.val, w.ok
 }
 
 func hasLive(q []*waiter) bool {
@@ -92,22 +98,13 @@ func hasLive(q []*waiter) bool {
 	return false
 }
 
-func unregister(q *[]*waiter, w *waiter) {
+// unregister removes a select's losing registrations.
+func unregister(q *[]*waiter, st *selectState) {
 	out := (*q)[:0]
 	for _, x := range *q {
-		if x != w {
+		if x.sel != st {
 			out = append(out, x)
 		}
 	}
 	*q = out
-}
-
-// Value converts a received select value to T, using the zero value for
-// receives that reported closure.
-func Value[T any](v any) T {
-	if v == nil {
-		var zero T
-		return zero
-	}
-	return v.(T)
 }

@@ -18,9 +18,9 @@ export function encError(v: Box | null): unknown {
 
 import * as rt from "./runtime_index.ts";
 
-export function decChan<T>(raw: any, dec: (r: any) => T): rt.Chan | null {
+export function decChan<T>(raw: any, dec: (r: any) => T, zero: () => T): rt.Chan | null {
   if (raw.nil) return null;
-  const ch = rt.makeChan(Number(raw.cap ?? "0"));
+  const ch = rt.makeChan(Number(raw.cap ?? "0"), zero);
   for (const v of raw.chan) ch.buf.push(dec(v));
   if (raw.closed) ch.closed = true;
   return ch;
@@ -35,25 +35,35 @@ export function encZero(_: unknown): unknown {
   return { zero: true };
 }
 
-export function* harnessSpawn(): Generator<unknown, boolean, unknown> {
-  let ran = false;
-  rt.spawn(() => {
-    ran = true;
-  }, []);
-  const before = ran;
-  yield* rt.yieldTask();
-  if (!ran) throw new Error("spawned task did not run after the parent yielded");
-  return before;
+/** Reports whether a spawned task ran before the parent yielded. */
+class SpawnCheck extends rt.Frame {
+  ran = false;
+  before = false;
+  step(t: rt.Task): void {
+    if (this.pc === 0) {
+      rt.spawn(rt.sync(() => {
+        this.ran = true;
+        return [];
+      }));
+      this.before = this.ran;
+      this.pc = 1;
+      rt.stdRuntimeGosched(t);
+      return;
+    }
+    if (!this.ran) throw new Error("spawned task did not run after the parent yielded");
+    rt.ret(t, this);
+  }
+  results(): unknown[] {
+    return [this.before];
+  }
 }
 
-export function* harnessSelect2(a: rt.Chan | null, b: rt.Chan | null, dflt: boolean): Generator<unknown, bigint, unknown> {
-  const [i] = yield* rt.select([{ ch: a, send: false }, { ch: b, send: false }], dflt);
-  return BigInt(i);
+export function newSpawnCheck(): rt.Frame {
+  return new SpawnCheck();
 }
 
-export function* harnessLockUnlock(m: rt.Mutex): Generator<unknown, void, unknown> {
-  yield* rt.stdSyncMutexLock(m);
-  rt.stdSyncMutexUnlock(m);
+export function harnessSelect2(t: rt.Task, a: rt.Chan | null, b: rt.Chan | null, dflt: boolean): void {
+  rt.select(t, [{ ch: a, send: false }, { ch: b, send: false }], dflt);
 }
 
 export interface H {

@@ -1,0 +1,37 @@
+id: lib.task.all
+schema_version: 1
+version: 1.0.0
+summary: "task.All: run each function as a task, in order, and resume the caller when all have finished."
+signature:
+  source: declaration
+  symbol: "goalchemy/lib/task.All"
+  type_parameters: []
+  inputs:
+    - {name: fns, type: "[]func()"}
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "With no functions, All returns without yielding."
+  nil: "A nil function panics in its task when it runs, terminating the program."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "The functions share whatever their closures capture."
+  allocation: "One task per function."
+  errors: "Not applicable."
+  panics: "An unrecovered panic in any of the tasks terminates the program instance."
+  observations: "The tasks run in series: each starts in argument order, after the caller suspends, and only one runs at a time. A task that blocks lets the next one run. The caller resumes after the last one finishes."
+notes: "Parallel execution of source code is out of scope; hosts may overlap capability I/O performed by the tasks."
+cases:
+  - name: empty
+    types: {}
+    let:
+      - {name: fns, type: "[]func()", value: {"nil": true}}
+    call: ["fns"]
+    expect:
+      results: []

@@ -63,32 +63,47 @@ var cases = map[string]func(h *H) []any{
 	"core.chan.recv/buffered": func(h *H) []any {
 		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
 		_ = v_ch
-		r0, r1 := v_ch.Recv()
+		rv := Await(func(t *rt.Task) { v_ch.Recv(t) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
+		r1 := rt.As[bool](rv[1])
 		h.After("ch", EncChan(v_ch, func(e int) any { return EncInt(e) }))
 		return []any{EncInt(r0), EncBool(r1)}
 	},
 	"core.chan.recv/closed": func(h *H) []any {
 		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) string { return DecString(r) })
 		_ = v_ch
-		r0, r1 := v_ch.Recv()
+		rv := Await(func(t *rt.Task) { v_ch.Recv(t) })
+		_ = rv
+		r0 := rt.As[string](rv[0])
+		r1 := rt.As[bool](rv[1])
 		return []any{EncString(r0), EncBool(r1)}
 	},
 	"core.chan.recv/drains_before_close": func(h *H) []any {
 		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
 		_ = v_ch
-		r0, r1 := v_ch.Recv()
+		rv := Await(func(t *rt.Task) { v_ch.Recv(t) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
+		r1 := rt.As[bool](rv[1])
 		return []any{EncInt(r0), EncBool(r1)}
 	},
 	"core.chan.recv/empty_blocks": func(h *H) []any {
 		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
 		_ = v_ch
-		r0, r1 := v_ch.Recv()
+		rv := Await(func(t *rt.Task) { v_ch.Recv(t) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
+		r1 := rt.As[bool](rv[1])
 		return []any{EncInt(r0), EncBool(r1)}
 	},
 	"core.chan.recv/nil_blocks": func(h *H) []any {
 		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
 		_ = v_ch
-		r0, r1 := v_ch.Recv()
+		rv := Await(func(t *rt.Task) { v_ch.Recv(t) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
+		r1 := rt.As[bool](rv[1])
 		return []any{EncInt(r0), EncBool(r1)}
 	},
 	"core.chan.send/buffered": func(h *H) []any {
@@ -96,7 +111,8 @@ var cases = map[string]func(h *H) []any{
 		_ = v_ch
 		v_v := DecInt[int](h.Let("v"))
 		_ = v_v
-		v_ch.Send(v_v)
+		rv := Await(func(t *rt.Task) { v_ch.Send(t, v_v) })
+		_ = rv
 		h.After("ch", EncChan(v_ch, func(e int) any { return EncInt(e) }))
 		return []any{}
 	},
@@ -105,7 +121,8 @@ var cases = map[string]func(h *H) []any{
 		_ = v_ch
 		v_v := DecInt[int](h.Let("v"))
 		_ = v_v
-		v_ch.Send(v_v)
+		rv := Await(func(t *rt.Task) { v_ch.Send(t, v_v) })
+		_ = rv
 		return []any{}
 	},
 	"core.chan.send/full_blocks": func(h *H) []any {
@@ -113,7 +130,8 @@ var cases = map[string]func(h *H) []any{
 		_ = v_ch
 		v_v := DecInt[int](h.Let("v"))
 		_ = v_v
-		v_ch.Send(v_v)
+		rv := Await(func(t *rt.Task) { v_ch.Send(t, v_v) })
+		_ = rv
 		return []any{}
 	},
 	"core.chan.send/nil_blocks": func(h *H) []any {
@@ -121,7 +139,8 @@ var cases = map[string]func(h *H) []any{
 		_ = v_ch
 		v_v := DecInt[int](h.Let("v"))
 		_ = v_v
-		v_ch.Send(v_v)
+		rv := Await(func(t *rt.Task) { v_ch.Send(t, v_v) })
+		_ = rv
 		return []any{}
 	},
 	"core.chan.send/unbuffered_blocks": func(h *H) []any {
@@ -129,7 +148,8 @@ var cases = map[string]func(h *H) []any{
 		_ = v_ch
 		v_v := DecString(h.Let("v"))
 		_ = v_v
-		v_ch.Send(v_v)
+		rv := Await(func(t *rt.Task) { v_ch.Send(t, v_v) })
+		_ = rv
 		return []any{}
 	},
 	"core.integer.add/int32_plain": func(h *H) []any {
@@ -732,7 +752,9 @@ var cases = map[string]func(h *H) []any{
 		_ = v_b
 		v_dflt := DecBool(h.Let("dflt"))
 		_ = v_dflt
-		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		rv := Await(func(t *rt.Task) { HarnessSelect2(t, v_a, v_b, v_dflt) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
 		return []any{EncInt(r0)}
 	},
 	"core.select/default_when_idle": func(h *H) []any {
@@ -742,7 +764,9 @@ var cases = map[string]func(h *H) []any{
 		_ = v_b
 		v_dflt := DecBool(h.Let("dflt"))
 		_ = v_dflt
-		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		rv := Await(func(t *rt.Task) { HarnessSelect2(t, v_a, v_b, v_dflt) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
 		return []any{EncInt(r0)}
 	},
 	"core.select/nothing_blocks": func(h *H) []any {
@@ -752,7 +776,9 @@ var cases = map[string]func(h *H) []any{
 		_ = v_b
 		v_dflt := DecBool(h.Let("dflt"))
 		_ = v_dflt
-		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		rv := Await(func(t *rt.Task) { HarnessSelect2(t, v_a, v_b, v_dflt) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
 		return []any{EncInt(r0)}
 	},
 	"core.select/only_ready": func(h *H) []any {
@@ -762,7 +788,9 @@ var cases = map[string]func(h *H) []any{
 		_ = v_b
 		v_dflt := DecBool(h.Let("dflt"))
 		_ = v_dflt
-		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		rv := Await(func(t *rt.Task) { HarnessSelect2(t, v_a, v_b, v_dflt) })
+		_ = rv
+		r0 := rt.As[int](rv[0])
 		h.After("b", EncChan(v_b, func(e int) any { return EncInt(e) }))
 		return []any{EncInt(r0)}
 	},
@@ -1235,8 +1263,17 @@ var cases = map[string]func(h *H) []any{
 		return []any{EncSlice(r0, func(e int32) any { return EncInt(e) })}
 	},
 	"core.task.spawn/parent_continues": func(h *H) []any {
-		r0 := HarnessSpawn()
+		rv := Await(func(t *rt.Task) { rt.Call(t, NewSpawnCheck()) })
+		_ = rv
+		r0 := rt.As[bool](rv[0])
 		return []any{EncBool(r0)}
+	},
+	"lib.task.all/empty": func(h *H) []any {
+		v_fns := DecSlice(h.Let("fns"), func(r json.RawMessage) func() { return nil })
+		_ = v_fns
+		rv := Await(func(t *rt.Task) { rt.LibTaskAll(t, v_fns) })
+		_ = rv
+		return []any{}
 	},
 	"std.context.background/root": func(h *H) []any {
 		r0 := rt.StdContextBackground()
@@ -1313,19 +1350,22 @@ var cases = map[string]func(h *H) []any{
 		return []any{EncError(r0)}
 	},
 	"std.runtime.gosched/alone": func(h *H) []any {
-		rt.StdRuntimeGosched()
+		rv := Await(func(t *rt.Task) { rt.StdRuntimeGosched(t) })
+		_ = rv
 		return []any{}
 	},
 	"std.sync.mutex.lock/unlocked": func(h *H) []any {
 		v_m := new(rt.Mutex)
 		_ = v_m
-		rt.StdSyncMutexLock(v_m)
+		rv := Await(func(t *rt.Task) { rt.StdSyncMutexLock(t, v_m) })
+		_ = rv
 		return []any{}
 	},
 	"std.sync.mutex.unlock/lock_then_unlock": func(h *H) []any {
 		v_m := new(rt.Mutex)
 		_ = v_m
-		HarnessLockUnlock(v_m)
+		rv := Await(func(t *rt.Task) { rt.StdSyncMutexLock(t, v_m); rt.StdSyncMutexUnlock(v_m) })
+		_ = rv
 		return []any{}
 	},
 	"std.sync.waitgroup.add/negative": func(h *H) []any {
@@ -1353,13 +1393,15 @@ var cases = map[string]func(h *H) []any{
 	"std.sync.waitgroup.wait/zero_returns": func(h *H) []any {
 		v_wg := new(rt.WaitGroup)
 		_ = v_wg
-		rt.StdSyncWaitgroupWait(v_wg)
+		rv := Await(func(t *rt.Task) { rt.StdSyncWaitgroupWait(t, v_wg) })
+		_ = rv
 		return []any{}
 	},
 	"std.time.sleep/zero": func(h *H) []any {
 		v_d := DecInt[int64](h.Let("d"))
 		_ = v_d
-		rt.StdTimeSleep(v_d)
+		rv := Await(func(t *rt.Task) { rt.StdTimeSleep(t, v_d) })
+		_ = rv
 		return []any{}
 	},
 }

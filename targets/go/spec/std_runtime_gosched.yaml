@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a0864086c243fec66262ff03d7b8c05ae576a139729c74d043697057d14ca3dd
 symbol: "rt.StdRuntimeGosched"
 implementation: runtime/std_runtime_gosched.go
-implementation_hash: 18cc5b93bb70073b7d7804f546e211c52b790493edd4947e7faf32cf0fe6f145
+implementation_hash: 485b489d685d4fa09e82b25eacc594455624320eb2d8b50449d5a1a20232f068
 summary: "runtime.Gosched: move the running task to the end of the run queue."
 suspension: may
 determinism: controlled

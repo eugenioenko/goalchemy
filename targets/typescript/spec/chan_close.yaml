@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d882107dedcf7a0945ff33520dbc9875638a1dd539d6d3bb0970e9f602732d70
 symbol: "rt.chanClose"
 implementation: runtime/chan_close.ts
-implementation_hash: fdb3cb95d69ab7ecbd4210e6e2b3407b65daf4385b6ffbc715bd2ce8e8fe0a44
+implementation_hash: 0a57ab2d8bba8081eac9ddb137cd156885fe51ac5dfb27820a0f47f5109cd2d9
 summary: "close(ch): mark closed and release every waiting receiver and sender."
 suspension: never
 determinism: deterministic

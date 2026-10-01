@@ -1,11 +1,13 @@
-// std.time.sleep: suspend for d nanoseconds of virtual time.
-import { park, sched, yieldTask } from "./task_spawn.ts";
+// std.time.sleep: suspend for d nanoseconds of virtual time; a pause
+// primitive.
+import { sched, yieldTask, type Task } from "./task_spawn.ts";
 
-export function* stdTimeSleep(d: bigint): Generator<unknown, void, unknown> {
+export function stdTimeSleep(t: Task, d: bigint): void {
+  t.rv = [];
   if (d <= 0n) {
-    yield* yieldTask();
+    yieldTask(t);
     return;
   }
-  sched.addTimer(d, sched.cur, null);
-  yield* park();
+  sched.addTimer(d, t, null);
+  sched.block(t);
 }

@@ -15,4 +15,4 @@ notes: >-
   pending, the instance reports "fatal error: all goroutines are asleep -
   deadlock!" and exits with status 2. Virtual time advances only when every
   task is blocked and a timer is pending.
-exercised_by: [core.task.spawn, std.sync.mutex.lock, std.sync.mutex.unlock, std.sync.waitgroup.add, std.sync.waitgroup.wait, std.runtime.gosched, std.time.sleep]
+exercised_by: [lib.task.all, core.task.spawn, std.sync.mutex.lock, std.sync.mutex.unlock, std.sync.waitgroup.add, std.sync.waitgroup.wait, std.runtime.gosched, std.time.sleep]

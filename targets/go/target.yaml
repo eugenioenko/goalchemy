@@ -8,7 +8,7 @@ environment:
   build: go build
 representations:
   - {type: type.channel, contract_version: 1.0.0, representation: "rt.Chan[T] (runtime/chan_make.go): a handle to shared channel state with FIFO wait queues; the zero handle is the nil channel."}
-  - {type: type.task, contract_version: 1.0.0, representation: "One goroutine per source task under a run baton (runtime/task_spawn.go): exactly one task runs at a time, dispatched FIFO."}
+  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.go): suspending functions compile to frame structs with a Step method; exactly one task runs at a time, dispatched FIFO."}
   - {type: type.boolean, contract_version: 1.0.0, representation: Go bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Native Go integer types; int and uint are 64-bit on the linux/amd64 source profile and Go operators have identical semantics."}
   - {type: type.string, contract_version: 1.0.0, representation: Native Go string.}
@@ -70,21 +70,21 @@ functions:
   - {id: std.errors.new, contract_version: 1.0.0, symbol: rt.StdErrorsNew, implementation: runtime/std_errors_new.go, harness: "rt.StdErrorsNew({0})"}
   - {id: std.errors.is, contract_version: 1.0.0, symbol: rt.StdErrorsIs, implementation: runtime/std_errors_is.go, harness: "rt.StdErrorsIs({0}, {1})"}
   - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: rt.StdErrorsUnwrap, implementation: runtime/std_errors_unwrap.go, harness: "rt.StdErrorsUnwrap({0})"}
-  - {id: core.task.spawn, contract_version: 1.0.0, symbol: rt.Go, implementation: runtime/task_spawn.go, harness: "HarnessSpawn()"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: rt.Spawn, implementation: runtime/task_spawn.go, harness: "await: rt.Call(t, NewSpawnCheck())"}
   - {id: core.chan.make, contract_version: 1.0.0, symbol: rt.MakeChan, implementation: runtime/chan_make.go, requires: [core.task.spawn], harness: "rt.MakeChan[{T}]({0})"}
-  - {id: core.chan.send, contract_version: 1.0.0, symbol: "(rt.Chan).Send", implementation: runtime/chan_send.go, requires: [core.chan.make], harness: "{0}.Send({1})"}
-  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "(rt.Chan).Recv", implementation: runtime/chan_recv.go, requires: [core.chan.make], harness: "{0}.Recv()"}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: "(rt.Chan).Send", implementation: runtime/chan_send.go, requires: [core.chan.make], harness: "await: {0}.Send(t, {1})"}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "(rt.Chan).Recv", implementation: runtime/chan_recv.go, requires: [core.chan.make], harness: "await: {0}.Recv(t)"}
   - {id: core.chan.close, contract_version: 1.0.0, symbol: "(rt.Chan).Close", implementation: runtime/chan_close.go, requires: [core.chan.make], harness: "{0}.Close()"}
   - {id: core.chan.len, contract_version: 1.0.0, symbol: "(rt.Chan).Len", implementation: runtime/chan_len.go, requires: [core.chan.make], harness: "{0}.Len()"}
   - {id: core.chan.cap, contract_version: 1.0.0, symbol: "(rt.Chan).Cap", implementation: runtime/chan_cap.go, requires: [core.chan.make], harness: "{0}.Cap()"}
-  - {id: core.select, contract_version: 1.0.0, symbol: rt.Select, implementation: runtime/select.go, requires: [core.chan.recv], harness: "HarnessSelect2({0}, {1}, {2})"}
-  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: rt.StdSyncMutexLock, implementation: runtime/std_sync_mutex_lock.go, harness: "rt.StdSyncMutexLock({0})"}
-  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: rt.StdSyncMutexUnlock, implementation: runtime/std_sync_mutex_unlock.go, requires: [std.sync.mutex.lock], harness: "HarnessLockUnlock({0})"}
+  - {id: core.select, contract_version: 1.0.0, symbol: rt.Select, implementation: runtime/select.go, requires: [core.chan.recv], harness: "await: HarnessSelect2(t, {0}, {1}, {2})"}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: rt.StdSyncMutexLock, implementation: runtime/std_sync_mutex_lock.go, harness: "await: rt.StdSyncMutexLock(t, {0})"}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: rt.StdSyncMutexUnlock, implementation: runtime/std_sync_mutex_unlock.go, requires: [std.sync.mutex.lock], harness: "await: rt.StdSyncMutexLock(t, {0}); rt.StdSyncMutexUnlock({0})"}
   - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: rt.StdSyncWaitgroupAdd, implementation: runtime/std_sync_waitgroup_add.go, harness: "rt.StdSyncWaitgroupAdd({0}, {1})"}
   - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: rt.StdSyncWaitgroupDone, implementation: runtime/std_sync_waitgroup_done.go, harness: "rt.StdSyncWaitgroupDone({0})"}
-  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: rt.StdSyncWaitgroupWait, implementation: runtime/std_sync_waitgroup_wait.go, requires: [std.sync.waitgroup.add], harness: "rt.StdSyncWaitgroupWait({0})"}
-  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: rt.StdRuntimeGosched, implementation: runtime/std_runtime_gosched.go, harness: "rt.StdRuntimeGosched()"}
-  - {id: std.time.sleep, contract_version: 1.0.0, symbol: rt.StdTimeSleep, implementation: runtime/std_time_sleep.go, harness: "rt.StdTimeSleep({0})"}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: rt.StdSyncWaitgroupWait, implementation: runtime/std_sync_waitgroup_wait.go, requires: [std.sync.waitgroup.add], harness: "await: rt.StdSyncWaitgroupWait(t, {0})"}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: rt.StdRuntimeGosched, implementation: runtime/std_runtime_gosched.go, harness: "await: rt.StdRuntimeGosched(t)"}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: rt.StdTimeSleep, implementation: runtime/std_time_sleep.go, harness: "await: rt.StdTimeSleep(t, {0})"}
   - {id: std.context.background, contract_version: 1.0.0, symbol: rt.StdContextBackground, implementation: runtime/std_context_background.go, requires: [std.context.err], harness: "rt.StdContextBackground()"}
   - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: rt.StdContextWithCancel, implementation: runtime/std_context_with_cancel.go, requires: [std.context.err], harness: "rt.StdContextWithCancel({0})"}
   - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: rt.StdContextWithTimeout, implementation: runtime/std_context_with_timeout.go, requires: [std.context.err], harness: "rt.StdContextWithTimeout({0}, {1})"}
@@ -92,3 +92,4 @@ functions:
   - {id: std.context.err, contract_version: 1.0.0, symbol: rt.StdContextContextErr, implementation: runtime/std_context_err.go, requires: [core.chan.close], harness: "rt.StdContextContextErr({0})"}
   - {id: std.context.canceled, contract_version: 1.0.0, symbol: rt.StdContextCanceled, implementation: runtime/std_context_canceled.go, requires: [std.context.err], harness: "rt.StdContextCanceled()"}
   - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: rt.StdContextDeadlineExceeded, implementation: runtime/std_context_deadline_exceeded.go, requires: [std.context.err], harness: "rt.StdContextDeadlineExceeded()"}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: rt.LibTaskAll, implementation: runtime/lib_task_all.go, requires: [core.task.spawn], harness: "await: rt.LibTaskAll(t, {0})"}

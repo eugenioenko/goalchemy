@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: c7617964208fb190496152af325346faaa8e05af35a1a5283dfb5a413fc0393f
 symbol: "(rt.Chan).Len"
 implementation: runtime/chan_len.go
-implementation_hash: 2955ac5ceda1724ab4e5fe119f2561b95abf6aabfae35b9d8000e0f74631a33f
+implementation_hash: a63ca5c126eafbc5069a93a0632d00f7c2948d02eca9421a759cf5b80022a47a
 summary: "len(ch): buffered element count."
 suspension: never
 determinism: deterministic

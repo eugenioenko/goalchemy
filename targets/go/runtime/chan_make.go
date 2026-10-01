@@ -7,12 +7,10 @@ type selectState struct {
 }
 
 type waiter struct {
-	t      *task
-	val    any
-	ok     bool
-	closed bool
-	sel    *selectState
-	idx    int
+	t   *Task
+	val any
+	sel *selectState
+	idx int
 }
 
 type chanCore struct {
@@ -28,8 +26,6 @@ type chanCore struct {
 type Chan[T any] struct {
 	c *chanCore
 }
-
-func (c Chan[T]) core() *chanCore { return c.c }
 
 // MakeChan implements make(chan T, size).
 func MakeChan[T any](size int) Chan[T] {
@@ -51,11 +47,27 @@ func dequeue(q *[]*waiter) *waiter {
 	return nil
 }
 
-func (w *waiter) complete(val any, ok, closed bool) {
+// recvDone completes a waiting receiver with a value or closure.
+func (w *waiter) recvDone(val any, ok bool) {
 	if w.sel != nil {
 		w.sel.done = true
-		w.sel.index = w.idx
+		w.t.RV = []any{w.idx, val, ok}
+	} else {
+		w.t.RV = []any{val, ok}
 	}
-	w.val, w.ok, w.closed = val, ok, closed
+	sched.ready(w.t)
+}
+
+// sendDone completes a waiting sender; closed makes it panic on resume.
+func (w *waiter) sendDone(closed bool) {
+	if w.sel != nil {
+		w.sel.done = true
+		w.t.RV = []any{w.idx, nil, false}
+	} else {
+		w.t.RV = nil
+	}
+	if closed {
+		w.t.resumePanic = &Panic{Value: PlainError("send on closed channel")}
+	}
 	sched.ready(w.t)
 }

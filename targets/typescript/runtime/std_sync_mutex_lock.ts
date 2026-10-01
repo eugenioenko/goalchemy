@@ -1,5 +1,5 @@
 // std.sync.mutex.lock: acquire or wait FIFO; Unlock hands the lock over.
-import { park, sched, type Task } from "./task_spawn.ts";
+import { sched, type Task } from "./task_spawn.ts";
 
 export class Mutex {
   locked = false;
@@ -16,11 +16,13 @@ export class Mutex {
   }
 }
 
-export function* stdSyncMutexLock(m: Mutex): Generator<unknown, void, unknown> {
+/** A pause primitive. */
+export function stdSyncMutexLock(t: Task, m: Mutex): void {
+  t.rv = [];
   if (!m.locked) {
     m.locked = true;
     return;
   }
-  m.waiters.push(sched.cur);
-  yield* park();
+  m.waiters.push(t);
+  sched.block(t);
 }

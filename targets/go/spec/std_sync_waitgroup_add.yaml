@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9032d6dbdee30f768f52e7355aceb2a9f038afb1215052a6d66fab30bbe1c491
 symbol: "rt.StdSyncWaitgroupAdd"
 implementation: runtime/std_sync_waitgroup_add.go
-implementation_hash: 66ca5696e1fac9bcb7bdd67599a8ed703c6a4dfda2676f63bc3950f0e97e3a89
+implementation_hash: 1d21e6895a3973f5681c8a5f994554c7a077c6559e6ce8e95cf385a8a35c6134
 summary: "sync.WaitGroup.Add: adjust the counter; at zero, release every waiter."
 suspension: never
 determinism: deterministic

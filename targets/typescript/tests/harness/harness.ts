@@ -5,7 +5,7 @@ import { writeSync } from "node:fs";
 import { cases } from "./harness_gen.ts";
 import { GoPanic } from "../../types/panic.ts";
 import { formatPanicValue } from "../../types/program.ts";
-import { Blocked, runIsolated } from "../../runtime/task_spawn.ts";
+import { Blocked, resetScheduler } from "../../runtime/task_spawn.ts";
 
 const PROTOCOL = 1;
 
@@ -21,7 +21,8 @@ function serve(req: any): unknown {
   const after: Record<string, unknown> = {};
   const h = { let: (n: string) => req.let[n], after: (n: string, v: unknown) => { after[n] = v; } };
   try {
-    const results = runIsolated(() => fn(h));
+    resetScheduler();
+    const results = fn(h);
     return { ...base, status: "returned", results, after };
   } catch (e) {
     if (e instanceof Blocked) return { ...base, status: "blocked" };

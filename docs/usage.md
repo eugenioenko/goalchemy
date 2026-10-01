@@ -56,7 +56,7 @@ Programs write output with Go's `print` and `println` builtins, which go to stan
 - concurrency under the default sequential gate (compile with `-gate cooperative`)
 - imports other than module source and registered capabilities
 
-Registered standard-library capabilities are `errors.New`, `errors.Is`, and `errors.Unwrap`, plus, under the cooperative gate, `sync.Mutex`, `sync.WaitGroup`, `runtime.Gosched`, `time.Sleep`, and `context.Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, `Done`, and `Err`. `errors.As`, `errors.Join`, and `fmt` are not available.
+Registered standard-library capabilities are `errors.New`, `errors.Is`, and `errors.Unwrap`, plus `goalchemy/lib/task.All`, and, under the cooperative gate, `sync.Mutex`, `sync.WaitGroup`, `runtime.Gosched`, `time.Sleep`, and `context.Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, `Done`, and `Err`. `errors.As`, `errors.Join`, and `fmt` are not available.
 
 ## Cooperative execution
 
@@ -67,7 +67,15 @@ With `-gate cooperative` (or `gate: cooperative` in `goalchemy.yaml`), programs 
 - `time.Sleep` and context deadlines use a virtual clock, which advances only when every task is blocked.
 - A deadlock prints `fatal error: all goroutines are asleep - deadlock!` and exits with status 2.
 
-Every target follows the same scheduler contract. Lowered Go runs each task as a goroutine under a single run baton. TypeScript compiles suspending functions, found by effect analysis, to generators driven by the scheduler.
+Every target follows the same scheduler contract and the same shared lowering:
+
+1. **Effect analysis** finds the functions that may suspend: those that use channels, `select`, or suspending capabilities, directly or through calls, function values, or interface methods.
+2. **The shared IR pass** cuts each of those functions at its pause points into continuation blocks. The function becomes a resumable *frame*: an object holding its locals and the block to resume at.
+3. **Each runtime** provides pause primitives (`recv`, `send`, `select`, lock, sleep, spawn) and a trampoline scheduler. Deferred calls, `panic`, and `recover` in frames are managed by the runtime, per task.
+
+No target relies on native coroutines or threads for source tasks.
+
+`goalchemy/lib/task` provides `task.All(fns ...func())`. It runs each function as a task, in argument order and one at a time, and returns when all have finished. With the Go toolchain the same package runs the functions as goroutines.
 
 ## Behavior Go leaves open
 

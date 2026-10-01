@@ -1,27 +1,25 @@
 package rt
 
-// Recv implements v, ok := <-c.
-func (c Chan[T]) Recv() (T, bool) {
+// Recv implements v, ok := <-c as a pause primitive; the results arrive in
+// t.RV as {value, ok}.
+func (c Chan[T]) Recv(t *Task) {
 	ch := c.c
 	s := sched
 	var zero T
 	if ch == nil {
-		s.park()
-		return zero, false
+		s.block(t)
+		return
 	}
 	if v, ok, done := ch.tryRecv(); done {
 		if !ok {
-			return zero, false
+			t.RV = []any{zero, false}
+		} else {
+			t.RV = []any{v, true}
 		}
-		return v.(T), true
+		return
 	}
-	w := &waiter{t: s.cur}
-	ch.recvq = append(ch.recvq, w)
-	s.park()
-	if !w.ok {
-		return zero, false
-	}
-	return w.val.(T), true
+	ch.recvq = append(ch.recvq, &waiter{t: t})
+	s.block(t)
 }
 
 // tryRecv receives without blocking when a value or closure is available.
@@ -31,13 +29,13 @@ func (ch *chanCore) tryRecv() (any, bool, bool) {
 		ch.buf = ch.buf[1:]
 		if w := dequeue(&ch.sendq); w != nil {
 			ch.buf = append(ch.buf, w.val)
-			w.complete(nil, true, false)
+			w.sendDone(false)
 		}
 		return v, true, true
 	}
 	if w := dequeue(&ch.sendq); w != nil {
 		v := w.val
-		w.complete(nil, true, false)
+		w.sendDone(false)
 		return v, true, true
 	}
 	if ch.closed {

@@ -19,6 +19,13 @@ type Program struct {
 	// Cooperative is set when the program uses tasks, channels, or other
 	// suspending operations, so targets must link their scheduler.
 	Cooperative bool
+	// Entry runs Init and then Main; cooperative targets start it as the
+	// first task.
+	Entry *Func
+	// SuspTypes holds function types (underlying) whose values use the
+	// resumable calling convention; SuspMethods holds such method identities.
+	SuspTypes   map[*Type]bool
+	SuspMethods map[string]bool
 	Fset      *token.FileSet
 }
 
@@ -141,6 +148,9 @@ type Block struct {
 	Comment string
 	Instrs  []Instr
 	Term    Terminator
+	// ResumeOf is the paused operation whose results this continuation
+	// block receives when the task resumes.
+	ResumeOf Instr
 }
 
 type Instr interface{ Position() token.Pos }
@@ -616,6 +626,14 @@ type Panic struct {
 // Unreachable marks control flow that cannot continue, such as the end of a
 // function whose last statement cannot complete normally.
 type Unreachable struct{ At }
+
+// Pause ends a block at a pause point. Op is the suspending operation; the
+// task resumes at Next, which first receives Op's results.
+type Pause struct {
+	At
+	Op   Instr
+	Next *Block
+}
 
 // PanicRuntime panics with a runtime.Error whose Error() text is Msg.
 type PanicRuntime struct {

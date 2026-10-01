@@ -1,18 +1,15 @@
 // core.chan.make: make(chan T, size), and the channel state shared by the
 // channel and select runtime functions.
-import { plainPanic } from "../types/panic.ts";
+import { GoPanic, plainPanic } from "../types/panic.ts";
 import { sched, type Task } from "./task_spawn.ts";
 
 export class SelectState {
   done = false;
-  index = -1;
 }
 
 export class Waiter {
   task: Task;
   val: unknown;
-  ok = false;
-  closed = false;
   sel: SelectState | null;
   idx: number;
   constructor(task: Task, val: unknown, sel: SelectState | null = null, idx = 0) {
@@ -21,14 +18,25 @@ export class Waiter {
     this.sel = sel;
     this.idx = idx;
   }
-  complete(val: unknown, ok: boolean, closed: boolean): void {
+  /** Completes a waiting receiver with a value or closure. */
+  recvDone(val: unknown, ok: boolean): void {
     if (this.sel !== null) {
       this.sel.done = true;
-      this.sel.index = this.idx;
+      this.task.rv = [this.idx, val, ok];
+    } else {
+      this.task.rv = [val, ok];
     }
-    this.val = val;
-    this.ok = ok;
-    this.closed = closed;
+    sched.ready(this.task);
+  }
+  /** Completes a waiting sender; closed makes it panic when it resumes. */
+  sendDone(closed: boolean): void {
+    if (this.sel !== null) {
+      this.sel.done = true;
+      this.task.rv = [this.idx, undefined, false];
+    } else {
+      this.task.rv = [];
+    }
+    if (closed) this.task.resumePanic = plainPanic("send on closed channel") as GoPanic;
     sched.ready(this.task);
   }
 }
@@ -39,8 +47,10 @@ export class Chan {
   closed = false;
   recvq: Waiter[] = [];
   sendq: Waiter[] = [];
-  constructor(size: number) {
+  zero: () => unknown;
+  constructor(size: number, zero: () => unknown) {
     this.size = size;
+    this.zero = zero;
   }
 }
 
@@ -64,22 +74,21 @@ export function tryRecv(ch: Chan): [unknown, boolean, boolean] {
     const w = dequeue(ch.sendq);
     if (w !== null) {
       ch.buf.push(w.val);
-      w.complete(undefined, true, false);
+      w.sendDone(false);
     }
     return [v, true, true];
   }
   const w = dequeue(ch.sendq);
   if (w !== null) {
     const v = w.val;
-    w.complete(undefined, true, false);
+    w.sendDone(false);
     return [v, true, true];
   }
-  if (ch.closed) return [undefined, false, true];
+  if (ch.closed) return [ch.zero(), false, true];
   return [undefined, false, false];
 }
 
-
-export function makeChan(size: number | bigint): Chan {
+export function makeChan(size: number | bigint, zero: () => unknown = () => undefined): Chan {
   if (size < 0 || size > Number.MAX_SAFE_INTEGER) throw plainPanic("makechan: size out of range");
-  return new Chan(Number(size));
+  return new Chan(Number(size), zero);
 }

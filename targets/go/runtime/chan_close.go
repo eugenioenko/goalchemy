@@ -10,18 +10,11 @@ func (c Chan[T]) Close() {
 		panic(PlainError("close of closed channel"))
 	}
 	ch.closed = true
-	for {
-		w := dequeue(&ch.recvq)
-		if w == nil {
-			break
-		}
-		w.complete(nil, false, false)
+	var zero T
+	for w := dequeue(&ch.recvq); w != nil; w = dequeue(&ch.recvq) {
+		w.recvDone(zero, false)
 	}
-	for {
-		w := dequeue(&ch.sendq)
-		if w == nil {
-			break
-		}
-		w.complete(nil, false, true)
+	for w := dequeue(&ch.sendq); w != nil; w = dequeue(&ch.sendq) {
+		w.sendDone(true)
 	}
 }

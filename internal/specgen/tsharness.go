@@ -33,7 +33,7 @@ func tsZero(t *contracts.TypeExpr) string {
 		return "false"
 	case "string":
 		return `""`
-	case "error", "any":
+	case "error", "any", "func()":
 		return "null"
 	}
 	if bits, _, _ := contracts.IntInfo(t.Name); bits == 64 {
@@ -45,7 +45,7 @@ func tsZero(t *contracts.TypeExpr) string {
 func tsDecode(t *contracts.TypeExpr, raw string) string {
 	switch t.Kind {
 	case "chan":
-		return fmt.Sprintf("decChan(%s, (r: any) => %s)", raw, tsDecode(t.Elem, "r"))
+		return fmt.Sprintf("decChan(%s, (r: any) => %s, () => %s)", raw, tsDecode(t.Elem, "r"), tsZero(t.Elem))
 	case "pointer":
 		return "new rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
@@ -54,6 +54,8 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 		return fmt.Sprintf("decMap(%s, (r: any) => %s, (r: any) => %s)", raw, tsDecode(t.Key, "r"), tsDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "func()":
+		return "null"
 	case "context.Context":
 		return "rt.stdContextBackground()"
 	case "struct{}":
@@ -103,10 +105,10 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// %s\nimport * as rt from \"./runtime_index.ts\";\n", Marker)
-	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, decChan, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, encChan, encZero, harnessSpawn, harnessSelect2, harnessLockUnlock, type H } from \"./codec.ts\";\n\n")
-	b.WriteString("export const cases: Record<string, (h: H) => Generator<unknown, unknown[], unknown>> = {\n")
+	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, decChan, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, encChan, encZero, newSpawnCheck, harnessSelect2, type H } from \"./codec.ts\";\n\n")
+	b.WriteString("export const cases: Record<string, (h: H) => unknown[]> = {\n")
 	for _, ci := range cases {
-		fmt.Fprintf(&b, "  %q: function* (h: H) {\n", ci.ID())
+		fmt.Fprintf(&b, "  %q: (h: H) => {\n", ci.ID())
 		for _, l := range ci.lets {
 			name := "v_" + l.name
 			switch l.kind {
@@ -128,6 +130,12 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 			vars[k+".zero"] = tsZero(v)
 		}
 		call := expand(ci.impl.Harness, args, vars)
+		if strings.HasPrefix(call, "await:") {
+			fmt.Fprintf(&b, "    const rv = rt.runIsolated((t: any) => { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
+			for i := range ci.outs {
+				fmt.Fprintf(&b, "    const r%d: any = rv[%d];\n", i, i)
+			}
+		} else {
 		switch len(ci.outs) {
 		case 0:
 			fmt.Fprintf(&b, "    %s;\n", call)
@@ -139,6 +147,7 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 				rs = append(rs, fmt.Sprintf("r%d", i))
 			}
 			fmt.Fprintf(&b, "    const [%s] = %s;\n", join(rs), call)
+		}
 		}
 		for _, a := range ci.c.Expect.After {
 			var lt *contracts.TypeExpr

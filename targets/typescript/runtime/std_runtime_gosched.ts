@@ -1,6 +1,7 @@
-// std.runtime.gosched: requeue the running task.
-import { yieldTask } from "./task_spawn.ts";
+// std.runtime.gosched: requeue the running task; a pause primitive.
+import { yieldTask, type Task } from "./task_spawn.ts";
 
-export function* stdRuntimeGosched(): Generator<unknown, void, unknown> {
-  yield* yieldTask();
+export function stdRuntimeGosched(t: Task): void {
+  t.rv = [];
+  yieldTask(t);
 }

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e9fb946048a2549d274a18d49be08e7b402f17988e4746ccc005643b607540a6
 symbol: "(rt.Chan).Send"
 implementation: runtime/chan_send.go
-implementation_hash: 2f6e22382ed050584da6858c0215254a03bb22f88027eb4a0017f30e6fafdbbf
+implementation_hash: 83f40af1fe6d82722204c737c0aaa6ca26f88fc65f2491624bdfc2896058ec03
 summary: "ch <- v: hand the value to a waiting receiver, buffer it, or wait."
 suspension: may
 determinism: controlled

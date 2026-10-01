@@ -1,3 +1,4 @@
 package rt
 
-func StdRuntimeGosched() { Gosched() }
+// StdRuntimeGosched is a pause primitive that requeues the running task.
+func StdRuntimeGosched(t *Task) { yieldTask(t) }
