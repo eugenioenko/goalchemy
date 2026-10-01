@@ -6,3 +6,4 @@ targets:
   python: {out: ../../out/examples/life/python}
   java: {out: ../../out/examples/life/java}
   csharp: {out: ../../out/examples/life/csharp}
+  rust: {out: ../../out/examples/life/rust}

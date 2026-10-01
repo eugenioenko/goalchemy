@@ -3,33 +3,33 @@
 schema_version: 1
 release: 0.1.0
 gates:
-  - {name: sequential, status: released, targets: [go, typescript, python, java, csharp]}
-  - {name: cooperative, status: released, targets: [go, typescript, python, java, csharp]}
+  - {name: sequential, status: released, targets: [go, typescript, python, java, csharp, rust]}
+  - {name: cooperative, status: released, targets: [go, typescript, python, java, csharp, rust]}
 features:
-  - {id: packages_init, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [globals_init, multipkg, globals_addr]}
-  - {id: constants, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [consts_iota, int_convert]}
-  - {id: functions_results_variadic, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [calls_results, variadic_any]}
-  - {id: methods, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [methods_embed, embed_iface]}
-  - {id: closures, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [closures]}
-  - {id: named_types_aliases, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [shadow_scopes, int_convert]}
-  - {id: booleans_integers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [int_arith, int_convert, short_circuit, div_zero, shift_negative]}
-  - {id: strings, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [strings_bytes]}
-  - {id: structs_arrays, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [structs_values, arrays_values]}
-  - {id: slices, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [slices_alias, slice_growth]}
-  - {id: maps, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [maps_basic, map_iteration, composite_keys]}
-  - {id: embedding_promotion, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [methods_embed, embed_iface]}
-  - {id: pointers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [pointers, globals_addr, trees_recursive]}
-  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [interfaces, variadic_any, runtime_panics]}
-  - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [control_flow, switch_forms]}
-  - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [defer_recover, runtime_panics, panic_custom]}
-  - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [errors_values]}
-  - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [eval_order]}
-  - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
-  - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
-  - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_context, co_sleep_order]}
-  - {id: task_all_series, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_task_all]}
-  - {id: resumable_frames, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_frames, co_sched_trace]}
-  - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp], fixtures: [co_deadlock, co_goroutine_panic]}
+  - {id: packages_init, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [globals_init, multipkg, globals_addr]}
+  - {id: constants, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [consts_iota, int_convert]}
+  - {id: functions_results_variadic, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [calls_results, variadic_any]}
+  - {id: methods, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [methods_embed, embed_iface]}
+  - {id: closures, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [closures]}
+  - {id: named_types_aliases, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [shadow_scopes, int_convert]}
+  - {id: booleans_integers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [int_arith, int_convert, short_circuit, div_zero, shift_negative]}
+  - {id: strings, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [strings_bytes]}
+  - {id: structs_arrays, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [structs_values, arrays_values]}
+  - {id: slices, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [slices_alias, slice_growth]}
+  - {id: maps, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [maps_basic, map_iteration, composite_keys]}
+  - {id: embedding_promotion, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [methods_embed, embed_iface]}
+  - {id: pointers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [pointers, globals_addr, trees_recursive]}
+  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [interfaces, variadic_any, runtime_panics]}
+  - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [control_flow, switch_forms]}
+  - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [defer_recover, runtime_panics, panic_custom]}
+  - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [errors_values]}
+  - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [eval_order]}
+  - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
+  - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
+  - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_context, co_sleep_order]}
+  - {id: task_all_series, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_task_all]}
+  - {id: resumable_frames, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_frames, co_sched_trace]}
+  - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust], fixtures: [co_deadlock, co_goroutine_panic]}
   - {id: generics, gate: rejected, status: rejected, targets: [], fixtures: [reject_generic]}
   - {id: floating_point, gate: rejected, status: rejected, targets: [], fixtures: [reject_float]}
   - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}

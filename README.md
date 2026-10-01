@@ -2,7 +2,7 @@
 
 Goalchemy transpiles a restricted, Go-compatible language into other languages. Programs are ordinary `.go` files that type-check with Go, and the compiler accepts only the features in [the language specification](specs/language.md). [The plan](plan.md) describes the architecture and milestones, and [docs/usage.md](docs/usage.md) is the user guide.
 
-Release 0.1 compiles the sequential and cooperative language to lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, and C# (.NET 8). `examples/` holds runnable programs, each with a `goalchemy.yaml`.
+Release 0.1 compiles the sequential and cooperative language to lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, C# (.NET 8), and Rust. `examples/` holds runnable programs, each with a `goalchemy.yaml`.
 
 ```sh
 go build -o bin/goalchemy ./cmd/goalchemy

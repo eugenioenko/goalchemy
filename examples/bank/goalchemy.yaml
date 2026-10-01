@@ -6,3 +6,4 @@ targets:
   python: {out: ../../out/examples/bank/python}
   java: {out: ../../out/examples/bank/java}
   csharp: {out: ../../out/examples/bank/csharp}
+  rust: {out: ../../out/examples/bank/rust}

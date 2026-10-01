@@ -11,7 +11,7 @@ import (
 	"goalchemy/internal/testutil"
 )
 
-var targets = []string{"go", "typescript", "python", "java", "csharp"}
+var targets = []string{"go", "typescript", "python", "java", "csharp", "rust"}
 
 func TestRegressions(t *testing.T) {
 	fixtures, err := testutil.Discover(".")

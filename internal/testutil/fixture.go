@@ -141,6 +141,9 @@ var Runners = map[string]Runner{
 	"csharp": func(out string) (Observation, error) {
 		return run(out, 3*time.Minute, "sh", "run.sh")
 	},
+	"rust": func(out string) (Observation, error) {
+		return run(out, 5*time.Minute, "sh", "run.sh")
+	},
 }
 
 // Fixture describes one language fixture directory.

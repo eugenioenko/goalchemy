@@ -6,3 +6,4 @@ targets:
   python: {out: ../../out/examples/wordfreq/python}
   java: {out: ../../out/examples/wordfreq/java}
   csharp: {out: ../../out/examples/wordfreq/csharp}
+  rust: {out: ../../out/examples/wordfreq/rust}

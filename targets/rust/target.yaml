@@ -1,0 +1,95 @@
+schema_version: 1
+target: rust
+version: 0.1.0
+status: experimental
+environment:
+  runtime: Rust stable, edition 2021, standard library only
+  minimum: "Rust 1.75 (edition 2021)"
+  build: "rustc --edition 2021 -C opt-level=2 -o main main.rs, or cargo run"
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: "V::Bool."}
+  - {type: type.integer, contract_version: 1.0.0, representation: "V::Int holding an i64 normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/ints.rs)."}
+  - {type: type.string, contract_version: 1.0.0, representation: "V::Str: an immutable shared byte string compared bytewise."}
+  - {type: type.array, contract_version: 1.0.0, representation: "A heap Vals object of elements with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.struct, contract_version: 1.0.0, representation: "A heap Vals object of fields with generated helpers; storage objects are updated in place, so field pointers stay valid."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "V::Slice headers (backing handle, offset, length, capacity) over heap Vals objects; handle 0 is the nil slice."}
+  - {type: type.map, contract_version: 1.0.0, representation: "A heap GoMap: a HashMap from encoded keys to insertion-ordered entries (types/map.rs); nil is V::Nil."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are object handles; other pointers are V::Ptr(object, slot) into cells or struct fields; nil is V::Nil."}
+  - {type: type.interface, contract_version: 1.0.0, representation: "V::Nil or a handle to a heap Box (static TypeDesc, value) with equality, key encoding, and method tables (types/func.rs)."}
+  - {type: type.function, contract_version: 1.0.0, representation: "Handles to heap Func objects: a code pointer, a captured environment, and a recover identity; nil is V::Nil."}
+  - {type: type.error, contract_version: 1.0.0, representation: "Interface boxes; runtime errors use the RUNTIME_ERROR, PLAIN_ERROR, and TYPE_ASSERTION_ERROR descriptors (types/panic.rs). Panics unwind with a heap Panic object handle."}
+  - {type: type.channel, contract_version: 1.0.0, representation: "Handles to heap Chan objects with a buffer and FIFO wait queues (types/conc.rs); nil is V::Nil."}
+  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.rs): suspending functions compile to step functions over frames whose locals the collector traces through the task."}
+harness:
+  support: [tests/harness/main.rs, tests/harness/json.rs, tests/harness/codec.rs, tests/harness/run.sh]
+  generated: tests/harness/harness_gen.rs
+  command: [sh, targets/rust/tests/harness/run.sh]
+support_files: [types/bounds.rs, types/conc.rs, types/func.rs, types/heap.rs, types/ints.rs, types/map.rs, types/ops.rs, types/out.rs, types/panic.rs, types/program.rs, types/sched.rs, types/utf8.rs, types/value.rs]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "add_<k>", implementation: runtime/integer_add.rs, harness: "add_{T.kind}({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "sub_<k>", implementation: runtime/integer_sub.rs, harness: "sub_{T.kind}({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "mul_<k>", implementation: runtime/integer_mul.rs, harness: "mul_{T.kind}({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "div_<k>", implementation: runtime/integer_div.rs, harness: "div_{T.kind}({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "rem_<k>", implementation: runtime/integer_rem.rs, harness: "rem_{T.kind}({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "and_<k>", implementation: runtime/integer_and.rs, harness: "and_{T.kind}({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "or_<k>", implementation: runtime/integer_or.rs, harness: "or_{T.kind}({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "xor_<k>", implementation: runtime/integer_xor.rs, harness: "xor_{T.kind}({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "andnot_<k>", implementation: runtime/integer_andnot.rs, harness: "andnot_{T.kind}({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "neg_<k>", implementation: runtime/integer_neg.rs, harness: "neg_{T.kind}({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "not_<k>", implementation: runtime/integer_not.rs, harness: "not_{T.kind}({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "shl_<k>", implementation: runtime/integer_shl.rs, harness: "shl_{T.kind}({0}, {S.count}(&{1}))"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "shr_<k>", implementation: runtime/integer_shr.rs, harness: "shr_{T.kind}({0}, {S.count}(&{1}))"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "to_<k>", implementation: runtime/integer_convert.rs, harness: "to_{U.kind}({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "compare_int", implementation: runtime/integer_compare.rs, harness: "compare_{T.u}int({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "sindex", implementation: runtime/string_index.rs, harness: "sindex{I.u}({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "sslice", implementation: runtime/string_slice.rs, harness: "sslice({0}, {1}, {2}, false)"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "concat", implementation: runtime/string_concat.rs, harness: "concat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "scompare", implementation: runtime/string_compare.rs, harness: "scompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "decode_rune", implementation: runtime/string_decode_rune.rs, harness: "decode_rune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "from_bytes", implementation: runtime/string_from_bytes.rs, harness: "from_bytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "to_bytes", implementation: runtime/string_to_bytes.rs, harness: "to_bytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "from_runes", implementation: runtime/string_from_runes.rs, harness: "from_runes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "to_runes", implementation: runtime/string_to_runes.rs, harness: "to_runes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "from_rune", implementation: runtime/string_from_rune.rs, harness: "from_rune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "make_slice", implementation: runtime/slice_make.rs, harness: "make_slice({0}, {1}, {T.zerofn})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "sget", implementation: runtime/slice_index.rs, harness: "sget{I.u}({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "sset", implementation: runtime/slice_store.rs, harness: "sset{I.u}({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "reslice", implementation: runtime/slice_slice.rs, harness: "reslice({0}, {1}, {2}, {3}, false)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "append", implementation: runtime/slice_append.rs, harness: "append_slice({0}, {1}, None)"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "copy", implementation: runtime/slice_copy.rs, harness: "copy({0}, {1}, None)"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: "clear_slice", implementation: runtime/slice_clear.rs, harness: "clear_slice({0}, {T.zerofn})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "slice_to_array", implementation: runtime/slice_to_array.rs, harness: "slice_to_array({0}, 2, None)"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "make_map", implementation: runtime/map_make.rs, harness: "make_map(vkey)"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "map_get", implementation: runtime/map_lookup.rs, harness: "map_get({0}, {1}, vkey, {V.zerofn})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "map_set", implementation: runtime/map_store.rs, harness: "map_set({0}, {1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "map_delete", implementation: runtime/map_delete.rs, harness: "map_delete({0}, {1}, vkey)"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "map_len", implementation: runtime/map_len.rs, harness: "map_len({0})"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "map_clear", implementation: runtime/map_clear.rs, harness: "map_clear({0})"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "map_iter", implementation: runtime/map_iterate.rs, harness: "map_keys({0})", requires: [core.map.len]}
+  - {id: core.print, contract_version: 1.0.0, symbol: "go_print", implementation: runtime/print.rs, harness: "print_string({0}, {T.unsigned})"}
+  - {id: std.errors.new, contract_version: 1.0.0, symbol: "std_errors_new", implementation: runtime/std_errors_new.rs, harness: "std_errors_new({0})"}
+  - {id: std.errors.is, contract_version: 1.0.0, symbol: "std_errors_is", implementation: runtime/std_errors_is.rs, harness: "std_errors_is({0}, {1})"}
+  - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: "std_errors_unwrap", implementation: runtime/std_errors_unwrap.rs, harness: "std_errors_unwrap({0})"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "spawn", implementation: runtime/task_spawn.rs, harness: "await: call(t, new_spawn_check())"}
+  - {id: core.chan.make, contract_version: 1.0.0, symbol: "make_chan", implementation: runtime/chan_make.rs, harness: "make_chan({0}, {T.zerofn})", requires: [core.task.spawn]}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: "chan_send", implementation: runtime/chan_send.rs, harness: "await: chan_send(t, {0}, {1})", requires: [core.chan.make]}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "chan_recv", implementation: runtime/chan_recv.rs, harness: "await: chan_recv(t, {0})", requires: [core.chan.make]}
+  - {id: core.chan.close, contract_version: 1.0.0, symbol: "chan_close", implementation: runtime/chan_close.rs, harness: "chan_close({0})", requires: [core.chan.make]}
+  - {id: core.chan.len, contract_version: 1.0.0, symbol: "chan_len", implementation: runtime/chan_len.rs, harness: "chan_len({0})", requires: [core.chan.make]}
+  - {id: core.chan.cap, contract_version: 1.0.0, symbol: "chan_cap", implementation: runtime/chan_cap.rs, harness: "chan_cap({0})", requires: [core.chan.make]}
+  - {id: core.select, contract_version: 1.0.0, symbol: "select", implementation: runtime/select.rs, harness: "await: harness_select2(t, {0}, {1}, {2})", requires: [core.chan.recv]}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: "std_sync_mutex_lock", implementation: runtime/std_sync_mutex_lock.rs, harness: "await: std_sync_mutex_lock(t, {0})", requires: [core.task.spawn]}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: "std_sync_mutex_unlock", implementation: runtime/std_sync_mutex_unlock.rs, harness: "await: std_sync_mutex_lock(t, {0}.clone()); std_sync_mutex_unlock({0})", requires: [std.sync.mutex.lock]}
+  - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: "std_sync_waitgroup_add", implementation: runtime/std_sync_waitgroup_add.rs, harness: "std_sync_waitgroup_add({0}, {1})", requires: [core.task.spawn]}
+  - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: "std_sync_waitgroup_done", implementation: runtime/std_sync_waitgroup_done.rs, harness: "std_sync_waitgroup_done({0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: "std_sync_waitgroup_wait", implementation: runtime/std_sync_waitgroup_wait.rs, harness: "await: std_sync_waitgroup_wait(t, {0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: "std_runtime_gosched", implementation: runtime/std_runtime_gosched.rs, harness: "await: std_runtime_gosched(t)", requires: [core.task.spawn]}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: "std_time_sleep", implementation: runtime/std_time_sleep.rs, harness: "await: std_time_sleep(t, {0})", requires: [core.task.spawn]}
+  - {id: std.context.background, contract_version: 1.0.0, symbol: "std_context_background", implementation: runtime/std_context_background.rs, harness: "std_context_background()", requires: [std.context.err]}
+  - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: "std_context_with_cancel", implementation: runtime/std_context_with_cancel.rs, harness: "std_context_with_cancel({0})", requires: [std.context.err]}
+  - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: "std_context_with_timeout", implementation: runtime/std_context_with_timeout.rs, harness: "std_context_with_timeout({0}, {1})", requires: [std.context.err]}
+  - {id: std.context.done, contract_version: 1.0.0, symbol: "std_context_context_done", implementation: runtime/std_context_done.rs, harness: "std_context_context_done({0})", requires: [std.context.err]}
+  - {id: std.context.err, contract_version: 1.0.0, symbol: "std_context_context_err", implementation: runtime/std_context_err.rs, harness: "std_context_context_err({0})", requires: [core.chan.close, std.errors.new]}
+  - {id: std.context.canceled, contract_version: 1.0.0, symbol: "std_context_canceled", implementation: runtime/std_context_canceled.rs, harness: "std_context_canceled()", requires: [std.context.err]}
+  - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "std_context_deadline_exceeded", implementation: runtime/std_context_deadline_exceeded.rs, harness: "std_context_deadline_exceeded()", requires: [std.context.err]}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: "lib_task_all", implementation: runtime/lib_task_all.rs, harness: "await: lib_task_all(t, {0})", requires: [core.task.spawn, std.sync.waitgroup.done]}

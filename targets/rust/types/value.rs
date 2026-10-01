@@ -1,0 +1,143 @@
+//! Values. Every Go value is a V: integers of every kind are i64 normalized
+//! to their Go width (unsigned 64-bit values keep their bits), strings are
+//! immutable byte strings, and shared storage lives in the traced heap and
+//! is referenced by handle.
+use super::*;
+pub use std::cell::{Cell, RefCell};
+pub use std::rc::Rc;
+
+/// A heap handle; 0 is never a live object.
+pub type H = u32;
+
+#[derive(Clone)]
+pub enum V {
+    Nil,
+    Bool(bool),
+    Int(i64),
+    Str(Rc<[u8]>),
+    /// Struct, array, map, channel, function, interface box, or opaque object.
+    Obj(H),
+    /// Pointer to a scalar slot of a heap object.
+    Ptr(H, u32),
+    /// Slice header: backing object (0 for nil), offset, length, capacity.
+    Slice(H, u32, u32, u32),
+    /// Several results of one call; consumed immediately by the caller.
+    Tuple(Rc<[V]>),
+    /// A resumable frame returned by a starter.
+    Frame(Rc<Frame>),
+}
+
+pub const NIL_SLICE: V = V::Slice(0, 0, 0, 0);
+
+impl V {
+    #[inline]
+    pub fn i(&self) -> i64 {
+        match self {
+            V::Int(x) => *x,
+            _ => fault("integer expected"),
+        }
+    }
+
+    #[inline]
+    pub fn b(&self) -> bool {
+        match self {
+            V::Bool(x) => *x,
+            _ => fault("bool expected"),
+        }
+    }
+
+    pub fn bytes(&self) -> Rc<[u8]> {
+        match self {
+            V::Str(s) => s.clone(),
+            _ => fault("string expected"),
+        }
+    }
+
+    /// The handle of an object value; 0 for nil.
+    pub fn h(&self) -> H {
+        match self {
+            V::Obj(h) => *h,
+            V::Nil => 0,
+            _ => fault("object expected"),
+        }
+    }
+
+    pub fn is_nil(&self) -> bool {
+        matches!(self, V::Nil)
+    }
+
+    /// Element k of a multiple-result value.
+    pub fn at(&self, k: usize) -> V {
+        match self {
+            V::Tuple(t) => t[k].clone(),
+            _ => fault("tuple expected"),
+        }
+    }
+
+    pub fn frame(&self) -> Rc<Frame> {
+        match self {
+            V::Frame(f) => f.clone(),
+            _ => fault("frame expected"),
+        }
+    }
+}
+
+pub fn s(b: &[u8]) -> V {
+    V::Str(Rc::from(b))
+}
+
+pub fn int(x: i64) -> V {
+    V::Int(x)
+}
+
+pub fn tuple(vs: Vec<V>) -> V {
+    V::Tuple(Rc::from(vs))
+}
+
+/// Map keys: a hashable encoding of comparable values.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Key {
+    Nil,
+    Bool(bool),
+    Int(i64),
+    Str(Rc<[u8]>),
+    H(H),
+    Ptr(H, u32),
+    List(Rc<[Key]>),
+    Iface(u32, Rc<Key>),
+}
+
+/// The key of a basic, pointer, channel, or other identity-compared value.
+pub fn vkey(v: &V) -> Key {
+    match v {
+        V::Nil => Key::Nil,
+        V::Bool(b) => Key::Bool(*b),
+        V::Int(i) => Key::Int(*i),
+        V::Str(s) => Key::Str(s.clone()),
+        V::Obj(h) => Key::H(*h),
+        V::Ptr(h, i) => Key::Ptr(*h, *i),
+        _ => fault("unhashable host value"),
+    }
+}
+
+pub fn key_list(ks: Vec<Key>) -> Key {
+    Key::List(Rc::from(ks))
+}
+
+/// Equality of basic, pointer, channel, and other identity-compared values.
+pub fn veq(a: &V, b: &V) -> bool {
+    match (a, b) {
+        (V::Nil, V::Nil) => true,
+        (V::Bool(x), V::Bool(y)) => x == y,
+        (V::Int(x), V::Int(y)) => x == y,
+        (V::Str(x), V::Str(y)) => x[..] == y[..],
+        (V::Obj(x), V::Obj(y)) => x == y,
+        (V::Ptr(x, i), V::Ptr(y, j)) => x == y && i == j,
+        _ => false,
+    }
+}
+
+/// An implementation fault: never a source panic.
+pub fn fault(msg: &str) -> ! {
+    panic!("goalchemy fault: {}", msg)
+}
