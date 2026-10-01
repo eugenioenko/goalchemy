@@ -1,0 +1,6 @@
+/bin/
+/out/
+node_modules/
+*.test
+/.toolchains/
+__pycache__/
