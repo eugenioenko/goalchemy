@@ -1,0 +1,36 @@
+id: core.chan.cap
+schema_version: 1
+version: 1.0.0
+summary: "cap(ch): buffer capacity."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: ch, type: "chan T"}
+  outputs:
+    - {name: n, type: "int"}
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "A nil channel has capacity 0."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Channel values share channel state."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Values received, readiness, and closure."
+cases:
+  - name: three
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["1"], "cap": "3"}}
+    call: ["ch"]
+    expect:
+      results: ["3"]

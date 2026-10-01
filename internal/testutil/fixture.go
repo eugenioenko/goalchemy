@@ -20,6 +20,7 @@ import (
 	"goalchemy/internal/diagnostics"
 	"goalchemy/internal/driver"
 	"goalchemy/internal/frontend"
+	"goalchemy/internal/subset"
 )
 
 // Observation is what a fixture run produced.
@@ -33,11 +34,17 @@ func (o Observation) String() string {
 	return fmt.Sprintf("exit=%d\n--- stdout\n%s--- stderr\n%s", o.Exit, o.Stdout, o.Stderr)
 }
 
+var fatalLine = regexp.MustCompile(`(?m)^fatal error: [^\n]*\n`)
+
 var panicTail = regexp.MustCompile(`(?s)\n(\[signal [^\n]*\]\n)?\ngoroutine \d+ .*$`)
 
 // Normalize keeps standard error up to and including the first panic line
 // and drops goroutine traces, which are not part of the observable contract.
 func Normalize(o Observation) Observation {
+	if loc := fatalLine.FindStringIndex(o.Stderr); loc != nil {
+		o.Stderr = o.Stderr[:loc[1]]
+		return o
+	}
 	if i := strings.Index(o.Stderr, "panic: "); i >= 0 && (i == 0 || o.Stderr[i-1] == '\n') {
 		rest := o.Stderr[i:]
 		if j := strings.IndexByte(rest, '\n'); j >= 0 {
@@ -99,8 +106,13 @@ func Native(fixtureDir, work string) (Observation, error) {
 
 // Compile compiles the fixture for target into out.
 func Compile(fixtureDir, target, out string) []diagnostics.Diagnostic {
+	return CompileGate(fixtureDir, target, out, "")
+}
+
+// CompileGate compiles with an explicit language gate.
+func CompileGate(fixtureDir, target, out, gate string) []diagnostics.Diagnostic {
 	abs, _ := filepath.Abs(fixtureDir)
-	res, ds := driver.Build(context.Background(), driver.Options{Dir: abs})
+	res, ds := driver.Build(context.Background(), driver.Options{Dir: abs, Gate: subset.Gate(gate)})
 	if diagnostics.HasErrors(ds) {
 		return ds
 	}
@@ -134,6 +146,8 @@ type Fixture struct {
 	// Golden holds the expected normalized observation for fixtures that
 	// assert Goalchemy-selected behavior native Go does not share.
 	Golden string
+	// Gate is the language gate the fixture needs.
+	Gate string
 }
 
 var directive = regexp.MustCompile(`(?m)^// goalchemy:(\w+)(?: (.*))?$`)
@@ -159,6 +173,8 @@ func Discover(root string) ([]Fixture, error) {
 				f.Unordered = true
 			case "reject":
 				f.Reject = strings.Fields(m[2])
+			case "gate":
+				f.Gate = strings.TrimSpace(m[2])
 			}
 		}
 		out = append(out, f)
@@ -180,7 +196,7 @@ func RunFixture(t *testing.T, f Fixture, targets []string) {
 	t.Helper()
 	work := t.TempDir()
 	if len(f.Reject) > 0 {
-		ds := Compile(f.Dir, targets[0], filepath.Join(work, targets[0]))
+		ds := CompileGate(f.Dir, targets[0], filepath.Join(work, targets[0]), f.Gate)
 		got := map[string]bool{}
 		for _, d := range ds {
 			got[d.Code] = true
@@ -205,7 +221,7 @@ func RunFixture(t *testing.T, f Fixture, targets []string) {
 	var first *Observation
 	for _, target := range targets {
 		out := filepath.Join(work, target)
-		if ds := Compile(f.Dir, target, out); len(ds) > 0 {
+		if ds := CompileGate(f.Dir, target, out, f.Gate); len(ds) > 0 {
 			for _, d := range ds {
 				t.Errorf("%s: %s", target, d)
 			}

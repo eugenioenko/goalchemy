@@ -1,0 +1,36 @@
+id: std.sync.waitgroup.done
+schema_version: 1
+version: 1.0.0
+summary: "sync.WaitGroup.Done: Add(-1)."
+signature:
+  source: declaration
+  symbol: "sync.(WaitGroup).Done"
+  type_parameters: []
+  inputs:
+    - {name: wg, type: "*sync.WaitGroup"}
+  outputs: []
+depends_on:
+  - {id: std.sync.waitgroup.add, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The counter and released waiters."
+panic_categories: [negative_counter]
+cases:
+  - name: underflow
+    types: {}
+    let:
+      - {name: wg, type: "*sync.WaitGroup", value: {"zero": true}}
+    call: ["wg"]
+    expect:
+      panic: {category: negative_counter, message: "sync: negative WaitGroup counter"}

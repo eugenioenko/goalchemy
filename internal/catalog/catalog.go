@@ -29,14 +29,20 @@ func Load(fsys fs.FS) (*contracts.Catalog, []diagnostics.Diagnostic) {
 type Registry struct {
 	Symbols  map[string]string
 	Packages map[string]bool
+	// Opaque lists external types ("pkg.Type") that are represented by
+	// runtime handles; their methods are capability calls.
+	Opaque map[string]bool
+	// Suspends records contracts classified as suspension: may.
+	Suspends map[string]bool
 }
 
 func NewRegistry(cat *contracts.Catalog) *Registry {
-	r := &Registry{Symbols: map[string]string{}, Packages: map[string]bool{}}
+	r := &Registry{Symbols: map[string]string{}, Packages: map[string]bool{}, Opaque: map[string]bool{}, Suspends: map[string]bool{}}
 	if cat == nil {
 		return r
 	}
 	for id, f := range cat.Functions {
+		r.Suspends[id] = f.Suspension == "may"
 		if f.Signature.Source != "declaration" {
 			continue
 		}
@@ -45,6 +51,7 @@ func NewRegistry(cat *contracts.Catalog) *Registry {
 		if i := strings.LastIndex(sym, "."); i > 0 {
 			pkg := sym[:i]
 			if j := strings.Index(pkg, ".("); j > 0 {
+				r.Opaque[pkg[:j]+"."+strings.TrimSuffix(pkg[j+2:], ")")] = true
 				pkg = pkg[:j]
 			}
 			r.Packages[pkg] = true
@@ -72,9 +79,36 @@ func SymbolKey(obj types.Object) string {
 	return obj.Pkg().Path() + "." + obj.Name()
 }
 
+// External reports whether obj from a non-source package is usable:
+// registered functions and variables, opaque handle types, constants of
+// capability packages, and their named basic or function types.
 func (r *Registry) External(obj types.Object) bool {
+	if obj.Pkg() == nil {
+		return false
+	}
+	switch o := obj.(type) {
+	case *types.Const:
+		return r.Packages[obj.Pkg().Path()]
+	case *types.TypeName:
+		if r.Opaque[obj.Pkg().Path()+"."+obj.Name()] {
+			return true
+		}
+		if !r.Packages[obj.Pkg().Path()] {
+			return false
+		}
+		switch o.Type().Underlying().(type) {
+		case *types.Basic, *types.Signature:
+			return true
+		}
+		return false
+	}
 	_, ok := r.Symbols[SymbolKey(obj)]
 	return ok
+}
+
+// IsOpaque reports whether a named type is a registered opaque handle.
+func (r *Registry) IsOpaque(obj *types.TypeName) bool {
+	return obj.Pkg() != nil && r.Opaque[obj.Pkg().Path()+"."+obj.Name()]
 }
 
 func (r *Registry) Package(path string) bool { return r.Packages[path] }

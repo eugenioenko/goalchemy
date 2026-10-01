@@ -1,0 +1,34 @@
+id: std.runtime.gosched
+schema_version: 1
+version: 1.0.0
+summary: "runtime.Gosched: move the running task to the end of the run queue."
+signature:
+  source: declaration
+  symbol: "runtime.Gosched"
+  type_parameters: []
+  inputs: []
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Every task that was runnable runs before the caller continues."
+cases:
+  - name: alone
+    types: {}
+    let: []
+    call: []
+    expect:
+      results: []

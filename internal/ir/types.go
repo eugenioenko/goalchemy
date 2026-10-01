@@ -30,10 +30,13 @@ const (
 	KChan
 	// KMapIter is the type of map iterator temporaries; Elem is the map type.
 	KMapIter
+	// KOpaque is an external capability type represented by a runtime
+	// handle, such as sync.Mutex or context.Context.
+	KOpaque
 )
 
 func (k Kind) String() string {
-	return [...]string{"invalid", "bool", "int", "string", "struct", "array", "slice", "map", "pointer", "func", "interface", "named", "tuple", "chan", "mapiter"}[k]
+	return [...]string{"invalid", "bool", "int", "string", "struct", "array", "slice", "map", "pointer", "func", "interface", "named", "tuple", "chan", "mapiter", "opaque"}[k]
 }
 
 // IntKind identifies the representation of an integer type.
@@ -131,6 +134,10 @@ type Type struct {
 
 	ChanDir types.ChanDir
 
+	// OpaqueRef marks opaque types with reference semantics (interfaces such
+	// as context.Context); other opaque types are values like sync.Mutex.
+	OpaqueRef bool
+
 	Go types.Type
 }
 
@@ -147,8 +154,8 @@ func (t *Type) IsInterface() bool { return t.U().Kind == KInterface }
 // IsAggregate reports whether values of t have value semantics requiring
 // explicit copies on hosts that share objects.
 func (t *Type) IsAggregate() bool {
-	k := t.U().Kind
-	return k == KStruct || k == KArray
+	u := t.U()
+	return u.Kind == KStruct || u.Kind == KArray || u.Kind == KOpaque && !u.OpaqueRef
 }
 
 // HasAggregate reports whether copying t must copy nested storage.
@@ -169,7 +176,7 @@ func TypeString(t *Type) string {
 	switch t.Kind {
 	case KBool, KInt, KString:
 		return t.Basic
-	case KNamed:
+	case KNamed, KOpaque:
 		return t.Name
 	case KSlice:
 		return "[]" + TypeString(t.Elem)
@@ -263,6 +270,8 @@ type Types struct {
 	All   []*Type
 	cache typeutil.Map
 	iters map[*Type]*Type
+	// Opaque reports external named types represented by runtime handles.
+	Opaque func(*types.TypeName) bool
 }
 
 // MapIter returns the iterator type for map type m.
@@ -320,8 +329,15 @@ func (ts *Types) Of(gt types.Type) *Type {
 			t.Kind, t.Int, t.Basic = KInt, k, types.Typ[g.Kind()].Name()
 		}
 	case *types.Named:
-		t.Kind = KNamed
 		obj := g.Obj()
+		if ts.Opaque != nil && ts.Opaque(obj) {
+			t.Kind, t.Obj = KOpaque, obj.Name()
+			t.Pkg = obj.Pkg().Path()
+			t.Name = obj.Pkg().Name() + "." + obj.Name()
+			_, t.OpaqueRef = g.Underlying().(*types.Interface)
+			return ts.add(t)
+		}
+		t.Kind = KNamed
 		t.Obj = obj.Name()
 		if obj.Pkg() != nil {
 			t.Pkg = obj.Pkg().Path()

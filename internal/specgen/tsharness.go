@@ -3,6 +3,7 @@ package specgen
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"goalchemy/internal/contracts"
 )
@@ -43,12 +44,20 @@ func tsZero(t *contracts.TypeExpr) string {
 
 func tsDecode(t *contracts.TypeExpr, raw string) string {
 	switch t.Kind {
+	case "chan":
+		return fmt.Sprintf("decChan(%s, (r: any) => %s)", raw, tsDecode(t.Elem, "r"))
+	case "pointer":
+		return "new rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
 		return fmt.Sprintf("decSlice(%s, (r: any) => %s)", raw, tsDecode(t.Elem, "r"))
 	case "map":
 		return fmt.Sprintf("decMap(%s, (r: any) => %s, (r: any) => %s)", raw, tsDecode(t.Key, "r"), tsDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "context.Context":
+		return "rt.stdContextBackground()"
+	case "struct{}":
+		return "{}"
 	case "error":
 		return "decError(" + raw + ")"
 	case "bool":
@@ -65,6 +74,8 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 
 func tsEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "chan":
+		return fmt.Sprintf("encChan(%s, (e: any) => %s)", v, tsEncode(t.Elem, "e"))
 	case "slice":
 		return fmt.Sprintf("encSlice(%s, (e: any) => %s)", v, tsEncode(t.Elem, "e"))
 	case "array":
@@ -73,6 +84,8 @@ func tsEncode(t *contracts.TypeExpr, v string) string {
 		return fmt.Sprintf("encMap(%s, (e: any) => %s, (e: any) => %s)", v, tsEncode(t.Key, "e"), tsEncode(t.Elem, "e"))
 	}
 	switch t.Name {
+	case "context.Context", "context.CancelFunc", "struct{}":
+		return "encZero(" + v + ")"
 	case "error":
 		return "encError(" + v + ")"
 	case "bool":
@@ -90,10 +103,10 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// %s\nimport * as rt from \"./runtime_index.ts\";\n", Marker)
-	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, type H } from \"./codec.ts\";\n\n")
-	b.WriteString("export const cases: Record<string, (h: H) => unknown[]> = {\n")
+	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, decChan, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, encChan, encZero, harnessSpawn, harnessSelect2, harnessLockUnlock, type H } from \"./codec.ts\";\n\n")
+	b.WriteString("export const cases: Record<string, (h: H) => Generator<unknown, unknown[], unknown>> = {\n")
 	for _, ci := range cases {
-		fmt.Fprintf(&b, "  %q: (h: H) => {\n", ci.ID())
+		fmt.Fprintf(&b, "  %q: function* (h: H) {\n", ci.ID())
 		for _, l := range ci.lets {
 			name := "v_" + l.name
 			switch l.kind {

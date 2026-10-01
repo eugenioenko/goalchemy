@@ -150,6 +150,13 @@ func runCase(h *Harness, fc *contracts.Function, c contracts.Case) Result {
 	case resp.Status == "harness_failure":
 		res.Detail = "harness failure: " + resp.Error
 		return res
+	case c.Expect.Blocked:
+		if resp.Status != "blocked" {
+			res.Detail = "want blocked, got " + resp.Status
+		} else {
+			res.Pass = true
+		}
+		return res
 	case c.Expect.Panic != nil:
 		if resp.Status != "panic" {
 			res.Detail = fmt.Sprintf("want panic %q, got %s", c.Expect.Panic.Message, resp.Status)

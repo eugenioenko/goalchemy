@@ -10,8 +10,15 @@ import (
 
 func init() { harnessGenerators["go"] = goHarness }
 
+var goExternal = map[string]string{
+	"sync.Mutex": "rt.Mutex", "sync.WaitGroup": "rt.WaitGroup", "context.Context": "rt.Context",
+	"context.CancelFunc": "func()", "time.Duration": "int64",
+}
+
 func goType(t *contracts.TypeExpr) string {
 	switch t.Kind {
+	case "chan":
+		return "rt.Chan[" + goType(t.Elem) + "]"
 	case "slice":
 		return "[]" + goType(t.Elem)
 	case "array":
@@ -21,11 +28,18 @@ func goType(t *contracts.TypeExpr) string {
 	case "pointer":
 		return "*" + goType(t.Elem)
 	}
+	if g, ok := goExternal[t.Name]; ok {
+		return g
+	}
 	return t.Name
 }
 
 func goDecode(t *contracts.TypeExpr, raw string) string {
 	switch t.Kind {
+	case "chan":
+		return fmt.Sprintf("DecChan(%s, func(r json.RawMessage) %s { return %s })", raw, goType(t.Elem), goDecode(t.Elem, "r"))
+	case "pointer":
+		return "new(" + goType(t.Elem) + ")"
 	case "slice":
 		return fmt.Sprintf("DecSlice(%s, func(r json.RawMessage) %s { return %s })", raw, goType(t.Elem), goDecode(t.Elem, "r"))
 	case "map":
@@ -33,6 +47,10 @@ func goDecode(t *contracts.TypeExpr, raw string) string {
 			raw, goType(t.Key), goDecode(t.Key, "r"), goType(t.Elem), goDecode(t.Elem, "r"))
 	}
 	switch t.Name {
+	case "context.Context":
+		return "rt.StdContextBackground()"
+	case "struct{}":
+		return "struct{}{}"
 	case "error":
 		return "DecError(" + raw + ")"
 	case "bool":
@@ -40,11 +58,13 @@ func goDecode(t *contracts.TypeExpr, raw string) string {
 	case "string":
 		return "DecString(" + raw + ")"
 	}
-	return fmt.Sprintf("DecInt[%s](%s)", t.Name, raw)
+	return fmt.Sprintf("DecInt[%s](%s)", goType(t), raw)
 }
 
 func goEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "chan":
+		return fmt.Sprintf("EncChan(%s, func(e %s) any { return %s })", v, goType(t.Elem), goEncode(t.Elem, "e"))
 	case "array":
 		return fmt.Sprintf("EncArray(%s[:], func(e %s) any { return %s })", v, goType(t.Elem), goEncode(t.Elem, "e"))
 	case "slice":
@@ -54,6 +74,8 @@ func goEncode(t *contracts.TypeExpr, v string) string {
 			v, goType(t.Key), goEncode(t.Key, "e"), goType(t.Elem), goEncode(t.Elem, "e"))
 	}
 	switch t.Name {
+	case "context.Context", "context.CancelFunc", "struct{}":
+		return "EncZero(" + v + ")"
 	case "error":
 		return "EncError(" + v + ")"
 	case "bool":

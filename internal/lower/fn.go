@@ -576,5 +576,101 @@ func (fl *fnLowerer) initializer(in *types.Initializer) {
 }
 
 func (fl *fnLowerer) cooperativeStmt(s ast.Stmt) {
-	fail(s.Pos(), "%T requires the cooperative gate", s)
+	switch s := s.(type) {
+	case *ast.SendStmt:
+		ch := fl.expr(s.Chan)
+		v := fl.exprTo(s.Value, ch.IRType().U().Elem)
+		fl.emit(&ir.Send{At: at(s), Ch: ch, V: v})
+	case *ast.GoStmt:
+		fl.goStmt(s)
+	case *ast.SelectStmt:
+		fl.selectStmt(s)
+	default:
+		fail(s.Pos(), "unsupported statement %T", s)
+	}
+}
+
+func (fl *fnLowerer) goStmt(s *ast.GoStmt) {
+	e := s.Call
+	fun := ast.Unparen(e.Fun)
+	if id, ok := fun.(*ast.Ident); ok {
+		if b, ok := fl.info.Uses[id].(*types.Builtin); ok {
+			c := fl.builtinCall(e, b.Name(), "go")
+			fl.emit(&ir.Go{At: at(s), Call: c})
+			return
+		}
+	}
+	c := fl.prepareCall(e, true)
+	fl.emit(&ir.Go{At: at(s), Call: c})
+}
+
+// selectStmt evaluates every channel operand and send value in source
+// order, commits one case with ir.Select, then branches on the chosen index.
+func (fl *fnLowerer) selectStmt(s *ast.SelectStmt) {
+	label := fl.takeLabel()
+	sel := &ir.Select{At: at(s), Index: fl.temp(fl.ts().IntT())}
+	type recvBind struct {
+		assign *ast.AssignStmt
+		dst    *ir.Local
+		ok     *ir.Local
+	}
+	clauses := s.Body.List
+	caseOf := make([]int, len(clauses))
+	binds := make([]recvBind, len(clauses))
+	for i, c := range clauses {
+		cc := c.(*ast.CommClause)
+		caseOf[i] = -1
+		switch comm := cc.Comm.(type) {
+		case nil:
+			sel.Default = true
+		case *ast.SendStmt:
+			ch := fl.expr(comm.Chan)
+			v := fl.exprTo(comm.Value, ch.IRType().U().Elem)
+			caseOf[i] = len(sel.Cases)
+			sel.Cases = append(sel.Cases, ir.SelectCase{Send: true, Ch: fl.snap(ch), V: fl.snap(v)})
+		case *ast.ExprStmt:
+			ch := fl.expr(ast.Unparen(comm.X).(*ast.UnaryExpr).X)
+			caseOf[i] = len(sel.Cases)
+			sel.Cases = append(sel.Cases, ir.SelectCase{Ch: fl.snap(ch)})
+		case *ast.AssignStmt:
+			ux := ast.Unparen(comm.Rhs[0]).(*ast.UnaryExpr)
+			ch := fl.expr(ux.X)
+			sc := ir.SelectCase{Ch: fl.snap(ch), Dst: fl.temp(ch.IRType().U().Elem)}
+			if len(comm.Lhs) == 2 {
+				sc.Ok = fl.temp(fl.ts().Bool())
+			}
+			caseOf[i] = len(sel.Cases)
+			binds[i] = recvBind{assign: comm, dst: sc.Dst, ok: sc.Ok}
+			sel.Cases = append(sel.Cases, sc)
+		}
+	}
+	fl.emit(sel)
+	done := fl.f.NewBlock("select.done")
+	fl.targets = append(fl.targets, target{label: label, brk: done})
+	for i, c := range clauses {
+		cc := c.(*ast.CommClause)
+		body := fl.f.NewBlock("select.case")
+		next := fl.f.NewBlock("select.next")
+		want := int64(caseOf[i])
+		cond := fl.temp(fl.ts().Bool())
+		fl.emit(&ir.BinOp{At: at(cc), Dst: cond, Op: ir.Eq, X: sel.Index, Y: fl.intConst(want)})
+		fl.term(&ir.If{At: at(cc), Cond: cond, Then: body, Else: next})
+		fl.b = body
+		if b := binds[i]; b.assign != nil {
+			define := b.assign.Tok == token.DEFINE
+			vals := []ir.Value{b.dst}
+			if b.ok != nil {
+				vals = append(vals, b.ok)
+			}
+			for j, lhs := range b.assign.Lhs {
+				fl.store(fl.lhs(lhs, define, false), vals[j])
+			}
+		}
+		fl.block(cc.Body)
+		fl.jump(done)
+		fl.b = next
+	}
+	fl.jump(done)
+	fl.targets = fl.targets[:len(fl.targets)-1]
+	fl.b = done
 }

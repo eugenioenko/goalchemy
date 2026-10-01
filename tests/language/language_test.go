@@ -13,6 +13,10 @@ import (
 var targets = []string{"go", "typescript"}
 
 func TestFixtures(t *testing.T) {
+	targets := targets
+	if only := os.Getenv("GOALCHEMY_TEST_TARGETS"); only != "" {
+		targets = strings.Split(only, ",")
+	}
 	fixtures, err := testutil.Discover("testdata")
 	if err != nil {
 		t.Fatal(err)

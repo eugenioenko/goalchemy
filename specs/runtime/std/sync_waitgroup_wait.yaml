@@ -1,0 +1,36 @@
+id: std.sync.waitgroup.wait
+schema_version: 1
+version: 1.0.0
+summary: "sync.WaitGroup.Wait: return at zero, otherwise wait."
+signature:
+  source: declaration
+  symbol: "sync.(WaitGroup).Wait"
+  type_parameters: []
+  inputs:
+    - {name: wg, type: "*sync.WaitGroup"}
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The counter and released waiters."
+cases:
+  - name: zero_returns
+    types: {}
+    let:
+      - {name: wg, type: "*sync.WaitGroup", value: {"zero": true}}
+    call: ["wg"]
+    expect:
+      results: []

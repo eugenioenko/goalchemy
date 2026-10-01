@@ -249,6 +249,20 @@ func (fl *fnLowerer) rangeStmt(s *ast.RangeStmt) {
 			fl.emit(&ir.BinOp{Dst: it, Op: ir.Add, X: it, Y: &ir.Const{Type: t, Val: constant.MakeInt64(1)}})
 		})
 		return
+	case *types.Chan:
+		ct := fl.typ(xt)
+		var ch ir.Value
+		v := fl.temp(ct.U().Elem)
+		ok := fl.temp(fl.ts().Bool())
+		loop(func() {
+			ch = fl.snap(fl.expr(s.X))
+		}, func() {
+			fl.emit(&ir.Recv{At: at(s), Dst: v, Ok: ok, Ch: ch})
+			fl.term(&ir.If{At: at(s), Cond: ok, Then: body, Else: done})
+		}, func() {
+			bind(key, v)
+		}, func() {})
+		return
 	case *types.Map:
 		mt := fl.typ(xt)
 		iter := fl.temp(fl.ts().MapIter(mt))

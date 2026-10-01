@@ -60,7 +60,7 @@
   },
   "$defs": {
     "semver": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
-    "type_expr": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_\\[\\]\\*\\.]+$"},
+    "type_expr": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_\\[\\]\\*\\.{}<\\- ]+$"},
     "parameter": {
       "type": "object",
       "additionalProperties": false,
@@ -90,7 +90,9 @@
         {"type": "object", "additionalProperties": false, "required": ["view"], "properties": {"view": {"type": "string"}, "lo": {"type": "string"}, "hi": {"type": "string"}, "max": {"type": "string"}}},
         {"type": "object", "additionalProperties": false, "required": ["map"], "properties": {"map": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"$ref": "#/$defs/value"}, "value": {"$ref": "#/$defs/value"}}}}}},
         {"type": "object", "additionalProperties": false, "required": ["ref"], "properties": {"ref": {"type": "string"}}},
-        {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"type": "string"}}}
+        {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["zero"], "properties": {"zero": {"const": true}}},
+        {"type": "object", "additionalProperties": false, "required": ["chan"], "properties": {"chan": {"type": "array", "items": {"$ref": "#/$defs/value"}}, "cap": {"type": "string"}, "closed": {"type": "boolean"}}}
       ]
     },
     "binding": {
@@ -123,12 +125,13 @@
               "required": ["category", "message"],
               "properties": {"category": {"type": "string"}, "message": {"type": "string"}}
             },
+            "blocked": {"const": true},
             "after": {"type": "array", "items": {
               "type": "object", "additionalProperties": false, "required": ["name", "value"],
               "properties": {"name": {"type": "string"}, "value": {"$ref": "#/$defs/value"}}
             }}
           },
-          "oneOf": [{"required": ["results"]}, {"required": ["panic"]}]
+          "oneOf": [{"required": ["results"]}, {"required": ["panic"]}, {"required": ["blocked"]}]
         }
       }
     }

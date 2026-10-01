@@ -1,0 +1,16 @@
+id: type.channel
+schema_version: 1
+version: 1.0.0
+family: channel
+summary: Channels between cooperative tasks.
+semantics:
+  zero: The nil channel, on which sends and receives block forever.
+  copying: Copying a channel value shares the same channel.
+  identity: Channel values are equal when they refer to the same channel.
+  equality: Channels of the same type compare by identity; nil equals only nil.
+  panics: Sending on or closing a closed channel, and closing a nil channel, panic.
+notes: >-
+  Unbuffered channels rendezvous; buffered channels apply backpressure. A
+  receive drains buffered values before reporting closure. Waiting senders and
+  receivers are served in FIFO order.
+exercised_by: [core.chan.make, core.chan.send, core.chan.recv, core.chan.close, core.chan.len, core.chan.cap, core.select]

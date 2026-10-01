@@ -1,0 +1,39 @@
+id: std.context.with_timeout
+schema_version: 1
+version: 1.0.0
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+signature:
+  source: declaration
+  symbol: "context.WithTimeout"
+  type_parameters: []
+  inputs:
+    - {name: parent, type: "context.Context"}
+    - {name: d, type: "time.Duration"}
+  outputs:
+    - {name: ctx, type: "context.Context"}
+    - {name: cancel, type: "context.CancelFunc"}
+depends_on:
+  - {id: std.context.with_cancel, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The deadline is a scheduler timer on the virtual clock."
+cases:
+  - name: child
+    types: {}
+    let:
+      - {name: parent, type: "context.Context", value: {"zero": true}}
+      - {name: d, type: "time.Duration", value: "5"}
+    call: ["parent", "d"]
+    expect:
+      results: [{"zero": true}, {"zero": true}]

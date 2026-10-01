@@ -1,0 +1,37 @@
+id: std.context.err
+schema_version: 1
+version: 1.0.0
+summary: "Context.Err: nil until cancelled, then context.Canceled or context.DeadlineExceeded."
+signature:
+  source: declaration
+  symbol: "context.(Context).Err"
+  type_parameters: []
+  inputs:
+    - {name: ctx, type: "context.Context"}
+  outputs:
+    - {name: err, type: error}
+depends_on:
+  - {id: std.context.background, version: 1.0.0}
+  - {id: type.error, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "The background context's Err is nil."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Returns the shared sentinel error values."
+  allocation: "No semantic storage is allocated."
+  errors: "context.Canceled has message context canceled; context.DeadlineExceeded has message context deadline exceeded."
+  panics: "Never panics."
+  observations: "The error value."
+cases:
+  - name: background
+    types: {}
+    let:
+      - {name: ctx, type: "context.Context", value: {"zero": true}}
+    call: ["ctx"]
+    expect:
+      results: [{"nil": true}]

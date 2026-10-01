@@ -10,10 +10,17 @@ export interface Deferred {
   fid: unknown;
 }
 
-/** The panic visible to recover in the deferred call currently running. */
-let curPanic: GoPanic | null = null;
-/** Identity of the function the defer machinery invoked directly. */
-let deferTarget: unknown = undefined;
+/** Per-task recover state: the panic visible to recover and the identity of
+ * the function the defer machinery invoked directly. */
+export interface PanicState {
+  curPanic: GoPanic | null;
+  deferTarget: unknown;
+}
+
+const mainState: PanicState = { curPanic: null, deferTarget: undefined };
+
+/** Returns the running task's recover state; the scheduler replaces it. */
+export const panicState = { current: (): PanicState => mainState };
 
 const PANIC_NIL_ERROR: TypeDesc = typeDesc({
   name: "*runtime.PanicNilError",
@@ -42,10 +49,11 @@ export function runDefers(ds: Deferred[], p: GoPanic | null): void {
   let panicking = p;
   while (ds.length > 0) {
     const d = ds.pop()!;
-    const savedPanic = curPanic;
-    const savedTarget = deferTarget;
-    curPanic = panicking;
-    deferTarget = d.fid;
+    const st = panicState.current();
+    const savedPanic = st.curPanic;
+    const savedTarget = st.deferTarget;
+    st.curPanic = panicking;
+    st.deferTarget = d.fid;
     try {
       if (d.f === null) throw nilDeref();
       d.f(...d.args);
@@ -55,8 +63,36 @@ export function runDefers(ds: Deferred[], p: GoPanic | null): void {
       panicking = np;
       continue;
     } finally {
-      curPanic = savedPanic;
-      deferTarget = savedTarget;
+      st.curPanic = savedPanic;
+      st.deferTarget = savedTarget;
+    }
+    if (panicking !== null && panicking.recovered) panicking = null;
+  }
+  if (panicking !== null) throw panicking;
+}
+
+/** runDefers for suspending functions: deferred calls may suspend. */
+export function* runDefersG(ds: Deferred[], p: GoPanic | null): Generator<unknown, void, unknown> {
+  let panicking = p;
+  while (ds.length > 0) {
+    const d = ds.pop()!;
+    const st = panicState.current();
+    const savedPanic = st.curPanic;
+    const savedTarget = st.deferTarget;
+    st.curPanic = panicking;
+    st.deferTarget = d.fid;
+    try {
+      if (d.f === null) throw nilDeref();
+      const r = d.f(...d.args);
+      if (isGen(d.f)) yield* r;
+    } catch (e) {
+      const np = catchPanic(e);
+      if (np !== panicking && np.prev === null) np.prev = panicking;
+      panicking = np;
+      continue;
+    } finally {
+      st.curPanic = savedPanic;
+      st.deferTarget = savedTarget;
     }
     if (panicking !== null && panicking.recovered) panicking = null;
   }
@@ -65,22 +101,30 @@ export function runDefers(ds: Deferred[], p: GoPanic | null): void {
 
 /** recover() called from the function identified by fid. */
 export function recover(fid: unknown): Box | null {
-  const p = curPanic;
-  if (p === null || p.recovered || deferTarget !== fid) return null;
+  const st = panicState.current();
+  const p = st.curPanic;
+  if (p === null || p.recovered || st.deferTarget !== fid) return null;
   p.recovered = true;
   return p.value;
 }
 
-type Fn = ((...args: any[]) => any) & { $fid?: unknown };
+/** Reports whether a function value returns a generator (it may suspend). */
+export function isGen(f: unknown): boolean {
+  return f !== null && (f as { $gen?: boolean }).$gen === true;
+}
 
-/** Tags a function value with the identity recover compares against. */
-export function closure<F extends Fn>(fid: unknown, f: F): F {
+type Fn = ((...args: any[]) => any) & { $fid?: unknown; $gen?: boolean };
+
+/** Tags a function value with the identity recover compares against, and
+ * whether calling it returns a generator. */
+export function closure<F extends Fn>(fid: unknown, f: F, gen?: boolean): F {
   f.$fid = fid;
+  if (gen) f.$gen = true;
   return f;
 }
 
 export function bound(fid: unknown, f: Fn, recv: any): Fn {
-  return closure(fid, (...a: any[]) => f(recv, ...a));
+  return closure(fid, (...a: any[]) => f(recv, ...a), f.$gen === true);
 }
 
 export function ichk(x: Box | null): Box {
@@ -92,7 +136,7 @@ export function ichk(x: Box | null): Box {
 export function ibound(x: Box | null, id: string): Fn {
   const b = ichk(x);
   const m = b.t.methods[id] as Fn;
-  return closure(m.$fid, (...a: any[]) => m(b.v, ...a));
+  return closure(m.$fid, (...a: any[]) => m(b.v, ...a), m.$gen === true);
 }
 
 export function fnchk<F>(f: F | null): F {
@@ -134,7 +178,7 @@ export function formatPanicValue(v: Box | null): string {
   return "(" + v.t.name + ") 0xc000000000";
 }
 
-function formatChain(p: GoPanic): string {
+export function formatChain(p: GoPanic): string {
   let s = "";
   if (p.prev !== null) s += formatChain(p.prev) + "\t";
   s += "panic: " + formatPanicValue(p.value);
@@ -160,3 +204,13 @@ export function main(entry: () => void): void {
 }
 
 export { runtimePanic };
+
+/** The type descriptor for plain string panic values raised by runtimes. */
+export const STRING_TYPE: TypeDesc = typeDesc({
+  name: "string",
+  kind: "string",
+  eq: (a, b) => a === b,
+  key: (a) => a,
+  methods: {},
+  basic: "string",
+});

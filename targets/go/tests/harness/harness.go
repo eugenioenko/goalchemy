@@ -44,6 +44,9 @@ func (h *H) After(name string, v any)       { h.after[name] = v }
 
 type harnessError struct{ msg string }
 
+// blockedSignal reports that the case's task blocked with nothing runnable.
+type blockedSignal struct{}
+
 func fail(format string, args ...any) { panic(harnessError{fmt.Sprintf(format, args...)}) }
 
 func main() {
@@ -76,10 +79,15 @@ func serve(req request) (resp response) {
 		return
 	}
 	h := &H{let: req.Let, after: map[string]any{}}
+	rt.ResetScheduler(func() { panic(blockedSignal{}) })
 	defer func() {
 		if r := recover(); r != nil {
 			if he, ok := r.(harnessError); ok {
 				resp.Status, resp.Error = "harness_failure", he.msg
+				return
+			}
+			if _, ok := r.(blockedSignal); ok {
+				resp.Status = "blocked"
 				return
 			}
 			resp.Status = "panic"
@@ -258,4 +266,64 @@ func EncArray[T any](s []T, enc func(T) any) any {
 		items[i] = enc(e)
 	}
 	return map[string]any{"array": items}
+}
+
+func DecChan[T any](raw json.RawMessage, dec func(json.RawMessage) T) rt.Chan[T] {
+	m := object(raw)
+	if _, ok := m["nil"]; ok {
+		return rt.Chan[T]{}
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(m["chan"], &items); err != nil {
+		fail("bad channel")
+	}
+	size := 0
+	if c, ok := m["cap"]; ok {
+		size, _ = strconv.Atoi(str(c))
+	}
+	ch := rt.MakeChan[T](size)
+	for _, it := range items {
+		ch.Send(dec(it))
+	}
+	if c, ok := m["closed"]; ok && string(c) == "true" {
+		ch.Close()
+	}
+	return ch
+}
+
+func EncChan[T any](ch rt.Chan[T], enc func(T) any) any {
+	if ch == (rt.Chan[T]{}) {
+		return map[string]any{"nil": true}
+	}
+	items := []any{}
+	closed := rt.ChanClosed(ch)
+	for _, v := range rt.ChanBuffered(ch) {
+		items = append(items, enc(v))
+	}
+	return map[string]any{"chan": items, "cap": strconv.Itoa(ch.Cap()), "closed": closed}
+}
+
+func EncZero(any) any { return map[string]any{"zero": true} }
+
+// HarnessSpawn reports whether a spawned task ran before the parent yielded.
+func HarnessSpawn() bool {
+	ran := false
+	rt.Go(func() { ran = true })
+	before := ran
+	rt.Gosched()
+	if !ran {
+		fail("spawned task did not run after the parent yielded")
+	}
+	return before
+}
+
+// HarnessSelect2 selects over receives from a and b.
+func HarnessSelect2[T any](a, b rt.Chan[T], dflt bool) int {
+	i, _, _ := rt.Select([]rt.SelectCase{rt.RecvCase(a), rt.RecvCase(b)}, dflt)
+	return i
+}
+
+func HarnessLockUnlock(m *rt.Mutex) {
+	rt.StdSyncMutexLock(m)
+	rt.StdSyncMutexUnlock(m)
 }

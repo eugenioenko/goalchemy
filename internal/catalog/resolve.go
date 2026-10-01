@@ -15,7 +15,7 @@ import (
 )
 
 // stdPackages lists standard packages whose symbols may be mapped.
-var stdPackages = map[string]bool{"errors": true}
+var stdPackages = map[string]bool{"errors": true, "sync": true, "runtime": true, "context": true, "time": true}
 
 // DeclarationModule is the module path under which specs/declarations lives.
 const DeclarationModule = "goalchemy/specs/declarations/"
@@ -30,34 +30,83 @@ func Resolver(fsys fs.FS) contracts.SymbolResolver {
 			return nil, nil, fmt.Errorf("symbol %s is not package-qualified", symbol)
 		}
 		pkgPath, name := symbol[:i], symbol[i+1:]
-		pkg, ok := cache[pkgPath]
-		if !ok {
+		var pkg *types.Package
+		if !strings.Contains(symbol, ".(") {
 			var err error
-			if strings.HasPrefix(symbol, DeclarationModule) {
-				pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
-			} else if stdPackages[pkgPath] {
-				pkg, err = importer.Default().Import(pkgPath)
-			} else {
-				err = fmt.Errorf("symbol must be in a standard package or under %s", DeclarationModule)
+			if pkg, err = lookupPackage(fsys, cache, pkgPath); err != nil {
+				return nil, nil, err
 			}
+		}
+		if j := strings.Index(symbol, ".("); j > 0 {
+			// Method: pkg.(Type).Method; the receiver is the first input.
+			pkgPath = symbol[:j]
+			rest := symbol[j+2:]
+			k := strings.Index(rest, ").")
+			if k < 0 {
+				return nil, nil, fmt.Errorf("malformed method symbol %s", symbol)
+			}
+			typeName, method := rest[:k], rest[k+2:]
+			pkg, err := lookupPackage(fsys, cache, pkgPath)
 			if err != nil {
 				return nil, nil, err
 			}
-			cache[pkgPath] = pkg
+			tn, ok := pkg.Scope().Lookup(typeName).(*types.TypeName)
+			if !ok {
+				return nil, nil, fmt.Errorf("%s is not a type in %s", typeName, pkgPath)
+			}
+			var lookIn types.Type = types.NewPointer(tn.Type())
+			if types.IsInterface(tn.Type()) {
+				lookIn = tn.Type()
+			}
+			obj, _, _ := types.LookupFieldOrMethod(lookIn, true, pkg, method)
+			fn, ok := obj.(*types.Func)
+			if !ok {
+				return nil, nil, fmt.Errorf("%s has no method %s", typeName, method)
+			}
+			sig := fn.Signature()
+			recv := []string{TypeString(sig.Recv().Type())}
+			return append(recv, tupleTypes(sig.Params())...), tupleTypes(sig.Results()), nil
 		}
-		fn, ok := pkg.Scope().Lookup(name).(*types.Func)
-		if !ok {
-			return nil, nil, fmt.Errorf("%s is not a declared function", symbol)
+		switch o := pkg.Scope().Lookup(name).(type) {
+		case *types.Func:
+			sig := o.Signature()
+			return tupleTypes(sig.Params()), tupleTypes(sig.Results()), nil
+		case *types.Var:
+			return nil, []string{TypeString(o.Type())}, nil
 		}
-		sig := fn.Signature()
-		return tupleTypes(sig.Params()), tupleTypes(sig.Results()), nil
+		return nil, nil, fmt.Errorf("%s is not a declared function or variable", symbol)
 	}
+}
+
+func lookupPackage(fsys fs.FS, cache map[string]*types.Package, pkgPath string) (*types.Package, error) {
+	if pkg, ok := cache[pkgPath]; ok {
+		return pkg, nil
+	}
+	var pkg *types.Package
+	var err error
+	if strings.HasPrefix(pkgPath, DeclarationModule) {
+		pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
+	} else if stdPackages[pkgPath] {
+		pkg, err = importer.Default().Import(pkgPath)
+	} else {
+		err = fmt.Errorf("package %s is neither standard nor under %s", pkgPath, DeclarationModule)
+	}
+	if err != nil {
+		return nil, err
+	}
+	cache[pkgPath] = pkg
+	return pkg, nil
+}
+
+// TypeString renders a type in contract syntax: package-qualified by name.
+func TypeString(t types.Type) string {
+	return types.TypeString(t, func(p *types.Package) string { return p.Name() })
 }
 
 func tupleTypes(t *types.Tuple) []string {
 	out := make([]string, t.Len())
 	for i := range out {
-		out[i] = types.TypeString(t.At(i).Type(), func(*types.Package) string { return "" })
+		out[i] = TypeString(t.At(i).Type())
 	}
 	return out
 }

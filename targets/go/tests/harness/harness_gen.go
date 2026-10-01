@@ -11,6 +11,127 @@ import (
 var _ json.RawMessage
 
 var cases = map[string]func(h *H) []any{
+	"core.chan.cap/three": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0 := v_ch.Cap()
+		return []any{EncInt(r0)}
+	},
+	"core.chan.close/nil": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_ch.Close()
+		return []any{}
+	},
+	"core.chan.close/open": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_ch.Close()
+		h.After("ch", EncChan(v_ch, func(e int) any { return EncInt(e) }))
+		return []any{}
+	},
+	"core.chan.close/twice": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_ch.Close()
+		return []any{}
+	},
+	"core.chan.len/nil": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0 := v_ch.Len()
+		return []any{EncInt(r0)}
+	},
+	"core.chan.len/two": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0 := v_ch.Len()
+		return []any{EncInt(r0)}
+	},
+	"core.chan.make/buffered": func(h *H) []any {
+		v_size := DecInt[int](h.Let("size"))
+		_ = v_size
+		r0 := rt.MakeChan[int](v_size)
+		return []any{EncChan(r0, func(e int) any { return EncInt(e) })}
+	},
+	"core.chan.make/negative": func(h *H) []any {
+		v_size := DecInt[int](h.Let("size"))
+		_ = v_size
+		r0 := rt.MakeChan[int](v_size)
+		return []any{EncChan(r0, func(e int) any { return EncInt(e) })}
+	},
+	"core.chan.recv/buffered": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0, r1 := v_ch.Recv()
+		h.After("ch", EncChan(v_ch, func(e int) any { return EncInt(e) }))
+		return []any{EncInt(r0), EncBool(r1)}
+	},
+	"core.chan.recv/closed": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) string { return DecString(r) })
+		_ = v_ch
+		r0, r1 := v_ch.Recv()
+		return []any{EncString(r0), EncBool(r1)}
+	},
+	"core.chan.recv/drains_before_close": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0, r1 := v_ch.Recv()
+		return []any{EncInt(r0), EncBool(r1)}
+	},
+	"core.chan.recv/empty_blocks": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0, r1 := v_ch.Recv()
+		return []any{EncInt(r0), EncBool(r1)}
+	},
+	"core.chan.recv/nil_blocks": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		r0, r1 := v_ch.Recv()
+		return []any{EncInt(r0), EncBool(r1)}
+	},
+	"core.chan.send/buffered": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_v := DecInt[int](h.Let("v"))
+		_ = v_v
+		v_ch.Send(v_v)
+		h.After("ch", EncChan(v_ch, func(e int) any { return EncInt(e) }))
+		return []any{}
+	},
+	"core.chan.send/closed": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_v := DecInt[int](h.Let("v"))
+		_ = v_v
+		v_ch.Send(v_v)
+		return []any{}
+	},
+	"core.chan.send/full_blocks": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_v := DecInt[int](h.Let("v"))
+		_ = v_v
+		v_ch.Send(v_v)
+		return []any{}
+	},
+	"core.chan.send/nil_blocks": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_ch
+		v_v := DecInt[int](h.Let("v"))
+		_ = v_v
+		v_ch.Send(v_v)
+		return []any{}
+	},
+	"core.chan.send/unbuffered_blocks": func(h *H) []any {
+		v_ch := DecChan(h.Let("ch"), func(r json.RawMessage) string { return DecString(r) })
+		_ = v_ch
+		v_v := DecString(h.Let("v"))
+		_ = v_v
+		v_ch.Send(v_v)
+		return []any{}
+	},
 	"core.integer.add/int32_plain": func(h *H) []any {
 		v_a := DecInt[int32](h.Let("a"))
 		_ = v_a
@@ -604,6 +725,47 @@ var cases = map[string]func(h *H) []any{
 		r0 := rt.PrintString(v_v)
 		return []any{EncString(r0)}
 	},
+	"core.select/closed_ready": func(h *H) []any {
+		v_a := DecChan(h.Let("a"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_a
+		v_b := DecChan(h.Let("b"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_b
+		v_dflt := DecBool(h.Let("dflt"))
+		_ = v_dflt
+		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		return []any{EncInt(r0)}
+	},
+	"core.select/default_when_idle": func(h *H) []any {
+		v_a := DecChan(h.Let("a"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_a
+		v_b := DecChan(h.Let("b"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_b
+		v_dflt := DecBool(h.Let("dflt"))
+		_ = v_dflt
+		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		return []any{EncInt(r0)}
+	},
+	"core.select/nothing_blocks": func(h *H) []any {
+		v_a := DecChan(h.Let("a"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_a
+		v_b := DecChan(h.Let("b"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_b
+		v_dflt := DecBool(h.Let("dflt"))
+		_ = v_dflt
+		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		return []any{EncInt(r0)}
+	},
+	"core.select/only_ready": func(h *H) []any {
+		v_a := DecChan(h.Let("a"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_a
+		v_b := DecChan(h.Let("b"), func(r json.RawMessage) int { return DecInt[int](r) })
+		_ = v_b
+		v_dflt := DecBool(h.Let("dflt"))
+		_ = v_dflt
+		r0 := HarnessSelect2(v_a, v_b, v_dflt)
+		h.After("b", EncChan(v_b, func(e int) any { return EncInt(e) }))
+		return []any{EncInt(r0)}
+	},
 	"core.slice.append/from_nil": func(h *H) []any {
 		v_s := DecSlice(h.Let("s"), func(r json.RawMessage) string { return DecString(r) })
 		_ = v_s
@@ -1072,6 +1234,48 @@ var cases = map[string]func(h *H) []any{
 		r0 := rt.StringToRunes(v_s)
 		return []any{EncSlice(r0, func(e int32) any { return EncInt(e) })}
 	},
+	"core.task.spawn/parent_continues": func(h *H) []any {
+		r0 := HarnessSpawn()
+		return []any{EncBool(r0)}
+	},
+	"std.context.background/root": func(h *H) []any {
+		r0 := rt.StdContextBackground()
+		return []any{EncZero(r0)}
+	},
+	"std.context.canceled/message": func(h *H) []any {
+		r0 := rt.StdContextCanceled()
+		return []any{EncError(r0)}
+	},
+	"std.context.deadline_exceeded/message": func(h *H) []any {
+		r0 := rt.StdContextDeadlineExceeded()
+		return []any{EncError(r0)}
+	},
+	"std.context.done/background": func(h *H) []any {
+		v_ctx := rt.StdContextBackground()
+		_ = v_ctx
+		r0 := rt.StdContextContextDone(v_ctx)
+		return []any{EncChan(r0, func(e struct{}) any { return EncZero(e) })}
+	},
+	"std.context.err/background": func(h *H) []any {
+		v_ctx := rt.StdContextBackground()
+		_ = v_ctx
+		r0 := rt.StdContextContextErr(v_ctx)
+		return []any{EncError(r0)}
+	},
+	"std.context.with_cancel/child": func(h *H) []any {
+		v_parent := rt.StdContextBackground()
+		_ = v_parent
+		r0, r1 := rt.StdContextWithCancel(v_parent)
+		return []any{EncZero(r0), EncZero(r1)}
+	},
+	"std.context.with_timeout/child": func(h *H) []any {
+		v_parent := rt.StdContextBackground()
+		_ = v_parent
+		v_d := DecInt[int64](h.Let("d"))
+		_ = v_d
+		r0, r1 := rt.StdContextWithTimeout(v_parent, v_d)
+		return []any{EncZero(r0), EncZero(r1)}
+	},
 	"std.errors.is/distinct": func(h *H) []any {
 		v_err := DecError(h.Let("err"))
 		_ = v_err
@@ -1107,5 +1311,55 @@ var cases = map[string]func(h *H) []any{
 		_ = v_err
 		r0 := rt.StdErrorsUnwrap(v_err)
 		return []any{EncError(r0)}
+	},
+	"std.runtime.gosched/alone": func(h *H) []any {
+		rt.StdRuntimeGosched()
+		return []any{}
+	},
+	"std.sync.mutex.lock/unlocked": func(h *H) []any {
+		v_m := new(rt.Mutex)
+		_ = v_m
+		rt.StdSyncMutexLock(v_m)
+		return []any{}
+	},
+	"std.sync.mutex.unlock/lock_then_unlock": func(h *H) []any {
+		v_m := new(rt.Mutex)
+		_ = v_m
+		HarnessLockUnlock(v_m)
+		return []any{}
+	},
+	"std.sync.waitgroup.add/negative": func(h *H) []any {
+		v_wg := new(rt.WaitGroup)
+		_ = v_wg
+		v_delta := DecInt[int](h.Let("delta"))
+		_ = v_delta
+		rt.StdSyncWaitgroupAdd(v_wg, v_delta)
+		return []any{}
+	},
+	"std.sync.waitgroup.add/positive": func(h *H) []any {
+		v_wg := new(rt.WaitGroup)
+		_ = v_wg
+		v_delta := DecInt[int](h.Let("delta"))
+		_ = v_delta
+		rt.StdSyncWaitgroupAdd(v_wg, v_delta)
+		return []any{}
+	},
+	"std.sync.waitgroup.done/underflow": func(h *H) []any {
+		v_wg := new(rt.WaitGroup)
+		_ = v_wg
+		rt.StdSyncWaitgroupDone(v_wg)
+		return []any{}
+	},
+	"std.sync.waitgroup.wait/zero_returns": func(h *H) []any {
+		v_wg := new(rt.WaitGroup)
+		_ = v_wg
+		rt.StdSyncWaitgroupWait(v_wg)
+		return []any{}
+	},
+	"std.time.sleep/zero": func(h *H) []any {
+		v_d := DecInt[int64](h.Let("d"))
+		_ = v_d
+		rt.StdTimeSleep(v_d)
+		return []any{}
 	},
 }

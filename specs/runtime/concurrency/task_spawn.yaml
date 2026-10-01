@@ -1,0 +1,34 @@
+id: core.task.spawn
+schema_version: 1
+version: 1.0.0
+summary: "go f(args): enqueue a new task after evaluating its callee and arguments; the parent continues."
+signature:
+  source: intrinsic
+  type_parameters: []
+  inputs: []
+  outputs:
+    - {name: child_ran_first, type: "bool"}
+depends_on:
+  - {id: type.task, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Allocates task state."
+  errors: "Not applicable."
+  panics: "An unrecovered panic in any task terminates the program instance."
+  observations: "Tasks run FIFO and only when the running task blocks, yields, or returns."
+notes: "The harness spawns a task that records it ran and reports whether that happened before the parent yielded."
+cases:
+  - name: parent_continues
+    types: {}
+    let: []
+    call: []
+    expect:
+      results: ["false"]

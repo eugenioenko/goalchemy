@@ -1,0 +1,68 @@
+id: core.chan.recv
+schema_version: 1
+version: 1.0.0
+summary: "v, ok := <-ch: take a buffered or sent value, report closure, or wait."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: ch, type: "chan T"}
+  outputs:
+    - {name: v, type: "T"}
+    - {name: ok, type: "bool"}
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "A closed and drained channel yields the zero value and false."
+  nil: "Operations on a nil channel block forever, except close, which panics."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Removes from the buffer; a waiting sender's value moves into the buffer."
+  aliasing: "Channel values share channel state."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Never panics."
+  observations: "Values received, readiness, and closure."
+cases:
+  - name: buffered
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["4", "5"], "cap": "2"}}
+    call: ["ch"]
+    expect:
+      results: ["4", "true"]
+      after:
+        - {name: ch, value: {"chan": ["5"], "cap": "2", "closed": false}}
+  - name: drains_before_close
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["7"], "cap": "1", "closed": true}}
+    call: ["ch"]
+    expect:
+      results: ["7", "true"]
+  - name: closed
+    types: {"T": "string"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": [], "cap": "0", "closed": true}}
+    call: ["ch"]
+    expect:
+      results: [{"str": ""}, "false"]
+  - name: empty_blocks
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": [], "cap": "3"}}
+    call: ["ch"]
+    expect:
+      blocked: true
+  - name: nil_blocks
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"nil": true}}
+    call: ["ch"]
+    expect:
+      blocked: true

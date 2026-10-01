@@ -48,6 +48,7 @@ type PanicExpect struct {
 type Expect struct {
 	Results []json.RawMessage `json:"results,omitempty"`
 	Panic   *PanicExpect      `json:"panic,omitempty"`
+	Blocked bool              `json:"blocked,omitempty"`
 	After   []After           `json:"after,omitempty"`
 }
 

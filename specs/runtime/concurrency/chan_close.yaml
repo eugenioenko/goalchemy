@@ -1,0 +1,53 @@
+id: core.chan.close
+schema_version: 1
+version: 1.0.0
+summary: "close(ch): mark closed and release every waiting receiver and sender."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: ch, type: "chan T"}
+  outputs: []
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Operations on a nil channel block forever, except close, which panics."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Marks the channel closed; waiting receivers get the zero value and false; waiting senders panic."
+  aliasing: "Channel values share channel state."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Closing a nil channel panics with close of nil channel; closing twice panics with close of closed channel."
+  observations: "Values received, readiness, and closure."
+panic_categories: [close]
+cases:
+  - name: open
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["1"], "cap": "2"}}
+    call: ["ch"]
+    expect:
+      results: []
+      after:
+        - {name: ch, value: {"chan": ["1"], "cap": "2", "closed": true}}
+  - name: twice
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": [], "cap": "0", "closed": true}}
+    call: ["ch"]
+    expect:
+      panic: {category: close, message: "close of closed channel"}
+  - name: nil
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"nil": true}}
+    call: ["ch"]
+    expect:
+      panic: {category: close, message: "close of nil channel"}

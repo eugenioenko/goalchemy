@@ -1,0 +1,36 @@
+id: std.sync.mutex.lock
+schema_version: 1
+version: 1.0.0
+summary: "sync.Mutex.Lock: acquire, or wait in FIFO order."
+signature:
+  source: declaration
+  symbol: "sync.(Mutex).Lock"
+  type_parameters: []
+  inputs:
+    - {name: m, type: "*sync.Mutex"}
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "The zero Mutex is unlocked."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Copying a locked Mutex copies its state; programs must not copy in-use values."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Lock ownership and waiting order."
+cases:
+  - name: unlocked
+    types: {}
+    let:
+      - {name: m, type: "*sync.Mutex", value: {"zero": true}}
+    call: ["m"]
+    expect:
+      results: []

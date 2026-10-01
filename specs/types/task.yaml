@@ -1,0 +1,18 @@
+id: type.task
+schema_version: 1
+version: 1.0.0
+family: task
+summary: Cooperative tasks scheduled one at a time by a per-program scheduler.
+semantics:
+  zero: Not applicable; tasks are not source values.
+  copying: Not applicable.
+  identity: Each go statement creates a distinct task.
+  equality: Not applicable.
+  panics: An unrecovered panic in any task terminates the program instance with exit status 2.
+notes: >-
+  Runnable tasks are dispatched FIFO. A running task keeps control until it
+  blocks, yields, returns, or panics. When no task can run and no timer is
+  pending, the instance reports "fatal error: all goroutines are asleep -
+  deadlock!" and exits with status 2. Virtual time advances only when every
+  task is blocked and a timer is pending.
+exercised_by: [core.task.spawn, std.sync.mutex.lock, std.sync.mutex.unlock, std.sync.waitgroup.add, std.sync.waitgroup.wait, std.runtime.gosched, std.time.sleep]

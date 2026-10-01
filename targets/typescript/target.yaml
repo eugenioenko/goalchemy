@@ -7,6 +7,8 @@ environment:
   minimum: Node.js 22.6 (ES2022)
   build: node main.ts
 representations:
+  - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with buffer and FIFO wait queues (types/sched.ts); null is the nil channel."}
+  - {type: type.task, contract_version: 1.0.0, representation: "Generator objects driven by a FIFO scheduler (types/sched.ts); suspending functions compile to generator functions."}
   - {type: type.boolean, contract_version: 1.0.0, representation: JavaScript boolean.}
   - {type: type.integer, contract_version: 1.0.0, representation: "8-, 16-, and 32-bit kinds are numbers kept in range by explicit wrapping; int, uint, int64, and uint64 are BigInt values normalized with BigInt.asIntN/asUintN (types/integer.ts)."}
   - {type: type.string, contract_version: 1.0.0, representation: "Binary JavaScript strings holding one byte per UTF-16 code unit; comparison and concatenation are bytewise."}
@@ -68,3 +70,25 @@ functions:
   - {id: std.errors.new, contract_version: 1.0.0, symbol: rt.stdErrorsNew, implementation: runtime/std_errors_new.ts, harness: "rt.stdErrorsNew({0})"}
   - {id: std.errors.is, contract_version: 1.0.0, symbol: rt.stdErrorsIs, implementation: runtime/std_errors_is.ts, harness: "rt.stdErrorsIs({0}, {1})"}
   - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: rt.stdErrorsUnwrap, implementation: runtime/std_errors_unwrap.ts, harness: "rt.stdErrorsUnwrap({0})"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: rt.spawn, implementation: runtime/task_spawn.ts, harness: "yield* harnessSpawn()"}
+  - {id: core.chan.make, contract_version: 1.0.0, symbol: rt.makeChan, implementation: runtime/chan_make.ts, requires: [core.task.spawn], harness: "rt.makeChan({0})"}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: rt.chanSend, implementation: runtime/chan_send.ts, requires: [core.chan.make], harness: "yield* rt.chanSend({0}, {1})"}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: rt.chanRecv, implementation: runtime/chan_recv.ts, requires: [core.chan.make], harness: "yield* rt.chanRecv({0}, () => {T.zero})"}
+  - {id: core.chan.close, contract_version: 1.0.0, symbol: rt.chanClose, implementation: runtime/chan_close.ts, requires: [core.chan.make], harness: "rt.chanClose({0})"}
+  - {id: core.chan.len, contract_version: 1.0.0, symbol: rt.chanLen, implementation: runtime/chan_len.ts, requires: [core.chan.make], harness: "rt.chanLen({0})"}
+  - {id: core.chan.cap, contract_version: 1.0.0, symbol: rt.chanCap, implementation: runtime/chan_cap.ts, requires: [core.chan.make], harness: "rt.chanCap({0})"}
+  - {id: core.select, contract_version: 1.0.0, symbol: rt.select, implementation: runtime/select.ts, requires: [core.chan.recv], harness: "yield* harnessSelect2({0}, {1}, {2})"}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: rt.stdSyncMutexLock, implementation: runtime/std_sync_mutex_lock.ts, requires: [core.task.spawn], harness: "yield* rt.stdSyncMutexLock({0})"}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: rt.stdSyncMutexUnlock, implementation: runtime/std_sync_mutex_unlock.ts, requires: [std.sync.mutex.lock], harness: "yield* harnessLockUnlock({0})"}
+  - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: rt.stdSyncWaitgroupAdd, implementation: runtime/std_sync_waitgroup_add.ts, requires: [core.task.spawn], harness: "rt.stdSyncWaitgroupAdd({0}, {1})"}
+  - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: rt.stdSyncWaitgroupDone, implementation: runtime/std_sync_waitgroup_done.ts, requires: [std.sync.waitgroup.add], harness: "rt.stdSyncWaitgroupDone({0})"}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: rt.stdSyncWaitgroupWait, implementation: runtime/std_sync_waitgroup_wait.ts, requires: [std.sync.waitgroup.add], harness: "yield* rt.stdSyncWaitgroupWait({0})"}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: rt.stdRuntimeGosched, implementation: runtime/std_runtime_gosched.ts, requires: [core.task.spawn], harness: "yield* rt.stdRuntimeGosched()"}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: rt.stdTimeSleep, implementation: runtime/std_time_sleep.ts, requires: [core.task.spawn], harness: "yield* rt.stdTimeSleep({0})"}
+  - {id: std.context.background, contract_version: 1.0.0, symbol: rt.stdContextBackground, implementation: runtime/std_context_background.ts, requires: [std.context.err], harness: "rt.stdContextBackground()"}
+  - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: rt.stdContextWithCancel, implementation: runtime/std_context_with_cancel.ts, requires: [std.context.err], harness: "rt.stdContextWithCancel({0})"}
+  - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: rt.stdContextWithTimeout, implementation: runtime/std_context_with_timeout.ts, requires: [std.context.err], harness: "rt.stdContextWithTimeout({0}, {1})"}
+  - {id: std.context.done, contract_version: 1.0.0, symbol: rt.stdContextContextDone, implementation: runtime/std_context_done.ts, requires: [std.context.err], harness: "rt.stdContextContextDone({0})"}
+  - {id: std.context.err, contract_version: 1.0.0, symbol: rt.stdContextContextErr, implementation: runtime/std_context_err.ts, requires: [core.chan.close, std.errors.new], harness: "rt.stdContextContextErr({0})"}
+  - {id: std.context.canceled, contract_version: 1.0.0, symbol: rt.stdContextCanceled, implementation: runtime/std_context_canceled.ts, requires: [std.context.err], harness: "rt.stdContextCanceled()"}
+  - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: rt.stdContextDeadlineExceeded, implementation: runtime/std_context_deadline_exceeded.ts, requires: [std.context.err], harness: "rt.stdContextDeadlineExceeded()"}

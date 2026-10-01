@@ -53,10 +53,21 @@ Programs write output with Go's `print` and `println` builtins, which go to stan
 - generics, floating-point and complex numbers, and `uintptr`
 - `unsafe`, cgo, `goto`, and range over functions
 - pointers to slice or array elements, including pointer-receiver calls on elements
-- concurrency, which waits for the cooperative gate
+- concurrency under the default sequential gate (compile with `-gate cooperative`)
 - imports other than module source and registered capabilities
 
-The only registered standard-library capabilities are `errors.New`, `errors.Is`, and `errors.Unwrap`. `errors.As`, `errors.Join`, and `fmt` are not available.
+Registered standard-library capabilities are `errors.New`, `errors.Is`, and `errors.Unwrap`, plus, under the cooperative gate, `sync.Mutex`, `sync.WaitGroup`, `runtime.Gosched`, `time.Sleep`, and `context.Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, `Done`, and `Err`. `errors.As`, `errors.Join`, and `fmt` are not available.
+
+## Cooperative execution
+
+With `-gate cooperative` (or `gate: cooperative` in `goalchemy.yaml`), programs may use `go`, channels, `select`, and the synchronization capabilities above. Only one task runs at a time:
+
+- Runnable tasks run in FIFO order. A task keeps control until it blocks, yields, returns, or panics.
+- `select` chooses among ready cases with a seeded xorshift32 source: `GOALCHEMY_SEED`, default 1.
+- `time.Sleep` and context deadlines use a virtual clock, which advances only when every task is blocked.
+- A deadlock prints `fatal error: all goroutines are asleep - deadlock!` and exits with status 2.
+
+Every target follows the same scheduler contract. Lowered Go runs each task as a goroutine under a single run baton. TypeScript compiles suspending functions, found by effect analysis, to generators driven by the scheduler.
 
 ## Behavior Go leaves open
 

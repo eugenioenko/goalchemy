@@ -9,8 +9,10 @@ import (
 // TypeExpr is a structured type reference used by contract signatures and
 // test bindings. Type variables are specification metadata only.
 type TypeExpr struct {
-	Kind string // name, slice, array, map, pointer
+	Kind string // name, slice, array, map, pointer, chan
 	Name string
+	// Dir is "recv" or "send" for directional channels.
+	Dir  string
 	Len  int64
 	Elem *TypeExpr
 	Key  *TypeExpr
@@ -26,6 +28,14 @@ func (t *TypeExpr) String() string {
 		return "map[" + t.Key.String() + "]" + t.Elem.String()
 	case "pointer":
 		return "*" + t.Elem.String()
+	case "chan":
+		switch t.Dir {
+		case "recv":
+			return "<-chan " + t.Elem.String()
+		case "send":
+			return "chan<- " + t.Elem.String()
+		}
+		return "chan " + t.Elem.String()
 	}
 	return t.Name
 }
@@ -67,6 +77,17 @@ func parseType(s string) (*TypeExpr, string, error) {
 		}
 		v, rest, err := parseType(rest[1:])
 		return &TypeExpr{Kind: "map", Key: k, Elem: v}, rest, err
+	case strings.HasPrefix(s, "<-chan "):
+		e, rest, err := parseType(s[7:])
+		return &TypeExpr{Kind: "chan", Dir: "recv", Elem: e}, rest, err
+	case strings.HasPrefix(s, "chan<- "):
+		e, rest, err := parseType(s[7:])
+		return &TypeExpr{Kind: "chan", Dir: "send", Elem: e}, rest, err
+	case strings.HasPrefix(s, "chan "):
+		e, rest, err := parseType(s[5:])
+		return &TypeExpr{Kind: "chan", Elem: e}, rest, err
+	case strings.HasPrefix(s, "struct{}"):
+		return &TypeExpr{Kind: "name", Name: "struct{}"}, s[len("struct{}"):], nil
 	case strings.HasPrefix(s, "*"):
 		e, rest, err := parseType(s[1:])
 		return &TypeExpr{Kind: "pointer", Elem: e}, rest, err
@@ -106,20 +127,25 @@ var intRanges = map[string]struct {
 	"byte": {8, false}, "rune": {32, true},
 }
 
-// IntInfo reports the width and signedness of an integer type name.
+// IntInfo reports the width and signedness of an integer type name,
+// including external named integer types.
 func IntInfo(name string) (bits uint, signed bool, ok bool) {
+	if u, ok := externalInts[name]; ok {
+		name = u
+	}
 	r, ok := intRanges[name]
 	return r.bits, r.signed, ok
 }
 
-var concreteNames = map[string]bool{"bool": true, "string": true, "error": true, "any": true}
+var concreteNames = map[string]bool{"bool": true, "string": true, "error": true, "any": true, "struct{}": true}
 
 // Concrete reports whether a type expression contains only concrete names.
 func (t *TypeExpr) Concrete() bool {
 	switch t.Kind {
 	case "name":
 		_, isInt := intRanges[t.Name]
-		return isInt || concreteNames[t.Name]
+		// Package-qualified names denote external capability types.
+		return isInt || concreteNames[t.Name] || strings.Contains(t.Name, ".")
 	case "map":
 		return t.Key.Concrete() && t.Elem.Concrete()
 	}
@@ -131,6 +157,8 @@ func (t *TypeExpr) Comparable() bool {
 	switch t.Kind {
 	case "slice", "map":
 		return false
+	case "chan":
+		return true
 	case "array":
 		return t.Elem.Comparable()
 	}
@@ -157,6 +185,8 @@ func InFamily(t *TypeExpr, family string) bool {
 		return t.Kind == "array" && t.Concrete()
 	case "type.pointer":
 		return t.Kind == "pointer" && t.Concrete()
+	case "type.channel":
+		return t.Kind == "chan" && t.Concrete()
 	case "type.error":
 		return t.Kind == "name" && t.Name == "error"
 	case "type.interface":

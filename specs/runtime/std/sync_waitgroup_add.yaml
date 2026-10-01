@@ -1,0 +1,47 @@
+id: std.sync.waitgroup.add
+schema_version: 1
+version: 1.0.0
+summary: "sync.WaitGroup.Add: adjust the counter; at zero, release every waiter."
+signature:
+  source: declaration
+  symbol: "sync.(WaitGroup).Add"
+  type_parameters: []
+  inputs:
+    - {name: wg, type: "*sync.WaitGroup"}
+    - {name: delta, type: "int"}
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "A negative counter panics with sync: negative WaitGroup counter."
+  observations: "The counter and released waiters."
+panic_categories: [negative_counter]
+cases:
+  - name: positive
+    types: {}
+    let:
+      - {name: wg, type: "*sync.WaitGroup", value: {"zero": true}}
+      - {name: delta, type: "int", value: "2"}
+    call: ["wg", "delta"]
+    expect:
+      results: []
+  - name: negative
+    types: {}
+    let:
+      - {name: wg, type: "*sync.WaitGroup", value: {"zero": true}}
+      - {name: delta, type: "int", value: "-1"}
+    call: ["wg", "delta"]
+    expect:
+      panic: {category: negative_counter, message: "sync: negative WaitGroup counter"}

@@ -5,6 +5,7 @@ import { writeSync } from "node:fs";
 import { cases } from "./harness_gen.ts";
 import { GoPanic } from "../../types/panic.ts";
 import { formatPanicValue } from "../../types/program.ts";
+import { Blocked, runIsolated } from "../../runtime/task_spawn.ts";
 
 const PROTOCOL = 1;
 
@@ -20,9 +21,10 @@ function serve(req: any): unknown {
   const after: Record<string, unknown> = {};
   const h = { let: (n: string) => req.let[n], after: (n: string, v: unknown) => { after[n] = v; } };
   try {
-    const results = fn(h);
+    const results = runIsolated(() => fn(h));
     return { ...base, status: "returned", results, after };
   } catch (e) {
+    if (e instanceof Blocked) return { ...base, status: "blocked" };
     if (e instanceof GoPanic) {
       return { ...base, status: "panic", panic: Buffer.from(formatPanicValue(e.value), "latin1").toString("utf8") };
     }

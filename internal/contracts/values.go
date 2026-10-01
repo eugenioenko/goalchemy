@@ -35,7 +35,13 @@ func ParseDecimal(s string) (*big.Int, error) {
 	return v, nil
 }
 
+// externalInts maps external named integer types to their representation.
+var externalInts = map[string]string{"time.Duration": "int64"}
+
 func checkIntRange(name string, v *big.Int) error {
+	if u, ok := externalInts[name]; ok {
+		name = u
+	}
 	bits, signed, ok := IntInfo(name)
 	if !ok {
 		return fmt.Errorf("%s is not an integer type", name)
@@ -127,7 +133,7 @@ func decodeValue(v any, t *TypeExpr, scope Scope) (*Value, error) {
 		out.Kind, out.Bytes = "string", b
 	case m["nil"] != nil:
 		switch {
-		case t.Kind == "slice", t.Kind == "map", t.Kind == "pointer",
+		case t.Kind == "slice", t.Kind == "map", t.Kind == "pointer", t.Kind == "chan",
 			t.Kind == "name" && (t.Name == "error" || t.Name == "any"):
 		default:
 			return nil, fmt.Errorf("nil is not a value of %s", t)
@@ -220,6 +226,35 @@ func decodeValue(v any, t *TypeExpr, scope Scope) (*Value, error) {
 			return nil, fmt.Errorf("error message must be a string")
 		}
 		out.Kind, out.Bytes = "error", []byte(msg)
+	case m["zero"] != nil:
+		out.Kind = "zero"
+	case m["chan"] != nil:
+		if t.Kind != "chan" {
+			return nil, fmt.Errorf("channel value given for %s", t)
+		}
+		items, _ := m["chan"].([]any)
+		out.Kind = "chan"
+		for i, it := range items {
+			e, err := decodeValue(it, t.Elem, scope)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: %w", i, err)
+			}
+			out.Elems = append(out.Elems, e)
+		}
+		c, err := num("cap")
+		if err != nil {
+			return nil, err
+		}
+		if c == nil {
+			c = big.NewInt(0)
+		}
+		if c.Cmp(big.NewInt(int64(len(items)))) < 0 {
+			return nil, fmt.Errorf("channel buffer exceeds capacity")
+		}
+		out.Cap = c
+		if b, ok := m["closed"].(bool); ok {
+			out.Bool = b
+		}
 	case m["ref"] != nil:
 		name := m["ref"].(string)
 		bt, ok := scope[name]
@@ -281,6 +316,14 @@ func (v *Value) Encode() any {
 		return map[string]any{"ref": v.Name}
 	case "error":
 		return map[string]any{"error": string(v.Bytes)}
+	case "zero":
+		return map[string]any{"zero": true}
+	case "chan":
+		items := make([]any, len(v.Elems))
+		for i, e := range v.Elems {
+			items[i] = e.Encode()
+		}
+		return map[string]any{"chan": items, "cap": v.Cap.String(), "closed": v.Bool}
 	}
 	return nil
 }

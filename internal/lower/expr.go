@@ -119,6 +119,11 @@ func (fl *fnLowerer) ident(id *ast.Ident) ir.Value {
 		if g, ok := fl.l.globals[o]; ok {
 			return fl.load(&ir.Place{Root: ir.GlobalRoot{Global: g}, Type: g.Type}, id)
 		}
+		if ext := fl.l.extern(o); ext != nil {
+			dst := fl.temp(fl.typ(o.Type()))
+			fl.emit(&ir.Call{At: at(id), Kind: ir.CallExtern, Extern: ext, Dsts: []*ir.Local{dst}})
+			return dst
+		}
 		loc, ok := fl.locals[o]
 		if !ok {
 			fail(id.Pos(), "variable %s used before declaration", o.Name())
@@ -696,6 +701,13 @@ func itoa(i int) string {
 }
 
 func (fl *fnLowerer) recvExpr(x *ast.UnaryExpr, want int) []ir.Value {
-	fail(x.Pos(), "channel receive requires the cooperative gate")
-	return nil
+	ch := fl.expr(x.X)
+	r := &ir.Recv{At: at(x), Ch: ch, Dst: fl.temp(ch.IRType().U().Elem)}
+	if want == 2 {
+		r.Ok = fl.temp(fl.ts().Bool())
+		fl.emit(r)
+		return []ir.Value{r.Dst, r.Ok}
+	}
+	fl.emit(r)
+	return []ir.Value{r.Dst}
 }

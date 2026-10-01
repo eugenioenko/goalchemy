@@ -26,6 +26,7 @@ const marker = "\x00@"
 
 type emitter struct {
 	p         *ir.Program
+	symbols   map[string]string
 	out       bytes.Buffer
 	contracts map[string]bool
 	classes   map[*ir.Type]string // struct types (by underlying) to class names
@@ -37,8 +38,8 @@ type emitter struct {
 	positions []ir.At
 }
 
-func Emit(p *ir.Program) (*Output, error) {
-	e := &emitter{p: p, contracts: map[string]bool{}, classes: map[*ir.Type]string{}, arrays: map[*ir.Type]bool{}, tds: map[*ir.Type]string{}, seenHelp: map[*ir.Type]bool{}}
+func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
+	e := &emitter{p: p, symbols: symbols, contracts: map[string]bool{}, classes: map[*ir.Type]string{}, arrays: map[*ir.Type]bool{}, tds: map[*ir.Type]string{}, seenHelp: map[*ir.Type]bool{}}
 	for _, t := range p.Types.All {
 		if t.Boxed {
 			e.tds[t] = fmt.Sprintf("TD$%d", t.ID)
@@ -69,12 +70,29 @@ func Emit(p *ir.Program) (*Output, error) {
 	e.out.Write(fns.Bytes())
 	for _, f := range p.Funcs {
 		fmt.Fprintf(&e.out, "(%s as any).$fid = %d;\n", f.Sym, f.ID)
+		if f.MaySuspend {
+			fmt.Fprintf(&e.out, "(%s as any).$gen = true;\n", f.Sym)
+		}
 	}
 	e.out.WriteString("\n")
 	e.out.Write(tds.Bytes())
-	fmt.Fprintf(&e.out, "\nrt.main(() => {\n  %s();\n", p.Init.Sym)
-	if p.Main != nil {
-		fmt.Fprintf(&e.out, "  %s();\n", p.Main.Sym)
+	call := func(f *ir.Func) string {
+		if f.MaySuspend {
+			return "yield* " + f.Sym + "()"
+		}
+		return f.Sym + "()"
+	}
+	if p.Cooperative {
+		e.use("core.task.spawn")
+		fmt.Fprintf(&e.out, "\nrt.runMain(function* () {\n  %s;\n", call(p.Init))
+		if p.Main != nil {
+			fmt.Fprintf(&e.out, "  %s;\n", call(p.Main))
+		}
+	} else {
+		fmt.Fprintf(&e.out, "\nrt.main(() => {\n  %s();\n", p.Init.Sym)
+		if p.Main != nil {
+			fmt.Fprintf(&e.out, "  %s();\n", p.Main.Sym)
+		}
 	}
 	e.out.WriteString("});\n")
 	var cs []string
@@ -112,7 +130,19 @@ func (e *emitter) resolveMarkers(src string) (string, *sourcemap.Map) {
 	return strings.Join(lines, "\n"), sm
 }
 
-func (e *emitter) use(c string) { e.contracts[c] = true }
+func (e *emitter) use(c string) {
+	if c != "" {
+		e.contracts[c] = true
+	}
+}
+
+// opaqueContracts names a contract whose implementation declares each
+// opaque handle type.
+var opaqueContracts = map[string]string{
+	"sync.Mutex":      "std.sync.mutex.lock",
+	"sync.WaitGroup":  "std.sync.waitgroup.add",
+	"context.Context": "std.context.err",
+}
 
 func intKind(t *ir.Type) string { return t.U().Int.String() }
 
@@ -248,6 +278,11 @@ func (e *emitter) zero(t *ir.Type) string {
 	case ir.KArray:
 		e.needHelpers(u)
 		return fmt.Sprintf("zero$%d()", u.ID)
+	case ir.KOpaque:
+		if !u.OpaqueRef {
+			e.use(opaqueContracts[u.Name])
+			return "new rt." + u.Obj + "()"
+		}
 	}
 	return "null"
 }
@@ -255,8 +290,10 @@ func (e *emitter) zero(t *ir.Type) string {
 func (e *emitter) cloneExpr(t *ir.Type, x string) string {
 	u := t.U()
 	switch u.Kind {
-	case ir.KStruct:
-		e.class(u)
+	case ir.KStruct, ir.KOpaque:
+		if u.Kind == ir.KStruct {
+			e.class(u)
+		}
 		return x + ".$clone()"
 	case ir.KArray:
 		e.needHelpers(u)
@@ -276,8 +313,10 @@ func (e *emitter) cloneFn(t *ir.Type) string {
 func (e *emitter) setStmt(t *ir.Type, dst, src string) string {
 	u := t.U()
 	switch u.Kind {
-	case ir.KStruct:
-		e.class(u)
+	case ir.KStruct, ir.KOpaque:
+		if u.Kind == ir.KStruct {
+			e.class(u)
+		}
 		return dst + ".$set(" + src + ")"
 	case ir.KArray:
 		e.needHelpers(u)
@@ -367,6 +406,10 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			eq = fmt.Sprintf("() => { throw rt.uncomparable(%q); }", name)
 			key = fmt.Sprintf("() => { throw rt.unhashable(%q); }", name)
 		}
+		if t.Kind == ir.KString {
+			fmt.Fprintf(b, "const %s = rt.STRING_TYPE;\n", e.tds[t])
+			continue
+		}
 		fmt.Fprintf(b, "const %s = rt.typeDesc({name: %q, kind: %q, eq: %s, key: %s, methods: {", e.tds[t], name, u.Kind.String(), eq, key)
 		for i, m := range t.MethodSet {
 			if i > 0 {
@@ -374,7 +417,7 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			}
 			fn := m.Func.Sym
 			if t.IsAggregate() {
-				fn = fmt.Sprintf("rt.closure(%d, (r: any, ...a: any[]) => %s(%s, ...a))", m.Func.ID, m.Func.Sym, e.cloneExpr(t, "r"))
+				fn = fmt.Sprintf("rt.closure(%d, (r: any, ...a: any[]) => %s(%s, ...a), %v)", m.Func.ID, m.Func.Sym, e.cloneExpr(t, "r"), m.Func.MaySuspend)
 			}
 			fmt.Fprintf(b, "%q: %s", m.ID, fn)
 		}
@@ -598,7 +641,11 @@ func (e *emitter) function(f *ir.Func) string {
 	for _, l := range f.Params {
 		params = append(params, fe.local(l)+": any")
 	}
-	fe.w("function %s(%s): any {\n", f.Sym, strings.Join(params, ", "))
+	star := ""
+	if f.MaySuspend {
+		star = "*"
+	}
+	fe.w("function%s %s(%s): any {\n", star, f.Sym, strings.Join(params, ", "))
 	isParam := map[*ir.Local]bool{}
 	for _, l := range f.Env {
 		isParam[l] = true
@@ -635,7 +682,11 @@ func (e *emitter) function(f *ir.Func) string {
 		fe.w("  default: throw rt.fault(\"bad block\");\n  }\n")
 	}
 	if fe.defers {
-		fe.w("  } catch (e) {\n    $p = rt.catchPanic(e);\n  }\n  rt.runDefers($d, $p);\n  return %s;\n", fe.results())
+		run := "rt.runDefers($d, $p)"
+		if f.MaySuspend {
+			run = "yield* rt.runDefersG($d, $p)"
+		}
+		fe.w("  } catch (e) {\n    $p = rt.catchPanic(e);\n  }\n  %s;\n  return %s;\n", run, fe.results())
 	}
 	fe.w("}\n\n")
 	return fe.b.String()
@@ -731,7 +782,11 @@ func (fe *fnEmitter) callee(c *ir.Call) (fn string, args []string, fid string) {
 		return fmt.Sprintf("rt.ichk(%s).t.methods[%q]", x, c.Method), append([]string{x + ".v"}, args...), "undefined"
 	case ir.CallExtern:
 		fe.e.use(c.Extern.Contract)
-		return "rt." + externSymbol(c.Extern.Contract), args, "undefined"
+		sym := "rt." + externSymbol(c.Extern.Contract)
+		if m, ok := fe.e.symbols[c.Extern.Contract]; ok {
+			sym = m
+		}
+		return sym, args, "undefined"
 	}
 	panic("ts: call kind")
 }
@@ -821,9 +876,31 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		fe.typeAssert(i)
 	case *ir.Call:
 		fn, args, _ := fe.callee(i)
-		call := fn + "(" + strings.Join(args, ", ") + ")"
+		as := strings.Join(args, ", ")
+		call := fn + "(" + as + ")"
 		if i.Kind == ir.CallValue {
-			call = "rt.fnchk(" + fn + ")(" + strings.Join(args, ", ") + ")"
+			call = "rt.fnchk(" + fn + ")(" + as + ")"
+		}
+		if i.Suspends {
+			switch i.Kind {
+			case ir.CallStatic:
+				if i.Func.MaySuspend {
+					call = "(yield* " + call + ")"
+				}
+			case ir.CallExtern:
+				call = "(yield* " + call + ")"
+			case ir.CallValue:
+				call = fmt.Sprintf("(rt.isGen(%s) ? (yield* %s(%s)) : rt.fnchk(%s)(%s))", fn, fn, as, fn, as)
+			case ir.CallInterface:
+				fe.w("{ const $m = %s; ", fn)
+				call = fmt.Sprintf("(rt.isGen($m) ? (yield* $m(%s)) : $m(%s))", as, as)
+				if len(i.Dsts) > 0 {
+					fe.w("%s = %s; }\n", fe.dsts(i.Dsts), call)
+				} else {
+					fe.w("%s; }\n", call)
+				}
+				return
+			}
 		}
 		if len(i.Dsts) > 0 {
 			fe.w("%s = %s;\n", fe.dsts(i.Dsts), call)
@@ -841,8 +918,8 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 			inner = append(inner, fmt.Sprintf("e%d", j))
 		}
 		inner = append(inner, "...a")
-		fe.w("%s = rt.closure(%d, ((%s) => (...a: any[]) => %s(%s))(%s));\n", fe.val(i.Dst), i.Func.ID,
-			strings.Join(ps, ", "), i.Func.Sym, strings.Join(inner, ", "), strings.Join(as, ", "))
+		fe.w("%s = rt.closure(%d, ((%s) => (...a: any[]) => %s(%s))(%s), %v);\n", fe.val(i.Dst), i.Func.ID,
+			strings.Join(ps, ", "), i.Func.Sym, strings.Join(inner, ", "), strings.Join(as, ", "), i.Func.MaySuspend)
 	case *ir.MakeBound:
 		fe.w("%s = rt.bound(%d, %s, %s);\n", fe.val(i.Dst), i.Func.ID, i.Func.Sym, fe.val(i.Recv))
 	case *ir.MakeIfaceBound:
@@ -949,6 +1026,58 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		} else {
 			fe.w(";\n")
 		}
+	case *ir.MakeChan:
+		e.use("core.chan.make")
+		fe.w("%s = rt.makeChan(%s);\n", fe.val(i.Dst), fe.val(i.Size))
+	case *ir.Send:
+		e.use("core.chan.send")
+		fe.w("yield* rt.chanSend(%s, %s);\n", fe.val(i.Ch), fe.val(i.V))
+	case *ir.Recv:
+		e.use("core.chan.recv")
+		d, ok := "$v", "$ok"
+		if i.Dst != nil {
+			d = fe.val(i.Dst)
+		}
+		if i.Ok != nil {
+			ok = fe.val(i.Ok)
+		}
+		el := i.Ch.IRType().U().Elem
+		fe.w("{ let $v, $ok; [%s, %s] = yield* rt.chanRecv(%s, () => %s); }\n", d, ok, fe.val(i.Ch), e.zero(el))
+	case *ir.Close:
+		e.use("core.chan.close")
+		fe.w("rt.chanClose(%s);\n", fe.val(i.Ch))
+	case *ir.Select:
+		e.use("core.select")
+		var cs []string
+		for _, c := range i.Cases {
+			if c.Send {
+				cs = append(cs, fmt.Sprintf("{ch: %s, send: true, val: %s}", fe.val(c.Ch), fe.val(c.V)))
+			} else {
+				cs = append(cs, fmt.Sprintf("{ch: %s, send: false}", fe.val(c.Ch)))
+			}
+		}
+		fe.w("{ const [$i, $v, $ok] = yield* rt.select([%s], %v); %s = BigInt($i);", strings.Join(cs, ", "), i.Default, fe.val(i.Index))
+		for k, c := range i.Cases {
+			if c.Send || c.Dst == nil && c.Ok == nil {
+				continue
+			}
+			fe.w(" if ($i === %d) {", k)
+			if c.Dst != nil {
+				fe.w(" %s = $ok ? $v : %s;", fe.val(c.Dst), e.zero(c.Dst.Type))
+			}
+			if c.Ok != nil {
+				fe.w(" %s = $ok;", fe.val(c.Ok))
+			}
+			fe.w(" }")
+		}
+		fe.w(" }\n")
+	case *ir.Go:
+		e.use("core.task.spawn")
+		fn, args, _ := fe.callee(i.Call)
+		if i.Call.Kind == ir.CallInterface {
+			panic("ts: go statement with interface call")
+		}
+		fe.w("rt.spawn(%s, [%s]);\n", fn, strings.Join(args, ", "))
 	case *ir.BoxParam:
 		if cell(i.L) {
 			fe.w("%s = new rt.Cell(%s);\n", fe.local(i.L), fe.local(i.L))
@@ -987,8 +1116,10 @@ func (fe *fnEmitter) lenExpr(x ir.Value, isCap bool) string {
 		return "rt.mapLen(" + v + ")"
 	case ir.KChan:
 		if isCap {
+			fe.e.use("core.chan.cap")
 			return "rt.chanCap(" + v + ")"
 		}
+		fe.e.use("core.chan.len")
 		return "rt.chanLen(" + v + ")"
 	}
 	panic("ts: len of " + t.String())

@@ -331,6 +331,9 @@ func checkTypeNames(t *TypeExpr, vars map[string]TypeParam, used map[string]bool
 			return err
 		}
 	}
+	if t.Elem == nil {
+		return fmt.Errorf("malformed type %s", t)
+	}
 	return checkTypeNames(t.Elem, vars, used)
 }
 
@@ -420,6 +423,9 @@ func validateCase(f *Function, c Case, vars map[string]TypeParam) []string {
 				}
 			}
 		}
+	}
+	if c.Expect.Blocked && f.Suspension != "may" {
+		fail("a blocked expectation needs suspension: may")
 	}
 	if c.Expect.Panic != nil {
 		if !contains(f.PanicCategories, c.Expect.Panic.Category) {

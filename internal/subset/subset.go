@@ -586,8 +586,13 @@ func (c *checker) typeProblemUncached(t types.Type) string {
 		if t.TypeArgs().Len() > 0 {
 			return "generic type instantiation"
 		}
-		if t.Obj().Pkg() != nil && !c.prog.IsSource(t.Obj().Pkg().Path()) && !c.opts.External(t.Obj()) {
-			return "external type " + t.Obj().Pkg().Path() + "." + t.Obj().Name()
+		if t.Obj().Pkg() != nil && !c.prog.IsSource(t.Obj().Pkg().Path()) {
+			if !c.opts.External(t.Obj()) {
+				return "external type " + t.Obj().Pkg().Path() + "." + t.Obj().Name()
+			}
+			// A registered capability type's representation belongs to
+			// the capability, not to the source program.
+			return ""
 		}
 		if t.Obj().Pkg() != nil && c.prog.IsSource(t.Obj().Pkg().Path()) {
 			// Problems inside a source type are reported at its declaration.

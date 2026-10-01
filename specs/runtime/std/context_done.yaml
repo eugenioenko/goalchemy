@@ -1,0 +1,36 @@
+id: std.context.done
+schema_version: 1
+version: 1.0.0
+summary: "Context.Done: the channel closed on cancellation."
+signature:
+  source: declaration
+  symbol: "context.(Context).Done"
+  type_parameters: []
+  inputs:
+    - {name: ctx, type: "context.Context"}
+  outputs:
+    - {name: ch, type: "<-chan struct{}"}
+depends_on:
+  - {id: std.context.background, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Cancellation state, Done channels, and Err values."
+cases:
+  - name: background
+    types: {}
+    let:
+      - {name: ctx, type: "context.Context", value: {"zero": true}}
+    call: ["ctx"]
+    expect:
+      results: [{"nil": true}]

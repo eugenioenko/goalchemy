@@ -1,0 +1,73 @@
+id: core.select
+schema_version: 1
+version: 1.0.0
+summary: "select: commit exactly one ready case, chosen uniformly by the scheduler's choice source."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: a, type: "chan T"}
+    - {name: b, type: "chan T"}
+    - {name: dflt, type: "bool"}
+  outputs:
+    - {name: index, type: "int"}
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+  - {id: core.chan.recv, version: 1.0.0}
+  - {id: core.chan.send, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "Not applicable."
+  nil: "Nil channel cases are never ready."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Only the chosen case's communication happens; losing registrations are removed before the task resumes."
+  aliasing: "Channel values share channel state."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "The chosen case index, or -1 for default."
+notes: "The harness exercises a two-receive select; source selects may mix sends and receives. When several cases are ready, the xorshift32 choice source picks index rand % ready, seeded by GOALCHEMY_SEED (default 1)."
+cases:
+  - name: default_when_idle
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "chan T", value: {"chan": [], "cap": "1"}}
+      - {name: b, type: "chan T", value: {"nil": true}}
+      - {name: dflt, type: "bool", value: "true"}
+    call: ["a", "b", "dflt"]
+    expect:
+      results: ["-1"]
+  - name: only_ready
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "chan T", value: {"chan": [], "cap": "1"}}
+      - {name: b, type: "chan T", value: {"chan": ["9"], "cap": "1"}}
+      - {name: dflt, type: "bool", value: "true"}
+    call: ["a", "b", "dflt"]
+    expect:
+      results: ["1"]
+      after:
+        - {name: b, value: {"chan": [], "cap": "1", "closed": false}}
+  - name: closed_ready
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "chan T", value: {"chan": [], "cap": "0", "closed": true}}
+      - {name: b, type: "chan T", value: {"nil": true}}
+      - {name: dflt, type: "bool", value: "false"}
+    call: ["a", "b", "dflt"]
+    expect:
+      results: ["0"]
+  - name: nothing_blocks
+    types: {"T": "int"}
+    let:
+      - {name: a, type: "chan T", value: {"chan": [], "cap": "0"}}
+      - {name: b, type: "chan T", value: {"nil": true}}
+      - {name: dflt, type: "bool", value: "false"}
+    call: ["a", "b", "dflt"]
+    expect:
+      blocked: true

@@ -16,6 +16,9 @@ type Program struct {
 	Main *Func
 	// Externals lists capability contracts called by the program.
 	Externals map[string]*Extern
+	// Cooperative is set when the program uses tasks, channels, or other
+	// suspending operations, so targets must link their scheduler.
+	Cooperative bool
 	Fset      *token.FileSet
 }
 
@@ -24,6 +27,8 @@ type Extern struct {
 	Contract string
 	Symbol   string
 	Sig      *Type
+	// MaySuspend comes from the contract's suspension classification.
+	MaySuspend bool
 }
 
 type Global struct {
@@ -106,6 +111,9 @@ type Func struct {
 
 	HasDefer   bool
 	HasRecover bool
+	// MaySuspend is computed by effect analysis: the function can block or
+	// yield, directly or through a call.
+	MaySuspend bool
 	// Wrapper marks compiler-generated method wrappers.
 	Wrapper bool
 	// Closure marks function literals.
@@ -358,6 +366,8 @@ type Call struct {
 	Method string
 	Extern *Extern
 	Args   []Value
+	// Suspends is set by effect analysis when some possible callee may suspend.
+	Suspends bool
 }
 
 // MakeClosure creates a function value for a closure function capturing Env.
@@ -516,6 +526,62 @@ type Recover struct {
 type Rebind struct {
 	At
 	L *Local
+}
+
+// MakeChan creates a channel with buffer capacity Size (an int).
+type MakeChan struct {
+	At
+	Dst  *Local
+	Size Value
+}
+
+// Send sends V on Ch, suspending until the send can proceed.
+type Send struct {
+	At
+	Ch Value
+	V  Value
+}
+
+// Recv receives from Ch into Dst (and Ok when non-nil), suspending until a
+// value or closure is available. Dst may be nil to discard the value.
+type Recv struct {
+	At
+	Dst *Local
+	Ok  *Local
+	Ch  Value
+}
+
+// Close closes a channel.
+type Close struct {
+	At
+	Ch Value
+}
+
+// SelectCase is one communication of a select statement. Operands are
+// evaluated before the Select instruction in source order.
+type SelectCase struct {
+	Send bool
+	Ch   Value
+	V    Value  // send value
+	Dst  *Local // receive value, may be nil
+	Ok   *Local // receive ok, may be nil
+}
+
+// Select commits exactly one ready case, choosing uniformly among ready
+// cases with the scheduler's choice source, or the default when Default is
+// set and nothing is ready; it suspends otherwise. Index receives the chosen
+// case index, or -1 for the default.
+type Select struct {
+	At
+	Cases   []SelectCase
+	Default bool
+	Index   *Local
+}
+
+// Go starts a new task running Call; callee and arguments are evaluated.
+type Go struct {
+	At
+	Call *Call
 }
 
 // BoxParam moves a parameter that arrived as a plain value into boxed

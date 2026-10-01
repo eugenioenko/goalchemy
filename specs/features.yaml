@@ -4,7 +4,7 @@ schema_version: 1
 release: 0.1.0
 gates:
   - {name: sequential, status: released, targets: [go, typescript]}
-  - {name: cooperative, status: planned, targets: []}
+  - {name: cooperative, status: released, targets: [go, typescript]}
 features:
   - {id: packages_init, gate: sequential, status: supported, targets: [go, typescript], fixtures: [globals_init, multipkg, globals_addr]}
   - {id: constants, gate: sequential, status: supported, targets: [go, typescript], fixtures: [consts_iota, int_convert]}
@@ -24,7 +24,10 @@ features:
   - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript], fixtures: [defer_recover, runtime_panics, panic_custom]}
   - {id: errors, gate: sequential, status: supported, targets: [go, typescript], fixtures: [errors_values]}
   - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript], fixtures: [eval_order]}
-  - {id: tasks_channels_select, gate: cooperative, status: planned, targets: [], fixtures: []}
+  - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
+  - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
+  - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_context, co_sleep_order]}
+  - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript], fixtures: [co_deadlock, co_goroutine_panic]}
   - {id: generics, gate: rejected, status: rejected, targets: [], fixtures: [reject_generic]}
   - {id: floating_point, gate: rejected, status: rejected, targets: [], fixtures: [reject_float]}
   - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}

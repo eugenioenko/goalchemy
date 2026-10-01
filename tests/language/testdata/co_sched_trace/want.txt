@@ -1,0 +1,11 @@
+exit=0
+--- stdout
+--- stderr
+main spawned
+task 0 step 0
+task 1 step 0
+task 2 step 0
+task 0 step 1
+task 1 step 1
+task 2 step 1
+bbbbbaaaba

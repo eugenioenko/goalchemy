@@ -1,0 +1,34 @@
+id: std.context.canceled
+schema_version: 1
+version: 1.0.0
+summary: "context.Canceled: the sentinel error for context canceled."
+signature:
+  source: declaration
+  symbol: "context.Canceled"
+  type_parameters: []
+  inputs: []
+  outputs:
+    - {name: err, type: error}
+depends_on:
+  - {id: type.error, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Never nil."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Every read returns the same error value, so equality with Err results holds."
+  allocation: "No semantic storage is allocated."
+  errors: "Error() is context canceled."
+  panics: "Never panics."
+  observations: "The error value."
+cases:
+  - name: message
+    types: {}
+    let: []
+    call: []
+    expect:
+      results: [{"error": "context canceled"}]

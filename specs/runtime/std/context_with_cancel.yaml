@@ -1,0 +1,37 @@
+id: std.context.with_cancel
+schema_version: 1
+version: 1.0.0
+summary: "context.WithCancel: a child whose cancel function closes Done and sets Err to context.Canceled."
+signature:
+  source: declaration
+  symbol: "context.WithCancel"
+  type_parameters: []
+  inputs:
+    - {name: parent, type: "context.Context"}
+  outputs:
+    - {name: ctx, type: "context.Context"}
+    - {name: cancel, type: "context.CancelFunc"}
+depends_on:
+  - {id: std.context.background, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Cancelling a parent cancels its children; cancelling twice has no further effect."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Cancellation state, Done channels, and Err values."
+cases:
+  - name: child
+    types: {}
+    let:
+      - {name: parent, type: "context.Context", value: {"zero": true}}
+    call: ["parent"]
+    expect:
+      results: [{"zero": true}, {"zero": true}]

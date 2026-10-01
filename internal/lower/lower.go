@@ -54,6 +54,9 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 		wrappers: map[string]*ir.Func{}, syms: map[string]bool{}, pkgAlias: map[string]string{},
 	}
 	l.out = &ir.Program{Types: l.ts, Externals: map[string]*ir.Extern{}, Fset: prog.Fset}
+	if reg != nil {
+		l.ts.Opaque = reg.IsOpaque
+	}
 	for _, p := range prog.Source {
 		l.pkgs[p.Types] = p
 		l.alias(p.PkgPath, p.Name)
@@ -79,6 +82,7 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 	for _, f := range l.out.Funcs {
 		prune(f)
 	}
+	ir.ComputeEffects(l.out)
 	for _, f := range l.out.Funcs {
 		if err := ir.Verify(f); err != nil {
 			l.diags = append(l.diags, diagnostics.Diagnostic{Code: "GCI002", Severity: diagnostics.Error,

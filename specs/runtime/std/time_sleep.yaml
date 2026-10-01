@@ -1,0 +1,37 @@
+id: std.time.sleep
+schema_version: 1
+version: 1.0.0
+summary: "time.Sleep: suspend for a duration of virtual time."
+signature:
+  source: declaration
+  symbol: "time.Sleep"
+  type_parameters: []
+  inputs:
+    - {name: d, type: "time.Duration"}
+  outputs: []
+depends_on:
+  - {id: type.task, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "A non-positive duration yields like runtime.Gosched."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Not applicable."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Not applicable."
+  observations: "Virtual time advances to the earliest timer only when no task can run; timers with equal deadlines fire in creation order."
+notes: "Native Go uses wall-clock time; comparisons with native runs rely only on the relative order of different durations."
+cases:
+  - name: zero
+    types: {}
+    let:
+      - {name: d, type: "time.Duration", value: "0"}
+    call: ["d"]
+    expect:
+      results: []

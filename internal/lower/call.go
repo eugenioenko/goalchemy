@@ -42,6 +42,12 @@ func (fl *fnLowerer) prepareCall(e *ast.CallExpr, deferMode bool) *ir.Call {
 	case *ast.SelectorExpr:
 		if sel := fl.info.Selections[f]; sel != nil && sel.Kind() == types.MethodVal {
 			m := sel.Obj().(*types.Func)
+			if ext := fl.l.extern(m); ext != nil {
+				recv, _ := fl.receiver(f.X, sel.Index()[:len(sel.Index())-1], m, f)
+				args := fl.args(e, sig)
+				c.Kind, c.Extern, c.Args = ir.CallExtern, ext, append([]ir.Value{recv}, args...)
+				return c
+			}
 			recv, iface := fl.receiver(f.X, sel.Index()[:len(sel.Index())-1], m, f)
 			args := fl.args(e, sig)
 			if iface {
@@ -85,7 +91,7 @@ func (fl *fnLowerer) staticCall(c *ir.Call, obj *types.Func, e *ast.CallExpr, si
 	return nil
 }
 
-func (l *Lowerer) extern(obj *types.Func) *ir.Extern {
+func (l *Lowerer) extern(obj types.Object) *ir.Extern {
 	if l.reg == nil {
 		return nil
 	}
@@ -97,7 +103,14 @@ func (l *Lowerer) extern(obj *types.Func) *ir.Extern {
 	if ext, ok := l.out.Externals[id]; ok {
 		return ext
 	}
-	ext := &ir.Extern{Contract: id, Symbol: key, Sig: l.ts.Of(obj.Type())}
+	var sig *ir.Type
+	switch o := obj.(type) {
+	case *types.Func:
+		sig = l.funcSig(o.Signature())
+	case *types.Var:
+		sig = l.ts.Of(types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewVar(token.NoPos, nil, "", o.Type())), false))
+	}
+	ext := &ir.Extern{Contract: id, Symbol: key, Sig: sig, MaySuspend: l.reg.Suspends[id]}
 	l.out.Externals[id] = ext
 	return ext
 }
@@ -357,8 +370,15 @@ func (fl *fnLowerer) deferBuiltin(s *ast.DeferStmt, name string) {
 	if name == "recover" {
 		return
 	}
+	fl.emit(&ir.Defer{At: at(s), Call: fl.builtinCall(s.Call, name, "defer")})
+}
+
+// builtinCall evaluates a builtin call's arguments and returns a call of a
+// synthesized function performing the builtin, for defer and go.
+func (fl *fnLowerer) builtinCall(call *ast.CallExpr, name, kind string) *ir.Call {
+	s := call
 	var vals []ir.Value
-	for _, a := range s.Call.Args {
+	for _, a := range call.Args {
 		if name == "panic" {
 			vals = append(vals, fl.exprTo(a, fl.ts().Any()))
 		} else {
@@ -370,7 +390,7 @@ func (fl *fnLowerer) deferBuiltin(s *ast.DeferStmt, name string) {
 		ptypes = append(ptypes, types.NewVar(token.NoPos, nil, "", v.IRType().Go))
 	}
 	sig := fl.typ(types.NewSignatureType(nil, nil, nil, types.NewTuple(ptypes...), nil, false))
-	f := fl.l.addFunc(&ir.Func{Name: fl.f.Name + "$defer_" + name, Sym: fl.l.sym(fl.f.Sym + "_defer_" + name), Pkg: fl.f.Pkg, Sig: sig, Wrapper: true})
+	f := fl.l.addFunc(&ir.Func{Name: fl.f.Name + "$" + kind + "_" + name, Sym: fl.l.sym(fl.f.Sym + "_" + kind + "_" + name), Pkg: fl.f.Pkg, Sig: sig, Wrapper: true})
 	child := fl.l.newFn(fl.p, f)
 	child.start()
 	var args []ir.Value
@@ -393,10 +413,10 @@ func (fl *fnLowerer) deferBuiltin(s *ast.DeferStmt, name string) {
 	case "close":
 		child.closeValue(args[0], s)
 	default:
-		fail(s.Pos(), "defer of builtin %s", name)
+		fail(s.Pos(), "%s of builtin %s", kind, name)
 	}
 	child.finish()
-	fl.emit(&ir.Defer{At: at(s), Call: &ir.Call{At: at(s), Kind: ir.CallStatic, Func: f, Args: vals}})
+	return &ir.Call{At: at(s), Kind: ir.CallStatic, Func: f, Args: vals}
 }
 
 // methodExprFunc returns a function taking the receiver as its first
@@ -551,14 +571,19 @@ func (l *Lowerer) externWrapper(ext *ir.Extern, obj *types.Func) *ir.Func {
 }
 
 func (fl *fnLowerer) makeChan(e *ast.CallExpr, t *ir.Type) ir.Value {
-	fail(e.Pos(), "channels require the cooperative gate")
-	return nil
+	var size ir.Value = fl.intConst(0)
+	if len(e.Args) > 1 {
+		size = fl.toInt(fl.expr(e.Args[1]), e)
+	}
+	dst := fl.temp(t)
+	fl.emit(&ir.MakeChan{At: at(e), Dst: dst, Size: size})
+	return dst
 }
 
 func (fl *fnLowerer) closeChan(e *ast.CallExpr) {
-	fail(e.Pos(), "close requires the cooperative gate")
+	fl.closeValue(fl.expr(e.Args[0]), e)
 }
 
 func (fl *fnLowerer) closeValue(v ir.Value, n ast.Node) {
-	fail(n.Pos(), "close requires the cooperative gate")
+	fl.emit(&ir.Close{At: at(n), Ch: v})
 }

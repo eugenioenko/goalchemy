@@ -1,0 +1,73 @@
+id: core.chan.send
+schema_version: 1
+version: 1.0.0
+summary: "ch <- v: hand the value to a waiting receiver, buffer it, or wait."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: ch, type: "chan T"}
+    - {name: v, type: "T"}
+  outputs: []
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+  - {id: core.task.spawn, version: 1.0.0}
+suspension: may
+determinism: controlled
+behavior:
+  zero: "Not applicable."
+  nil: "Operations on a nil channel block forever, except close, which panics."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Adds to the buffer or completes a waiting receive."
+  aliasing: "Channel values share channel state."
+  allocation: "Not applicable."
+  errors: "Not applicable."
+  panics: "Sending on a closed channel panics with send on closed channel, also when the channel closes while the sender waits."
+  observations: "Values received, readiness, and closure."
+panic_categories: [send_closed]
+cases:
+  - name: buffered
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["1"], "cap": "2"}}
+      - {name: v, type: "T", value: "2"}
+    call: ["ch", "v"]
+    expect:
+      results: []
+      after:
+        - {name: ch, value: {"chan": ["1", "2"], "cap": "2", "closed": false}}
+  - name: full_blocks
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": ["1"], "cap": "1"}}
+      - {name: v, type: "T", value: "2"}
+    call: ["ch", "v"]
+    expect:
+      blocked: true
+  - name: unbuffered_blocks
+    types: {"T": "string"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": [], "cap": "0"}}
+      - {name: v, type: "T", value: {"str": "x"}}
+    call: ["ch", "v"]
+    expect:
+      blocked: true
+  - name: nil_blocks
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"nil": true}}
+      - {name: v, type: "T", value: "1"}
+    call: ["ch", "v"]
+    expect:
+      blocked: true
+  - name: closed
+    types: {"T": "int"}
+    let:
+      - {name: ch, type: "chan T", value: {"chan": [], "cap": "1", "closed": true}}
+      - {name: v, type: "T", value: "1"}
+    call: ["ch", "v"]
+    expect:
+      panic: {category: send_closed, message: "send on closed channel"}

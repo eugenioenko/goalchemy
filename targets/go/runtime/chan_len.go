@@ -1,0 +1,22 @@
+package rt
+
+func (c Chan[T]) Len() int {
+	if c.c == nil {
+		return 0
+	}
+	return len(c.c.buf)
+}
+
+// ChanBuffered returns a copy of the buffered values, for inspection.
+func ChanBuffered[T any](c Chan[T]) []T {
+	var out []T
+	if c.c != nil {
+		for _, v := range c.c.buf {
+			out = append(out, v.(T))
+		}
+	}
+	return out
+}
+
+// ChanClosed reports whether the channel is closed, for inspection.
+func ChanClosed[T any](c Chan[T]) bool { return c.c != nil && c.c.closed }

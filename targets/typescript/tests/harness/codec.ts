@@ -16,6 +16,46 @@ export function encError(v: Box | null): unknown {
   return { error: Buffer.from(String(v.t.methods["Error"](v.v)), "latin1").toString("utf8") };
 }
 
+import * as rt from "./runtime_index.ts";
+
+export function decChan<T>(raw: any, dec: (r: any) => T): rt.Chan | null {
+  if (raw.nil) return null;
+  const ch = rt.makeChan(Number(raw.cap ?? "0"));
+  for (const v of raw.chan) ch.buf.push(dec(v));
+  if (raw.closed) ch.closed = true;
+  return ch;
+}
+
+export function encChan<T>(ch: rt.Chan | null, enc: (v: T) => unknown): unknown {
+  if (ch === null) return { nil: true };
+  return { chan: ch.buf.map((v) => enc(v as T)), cap: String(ch.size), closed: ch.closed };
+}
+
+export function encZero(_: unknown): unknown {
+  return { zero: true };
+}
+
+export function* harnessSpawn(): Generator<unknown, boolean, unknown> {
+  let ran = false;
+  rt.spawn(() => {
+    ran = true;
+  }, []);
+  const before = ran;
+  yield* rt.yieldTask();
+  if (!ran) throw new Error("spawned task did not run after the parent yielded");
+  return before;
+}
+
+export function* harnessSelect2(a: rt.Chan | null, b: rt.Chan | null, dflt: boolean): Generator<unknown, bigint, unknown> {
+  const [i] = yield* rt.select([{ ch: a, send: false }, { ch: b, send: false }], dflt);
+  return BigInt(i);
+}
+
+export function* harnessLockUnlock(m: rt.Mutex): Generator<unknown, void, unknown> {
+  yield* rt.stdSyncMutexLock(m);
+  rt.stdSyncMutexUnlock(m);
+}
+
 export interface H {
   let(name: string): any;
   after(name: string, v: unknown): void;
@@ -60,15 +100,15 @@ export function decMap<K, V>(raw: any, dk: (r: any) => K, dv: (r: any) => V): Go
   return m;
 }
 
-export function encInt(v: number | bigint): string {
+export function encInt(v: any): string {
   return String(v);
 }
 
-export function encBool(v: boolean): string {
+export function encBool(v: any): string {
   return v ? "true" : "false";
 }
 
-export function encString(v: string): unknown {
+export function encString(v: any): unknown {
   return { hex: Buffer.from(v, "latin1").toString("hex") };
 }
 

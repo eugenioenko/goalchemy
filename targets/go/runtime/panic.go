@@ -89,7 +89,9 @@ var names = map[reflect.Type]string{}
 // RegisterType records the source name of a generated named type.
 func RegisterType(t reflect.Type, name string) { names[t] = name }
 
-type sourceMap interface{ sourceMapTypes() (reflect.Type, reflect.Type) }
+type sourceMap interface {
+	sourceMapTypes() (reflect.Type, reflect.Type)
+}
 
 // TypeName renders t the way the Go runtime prints source types.
 func TypeName(t reflect.Type) string {
@@ -204,14 +206,25 @@ func FormatPanic(v any) string {
 	return s
 }
 
+// mainHook is set by the scheduler when the program uses tasks.
+var mainHook func(entry func())
+
+func reportPanic(r any) {
+	os.Stderr.WriteString("panic: " + FormatPanic(r) + "\n")
+	os.Exit(2)
+}
+
 // Main runs a program entry point, reporting an unrecovered panic as the Go
 // runtime does: "panic: <value>" on standard error and exit status 2.
 func Main(entry func()) {
 	defer func() {
 		if r := recover(); r != nil {
-			os.Stderr.WriteString("panic: " + FormatPanic(r) + "\n")
-			os.Exit(2)
+			reportPanic(r)
 		}
 	}()
+	if mainHook != nil {
+		mainHook(entry)
+		return
+	}
 	entry()
 }

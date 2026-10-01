@@ -1,0 +1,45 @@
+id: core.chan.make
+schema_version: 1
+version: 1.0.0
+summary: "make(chan T, size)."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+  inputs:
+    - {name: size, type: "int"}
+  outputs:
+    - {name: ch, type: "chan T"}
+depends_on:
+  - {id: type.channel, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Not applicable."
+  nil: "Operations on a nil channel block forever, except close, which panics."
+  bounds: "Not applicable."
+  conversions: "Not applicable."
+  overflow: "Not applicable."
+  mutations: "Not applicable."
+  aliasing: "Channel values share channel state."
+  allocation: "Allocates channel state with the given buffer capacity."
+  errors: "Not applicable."
+  panics: "A negative size panics with makechan: size out of range."
+  observations: "Values received, readiness, and closure."
+panic_categories: [makechan]
+cases:
+  - name: buffered
+    types: {"T": "int"}
+    let:
+      - {name: size, type: "int", value: "2"}
+    call: ["size"]
+    expect:
+      results: [{"chan": [], "cap": "2"}]
+  - name: negative
+    types: {"T": "int"}
+    let:
+      - {name: size, type: "int", value: "-1"}
+    call: ["size"]
+    expect:
+      panic: {category: makechan, message: "makechan: size out of range"}
