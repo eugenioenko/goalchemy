@@ -7,6 +7,7 @@ import (
 	"testing/fstest"
 
 	"goalchemy"
+	"goalchemy/internal/catalog"
 	"goalchemy/internal/contracts"
 )
 
@@ -27,7 +28,7 @@ func baseFS(t *testing.T) fstest.MapFS {
 }
 
 func TestRepositoryCatalogIsValid(t *testing.T) {
-	cat, ds := contracts.Load(goalchemy.Assets, contracts.LoadOptions{})
+	cat, ds := contracts.Load(goalchemy.Assets, contracts.LoadOptions{Resolve: catalog.Resolver(goalchemy.Assets)})
 	for _, d := range ds {
 		t.Error(d.String())
 	}
@@ -92,7 +93,7 @@ func TestMalformedContracts(t *testing.T) {
 			if body != "" {
 				m[tc.file] = &fstest.MapFile{Data: []byte(body)}
 			}
-			_, ds := contracts.Load(m, contracts.LoadOptions{})
+			_, ds := contracts.Load(m, contracts.LoadOptions{Resolve: catalog.Resolver(m)})
 			var all []string
 			for _, d := range ds {
 				all = append(all, d.Code+" "+d.Message)
