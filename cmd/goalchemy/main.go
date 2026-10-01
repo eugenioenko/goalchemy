@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/eugenioenko/goalchemy/internal/link"
 )
 
-const Version = "0.1.0-dev"
+const Version = link.CompilerVersion
 
 type command struct {
 	name    string
