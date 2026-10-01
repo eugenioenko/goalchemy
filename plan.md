@@ -265,7 +265,7 @@ Tests cannot assume native Go's scheduler produces Goalchemy's exact task trace.
 | --- | --- | --- |
 | Go | Locked reference Go toolchain | Explicit core operations; Go GC; shared frame scheduler |
 | TypeScript | Node.js 22 or later; ES2022 output | BigInt for 64-bit arithmetic, explicit byte strings and slice storage; shared frame scheduler |
-| Python | Python 3.11 or later | Checked/masked integer helpers; ordinary synchronous functions until a frame can suspend |
+| Python | Python 3.10 or later (the current baseline; it can be raised later) | Checked/masked integer helpers; ordinary synchronous functions until a frame can suspend |
 | Java | Java 21 or later | Explicit unsigned helpers; classes for shared storage; frame scheduler rather than virtual threads for source tasks |
 | C# | .NET 8 or later | Explicit copy boundaries and unchecked/checked arithmetic as required; frame scheduler |
 | Rust | Edition 2021, stable toolchain | Handle-based traced heap; short host borrows that never span callbacks or suspension |

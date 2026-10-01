@@ -1,6 +1,6 @@
 # Using Goalchemy
 
-Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential language on two targets, lowered Go and TypeScript for Node.js. Run `goalchemy features` for the current feature matrix.
+Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on three targets: lowered Go, TypeScript for Node.js, and Python 3.10+. Run `goalchemy features` for the current feature matrix.
 
 ## Install
 
@@ -15,7 +15,7 @@ The repository's `go.mod` selects the Go 1.27.1 reference toolchain. Source prog
 | Command | Purpose |
 | --- | --- |
 | `goalchemy check [-gate g] [-tags t] [-json] [packages]` | Load, type-check, and validate against the language gate. |
-| `goalchemy compile -target <go\|typescript\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
+| `goalchemy compile -target <go\|typescript\|python\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
 | `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
 | `goalchemy run -target <name> [packages]` | Compile to a temporary directory and run the program. |
 | `goalchemy features` | Print supported features and targets. |
@@ -33,6 +33,7 @@ gate: sequential           # sequential (default) or cooperative
 targets:
   go: {out: out/go}
   typescript: {out: out/ts}
+  python: {out: out/py}
 ```
 
 The file uses the same restricted YAML as the contract catalog: no anchors, aliases, or floats, and no unknown keys.
@@ -43,6 +44,7 @@ Each target directory contains the generated program, the runtime files it needs
 
 - **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
 - **TypeScript**: `main.ts`, `main.ts.map`, `rt/`, `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces.
+- **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required.
 
 Programs write output with Go's `print` and `println` builtins, which go to standard error. An unrecovered panic prints `panic: <value>` and exits with status 2, as Go does.
 

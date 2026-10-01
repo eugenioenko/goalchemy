@@ -1,0 +1,95 @@
+schema_version: 1
+target: python
+version: 0.1.0
+status: experimental
+environment:
+  runtime: CPython
+  minimum: "Python 3.10 (the release baseline for now; it can be raised later)"
+  build: python3 main.py
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: Python bool.}
+  - {type: type.integer, contract_version: 1.0.0, representation: "Python int normalized to the Go width and signedness after every operation (types/integer.py)."}
+  - {type: type.string, contract_version: 1.0.0, representation: "Python bytes: immutable, byte-indexed, compared bytewise."}
+  - {type: type.array, contract_version: 1.0.0, representation: "Python lists with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.struct, contract_version: 1.0.0, representation: "One generated class with __slots__ per struct type; storage objects are updated in place by _set, so field pointers stay valid."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers (a, o, l, c) over shared lists (types/slice.py); rt.NIL is the nil slice."}
+  - {type: type.map, contract_version: 1.0.0, representation: "GoMap: a dict from encoded keys to entries plus an insertion-ordered entry list (types/map.py); nil is None."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are the objects themselves; other pointers are Cell or canonical FieldRef objects with a v attribute (types/ref.py); nil is None."}
+  - {type: type.interface, contract_version: 1.0.0, representation: "None or a Box (t, v) with per-type equality, key encoding, and method tables (types/iface.py)."}
+  - {type: type.function, contract_version: 1.0.0, representation: "Python callables tagged with _fid for recover identity; closures capture cells; nil is None."}
+  - {type: type.error, contract_version: 1.0.0, representation: "Interface Boxes; runtime errors use the RUNTIME_ERROR, PLAIN_ERROR, and TYPE_ASSERTION_ERROR descriptors (types/panic.py)."}
+  - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/chan_make.py); None is the nil channel."}
+  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.py): suspending functions compile to frame classes with a step method; exactly one task runs at a time, dispatched FIFO."}
+harness:
+  support: [tests/harness/harness.py, tests/harness/codec.py, rt_index.py]
+  generated: tests/harness/harness_gen.py
+  command: [python3, targets/python/tests/harness/harness.py]
+support_files: [types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.py, harness: "rt.add_{T.kind}({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.py, harness: "rt.sub_{T.kind}({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.mul_<k>", implementation: runtime/integer_mul.py, harness: "rt.mul_{T.kind}({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "rt.div_<k>", implementation: runtime/integer_div.py, harness: "rt.div_{T.kind}({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "rt.rem_<k>", implementation: runtime/integer_rem.py, harness: "rt.rem_{T.kind}({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "rt.and_<k>", implementation: runtime/integer_and.py, harness: "rt.and_{T.kind}({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "rt.or_<k>", implementation: runtime/integer_or.py, harness: "rt.or_{T.kind}({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "rt.xor_<k>", implementation: runtime/integer_xor.py, harness: "rt.xor_{T.kind}({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "rt.andnot_<k>", implementation: runtime/integer_andnot.py, harness: "rt.andnot_{T.kind}({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "rt.neg_<k>", implementation: runtime/integer_neg.py, harness: "rt.neg_{T.kind}({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "rt.not_<k>", implementation: runtime/integer_not.py, harness: "rt.not_{T.kind}({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "rt.shl_<k>", implementation: runtime/integer_shl.py, harness: "rt.shl_{T.kind}({0}, {1})"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "rt.shr_<k>", implementation: runtime/integer_shr.py, harness: "rt.shr_{T.kind}({0}, {1})"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "rt.to_<k>", implementation: runtime/integer_convert.py, harness: "rt.to_{U.kind}({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "rt.compare_int", implementation: runtime/integer_compare.py, harness: "rt.compare_int({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "rt.sindex", implementation: runtime/string_index.py, harness: "rt.sindex({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "rt.sslice", implementation: runtime/string_slice.py, harness: "rt.sslice({0}, {1}, {2})"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "rt.concat", implementation: runtime/string_concat.py, harness: "rt.concat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "rt.scompare", implementation: runtime/string_compare.py, harness: "rt.scompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "rt.decode_rune", implementation: runtime/string_decode_rune.py, harness: "rt.decode_rune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "rt.from_bytes", implementation: runtime/string_from_bytes.py, harness: "rt.from_bytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "rt.to_bytes", implementation: runtime/string_to_bytes.py, harness: "rt.to_bytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "rt.from_runes", implementation: runtime/string_from_runes.py, harness: "rt.from_runes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "rt.to_runes", implementation: runtime/string_to_runes.py, harness: "rt.to_runes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "rt.from_rune", implementation: runtime/string_from_rune.py, harness: "rt.from_rune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "rt.make_slice", implementation: runtime/slice_make.py, harness: "rt.make_slice({0}, {1}, lambda: {T.zero})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.sget", implementation: runtime/slice_index.py, harness: "rt.sget({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.sset", implementation: runtime/slice_store.py, harness: "rt.sset({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.reslice", implementation: runtime/slice_slice.py, harness: "rt.reslice({0}, {1}, {2}, {3})"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.append_slice", implementation: runtime/slice_append.py, harness: "rt.append_slice({0}, {1})"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "rt.copy", implementation: runtime/slice_copy.py, harness: "rt.copy({0}, {1})"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: "rt.clear_slice", implementation: runtime/slice_clear.py, harness: "rt.clear_slice({0}, lambda: {T.zero})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "rt.slice_to_array", implementation: runtime/slice_to_array.py, harness: "rt.slice_to_array({0}, 2)"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "rt.make_map", implementation: runtime/map_make.py, harness: "rt.make_map(rt.identity_key)"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "rt.map_get", implementation: runtime/map_lookup.py, harness: "rt.map_get({0}, {1}, rt.identity_key, lambda: {V.zero})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "rt.map_set", implementation: runtime/map_store.py, harness: "rt.map_set({0}, {1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "rt.map_delete", implementation: runtime/map_delete.py, harness: "rt.map_delete({0}, {1}, rt.identity_key)"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "rt.map_len", implementation: runtime/map_len.py, harness: "rt.map_len({0})"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "rt.map_clear", implementation: runtime/map_clear.py, harness: "rt.map_clear({0})"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "rt.map_iter", implementation: runtime/map_iterate.py, harness: "rt.map_keys({0})", requires: [core.map.len]}
+  - {id: core.print, contract_version: 1.0.0, symbol: "rt.go_print", implementation: runtime/print.py, harness: "rt.print_string({0})"}
+  - {id: std.errors.new, contract_version: 1.0.0, symbol: "rt.std_errors_new", implementation: runtime/std_errors_new.py, harness: "rt.std_errors_new({0})"}
+  - {id: std.errors.is, contract_version: 1.0.0, symbol: "rt.std_errors_is", implementation: runtime/std_errors_is.py, harness: "rt.std_errors_is({0}, {1})"}
+  - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: "rt.std_errors_unwrap", implementation: runtime/std_errors_unwrap.py, harness: "rt.std_errors_unwrap({0})"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "rt.spawn", implementation: runtime/task_spawn.py, harness: "await: rt.call(t, new_spawn_check())"}
+  - {id: core.chan.make, contract_version: 1.0.0, symbol: "rt.make_chan", implementation: runtime/chan_make.py, harness: "rt.make_chan({0}, lambda: {T.zero})", requires: [core.task.spawn]}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: "rt.chan_send", implementation: runtime/chan_send.py, harness: "await: rt.chan_send(t, {0}, {1})", requires: [core.chan.make]}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "rt.chan_recv", implementation: runtime/chan_recv.py, harness: "await: rt.chan_recv(t, {0})", requires: [core.chan.make]}
+  - {id: core.chan.close, contract_version: 1.0.0, symbol: "rt.chan_close", implementation: runtime/chan_close.py, harness: "rt.chan_close({0})", requires: [core.chan.make]}
+  - {id: core.chan.len, contract_version: 1.0.0, symbol: "rt.chan_len", implementation: runtime/chan_len.py, harness: "rt.chan_len({0})", requires: [core.chan.make]}
+  - {id: core.chan.cap, contract_version: 1.0.0, symbol: "rt.chan_cap", implementation: runtime/chan_cap.py, harness: "rt.chan_cap({0})", requires: [core.chan.make]}
+  - {id: core.select, contract_version: 1.0.0, symbol: "rt.select", implementation: runtime/select.py, harness: "await: harness_select2(t, {0}, {1}, {2})", requires: [core.chan.recv]}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: "rt.std_sync_mutex_lock", implementation: runtime/std_sync_mutex_lock.py, harness: "await: rt.std_sync_mutex_lock(t, {0})", requires: [core.task.spawn]}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: "rt.std_sync_mutex_unlock", implementation: runtime/std_sync_mutex_unlock.py, harness: "await: (rt.std_sync_mutex_lock(t, {0}), rt.std_sync_mutex_unlock({0}))", requires: [std.sync.mutex.lock]}
+  - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: "rt.std_sync_waitgroup_add", implementation: runtime/std_sync_waitgroup_add.py, harness: "rt.std_sync_waitgroup_add({0}, {1})", requires: [core.task.spawn]}
+  - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: "rt.std_sync_waitgroup_done", implementation: runtime/std_sync_waitgroup_done.py, harness: "rt.std_sync_waitgroup_done({0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: "rt.std_sync_waitgroup_wait", implementation: runtime/std_sync_waitgroup_wait.py, harness: "await: rt.std_sync_waitgroup_wait(t, {0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: "rt.std_runtime_gosched", implementation: runtime/std_runtime_gosched.py, harness: "await: rt.std_runtime_gosched(t)", requires: [core.task.spawn]}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: "rt.std_time_sleep", implementation: runtime/std_time_sleep.py, harness: "await: rt.std_time_sleep(t, {0})", requires: [core.task.spawn]}
+  - {id: std.context.background, contract_version: 1.0.0, symbol: "rt.std_context_background", implementation: runtime/std_context_background.py, harness: "rt.std_context_background()", requires: [std.context.err]}
+  - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: "rt.std_context_with_cancel", implementation: runtime/std_context_with_cancel.py, harness: "rt.std_context_with_cancel({0})", requires: [std.context.err]}
+  - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: "rt.std_context_with_timeout", implementation: runtime/std_context_with_timeout.py, harness: "rt.std_context_with_timeout({0}, {1})", requires: [std.context.err]}
+  - {id: std.context.done, contract_version: 1.0.0, symbol: "rt.std_context_context_done", implementation: runtime/std_context_done.py, harness: "rt.std_context_context_done({0})", requires: [std.context.err]}
+  - {id: std.context.err, contract_version: 1.0.0, symbol: "rt.std_context_context_err", implementation: runtime/std_context_err.py, harness: "rt.std_context_context_err({0})", requires: [core.chan.close, std.errors.new]}
+  - {id: std.context.canceled, contract_version: 1.0.0, symbol: "rt.std_context_canceled", implementation: runtime/std_context_canceled.py, harness: "rt.std_context_canceled()", requires: [std.context.err]}
+  - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "rt.std_context_deadline_exceeded", implementation: runtime/std_context_deadline_exceeded.py, harness: "rt.std_context_deadline_exceeded()", requires: [std.context.err]}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: "rt.lib_task_all", implementation: runtime/lib_task_all.py, harness: "await: rt.lib_task_all(t, {0})", requires: [core.task.spawn]}

@@ -3,3 +3,4 @@ packages: [.]
 targets:
   go: {out: ../../out/examples/life/go}
   typescript: {out: ../../out/examples/life/typescript}
+  python: {out: ../../out/examples/life/python}

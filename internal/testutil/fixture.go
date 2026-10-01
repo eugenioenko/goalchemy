@@ -132,6 +132,9 @@ var Runners = map[string]Runner{
 	"typescript": func(out string) (Observation, error) {
 		return run(out, time.Minute, "node", "--stack-size=4000", "main.ts")
 	},
+	"python": func(out string) (Observation, error) {
+		return run(out, 2*time.Minute, "python3", "main.py")
+	},
 }
 
 // Fixture describes one language fixture directory.
