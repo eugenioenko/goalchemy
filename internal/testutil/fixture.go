@@ -72,11 +72,15 @@ func Unordered(o Observation) Observation {
 }
 
 func run(dir string, timeout time.Duration, name string, args ...string) (Observation, error) {
+	return runEnv(dir, timeout, nil, name, args...)
+}
+
+func runEnv(dir string, timeout time.Duration, env []string, name string, args ...string) (Observation, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	cmd.Env = append(driver.ToolEnv(), "GOTOOLCHAIN="+frontend.ReferenceToolchain, "GOFLAGS=")
+	cmd.Env = append(append(driver.ToolEnv(), env...), "GOTOOLCHAIN="+frontend.ReferenceToolchain, "GOFLAGS=")
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
@@ -141,9 +145,32 @@ var Runners = map[string]Runner{
 	"csharp": func(out string) (Observation, error) {
 		return run(out, 3*time.Minute, "sh", "run.sh")
 	},
+	"c": func(out string) (Observation, error) {
+		return run(out, 3*time.Minute, "sh", "run.sh")
+	},
+	// c-sanitize builds the C target with clang's address and
+	// undefined-behavior sanitizers; it runs without address-space
+	// randomization, which older ASan releases cannot start under on
+	// kernels with high mmap randomization.
+	"c-sanitize": func(out string) (Observation, error) {
+		return runEnv(out, 5*time.Minute, []string{
+			"CC=clang",
+			"CFLAGS=-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+			"ASAN_OPTIONS=detect_leaks=0:detect_stack_use_after_return=0",
+		}, "setarch", "-R", "sh", "run.sh")
+	},
 	"rust": func(out string) (Observation, error) {
 		return run(out, 5*time.Minute, "sh", "run.sh")
 	},
+}
+
+// EmitTarget maps a runner name to the target it compiles: runner
+// variants such as c-sanitize share their base target's output.
+func EmitTarget(runner string) string {
+	if base, _, ok := strings.Cut(runner, "-"); ok {
+		return base
+	}
+	return runner
 }
 
 // Fixture describes one language fixture directory.
@@ -233,7 +260,7 @@ func RunFixture(t *testing.T, f Fixture, targets []string) {
 	var first *Observation
 	for _, target := range targets {
 		out := filepath.Join(work, target)
-		if ds := CompileGate(f.Dir, target, out, f.Gate); len(ds) > 0 {
+		if ds := CompileGate(f.Dir, EmitTarget(target), out, f.Gate); len(ds) > 0 {
 			for _, d := range ds {
 				t.Errorf("%s: %s", target, d)
 			}

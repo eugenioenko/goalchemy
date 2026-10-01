@@ -1,0 +1,11 @@
+add 42
+divide: panic: runtime error: integer divide by zero
+divide 42
+greet Bonjour, Ada!
+greet Hi, Ada!
+stats 20 4
+fib 75025
+max 18446744073709551615
+even false
+check: panic: check failed
+calls 8

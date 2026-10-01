@@ -44,14 +44,17 @@ func withToolchains(env []string, tc string) []string {
 		bins = append(bins, d)
 		set["DOTNET_ROOT"] = d
 	}
-	if len(bins) == 0 {
+	if st, err := os.Stat(filepath.Join(tc, "bdwgc", "lib", "libgc.a")); err == nil && !st.IsDir() {
+		set["GOALCHEMY_BDWGC"] = filepath.Join(tc, "bdwgc")
+	}
+	if len(bins) == 0 && len(set) == 0 {
 		return env
 	}
 	var out []string
 	for _, kv := range env {
 		k, v, _ := strings.Cut(kv, "=")
 		switch {
-		case k == "PATH":
+		case k == "PATH" && len(bins) > 0:
 			kv = "PATH=" + strings.Join(bins, string(os.PathListSeparator)) + string(os.PathListSeparator) + v
 		case set[k] != "":
 			delete(set, k)

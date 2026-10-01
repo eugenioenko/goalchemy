@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"goalchemy/internal/diagnostics"
+	cemit "goalchemy/internal/emit/c"
 	"goalchemy/internal/emit/csharp"
 	"goalchemy/internal/emit/golang"
 	"goalchemy/internal/emit/java"
@@ -378,6 +379,81 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 	}
 	sort.Strings(names)
 	if err := link.WriteManifest(out, res.Catalog, "rust", refs, rtFiles, names, res.Program); err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	return nil
+}
+
+func init() {
+	Register("c", emitC)
+}
+
+const cRun = `#!/bin/sh
+# Compiles and runs the program with a C17 compiler and the Boehm collector.
+# GOALCHEMY_BDWGC may name a bdwgc install prefix; otherwise pkg-config
+# bdw-gc or -lgc is used. CC and CFLAGS are honored.
+set -e
+cd "$(dirname "$0")"
+if [ -n "$GOALCHEMY_BDWGC" ]; then
+  gc="-I$GOALCHEMY_BDWGC/include $GOALCHEMY_BDWGC/lib/libgc.a"
+elif pkg-config --exists bdw-gc 2>/dev/null; then
+  gc=$(pkg-config --cflags --libs bdw-gc)
+else
+  gc=-lgc
+fi
+${CC:-cc} -std=c17 ${CFLAGS:--O2} -w -Irt/types -o main main.c rt/types/*.c rt/runtime/*.c $gc -lpthread >&2
+exec ./main
+`
+
+const cLibBuild = `#!/bin/sh
+# Builds libgoalchemy.a; link it with bdwgc (-lgc, or GOALCHEMY_BDWGC's
+# libgc.a) and -lpthread, and include goalchemy.h.
+set -e
+cd "$(dirname "$0")"
+inc=""
+if [ -n "$GOALCHEMY_BDWGC" ]; then inc="-I$GOALCHEMY_BDWGC/include"
+elif pkg-config --exists bdw-gc 2>/dev/null; then inc=$(pkg-config --cflags bdw-gc); fi
+mkdir -p obj
+for f in main.c rt/types/*.c rt/runtime/*.c; do
+  ${CC:-cc} -std=c17 ${CFLAGS:--O2} -w -Irt/types $inc -c "$f" -o "obj/$(echo "$f" | tr / _).o"
+done
+ar rcs libgoalchemy.a obj/*.o
+`
+
+func emitC(res *Result, out string) []diagnostics.Diagnostic {
+	o, err := cemit.Emit(res.IR, symbols(res, "c"))
+	if err != nil {
+		return emitErr("GCE004", err.Error())
+	}
+	refs, files, ds := link.Plan(res.Catalog, "c", o.Contracts)
+	if len(ds) > 0 {
+		return ds
+	}
+	rtFiles, err := link.CopyRuntime(res.Catalog, "c", files, out, "rt", false)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	gen := map[string][]byte{
+		"main.c":       o.Source,
+		"main.c.lines": lineTable(o.Lines, out),
+		"README.md":    []byte(readme("c", "sh run.sh", "Requires a C17 compiler and the Boehm-Demers-Weiser collector (bdwgc 8.x with threads).")),
+	}
+	if o.Header != nil {
+		gen["goalchemy.h"] = o.Header
+		gen["build.sh"] = []byte(cLibBuild)
+		gen["README.md"] = []byte(readme("c", "sh build.sh", "Builds libgoalchemy.a; include goalchemy.h and link with bdwgc (-lgc) and -lpthread. Requires a C17 compiler and bdwgc 8.x with threads."))
+	} else {
+		gen["run.sh"] = []byte(cRun)
+	}
+	var names []string
+	for name, data := range gen {
+		if err := link.WriteFile(out, name, data); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if err := link.WriteManifest(out, res.Catalog, "c", refs, rtFiles, names, res.Program); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil

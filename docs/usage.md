@@ -1,6 +1,6 @@
 # Using Goalchemy
 
-Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on six targets: lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, C# for .NET 8, and Rust (edition 2021). Run `goalchemy features` for the current feature matrix.
+Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on seven targets: lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, C# for .NET 8, Rust (edition 2021), and C17. Run `goalchemy features` for the current feature matrix.
 
 ## Install
 
@@ -15,7 +15,7 @@ The repository's `go.mod` selects the Go 1.27.1 reference toolchain. Source prog
 | Command | Purpose |
 | --- | --- |
 | `goalchemy check [-gate g] [-tags t] [-json] [packages]` | Load, type-check, and validate against the language gate. |
-| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
+| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|c\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
 | `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
 | `goalchemy run -target <name> [packages]` | Compile to a temporary directory and run the program. |
 | `goalchemy features` | Print supported features and targets. |
@@ -37,6 +37,7 @@ targets:
   java: {out: out/java}
   csharp: {out: out/cs}
   rust: {out: out/rs}
+  c: {out: out/c}
 ```
 
 The file uses the same restricted YAML as the contract catalog: no anchors, aliases, or floats, and no unknown keys.
@@ -51,6 +52,11 @@ Each target directory contains the generated program, the runtime files it needs
 - **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored).
 - **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works.
 - **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run with `sh run.sh` (plain `rustc`, standard library only) or `cargo run --release`. Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
+- **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. `CC` and `CFLAGS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
+
+### C libraries
+
+Compiling a package other than `main` for the C target produces a library instead of a program: `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected. Library builds are available only on the C target.
 
 When the working directory or a parent has a `.toolchains` directory holding `jdk-*` or `dotnet`, `goalchemy run` and the test suites use those toolchains.
 

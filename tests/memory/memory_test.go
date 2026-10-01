@@ -64,3 +64,47 @@ func TestRustHeap(t *testing.T) {
 		})
 	}
 }
+
+var cStats = regexp.MustCompile(`heap: size (\d+) collections (\d+)\n`)
+
+// TestCHeap runs the same programs on the C target, whose Boehm collector
+// must keep the heap bounded while retaining every live object.
+func TestCHeap(t *testing.T) {
+	for _, c := range []struct{ name, gate string }{
+		{"cycles", ""}, {"retained", ""}, {"interior", ""}, {"tasks", "cooperative"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := filepath.Join("testdata", c.name)
+			want, err := testutil.Native(dir, t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			out := t.TempDir()
+			if ds := testutil.CompileGate(dir, "c", out, c.gate); len(ds) > 0 {
+				t.Fatal(ds)
+			}
+			t.Setenv("GOALCHEMY_HEAP_STATS", "1")
+			got, err := testutil.Runners["c"](out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m := cStats.FindStringSubmatch(got.Stderr)
+			if m == nil {
+				t.Fatalf("no heap statistics:\n%s", got)
+			}
+			got.Stderr = cStats.ReplaceAllString(got.Stderr, "")
+			if got.String() != want.String() {
+				t.Fatalf("c differs from native Go\n=== native\n%s=== c\n%s", want, got)
+			}
+			size, _ := strconv.Atoi(m[1])
+			collections, _ := strconv.Atoi(m[2])
+			if collections == 0 {
+				t.Errorf("no collections ran (heap %d bytes)", size)
+			}
+			if size > 64<<20 {
+				t.Errorf("heap grew to %d bytes", size)
+			}
+			t.Logf("heap %s bytes, %s collections", m[1], m[2])
+		})
+	}
+}

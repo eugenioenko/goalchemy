@@ -7,3 +7,4 @@ targets:
   java: {out: ../../out/examples/life/java}
   csharp: {out: ../../out/examples/life/csharp}
   rust: {out: ../../out/examples/life/rust}
+  c: {out: ../../out/examples/life/c}

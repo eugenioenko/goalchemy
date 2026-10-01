@@ -36,6 +36,11 @@ func Emit(name string, res *Result, out string) (ds []diagnostics.Diagnostic) {
 		return []diagnostics.Diagnostic{{Code: "GCE001", Severity: diagnostics.Error, Feature: "target",
 			Message: "unknown or unimplemented target " + name, Remedy: "Choose one of: " + joinTargets()}}
 	}
+	if res.IR != nil && res.IR.Library && name != "c" && name != "ir" {
+		return []diagnostics.Diagnostic{{Code: "GCE006", Severity: diagnostics.Error, Feature: "library build",
+			Message: "target " + name + " cannot build a library; only the c target exports a library API",
+			Remedy:  "Compile package main for this target, or use -target c for a library."}}
+	}
 	return e(res, out)
 }
 

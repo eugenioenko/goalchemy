@@ -64,6 +64,11 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 	for _, p := range prog.Source {
 		l.declare(p)
 	}
+	for _, r := range prog.Roots {
+		if r.Name != "main" {
+			l.out.Library = true
+		}
+	}
 	for _, p := range prog.Source {
 		l.analyze(p)
 	}
@@ -205,6 +210,9 @@ func (l *Lowerer) declare(p *packages.Package) {
 				if obj.Name() == "main" && p.Name == "main" && sig.Recv() == nil {
 					l.out.Main = irf
 				}
+				if l.root(p) && p.Name != "main" && obj.Exported() && sig.Recv() == nil {
+					l.out.Exports = append(l.out.Exports, irf)
+				}
 			case *ast.GenDecl:
 				if d.Tok != token.VAR {
 					continue
@@ -224,6 +232,16 @@ func (l *Lowerer) declare(p *packages.Package) {
 			}
 		}
 	}
+}
+
+// root reports whether p is one of the packages the program was built from.
+func (l *Lowerer) root(p *packages.Package) bool {
+	for _, r := range l.prog.Roots {
+		if r.PkgPath == p.PkgPath {
+			return true
+		}
+	}
+	return false
 }
 
 func recvTypeName(t types.Type) string {

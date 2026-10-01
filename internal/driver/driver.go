@@ -49,7 +49,7 @@ func Build(ctx context.Context, opts Options) (*Result, []diagnostics.Diagnostic
 	p, lds := lower.Lower(prog, reg)
 	res.IR = p
 	ds = append(ds, lds...)
-	if p.Main == nil {
+	if p.Main == nil && !p.Library {
 		ds = append(ds, diagnostics.Diagnostic{Code: "GCI003", Severity: diagnostics.Error,
 			Feature: "entry point", Message: "no main function in package main",
 			Remedy: "Compile a main package."})

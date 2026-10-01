@@ -14,6 +14,10 @@ type Program struct {
 	Init *Func
 	// Main is the executable entry point, if any.
 	Main *Func
+	// Library is set when the root packages are not package main; Exports
+	// lists their exported top-level functions in declaration order.
+	Library bool
+	Exports []*Func
 	// Externals lists capability contracts called by the program.
 	Externals map[string]*Extern
 	// Cooperative is set when the program uses tasks, channels, or other
