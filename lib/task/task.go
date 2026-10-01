@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package task provides structured waiting for Goalchemy programs.
 //
 // Under Goalchemy every target runs one task at a time, so the functions

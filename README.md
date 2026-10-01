@@ -35,3 +35,5 @@ SDK, bdwgc, and LLVM toolchains before the full test suite.
 
 For seven-target differential campaigns, performance baselines, and toolchain
 upgrade reports, see [docs/hardening.md](docs/hardening.md).
+
+Goalchemy is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).

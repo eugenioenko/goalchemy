@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package sync provides Goalchemy's synchronization primitives. Under
 // Goalchemy every target runs one task at a time and these types block
 // cooperatively. This file is the native Go implementation used when the

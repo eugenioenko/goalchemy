@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package runtime provides Goalchemy's scheduler controls. This file is the
 // native Go implementation used when the program runs with the Go toolchain.
 package runtime
