@@ -1,6 +1,6 @@
 # Using Goalchemy
 
-Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on three targets: lowered Go, TypeScript for Node.js, and Python 3.10+. Run `goalchemy features` for the current feature matrix.
+Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on five targets: lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, and C# for .NET 8. Run `goalchemy features` for the current feature matrix.
 
 ## Install
 
@@ -15,7 +15,7 @@ The repository's `go.mod` selects the Go 1.27.1 reference toolchain. Source prog
 | Command | Purpose |
 | --- | --- |
 | `goalchemy check [-gate g] [-tags t] [-json] [packages]` | Load, type-check, and validate against the language gate. |
-| `goalchemy compile -target <go\|typescript\|python\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
+| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
 | `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
 | `goalchemy run -target <name> [packages]` | Compile to a temporary directory and run the program. |
 | `goalchemy features` | Print supported features and targets. |
@@ -34,6 +34,8 @@ targets:
   go: {out: out/go}
   typescript: {out: out/ts}
   python: {out: out/py}
+  java: {out: out/java}
+  csharp: {out: out/cs}
 ```
 
 The file uses the same restricted YAML as the contract catalog: no anchors, aliases, or floats, and no unknown keys.
@@ -45,6 +47,10 @@ Each target directory contains the generated program, the runtime files it needs
 - **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
 - **TypeScript**: `main.ts`, `main.ts.map`, `rt/`, `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces.
 - **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required.
+- **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored).
+- **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works.
+
+When the working directory or a parent has a `.toolchains` directory holding `jdk-*` or `dotnet`, `goalchemy run` and the test suites use those toolchains.
 
 Programs write output with Go's `print` and `println` builtins, which go to standard error. An unrecovered panic prints `panic: <value>` and exits with status 2, as Go does.
 

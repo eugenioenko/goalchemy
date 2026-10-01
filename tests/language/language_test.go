@@ -10,7 +10,7 @@ import (
 	"goalchemy/internal/testutil"
 )
 
-var targets = []string{"go", "typescript", "python"}
+var targets = []string{"go", "typescript", "python", "java", "csharp"}
 
 func TestFixtures(t *testing.T) {
 	targets := targets

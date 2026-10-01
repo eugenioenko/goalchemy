@@ -4,3 +4,5 @@ targets:
   go: {out: ../../out/examples/bank/go}
   typescript: {out: ../../out/examples/bank/typescript}
   python: {out: ../../out/examples/bank/python}
+  java: {out: ../../out/examples/bank/java}
+  csharp: {out: ../../out/examples/bank/csharp}

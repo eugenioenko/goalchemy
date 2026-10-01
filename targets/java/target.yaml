@@ -1,0 +1,95 @@
+schema_version: 1
+target: java
+version: 0.1.0
+status: experimental
+environment:
+  runtime: OpenJDK
+  minimum: "Java 21"
+  build: "javac -d classes $(find . -name '*.java') && java -Xss512m -cp classes Main"
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: Java boolean.}
+  - {type: type.integer, contract_version: 1.0.0, representation: "Java long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.java)."}
+  - {type: type.string, contract_version: 1.0.0, representation: "Java String holding one char per byte (ISO-8859-1), so indexing and length are bytewise."}
+  - {type: type.array, contract_version: 1.0.0, representation: "Object[] with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.struct, contract_version: 1.0.0, representation: "One generated class per struct type with $clone, $set, $eq, and $key; storage objects are updated in place, so field pointers stay valid."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers (a, o, l, c) over shared Object[] arrays (types/Slice.java); Slice.NIL is the nil slice."}
+  - {type: type.map, contract_version: 1.0.0, representation: "GoMap: a HashMap from encoded keys to entries plus an insertion-ordered entry list (types/GoMap.java); nil is null."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are the objects themselves; other pointers are Cell or canonical field Ref objects (types/Ref.java); nil is null."}
+  - {type: type.interface, contract_version: 1.0.0, representation: "null or a Box (t, v) with per-type equality, key encoding, and method tables (types/Box.java, types/TypeDesc.java)."}
+  - {type: type.function, contract_version: 1.0.0, representation: "Fn objects with boxed arguments, tagged with an identity for recover; nil is null."}
+  - {type: type.error, contract_version: 1.0.0, representation: "Interface Boxes; runtime errors use the RUNTIME_ERROR, PLAIN_ERROR, and TYPE_ASSERTION_ERROR descriptors (types/Panics.java)."}
+  - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/ChanMake.java); null is the nil channel."}
+  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/TaskSpawn.java): suspending functions compile to Frame subclasses with a step method; exactly one task runs at a time, dispatched FIFO."}
+harness:
+  support: [tests/harness/Harness.java, tests/harness/Codec.java, tests/harness/Json.java, tests/harness/run.sh]
+  generated: tests/harness/HarnessGen.java
+  command: [sh, targets/java/tests/harness/run.sh]
+support_files: [types/Bounds.java, types/Box.java, types/Cell.java, types/Fn.java, types/GoMap.java, types/GoPanic.java, types/Ints.java, types/Out.java, types/Panics.java, types/Program.java, types/Ref.java, types/Slice.java, types/TypeDesc.java, types/Utf8.java]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "IntegerAdd.add_<k>", implementation: runtime/IntegerAdd.java, harness: "IntegerAdd.add_{T.kind}({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "IntegerSub.sub_<k>", implementation: runtime/IntegerSub.java, harness: "IntegerSub.sub_{T.kind}({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "IntegerMul.mul_<k>", implementation: runtime/IntegerMul.java, harness: "IntegerMul.mul_{T.kind}({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "IntegerDiv.div_<k>", implementation: runtime/IntegerDiv.java, harness: "IntegerDiv.div_{T.kind}({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "IntegerRem.rem_<k>", implementation: runtime/IntegerRem.java, harness: "IntegerRem.rem_{T.kind}({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "IntegerAnd.and_<k>", implementation: runtime/IntegerAnd.java, harness: "IntegerAnd.and_{T.kind}({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "IntegerOr.or_<k>", implementation: runtime/IntegerOr.java, harness: "IntegerOr.or_{T.kind}({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "IntegerXor.xor_<k>", implementation: runtime/IntegerXor.java, harness: "IntegerXor.xor_{T.kind}({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "IntegerAndnot.andnot_<k>", implementation: runtime/IntegerAndnot.java, harness: "IntegerAndnot.andnot_{T.kind}({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "IntegerNeg.neg_<k>", implementation: runtime/IntegerNeg.java, harness: "IntegerNeg.neg_{T.kind}({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "IntegerNot.not_<k>", implementation: runtime/IntegerNot.java, harness: "IntegerNot.not_{T.kind}({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "IntegerShl.shl_<k>", implementation: runtime/IntegerShl.java, harness: "IntegerShl.shl_{T.kind}({0}, {S.count}({1}))"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "IntegerShr.shr_<k>", implementation: runtime/IntegerShr.java, harness: "IntegerShr.shr_{T.kind}({0}, {S.count}({1}))"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "IntegerConvert.to_<k>", implementation: runtime/IntegerConvert.java, harness: "IntegerConvert.to_{U.kind}({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "IntegerCompare.compare_int", implementation: runtime/IntegerCompare.java, harness: "IntegerCompare.compare_{T.u}int({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "StringIndex.sindex", implementation: runtime/StringIndex.java, harness: "StringIndex.sindex{I.u}({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "StringSlice.sslice", implementation: runtime/StringSlice.java, harness: "StringSlice.sslice({0}, {1}, {2}, false)"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "StringConcat.concat", implementation: runtime/StringConcat.java, harness: "StringConcat.concat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "StringCompare.scompare", implementation: runtime/StringCompare.java, harness: "StringCompare.scompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "StringDecodeRune.decodeRune", implementation: runtime/StringDecodeRune.java, harness: "StringDecodeRune.decodeRune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "StringFromBytes.fromBytes", implementation: runtime/StringFromBytes.java, harness: "StringFromBytes.fromBytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "StringToBytes.toBytes", implementation: runtime/StringToBytes.java, harness: "StringToBytes.toBytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "StringFromRunes.fromRunes", implementation: runtime/StringFromRunes.java, harness: "StringFromRunes.fromRunes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "StringToRunes.toRunes", implementation: runtime/StringToRunes.java, harness: "StringToRunes.toRunes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "StringFromRune.fromRune", implementation: runtime/StringFromRune.java, harness: "StringFromRune.fromRune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "SliceMake.makeSlice", implementation: runtime/SliceMake.java, harness: "SliceMake.makeSlice({0}, {1}, () -> {T.zero})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "SliceIndex.sget", implementation: runtime/SliceIndex.java, harness: "SliceIndex.sget{I.u}({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "SliceStore.sset", implementation: runtime/SliceStore.java, harness: "SliceStore.sset{I.u}({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "SliceSlice.reslice", implementation: runtime/SliceSlice.java, harness: "SliceSlice.reslice({0}, {1}, {2}, {3}, false)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "SliceAppend.append", implementation: runtime/SliceAppend.java, harness: "SliceAppend.appendSlice({0}, {1}, null)"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "SliceCopy.copy", implementation: runtime/SliceCopy.java, harness: "SliceCopy.copy({0}, {1}, null)"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: "SliceClear.clearSlice", implementation: runtime/SliceClear.java, harness: "SliceClear.clearSlice({0}, () -> {T.zero})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "SliceToArray.sliceToArray", implementation: runtime/SliceToArray.java, harness: "SliceToArray.sliceToArray({0}, 2, null)"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "MapMake.makeMap", implementation: runtime/MapMake.java, harness: "MapMake.makeMap(GoMap::identityKey)"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "MapLookup.mapGet", implementation: runtime/MapLookup.java, harness: "MapLookup.mapGet({0}, {1}, GoMap::identityKey, () -> {V.zero})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "MapStore.mapSet", implementation: runtime/MapStore.java, harness: "MapStore.mapSet({0}, {1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "MapDelete.mapDelete", implementation: runtime/MapDelete.java, harness: "MapDelete.mapDelete({0}, {1}, GoMap::identityKey)"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "MapLen.mapLen", implementation: runtime/MapLen.java, harness: "MapLen.mapLen({0})"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "MapClear.mapClear", implementation: runtime/MapClear.java, harness: "MapClear.mapClear({0})"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "MapIterate.mapIter", implementation: runtime/MapIterate.java, harness: "MapIterate.mapKeys({0})", requires: [core.map.len]}
+  - {id: core.print, contract_version: 1.0.0, symbol: "Print.print", implementation: runtime/Print.java, harness: "Print.printString({0}, {T.unsigned})"}
+  - {id: std.errors.new, contract_version: 1.0.0, symbol: "StdErrorsNew.stdErrorsNew", implementation: runtime/StdErrorsNew.java, harness: "StdErrorsNew.stdErrorsNew({0})"}
+  - {id: std.errors.is, contract_version: 1.0.0, symbol: "StdErrorsIs.stdErrorsIs", implementation: runtime/StdErrorsIs.java, harness: "StdErrorsIs.stdErrorsIs({0}, {1})"}
+  - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: "StdErrorsUnwrap.stdErrorsUnwrap", implementation: runtime/StdErrorsUnwrap.java, harness: "StdErrorsUnwrap.stdErrorsUnwrap({0})"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "TaskSpawn.spawn", implementation: runtime/TaskSpawn.java, harness: "await: TaskSpawn.call(t, newSpawnCheck())"}
+  - {id: core.chan.make, contract_version: 1.0.0, symbol: "ChanMake.makeChan", implementation: runtime/ChanMake.java, harness: "ChanMake.makeChan({0}, () -> {T.zero})", requires: [core.task.spawn]}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: "ChanSend.chanSend", implementation: runtime/ChanSend.java, harness: "await: ChanSend.chanSend(t, {0}, {1})", requires: [core.chan.make]}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "ChanRecv.chanRecv", implementation: runtime/ChanRecv.java, harness: "await: ChanRecv.chanRecv(t, {0})", requires: [core.chan.make]}
+  - {id: core.chan.close, contract_version: 1.0.0, symbol: "ChanClose.chanClose", implementation: runtime/ChanClose.java, harness: "ChanClose.chanClose({0})", requires: [core.chan.make]}
+  - {id: core.chan.len, contract_version: 1.0.0, symbol: "ChanLen.chanLen", implementation: runtime/ChanLen.java, harness: "ChanLen.chanLen({0})", requires: [core.chan.make]}
+  - {id: core.chan.cap, contract_version: 1.0.0, symbol: "ChanCap.chanCap", implementation: runtime/ChanCap.java, harness: "ChanCap.chanCap({0})", requires: [core.chan.make]}
+  - {id: core.select, contract_version: 1.0.0, symbol: "Select.select", implementation: runtime/Select.java, harness: "await: harnessSelect2(t, {0}, {1}, {2})", requires: [core.chan.recv]}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: "StdSyncMutexLock.stdSyncMutexLock", implementation: runtime/StdSyncMutexLock.java, harness: "await: StdSyncMutexLock.stdSyncMutexLock(t, {0})", requires: [core.task.spawn]}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: "StdSyncMutexUnlock.stdSyncMutexUnlock", implementation: runtime/StdSyncMutexUnlock.java, harness: "await: StdSyncMutexLock.stdSyncMutexLock(t, {0}); StdSyncMutexUnlock.stdSyncMutexUnlock({0})", requires: [std.sync.mutex.lock]}
+  - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: "StdSyncWaitgroupAdd.stdSyncWaitgroupAdd", implementation: runtime/StdSyncWaitgroupAdd.java, harness: "StdSyncWaitgroupAdd.stdSyncWaitgroupAdd({0}, {1})", requires: [core.task.spawn]}
+  - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: "StdSyncWaitgroupDone.stdSyncWaitgroupDone", implementation: runtime/StdSyncWaitgroupDone.java, harness: "StdSyncWaitgroupDone.stdSyncWaitgroupDone({0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: "StdSyncWaitgroupWait.stdSyncWaitgroupWait", implementation: runtime/StdSyncWaitgroupWait.java, harness: "await: StdSyncWaitgroupWait.stdSyncWaitgroupWait(t, {0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: "StdRuntimeGosched.stdRuntimeGosched", implementation: runtime/StdRuntimeGosched.java, harness: "await: StdRuntimeGosched.stdRuntimeGosched(t)", requires: [core.task.spawn]}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: "StdTimeSleep.stdTimeSleep", implementation: runtime/StdTimeSleep.java, harness: "await: StdTimeSleep.stdTimeSleep(t, {0})", requires: [core.task.spawn]}
+  - {id: std.context.background, contract_version: 1.0.0, symbol: "StdContextBackground.stdContextBackground", implementation: runtime/StdContextBackground.java, harness: "StdContextBackground.stdContextBackground()", requires: [std.context.err]}
+  - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: "StdContextWithCancel.stdContextWithCancel", implementation: runtime/StdContextWithCancel.java, harness: "StdContextWithCancel.stdContextWithCancel({0})", requires: [std.context.err]}
+  - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: "StdContextWithTimeout.stdContextWithTimeout", implementation: runtime/StdContextWithTimeout.java, harness: "StdContextWithTimeout.stdContextWithTimeout({0}, {1})", requires: [std.context.err]}
+  - {id: std.context.done, contract_version: 1.0.0, symbol: "StdContextDone.stdContextContextDone", implementation: runtime/StdContextDone.java, harness: "StdContextDone.stdContextContextDone({0})", requires: [std.context.err]}
+  - {id: std.context.err, contract_version: 1.0.0, symbol: "StdContextErr.stdContextContextErr", implementation: runtime/StdContextErr.java, harness: "StdContextErr.stdContextContextErr({0})", requires: [core.chan.close, std.errors.new]}
+  - {id: std.context.canceled, contract_version: 1.0.0, symbol: "StdContextCanceled.stdContextCanceled", implementation: runtime/StdContextCanceled.java, harness: "StdContextCanceled.stdContextCanceled()", requires: [std.context.err]}
+  - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "StdContextDeadlineExceeded.stdContextDeadlineExceeded", implementation: runtime/StdContextDeadlineExceeded.java, harness: "StdContextDeadlineExceeded.stdContextDeadlineExceeded()", requires: [std.context.err]}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: "LibTaskAll.libTaskAll", implementation: runtime/LibTaskAll.java, harness: "await: LibTaskAll.libTaskAll(t, {0})", requires: [core.task.spawn]}

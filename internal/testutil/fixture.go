@@ -76,7 +76,7 @@ func run(dir string, timeout time.Duration, name string, args ...string) (Observ
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOTOOLCHAIN="+frontend.ReferenceToolchain, "GOFLAGS=")
+	cmd.Env = append(driver.ToolEnv(), "GOTOOLCHAIN="+frontend.ReferenceToolchain, "GOFLAGS=")
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
@@ -134,6 +134,12 @@ var Runners = map[string]Runner{
 	},
 	"python": func(out string) (Observation, error) {
 		return run(out, 2*time.Minute, "python3", "main.py")
+	},
+	"java": func(out string) (Observation, error) {
+		return run(out, 3*time.Minute, "sh", "run.sh")
+	},
+	"csharp": func(out string) (Observation, error) {
+		return run(out, 3*time.Minute, "sh", "run.sh")
 	},
 }
 

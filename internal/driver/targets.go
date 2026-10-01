@@ -2,12 +2,15 @@ package driver
 
 import (
 	"fmt"
+	"go/token"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"goalchemy/internal/diagnostics"
+	"goalchemy/internal/emit/csharp"
 	"goalchemy/internal/emit/golang"
+	"goalchemy/internal/emit/java"
 	"goalchemy/internal/emit/py"
 	"goalchemy/internal/emit/ts"
 	"goalchemy/internal/link"
@@ -171,6 +174,142 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 	}
 	sort.Strings(names)
 	if err := link.WriteManifest(out, res.Catalog, "python", refs, rtFiles, names, res.Program); err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	return nil
+}
+
+func init() {
+	Register("java", emitJava)
+}
+
+const javaRun = `#!/bin/sh
+# Compiles and runs the program with a Java 21 or later JDK.
+set -e
+cd "$(dirname "$0")"
+if [ -n "$JAVA_HOME" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
+javac -nowarn -encoding UTF-8 -d classes Main.java rt/types/*.java rt/runtime/*.java
+exec java -cp classes Main
+`
+
+func emitJava(res *Result, out string) []diagnostics.Diagnostic {
+	o, err := java.Emit(res.IR, symbols(res, "java"))
+	if err != nil {
+		return emitErr("GCE004", err.Error())
+	}
+	refs, files, ds := link.Plan(res.Catalog, "java", o.Contracts)
+	if len(ds) > 0 {
+		return ds
+	}
+	rtFiles, err := link.CopyRuntime(res.Catalog, "java", files, out, "rt", false)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	gen := map[string][]byte{
+		"Main.java":       o.Source,
+		"Main.java.lines": lineTable(o.Lines, out),
+		"run.sh":          []byte(javaRun),
+		"README.md":       []byte(readme("java", "sh run.sh", "Requires a Java 21 or later JDK.")),
+	}
+	var names []string
+	for name, data := range gen {
+		if err := link.WriteFile(out, name, data); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	return nil
+}
+
+// lineTable renders a generated-line to source-position table.
+func lineTable(m map[int]token.Position, out string) []byte {
+	abs, _ := filepath.Abs(out)
+	keys := make([]int, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		pos := m[k]
+		name := pos.Filename
+		if rel, err := filepath.Rel(abs, name); err == nil {
+			name = filepath.ToSlash(rel)
+		}
+		fmt.Fprintf(&b, "%d\t%s:%d:%d\n", k, name, pos.Line, pos.Column)
+	}
+	return []byte(b.String())
+}
+
+func init() {
+	Register("csharp", emitCSharp)
+}
+
+const csharpRun = `#!/bin/sh
+# Compiles and runs the program with the .NET 8 SDK's C# compiler.
+set -e
+cd "$(dirname "$0")"
+dotnet=dotnet
+if [ -n "$DOTNET_ROOT" ] && [ -x "$DOTNET_ROOT/dotnet" ]; then dotnet="$DOTNET_ROOT/dotnet"; fi
+root=$(dirname "$(readlink -f "$(command -v "$dotnet")")")
+sdk=$("$dotnet" --list-sdks | awk '/^8\./ {v=$1} END {print v}')
+csc="$root/sdk/$sdk/Roslyn/bincore/csc.dll"
+ref=$(ls -d "$root"/packs/Microsoft.NETCore.App.Ref/8.*/ref/net8.0 | tail -n 1)
+mkdir -p bin
+refs=""
+for f in "$ref"/*.dll; do refs="$refs -r:$f"; done
+"$dotnet" "$csc" -nologo -noconfig -nostdlib -nowarn:CS0162,CS0164,CS0168,CS0219,CS8981 -langversion:12 -nullable:disable \
+  -optimize+ -out:bin/main.dll $refs Main.cs rt/types/*.cs rt/runtime/*.cs >&2
+cat > bin/main.runtimeconfig.json <<'JSON'
+{"runtimeOptions": {"tfm": "net8.0", "framework": {"name": "Microsoft.NETCore.App", "version": "8.0.0"}}}
+JSON
+exec "$dotnet" bin/main.dll
+`
+
+const csharpProject = `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>CS0162;CS0164;CS0168;CS0219;CS8981</NoWarn>
+  </PropertyGroup>
+</Project>
+`
+
+func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
+	o, err := csharp.Emit(res.IR, symbols(res, "csharp"))
+	if err != nil {
+		return emitErr("GCE004", err.Error())
+	}
+	refs, files, ds := link.Plan(res.Catalog, "csharp", o.Contracts)
+	if len(ds) > 0 {
+		return ds
+	}
+	rtFiles, err := link.CopyRuntime(res.Catalog, "csharp", files, out, "rt", false)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	gen := map[string][]byte{
+		"Main.cs":       o.Source,
+		"Main.cs.lines": lineTable(o.Lines, out),
+		"main.csproj":   []byte(csharpProject),
+		"run.sh":        []byte(csharpRun),
+		"README.md":     []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
+	}
+	var names []string
+	for name, data := range gen {
+		if err := link.WriteFile(out, name, data); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if err := link.WriteManifest(out, res.Catalog, "csharp", refs, rtFiles, names, res.Program); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil

@@ -1,0 +1,95 @@
+schema_version: 1
+target: csharp
+version: 0.1.0
+status: experimental
+environment:
+  runtime: .NET 8
+  minimum: ".NET 8 SDK (C# 12)"
+  build: "sh run.sh (csc from the .NET 8 SDK), or dotnet run with main.csproj"
+representations:
+  - {type: type.boolean, contract_version: 1.0.0, representation: C# bool.}
+  - {type: type.integer, contract_version: 1.0.0, representation: "C# long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.cs)."}
+  - {type: type.string, contract_version: 1.0.0, representation: "C# string holding one char per byte (Latin-1), so indexing and length are bytewise."}
+  - {type: type.array, contract_version: 1.0.0, representation: "object[] with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.struct, contract_version: 1.0.0, representation: "One generated class per struct type with _clone, _set, _eq, and _key; storage objects are updated in place, so field pointers stay valid."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers (a, o, l, c) over shared object[] arrays (types/Slice.cs); Slice.NIL is the nil slice."}
+  - {type: type.map, contract_version: 1.0.0, representation: "GoMap: a Dictionary from encoded keys to entries plus an insertion-ordered entry list (types/GoMap.cs); nil is null."}
+  - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are the objects themselves; other pointers are Cell or canonical FieldRef objects (types/Ref.cs); nil is null."}
+  - {type: type.interface, contract_version: 1.0.0, representation: "null or a Box (t, v) with per-type equality, key encoding, and method tables (types/Box.cs, types/TypeDesc.cs)."}
+  - {type: type.function, contract_version: 1.0.0, representation: "Fn objects wrapping a delegate over boxed arguments, tagged with an identity for recover; nil is null."}
+  - {type: type.error, contract_version: 1.0.0, representation: "Interface Boxes; runtime errors use the RUNTIME_ERROR, PLAIN_ERROR, and TYPE_ASSERTION_ERROR descriptors (types/Panics.cs)."}
+  - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/ChanMake.cs); null is the nil channel."}
+  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/TaskSpawn.cs): suspending functions compile to Frame subclasses with a step method; exactly one task runs at a time, dispatched FIFO."}
+harness:
+  support: [tests/harness/Harness.cs, tests/harness/Codec.cs, tests/harness/run.sh]
+  generated: tests/harness/HarnessGen.cs
+  command: [sh, targets/csharp/tests/harness/run.sh]
+support_files: [types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs]
+functions:
+  - {id: core.integer.add, contract_version: 1.0.0, symbol: "R.add_<k>", implementation: runtime/IntegerAdd.cs, harness: "R.add_{T.kind}({0}, {1})"}
+  - {id: core.integer.sub, contract_version: 1.0.0, symbol: "R.sub_<k>", implementation: runtime/IntegerSub.cs, harness: "R.sub_{T.kind}({0}, {1})"}
+  - {id: core.integer.mul, contract_version: 1.0.0, symbol: "R.mul_<k>", implementation: runtime/IntegerMul.cs, harness: "R.mul_{T.kind}({0}, {1})"}
+  - {id: core.integer.div, contract_version: 1.0.0, symbol: "R.div_<k>", implementation: runtime/IntegerDiv.cs, harness: "R.div_{T.kind}({0}, {1})"}
+  - {id: core.integer.rem, contract_version: 1.0.0, symbol: "R.rem_<k>", implementation: runtime/IntegerRem.cs, harness: "R.rem_{T.kind}({0}, {1})"}
+  - {id: core.integer.and, contract_version: 1.0.0, symbol: "R.and_<k>", implementation: runtime/IntegerAnd.cs, harness: "R.and_{T.kind}({0}, {1})"}
+  - {id: core.integer.or, contract_version: 1.0.0, symbol: "R.or_<k>", implementation: runtime/IntegerOr.cs, harness: "R.or_{T.kind}({0}, {1})"}
+  - {id: core.integer.xor, contract_version: 1.0.0, symbol: "R.xor_<k>", implementation: runtime/IntegerXor.cs, harness: "R.xor_{T.kind}({0}, {1})"}
+  - {id: core.integer.andnot, contract_version: 1.0.0, symbol: "R.andnot_<k>", implementation: runtime/IntegerAndnot.cs, harness: "R.andnot_{T.kind}({0}, {1})"}
+  - {id: core.integer.neg, contract_version: 1.0.0, symbol: "R.neg_<k>", implementation: runtime/IntegerNeg.cs, harness: "R.neg_{T.kind}({0})"}
+  - {id: core.integer.not, contract_version: 1.0.0, symbol: "R.not_<k>", implementation: runtime/IntegerNot.cs, harness: "R.not_{T.kind}({0})"}
+  - {id: core.integer.shl, contract_version: 1.0.0, symbol: "R.shl_<k>", implementation: runtime/IntegerShl.cs, harness: "R.shl_{T.kind}({0}, {S.count}({1}))"}
+  - {id: core.integer.shr, contract_version: 1.0.0, symbol: "R.shr_<k>", implementation: runtime/IntegerShr.cs, harness: "R.shr_{T.kind}({0}, {S.count}({1}))"}
+  - {id: core.integer.convert, contract_version: 1.0.0, symbol: "R.to_<k>", implementation: runtime/IntegerConvert.cs, harness: "R.to_{U.kind}({0})"}
+  - {id: core.integer.compare, contract_version: 1.0.0, symbol: "R.compare_int", implementation: runtime/IntegerCompare.cs, harness: "R.compare_{T.u}int({0}, {1})"}
+  - {id: core.string.index, contract_version: 1.0.0, symbol: "R.sindex", implementation: runtime/StringIndex.cs, harness: "R.sindex{I.u}({0}, {1})"}
+  - {id: core.string.slice, contract_version: 1.0.0, symbol: "R.sslice", implementation: runtime/StringSlice.cs, harness: "R.sslice({0}, {1}, {2}, false)"}
+  - {id: core.string.concat, contract_version: 1.0.0, symbol: "R.concat", implementation: runtime/StringConcat.cs, harness: "R.concat({0}, {1})"}
+  - {id: core.string.compare, contract_version: 1.0.0, symbol: "R.scompare", implementation: runtime/StringCompare.cs, harness: "R.scompare({0}, {1})"}
+  - {id: core.string.decode_rune, contract_version: 1.0.0, symbol: "R.decodeRune", implementation: runtime/StringDecodeRune.cs, harness: "R.decodeRune({0}, {1})"}
+  - {id: core.string.from_bytes, contract_version: 1.0.0, symbol: "R.fromBytes", implementation: runtime/StringFromBytes.cs, harness: "R.fromBytes({0})"}
+  - {id: core.string.to_bytes, contract_version: 1.0.0, symbol: "R.toBytes", implementation: runtime/StringToBytes.cs, harness: "R.toBytes({0})"}
+  - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "R.fromRunes", implementation: runtime/StringFromRunes.cs, harness: "R.fromRunes({0})"}
+  - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "R.toRunes", implementation: runtime/StringToRunes.cs, harness: "R.toRunes({0})"}
+  - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "R.fromRune", implementation: runtime/StringFromRune.cs, harness: "R.fromRune({0})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "R.makeSlice", implementation: runtime/SliceMake.cs, harness: "R.makeSlice({0}, {1}, () => {T.zero})"}
+  - {id: core.slice.index, contract_version: 1.0.0, symbol: "R.sget", implementation: runtime/SliceIndex.cs, harness: "R.sget{I.u}({0}, {1})"}
+  - {id: core.slice.store, contract_version: 1.0.0, symbol: "R.sset", implementation: runtime/SliceStore.cs, harness: "R.sset{I.u}({0}, {1}, {2})"}
+  - {id: core.slice.slice, contract_version: 1.0.0, symbol: "R.reslice", implementation: runtime/SliceSlice.cs, harness: "R.reslice({0}, {1}, {2}, {3}, false)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "R.append", implementation: runtime/SliceAppend.cs, harness: "R.appendSlice({0}, {1}, null)"}
+  - {id: core.slice.copy, contract_version: 1.0.0, symbol: "R.copy", implementation: runtime/SliceCopy.cs, harness: "R.copy({0}, {1}, null)"}
+  - {id: core.slice.clear, contract_version: 1.0.0, symbol: "R.clearSlice", implementation: runtime/SliceClear.cs, harness: "R.clearSlice({0}, () => {T.zero})"}
+  - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "R.sliceToArray", implementation: runtime/SliceToArray.cs, harness: "R.sliceToArray({0}, 2, null)"}
+  - {id: core.map.make, contract_version: 1.0.0, symbol: "R.makeMap", implementation: runtime/MapMake.cs, harness: "R.makeMap(GoMap.identityKey)"}
+  - {id: core.map.lookup, contract_version: 1.0.0, symbol: "R.mapGet", implementation: runtime/MapLookup.cs, harness: "R.mapGet({0}, {1}, GoMap.identityKey, () => {V.zero})"}
+  - {id: core.map.store, contract_version: 1.0.0, symbol: "R.mapSet", implementation: runtime/MapStore.cs, harness: "R.mapSet({0}, {1}, {2})"}
+  - {id: core.map.delete, contract_version: 1.0.0, symbol: "R.mapDelete", implementation: runtime/MapDelete.cs, harness: "R.mapDelete({0}, {1}, GoMap.identityKey)"}
+  - {id: core.map.len, contract_version: 1.0.0, symbol: "R.mapLen", implementation: runtime/MapLen.cs, harness: "R.mapLen({0})"}
+  - {id: core.map.clear, contract_version: 1.0.0, symbol: "R.mapClear", implementation: runtime/MapClear.cs, harness: "R.mapClear({0})"}
+  - {id: core.map.iterate, contract_version: 1.0.0, symbol: "R.mapIter", implementation: runtime/MapIterate.cs, harness: "R.mapKeys({0})", requires: [core.map.len]}
+  - {id: core.print, contract_version: 1.0.0, symbol: "R.print", implementation: runtime/Print.cs, harness: "R.printString({0}, {T.unsigned})"}
+  - {id: std.errors.new, contract_version: 1.0.0, symbol: "R.stdErrorsNew", implementation: runtime/StdErrorsNew.cs, harness: "R.stdErrorsNew({0})"}
+  - {id: std.errors.is, contract_version: 1.0.0, symbol: "R.stdErrorsIs", implementation: runtime/StdErrorsIs.cs, harness: "R.stdErrorsIs({0}, {1})"}
+  - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: "R.stdErrorsUnwrap", implementation: runtime/StdErrorsUnwrap.cs, harness: "R.stdErrorsUnwrap({0})"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "R.spawn", implementation: runtime/TaskSpawn.cs, harness: "await: R.call(t, newSpawnCheck())"}
+  - {id: core.chan.make, contract_version: 1.0.0, symbol: "R.makeChan", implementation: runtime/ChanMake.cs, harness: "R.makeChan({0}, () => {T.zero})", requires: [core.task.spawn]}
+  - {id: core.chan.send, contract_version: 1.0.0, symbol: "R.chanSend", implementation: runtime/ChanSend.cs, harness: "await: R.chanSend(t, {0}, {1})", requires: [core.chan.make]}
+  - {id: core.chan.recv, contract_version: 1.0.0, symbol: "R.chanRecv", implementation: runtime/ChanRecv.cs, harness: "await: R.chanRecv(t, {0})", requires: [core.chan.make]}
+  - {id: core.chan.close, contract_version: 1.0.0, symbol: "R.chanClose", implementation: runtime/ChanClose.cs, harness: "R.chanClose({0})", requires: [core.chan.make]}
+  - {id: core.chan.len, contract_version: 1.0.0, symbol: "R.chanLen", implementation: runtime/ChanLen.cs, harness: "R.chanLen({0})", requires: [core.chan.make]}
+  - {id: core.chan.cap, contract_version: 1.0.0, symbol: "R.chanCap", implementation: runtime/ChanCap.cs, harness: "R.chanCap({0})", requires: [core.chan.make]}
+  - {id: core.select, contract_version: 1.0.0, symbol: "R.select", implementation: runtime/Select.cs, harness: "await: harnessSelect2(t, {0}, {1}, {2})", requires: [core.chan.recv]}
+  - {id: std.sync.mutex.lock, contract_version: 1.0.0, symbol: "R.stdSyncMutexLock", implementation: runtime/StdSyncMutexLock.cs, harness: "await: R.stdSyncMutexLock(t, {0})", requires: [core.task.spawn]}
+  - {id: std.sync.mutex.unlock, contract_version: 1.0.0, symbol: "R.stdSyncMutexUnlock", implementation: runtime/StdSyncMutexUnlock.cs, harness: "await: R.stdSyncMutexLock(t, {0}); R.stdSyncMutexUnlock({0})", requires: [std.sync.mutex.lock]}
+  - {id: std.sync.waitgroup.add, contract_version: 1.0.0, symbol: "R.stdSyncWaitgroupAdd", implementation: runtime/StdSyncWaitgroupAdd.cs, harness: "R.stdSyncWaitgroupAdd({0}, {1})", requires: [core.task.spawn]}
+  - {id: std.sync.waitgroup.done, contract_version: 1.0.0, symbol: "R.stdSyncWaitgroupDone", implementation: runtime/StdSyncWaitgroupDone.cs, harness: "R.stdSyncWaitgroupDone({0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.sync.waitgroup.wait, contract_version: 1.0.0, symbol: "R.stdSyncWaitgroupWait", implementation: runtime/StdSyncWaitgroupWait.cs, harness: "await: R.stdSyncWaitgroupWait(t, {0})", requires: [std.sync.waitgroup.add]}
+  - {id: std.runtime.gosched, contract_version: 1.0.0, symbol: "R.stdRuntimeGosched", implementation: runtime/StdRuntimeGosched.cs, harness: "await: R.stdRuntimeGosched(t)", requires: [core.task.spawn]}
+  - {id: std.time.sleep, contract_version: 1.0.0, symbol: "R.stdTimeSleep", implementation: runtime/StdTimeSleep.cs, harness: "await: R.stdTimeSleep(t, {0})", requires: [core.task.spawn]}
+  - {id: std.context.background, contract_version: 1.0.0, symbol: "R.stdContextBackground", implementation: runtime/StdContextBackground.cs, harness: "R.stdContextBackground()", requires: [std.context.err]}
+  - {id: std.context.with_cancel, contract_version: 1.0.0, symbol: "R.stdContextWithCancel", implementation: runtime/StdContextWithCancel.cs, harness: "R.stdContextWithCancel({0})", requires: [std.context.err]}
+  - {id: std.context.with_timeout, contract_version: 1.0.0, symbol: "R.stdContextWithTimeout", implementation: runtime/StdContextWithTimeout.cs, harness: "R.stdContextWithTimeout({0}, {1})", requires: [std.context.err]}
+  - {id: std.context.done, contract_version: 1.0.0, symbol: "R.stdContextContextDone", implementation: runtime/StdContextDone.cs, harness: "R.stdContextContextDone({0})", requires: [std.context.err]}
+  - {id: std.context.err, contract_version: 1.0.0, symbol: "R.stdContextContextErr", implementation: runtime/StdContextErr.cs, harness: "R.stdContextContextErr({0})", requires: [core.chan.close, std.errors.new]}
+  - {id: std.context.canceled, contract_version: 1.0.0, symbol: "R.stdContextCanceled", implementation: runtime/StdContextCanceled.cs, harness: "R.stdContextCanceled()", requires: [std.context.err]}
+  - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "R.stdContextDeadlineExceeded", implementation: runtime/StdContextDeadlineExceeded.cs, harness: "R.stdContextDeadlineExceeded()", requires: [std.context.err]}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: "R.libTaskAll", implementation: runtime/LibTaskAll.cs, harness: "await: R.libTaskAll(t, {0})", requires: [core.task.spawn]}
