@@ -73,6 +73,7 @@ type Function struct {
 	PanicCategories []string          `json:"panic_categories,omitempty"`
 	Notes           string            `json:"notes,omitempty"`
 	Cases           []Case            `json:"cases"`
+	NativeTests     []string          `json:"native_tests,omitempty"`
 
 	Path string `json:"-"`
 	Hash string `json:"-"`

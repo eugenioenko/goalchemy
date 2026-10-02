@@ -86,6 +86,7 @@ var opaqueContracts = map[string]string{
 	"sync.Mutex":      "std.sync.mutex.lock",
 	"sync.WaitGroup":  "std.sync.waitgroup.add",
 	"context.Context": "std.context.background",
+	"crypto.Key":      "lib.crypto.close",
 }
 
 func (e *emitter) p_(format string, args ...any) {

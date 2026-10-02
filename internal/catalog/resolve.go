@@ -95,7 +95,7 @@ func lookupPackage(fsys fs.FS, cache map[string]*types.Package, pkgPath string) 
 	} else if strings.HasPrefix(pkgPath, LibModule) {
 		pkg, err = checkDir(fsys, "lib/"+strings.TrimPrefix(pkgPath, LibModule), pkgPath)
 	} else if stdPackages[pkgPath] {
-		pkg, err = importer.Default().Import(pkgPath)
+		pkg, err = importer.ForCompiler(token.NewFileSet(), "source", nil).Import(pkgPath)
 	} else {
 		err = fmt.Errorf("package %s is neither standard nor under %s or %s", pkgPath, DeclarationModule, LibModule)
 	}

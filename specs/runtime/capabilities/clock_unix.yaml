@@ -1,0 +1,39 @@
+{
+  "id": "lib.clock.unix",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "clock.Unix: native capability boundary.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/clock.Unix",
+    "type_parameters": [],
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "seconds",
+        "type": "int64"
+      }
+    ]
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "UTC Unix seconds since 1970.",
+    "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
+    "bounds": "See operation-specific limits in the package source and sdk/docs/capabilities.md; limits are checked before allocation.",
+    "conversions": "Not applicable.",
+    "overflow": "Not applicable.",
+    "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
+    "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
+    "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
+    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
+    "observations": "Host wall clock, independent of virtual scheduler clock; may move backward. Use for JWT timestamps, never lib/time virtual time."
+  },
+  "notes": "Native acceptance tests in lib/clock. Future host crypto/HTTP operations may suspend; completion must resume through the scheduler. ",
+  "cases": [],
+  "native_tests": [
+    "lib/clock/clock_test.go"
+  ]
+}

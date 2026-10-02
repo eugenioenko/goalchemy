@@ -3,6 +3,8 @@ package driver
 import (
 	"fmt"
 	"go/token"
+	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -42,6 +44,43 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 	rtFiles, err := link.CopyRuntime(res.Catalog, "go", files, out, "rt", true)
 	if err != nil {
 		return emitErr("GCE005", err.Error())
+	}
+	// Bundle stdlib-only native capabilities in the generated module.
+	bundled := map[string]bool{}
+	for _, ref := range refs {
+		parts := strings.Split(ref.ID, ".")
+		if len(parts) != 3 || parts[0] != "lib" || (parts[1] != "crypto" && parts[1] != "encoding" && parts[1] != "clock") {
+			continue
+		}
+		pkg := parts[1]
+		if bundled[pkg] {
+			continue
+		}
+		bundled[pkg] = true
+		src, err := fs.ReadFile(res.Catalog.FS, "lib/"+pkg+"/"+pkg+".go")
+		if err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		dest := "cap/" + pkg + "/" + pkg + ".go"
+		if err = link.WriteFile(out, dest, src); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		rtFiles = append(rtFiles, dest)
+	}
+	for _, file := range rtFiles {
+		if !strings.HasPrefix(file, "rt/") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(out, file))
+		if err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		for pkg := range bundled {
+			src = []byte(strings.ReplaceAll(string(src), "github.com/eugenioenko/goalchemy/lib/"+pkg, "goalchemyout/cap/"+pkg))
+		}
+		if err = link.WriteFile(out, file, src); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
 	}
 	if err := link.WriteFile(out, "main.go", o.Source); err != nil {
 		return emitErr("GCE005", err.Error())

@@ -59,7 +59,9 @@ func TestMalformedContracts(t *testing.T) {
 	cases := map[string]struct {
 		file, body, want string
 	}{
-		"unknown field": {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\nextra: 1\ncases: []\n", "GCC003"},
+		"empty cases without native tests": {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\ncases: []\n", "GCC003"},
+		"missing native test file":         {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\ncases: []\nnative_tests: [lib/nonexistent_test.go]\n", "native test file lib/nonexistent_test.go is missing"},
+		"unknown field":                    {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\nextra: 1\ncases: []\n", "GCC003"},
 		"bad dep version": {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 9.0.0}]\n" +
 			`cases: [{name: c, types: {T: int}, let: [{name: a, type: T, value: "1"}, {name: b, type: T, value: "2"}], call: [a, b], expect: {results: ["3"]}}]` + "\n", "dependency type.integer requires version 9.0.0"},
 		"out of range value": {"specs/runtime/core/integer_add.yaml", addHeader + "depends_on: [{id: type.integer, version: 1.0.0}]\n" +

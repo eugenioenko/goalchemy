@@ -1,0 +1,92 @@
+{
+  "id": "lib.crypto.ecdh",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "crypto.ECDH: native capability boundary.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.ECDH",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "private_key",
+        "type": "*crypto.Key"
+      },
+      {
+        "name": "public_key",
+        "type": "*crypto.Key"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "secret",
+        "type": "[]byte"
+      },
+      {
+        "name": "err",
+        "type": "error"
+      }
+    ]
+  },
+  "depends_on": [
+    {
+      "id": "core.task.spawn",
+      "version": "1.0.0"
+    }
+  ],
+  "suspension": "may",
+  "determinism": "deterministic",
+  "behavior": {
+    "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
+    "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
+    "bounds": "Input bytes <=64MiB. AES key=32, nonce=12, tag=16; plaintext/AAD<=64MiB, ciphertext<=64MiB+16. RSA-2048 OAEP plaintext<=214 and ciphertext=256 bytes. ES256 signature=64 bytes. HKDF output 0..8160. PEM<=64KiB.",
+    "conversions": "Not applicable.",
+    "overflow": "Not applicable.",
+    "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
+    "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
+    "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
+    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
+    "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
+  },
+  "notes": "Native acceptance tests in lib/crypto. Future host crypto/HTTP operations may suspend; completion must resume through the scheduler. RS256 is RSA PKCS1v1.5 SHA256; ES256 is P256 SHA256 raw 32-byte R||32-byte S; OAEP is SHA1+MGF1SHA1+empty label; ECDH returns pre-KDF x coordinate; PublicJWK fields are [kty,crv,n,e,x,y].",
+  "cases": [
+    {
+      "name": "boundary_example",
+      "types": {},
+      "let": [
+        {
+          "name": "private_key",
+          "type": "*crypto.Key",
+          "value": {
+            "nil": true
+          }
+        },
+        {
+          "name": "public_key",
+          "type": "*crypto.Key",
+          "value": {
+            "nil": true
+          }
+        }
+      ],
+      "call": [
+        "private_key",
+        "public_key"
+      ],
+      "expect": {
+        "results": [
+          {
+            "nil": true
+          },
+          {
+            "error": "crypto: invalid input or key"
+          }
+        ]
+      }
+    }
+  ],
+  "native_tests": [
+    "lib/crypto/crypto_test.go"
+  ]
+}

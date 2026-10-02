@@ -290,6 +290,13 @@ func (cat *Catalog) validateFunction(f *Function, opts LoadOptions) []diagnostic
 			}
 		}
 	}
+	for _, test := range f.NativeTests {
+		if !fs.ValidPath(test) {
+			add("GCC006", "invalid native test path %s", test)
+		} else if _, err := fs.Stat(cat.FS, test); err != nil {
+			add("GCC006", "native test file %s is missing", test)
+		}
+	}
 	names := map[string]bool{}
 	for _, c := range f.Cases {
 		if names[c.Name] {
