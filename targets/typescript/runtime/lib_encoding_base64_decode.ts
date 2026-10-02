@@ -1,0 +1,3 @@
+import { bytes,byteSlice,b64,unb64,errorBox,DeclaredFailure } from '../types/native.ts';
+import type { Slice } from '../types/slice.ts';
+export function libEncodingBase64Decode(data:string):[any,any]{try{return [byteSlice(unb64(data,false)),null];}catch(e){if(!(e instanceof DeclaredFailure))throw e;return [byteSlice(null),errorBox('encoding: invalid input or size')];}}

@@ -1299,6 +1299,9 @@ func (fe *fnEmitter) bindCall(c *ir.Call) (params, args []string, call string) {
 	case ir.CallExtern:
 		fe.e.use(c.Extern.Contract)
 		call = fe.e.externSym(c.Extern.Contract) + "(" + strings.Join(callArgs, ", ") + ")"
+		if c.Suspends {
+			call = "rt.NativeFrame(func(t *rt.Task) { " + fe.e.externSym(c.Extern.Contract) + "(" + strings.Join(append([]string{"t"}, callArgs...), ", ") + ") })"
+		}
 	}
 	return params, args, call
 }

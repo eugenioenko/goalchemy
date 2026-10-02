@@ -14,7 +14,7 @@ function respond(r: unknown): void {
   writeSync(1, JSON.stringify(r) + "\n");
 }
 
-function serve(req: any): unknown {
+async function serve(req: any): Promise<unknown> {
   const base = { v: PROTOCOL, id: req.id };
   if (req.v !== PROTOCOL) return { ...base, status: "harness_failure", error: "unsupported protocol version" };
   const fn = cases[req.case];
@@ -23,7 +23,7 @@ function serve(req: any): unknown {
   const h = { let: (n: string) => req.let[n], after: (n: string, v: unknown) => { after[n] = v; } };
   try {
     resetScheduler();
-    const results = fn(h);
+    const results = await fn(h);
     return { ...base, status: "returned", results, after };
   } catch (e) {
     if (e instanceof Blocked) return { ...base, status: "blocked" };
@@ -35,13 +35,11 @@ function serve(req: any): unknown {
 }
 
 const rl = createInterface({ input: process.stdin });
+let serving=Promise.resolve();
 rl.on("line", (line) => {
-  let req: any;
-  try {
-    req = JSON.parse(line);
-  } catch (e) {
-    respond({ v: PROTOCOL, status: "harness_failure", error: String(e) });
-    return;
-  }
-  respond(serve(req));
+  serving=serving.then(async()=>{
+    let req:any;
+    try{req=JSON.parse(line);}catch(e){respond({v:PROTOCOL,status:"harness_failure",error:String(e)});return;}
+    respond(await serve(req));
+  });
 });

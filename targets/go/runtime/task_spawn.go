@@ -680,6 +680,9 @@ func (h *harnessFrame) Step(t *Task) {
 	Ret(t, h)
 }
 
+// NativeFrame adapts a Task-style native primitive for source defer/go calls.
+func NativeFrame(fn func(t *Task)) Frame { return &harnessFrame{fn: fn} }
+
 // Await runs fn in a fresh isolated scheduler and returns the results the
 // primitive delivered. It reports blocked when no task can run, and
 // panics with the source panic value when the case panics.

@@ -140,3 +140,14 @@ export function encMap<K, V>(m: GoMap<K, V> | null, ek: (k: K) => unknown, ev: (
   while (mapNext(it)) items.push({ key: ek(it.k as K), value: ev(it.v as V) });
   return { map: items };
 }
+
+// Opaque conformance wire only admits nil keys; real ownership has native tests.
+export function decKey(raw:any):null{if(raw.nil!==true)throw new Error("opaque key cannot be fabricated");return null;}
+export function encKey(value:unknown):unknown{if(value!==null)throw new Error("native key is not a conformance scalar");return {nil:true};}
+class NativeHostFrame extends rt.Frame {
+ fn:(t:rt.Task)=>void;res:unknown[]=[];
+ constructor(fn:(t:rt.Task)=>void){super();this.fn=fn;}
+ step(t:rt.Task):void{if(this.pc===0){this.pc=1;this.fn(t);return;}this.res=t.rv;rt.ret(t,this);}
+ results():unknown[]{return this.res;}
+}
+export function harnessHost(fn:(t:rt.Task)=>void):Promise<unknown[]>{return rt.driveLibrary(()=>new NativeHostFrame(fn),rv=>rv);}

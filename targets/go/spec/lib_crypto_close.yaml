@@ -2,12 +2,12 @@
 target: go
 function: lib.crypto.close
 contract_version: 1.0.0
-contract_hash: add3e13a39737b25bec6d9af0758de333f60016797af3400c011b0cff8ce2b90
+contract_hash: eb7f49a5b0b9c1a98c83dbabc2ee7a4d0e6a25377d68fe3229466abe0006ed30
 symbol: "rt.LibCryptoClose"
 implementation: runtime/lib_crypto_close.go
-implementation_hash: fc5a8bde03ae08ede038fcdb8bd3f654aa51b093575bfa1db417b4beb6a89afa
+implementation_hash: 8de1e9fc3893c67d18d731d4d8523dfec82002c97f07a695d5e444338ccc98ea
 summary: "crypto.Close: native capability boundary."
-suspension: never
+suspension: may
 determinism: deterministic
 signature:
   type_parameters: []

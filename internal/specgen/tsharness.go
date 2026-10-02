@@ -50,6 +50,9 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 	case "chan":
 		return fmt.Sprintf("decChan(%s, (r: any) => %s, () => %s)", raw, tsDecode(t.Elem, "r"), tsZero(t.Elem))
 	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "decKey(" + raw + ")"
+		}
 		return "new rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
 		return fmt.Sprintf("decSlice(%s, (r: any) => %s, %t)", raw, tsDecode(t.Elem, "r"), tsKind(t.Elem) == "u8")
@@ -79,6 +82,10 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 
 func tsEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "encKey(" + v + ")"
+		}
 	case "chan":
 		return fmt.Sprintf("encChan(%s, (e: any) => %s)", v, tsEncode(t.Elem, "e"))
 	case "slice":
@@ -108,10 +115,14 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// %s\nimport * as rt from \"./runtime_index.ts\";\n", Marker)
-	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, decChan, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, encChan, encZero, newSpawnCheck, harnessSelect2, type H } from \"./codec.ts\";\n\n")
-	b.WriteString("export const cases: Record<string, (h: H) => unknown[]> = {\n")
+	b.WriteString("import { decInt, decBool, decString, decSlice, decMap, decError, decChan, view, encInt, encBool, encString, encSlice, encArray, encMap, encError, encChan, encZero, newSpawnCheck, harnessSelect2, decKey, encKey, harnessHost, type H } from \"./codec.ts\";\n\n")
+	b.WriteString("export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {\n")
 	for _, ci := range cases {
-		fmt.Fprintf(&b, "  %q: (h: H) => {\n", ci.ID())
+		async := ""
+		if strings.HasPrefix(ci.impl.Harness, "host:") {
+			async = "async "
+		}
+		fmt.Fprintf(&b, "  %q: %s(h: H) => {\n", ci.ID(), async)
 		for _, l := range ci.lets {
 			name := "v_" + l.name
 			switch l.kind {
@@ -134,7 +145,12 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 			vars[k+".zero"] = tsZero(v)
 		}
 		call := expand(ci.impl.Harness, args, vars)
-		if strings.HasPrefix(call, "await:") {
+		if strings.HasPrefix(call, "host:") {
+			fmt.Fprintf(&b, "    const rv = await harnessHost((t:any)=>{ %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "host:")))
+			for i := range ci.outs {
+				fmt.Fprintf(&b, "    const r%d:any=rv[%d];\n", i, i)
+			}
+		} else if strings.HasPrefix(call, "await:") {
 			fmt.Fprintf(&b, "    const rv = rt.runIsolated((t: any) => { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
 			for i := range ci.outs {
 				fmt.Fprintf(&b, "    const r%d: any = rv[%d];\n", i, i)

@@ -59,6 +59,7 @@ export class FatalPanic extends Error {
 
 /** Adapter faults bypass source panic/recover. */
 export class HostFault extends Fault {}
+export class NativeCanceled extends Error {}
 class HostFatal extends Error {}
 interface Completion { readonly id: number; readonly task: number; readonly rv: readonly unknown[]; readonly fault: HostFault | null; }
 class Mailbox {
@@ -99,6 +100,7 @@ interface HostOperation {
   cancel: () => void;
   cleanup: () => void;
   canceled: () => unknown[] | null;
+  decode: (rv: readonly unknown[]) => unknown[];
 }
 
 export class Scheduler {
@@ -118,6 +120,8 @@ export class Scheduler {
   nextOperation = 0;
   closed = false;
   hostMode = false;
+  libraryMode = false;
+  boundary: (()=>void)|null = null;
   host: RuntimeHost;
   epoch: number;
   constructor(main: Task, host: RuntimeHost = runtimeHost) {
@@ -161,11 +165,11 @@ export class Scheduler {
     this.timers.push(timer);
     return () => { this.timers = this.timers.filter(t => t !== timer); };
   }
-  registerHost(t: Task, cancel: () => void, cleanup: () => void = () => {}, canceled: () => unknown[] | null = () => null): HostToken {
+  registerHost(t: Task, cancel: () => void, cleanup: () => void = () => {}, canceled: () => unknown[] | null = () => null, decode: (rv: readonly unknown[]) => unknown[] = rv => [...rv]): HostToken {
     if (this.closed || !this.hostMode) throw new HostFault("host registration requires a live host driver");
     const id = ++this.nextOperation;
     this.mail.live.set(id, t.id);
-    this.operations.set(id, {task: t, cancel, cleanup, canceled});
+    this.operations.set(id, {task: t, cancel, cleanup, canceled, decode});
     this.tasks.add(t);
     this.block(t);
     return new HostToken(this.mail, id, t.id);
@@ -192,9 +196,10 @@ export class Scheduler {
       this.operations.delete(c.id);
       this.mail.live.delete(c.id);
       this.mail.cleaned.delete(c.id);
-      op.cleanup();
-      if (c.fault !== null) throw c.fault;
-      op.task.rv = op.canceled() ?? [...c.rv];
+      try {
+        if (c.fault !== null) throw c.fault;
+        op.task.rv = op.canceled() ?? op.decode(c.rv);
+      } finally { op.cleanup(); }
       this.ready(op.task);
     }
   }
@@ -208,6 +213,7 @@ export class Scheduler {
   }
   async nextHost(): Promise<Task> {
     for (;;) {
+      this.boundary?.();
       this.fireDue(this.now());
       this.drainHost();
       if (this.runq.length) return this.runq.shift()!;
@@ -331,7 +337,7 @@ export class Scheduler {
     t.frame = parent;
     if (parent === null) {
       t.done = true;
-      t.rv = []; t.curPanic = null; t.deferTarget = undefined;
+      t.rv = this.libraryMode && t === this.main && p === null ? f.results() : []; t.curPanic = null; t.deferTarget = undefined;
       if (t !== this.main) this.tasks.delete(t);
       if (p !== null) {
         if (this.harness || this.hostMode) throw new FatalPanic(p);
@@ -580,6 +586,9 @@ class AwaitFrame extends Frame {
   }
 }
 
+/** Adapts Task-style native pauses for deferred calls and go statements. */
+export function nativeFrame(fn:(t:Task)=>void):Frame{return new AwaitFrame(fn);}
+
 /** Runs one pause primitive in an isolated scheduler for a harness case;
  * throws Blocked when no task can run, and the source panic on panic. */
 export function runIsolated(fn: (t: Task) => void): unknown[] {
@@ -599,4 +608,40 @@ export function runIsolated(fn: (t: Task) => void): unknown[] {
 /** Installs an isolated scheduler for harness cases without pauses. */
 export function resetScheduler(): void {
   install(new Task(0, null as unknown as Frame), true);
+}
+
+/** Library drives return owned results and categorized failures, never executable exit. */
+export async function driveLibrary(entry: () => Frame, capture: (rv: unknown[]) => unknown[],
+  signal?: AbortSignal, onAbort: () => void = () => {}): Promise<unknown[]> {
+  if (activeHost) throw new HostFault("overlapping runtime entry is unsupported");
+  const main = new Task(0, null as unknown as Frame);
+  const s = install(main, false);
+  s.hostMode = true;
+  s.libraryMode = true;
+  activeHost = true;
+  let failure: unknown;
+  let owned: unknown[] = [];
+  let aborted = signal?.aborted ?? false;
+  s.boundary = () => { if (aborted) onAbort(); };
+  const wake = () => { aborted = true; s.mail.notify(); };
+  signal?.addEventListener("abort", wake, {once: true});
+  try {
+    main.frame = entry();
+    s.ready(main);
+    while (!main.done) {
+      if (aborted) onAbort();
+      const t = await s.nextHost();
+      if (aborted) onAbort();
+      s.run(t);
+      if (!main.done) await new Promise<void>(resolve => s.host.alarm(0, resolve));
+    }
+    owned = capture(main.rv);
+    if (aborted) throw new NativeCanceled();
+  } catch (e) { failure = e; }
+  try { await s.shutdown(); } catch (e) { failure ??= e; }
+  signal?.removeEventListener("abort", wake);
+  activeHost = false;
+  resetPanicBinding();
+  if (failure !== undefined) throw failure;
+  return owned;
 }

@@ -23,6 +23,7 @@ import (
  "github.com/eugenioenko/goalchemy/lib/callback"
  "github.com/eugenioenko/goalchemy/lib/http"
  "github.com/eugenioenko/goalchemy/lib/crypto"
+ "github.com/eugenioenko/goalchemy/lib/time"
 )
 type Value struct { Data []byte; Nested [][]byte; Count int64; Empty []byte }
 var count int64 = 5
@@ -36,6 +37,8 @@ func Echo(ctx context.Context, value Value)(Value,error){count++;value.Count=cou
 func Provider(ctx context.Context,name string,request []byte)([]byte,error){return callback.Request(ctx,name,request)}
 func Fetch(ctx context.Context,url string)([]byte,error){_,_,b,e:=http.Do(ctx,"GET",url,nil,nil,1024,2000);return b,e}
 func SourcePanic(ctx context.Context)([]byte,error){panic("secret source panic")}
+func GoClose(ctx context.Context)([]byte,error){key,e:=crypto.GenerateP256();if e!=nil{return nil,e};go key.Close();time.Sleep(time.Millisecond);_,e=key.PublicPEM();if e==nil{return nil,&Failure{Code:"go close failed"}};return []byte{8},nil}
+func KeySuccess(ctx context.Context)([]byte,error){key,e:=crypto.GenerateP256();if e!=nil{return nil,e};defer key.Close();return []byte{7},nil}
 func KeyProvider(ctx context.Context,name string)([]byte,error){key,e:=crypto.GenerateP256();if e!=nil{return nil,e};defer key.Close();return callback.Request(ctx,name,nil)}
 `
 	for name, data := range map[string]string{"go.mod": mod, "library.go": fixture} {
@@ -66,6 +69,7 @@ import (
  "time"
  g "goalchemyout"
 )
+func TestNativeDeferredAndGoClose(t *testing.T){a,e:=g.KeySuccess(context.Background());if e!=nil||!bytes.Equal(a,[]byte{7}){t.Fatal("native deferred Close",e)};b,e:=g.GoClose(context.Background());if e!=nil||!bytes.Equal(b,[]byte{8}){t.Fatal("native go Close",e)}}
 func TestValueAndInit(t *testing.T){
  input:=g.Value{Data:[]byte{0,255},Nested:[][]byte{[]byte{9}},Empty:[]byte{}}
  first,e:=g.Echo(context.Background(),input);if e!=nil || first.Count!=6 || first.Data[0]!=1 || input.Data[0]!=0 || first.Empty==nil {t.Fatal("snapshot/init",e)}
@@ -150,7 +154,7 @@ func TestGoLibraryRejectsUnsupportedPublicBoundary(t *testing.T) {
 	if len(ds) != 1 || ds[0].Code != "GCE007" {
 		t.Fatal(ds)
 	}
-	for _, target := range []string{"typescript", "python", "java", "csharp", "rust"} {
+	for _, target := range []string{"python", "java", "csharp", "rust"} {
 		ds := testutil.CompileGate(fixture, target, t.TempDir(), "cooperative")
 		if len(ds) != 1 || ds[0].Code != "GCE006" {
 			t.Fatalf("%s: %v", target, ds)

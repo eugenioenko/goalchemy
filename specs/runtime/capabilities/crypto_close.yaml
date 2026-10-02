@@ -16,22 +16,22 @@
     "outputs": []
   },
   "depends_on": [],
-  "suspension": "never",
+  "suspension": "may",
   "determinism": "deterministic",
   "behavior": {
-    "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
+    "zero": "A zero *crypto.Key is nil. Close accepts nil as a no-op and is idempotent.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
     "bounds": "Input bytes <=64MiB. AES key=32, nonce=12, tag=16; plaintext/AAD<=64MiB, ciphertext<=64MiB+16. RSA-2048 OAEP plaintext<=214 and ciphertext=256 bytes. ES256 signature=64 bytes. HKDF output 0..8160. PEM<=64KiB.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
-    "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
+    "aliasing": "Keys are aliased opaque handles. Close invalidates aliases and prevents new acquisitions immediately, waits for all previously acquired snapshots and native cleanup to finish, then releases native state before returning or resuming.",
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
-    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "errors": "Close has no declared error return. Unexpected native adapter or cleanup faults remain host faults and do not fabricate resource settlement.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
-    "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
+    "observations": "Native Go Close waits under its key lock. Cooperative generated adapters may park Close while maintained native asynchronous operations settle; cancellation cannot invent crypto abortability or resource cleanup acknowledgment."
   },
-  "notes": "Native acceptance tests in lib/crypto. Future host crypto/HTTP operations may suspend; completion must resume through the scheduler. RS256 is RSA PKCS1v1.5 SHA256; ES256 is P256 SHA256 raw 32-byte R||32-byte S; OAEP is SHA1+MGF1SHA1+empty label; ECDH returns pre-KDF x coordinate; PublicJWK fields are [kty,crv,n,e,x,y].",
+  "notes": "Close accepts nil and is idempotent. Native Go semantics remain unchanged. Generated Go and portable TypeScript expose the same wait-for-acquired-snapshots behavior through the declared may-suspend effect; native output keys transfer exactly once into their scheduler owner, and runtime retirement closes every owned key after true operation cleanup.",
   "cases": [
     {
       "name": "boundary_example",

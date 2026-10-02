@@ -1,0 +1,26 @@
+import * as c from '../types/crypto.ts';
+import { b64,unb64,DeclaredFailure } from '../types/native.ts';
+export function assert(ok:unknown,message:string):asserts ok{if(!ok)throw new Error(message);}
+export function hex(s:string):Uint8Array<ArrayBuffer>{return Uint8Array.from(s.match(/../g)??[],x=>parseInt(x,16));}
+export function hx(b:Uint8Array):string{return [...b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+export async function rejects(work:()=>unknown|Promise<unknown>):Promise<void>{let caught=false;try{await work();}catch{caught=true;}assert(caught,'expected rejection');}
+export async function runCryptoSuite(certificates:{pem:string;signature:number[]}[]=[]):Promise<string[]>{
+ const abc=new TextEncoder().encode('abc');assert(hx(await c.digest(abc))==='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad','SHA256');
+ const h=await c.hmac(new Uint8Array(20).fill(11),new TextEncoder().encode('Hi There'));assert(hx(h)==='b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7','RFC4231 HMAC');assert(await c.hmacVerify(new Uint8Array(20).fill(11),new TextEncoder().encode('Hi There'),h),'native HMAC verify');h[0]^=1;assert(!await c.hmacVerify(new Uint8Array(20).fill(11),new TextEncoder().encode('Hi There'),h),'HMAC mismatch');
+ assert(hx(await c.hmac(new Uint8Array(),abc))==='fd7adb152c05ef80dccf50a1fa4c05d5a3ec6da95575fc312ae7c5d091836351','empty HMAC key');
+ const hk=await c.hkdf(new Uint8Array(22).fill(11),hex('000102030405060708090a0b0c'),hex('f0f1f2f3f4f5f6f7f8f9'),42n);assert(hx(hk)==='3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865','RFC5869');assert((await c.hkdf(new Uint8Array(),new Uint8Array(),new Uint8Array(),0n)).length===0,'HKDF zero');await rejects(()=>c.hkdf(abc,abc,abc,8161n));
+ const aes=await c.aes(false,new Uint8Array(32),new Uint8Array(12),new Uint8Array(16),new Uint8Array());assert(hx(aes)==='cea7403d4d606b6e074ec5d3baf39d18d0d1c8a799996bf0265b98b5d48ab919','NIST AES256GCM');assert(hx(await c.aes(true,new Uint8Array(32),new Uint8Array(12),aes,new Uint8Array()))==='00'.repeat(16),'AES decrypt');aes[0]^=1;await rejects(()=>c.aes(true,new Uint8Array(32),new Uint8Array(12),aes,new Uint8Array()));await rejects(()=>c.aes(false,new Uint8Array(31),new Uint8Array(12),abc,abc));
+ for(const url of [false,true]){const bytes=Uint8Array.from([0,255,128,7]);assert(hx(unb64(b64(bytes,url),url))===hx(bytes),'base64 bytes');}for(const s of ['Zg','Zh==','Zg==\n','====','A==='])await rejects(()=>unb64(s));for(const s of ['Zh','Zg=','a+/','a\n'])await rejects(()=>unb64(s,true));
+ assert(c.random(0n).length===0,'random zero');assert(c.random(65537n).length===65537,'random chunking');await rejects(()=>c.random(-1n));await rejects(()=>c.random(67108865n));
+ for(const fixture of certificates){const key=await c.importPEM(fixture.pem),lease=key.acquire();try{assert(await c.verify(key.family==='EC',lease,Uint8Array.from([0,255,128,7]),Uint8Array.from(fixture.signature)),'independent certificate SPKI verification');await rejects(()=>c.privatePEM(lease));}finally{lease.release();await key.close();}}
+ const retained:c.NativeKey[]=[];
+ try{
+ for(const family of ['RSA','EC'] as const){const key=await c.generate(family);retained.push(key);const lease=key.acquire();const publicPem=await c.publicPEM(lease),privatePem=await c.privatePEM(lease);const pub=await c.importPEM(publicPem),priv=await c.importPEM(privatePem);retained.push(pub,priv);const pl=pub.acquire(),sl=priv.acquire();const signature=await c.sign(family==='EC',sl,abc);assert(signature.length===(family==='EC'?64:256),'JOSE signature size');assert(await c.verify(family==='EC',pl,abc,signature),'native public verification');signature[0]^=1;assert(!await c.verify(family==='EC',pl,abc,signature),'signature mismatch');
+ if(family==='RSA'){const encrypted=await c.rsa(false,pl,abc);assert(hx(await c.rsa(true,sl,encrypted))===hx(abc),'OAEP SHA1');await rejects(()=>c.rsa(false,pl,new Uint8Array(215)));}
+ else{const other=await c.generate('EC');retained.push(other);const ol=other.acquire();const a=await c.ecdh(sl,ol),b=await c.ecdh(ol,pl);assert(a.length===32&&hx(a)===hx(b),'ECDH32');ol.release();}
+ const alias=key;let completed=false;const closing=key.close().then(()=>completed=true);await Promise.resolve();assert(!completed&&key.state().retained&&key.state().leases===1,'Close waits actual acquired lease');await rejects(()=>alias.acquire());assert((await c.sign(family==='EC',lease,abc)).length>0,'acquired snapshot remains valid');lease.release();await closing;assert(completed&&!key.state().retained,'Close releases native state');sl.release();pl.release();
+ }
+ }finally{await Promise.all(retained.map(k=>k.close()));}
+ await rejects(()=>c.importPEM('bad'));const p=await c.generate('EC');const l=p.acquire(),privatePem=await c.privatePEM(l);l.release();await p.close();await rejects(()=>c.importPEM(privatePem+privatePem));
+ return ['known SHA/HMAC/HKDF/AES vectors and strict encoding/limits','WebCrypto RSA OAEP/sign and P256 ECDSA/ECDH imports','alias Close waits snapshots and releases native state'];
+}
