@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 1feba55797d9256ac36657434dd5d3ce3451b913212f6573a65253b1493eefe1
 symbol: "R.fromBytes"
 implementation: runtime/StringFromBytes.cs
-implementation_hash: f08e5a3fc839cd7dd32338199ef967180c397e94218002d0bd75412bb6622437
+implementation_hash: c383d3b6c6818bbb06ed9d929ff7ca23d16a5d77d25d45a8f7d392ca574c90d6
 summary: "string(b) for a byte slice."
 suspension: never
 determinism: deterministic

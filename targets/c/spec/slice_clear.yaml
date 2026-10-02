@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a95daf0a4a6fcb0d0f34f763299660a2ed4ec522be729901291d0e267abbf566
 symbol: "gx_clear_slice"
 implementation: runtime/slice_clear.c
-implementation_hash: a8fdf4680ec555ca42ae89f7517b951e2ca6e44f1171abd43b7c155ce686c825
+implementation_hash: 11401821db836a80d8afb137b5cef7beeef6943e2b60f80246c59eb9f5a0b19a
 summary: "clear(s): set every element of s[0:len(s)] to its zero value."
 suspension: never
 determinism: deterministic

@@ -1,11 +1,12 @@
 """core.chan.recv: v, ok := <-ch, a pause primitive; results arrive in
 t.rv as [value, ok]."""
 
-from .chan_make import Waiter, try_recv
+from .chan_make import attach_waiter, Waiter, try_recv
 from .task_spawn import sched
 
 
 def chan_recv(t, ch):
+    sched().check()
     if ch is None:
         sched().block(t)
         return
@@ -13,5 +14,5 @@ def chan_recv(t, ch):
     if done:
         t.rv = [v, ok]
         return
-    ch.recvq.append(Waiter(t, None))
+    attach_waiter(t, ch.recvq, Waiter(t, None))
     sched().block(t)

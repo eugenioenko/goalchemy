@@ -75,7 +75,7 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		if !p.Entry.MaySuspend {
 			start = "TaskSpawn.sync(() -> { " + p.Entry.Sym + "(); return new Object[0]; })"
 		}
-		fmt.Fprintf(&out, "    public static void main(String[] args) {\n        TaskSpawn.runMain(%s);\n    }\n}\n", start)
+		fmt.Fprintf(&out, "    public static void runHost() {\n        TaskSpawn.runMainHost(() -> %s);\n    }\n\n    public static void main(String[] args) {\n        TaskSpawn.runMain(%s);\n    }\n}\n", start, start)
 	} else {
 		fmt.Fprintf(&out, "    public static void main(String[] args) {\n        Program.main(() -> {\n            %s();\n", p.Init.Sym)
 		if p.Main != nil {
@@ -177,6 +177,23 @@ var opaque = map[string][2]string{
 
 func intKind(t *ir.Type) string { return t.U().Int.String() }
 
+func byteElem(t *ir.Type) bool {
+	u := t.U()
+	return u.Kind == ir.KInt && u.Int == ir.U8
+}
+
+func byteContainer(t *ir.Type) bool {
+	u := t.U()
+	return (u.Kind == ir.KSlice || u.Kind == ir.KArray) && byteElem(u.Elem)
+}
+
+func sliceNil(t *ir.Type) string {
+	if byteContainer(t) {
+		return "Slice.BYTE_NIL"
+	}
+	return "Slice.NIL"
+}
+
 func unsigned64(t *ir.Type) bool {
 	u := t.U()
 	return u.Kind == ir.KInt && u.Int == ir.U64
@@ -202,6 +219,9 @@ func (e *emitter) jt(t *ir.Type) string {
 	case ir.KStruct:
 		return e.class(u)
 	case ir.KArray:
+		if byteContainer(u) {
+			return "byte[]"
+		}
 		return "Object[]"
 	case ir.KSlice:
 		return "Slice"
@@ -327,6 +347,15 @@ func (e *emitter) structClass(t *ir.Type) {
 }
 
 func (e *emitter) arrayHelpers(t *ir.Type) {
+	if byteContainer(t) {
+		id := t.ID
+		fmt.Fprintf(&e.helperOut, "    static byte[] zero_%d() { return new byte[%d]; }\n", id, t.Len)
+		fmt.Fprintf(&e.helperOut, "    static byte[] clone_%d(byte[] s) { return s.clone(); }\n", id)
+		fmt.Fprintf(&e.helperOut, "    static void set_%d(byte[] d, byte[] s) { System.arraycopy(s, 0, d, 0, %d); }\n", id, t.Len)
+		fmt.Fprintf(&e.helperOut, "    static boolean eq_%d(byte[] x, byte[] y) { return java.util.Arrays.equals(x, y); }\n", id)
+		fmt.Fprintf(&e.helperOut, "    static Object key_%d(byte[] x) { return new String(x, java.nio.charset.StandardCharsets.ISO_8859_1); }\n\n", id)
+		return
+	}
 	id := t.ID
 	el := t.Elem
 	var b strings.Builder
@@ -352,7 +381,7 @@ func (e *emitter) zero(t *ir.Type) string {
 	case ir.KString:
 		return `""`
 	case ir.KSlice:
-		return "Slice.NIL"
+		return sliceNil(t)
 	case ir.KStruct:
 		return "new " + e.class(u) + "()"
 	case ir.KArray:
@@ -591,7 +620,7 @@ func (fe *fnEmitter) val(v ir.Value) string {
 func (e *emitter) constant(c *ir.Const) string {
 	if c.Nil {
 		if c.Type.U().Kind == ir.KSlice {
-			return "Slice.NIL"
+			return sliceNil(c.Type)
 		}
 		return "null"
 	}
@@ -676,10 +705,13 @@ func (fe *fnEmitter) rootExpr(p *ir.Place) (string, bool) {
 		return "Panics.nilchk(" + fe.val(r.Ptr) + ").get()", true
 	case ir.SliceRoot:
 		fn := "sget"
-		if unsigned64(r.Index.IRType()) {
-			fn = "sgetu"
+		if byteElem(rootType(p)) {
+			fn = "bget"
 		}
-		return fe.e.rc("core.slice.index") + "." + fn + "(" + fe.val(r.Slice) + ", " + fe.val(r.Index) + ")", true
+		if unsigned64(r.Index.IRType()) {
+			fn += "u"
+		}
+		return fe.e.rc("core.slice.index") + "." + fn + "(" + fe.val(r.Slice) + ", " + fe.val(r.Index) + ")", !byteElem(rootType(p))
 	case ir.ValueRoot:
 		return fe.val(r.Value), false
 	}
@@ -703,7 +735,10 @@ func (fe *fnEmitter) walk(p *ir.Place, drop int) (string, *ir.Type, bool) {
 		s = fe.typed(s, obj, cur)
 		if pr.Index != nil {
 			s = s + "[" + fe.idx(pr.Index, strconv.FormatInt(cur.U().Len, 10)) + "]"
-			obj = true
+			obj = !byteContainer(cur)
+			if !obj {
+				s = "(" + s + " & 255L)"
+			}
 		} else {
 			s = s + "." + fieldProp(cur, pr.Field)
 			obj = false
@@ -726,8 +761,11 @@ func (fe *fnEmitter) store(p *ir.Place, v string) string {
 		case ir.SliceRoot:
 			if !t.IsAggregate() {
 				fn := "sset"
+				if byteElem(t) {
+					fn = "bset"
+				}
 				if unsigned64(r.Index.IRType()) {
-					fn = "ssetu"
+					fn += "u"
 				}
 				return fmt.Sprintf("%s.%s(%s, %s, %s)", e.rc("core.slice.store"), fn, fe.val(r.Slice), fe.val(r.Index), v)
 			}
@@ -759,6 +797,9 @@ func (fe *fnEmitter) store(p *ir.Place, v string) string {
 	base = fe.typed(base, obj, bt)
 	last := p.Path[len(p.Path)-1]
 	if last.Index != nil {
+		if byteContainer(bt) {
+			v = "(byte) (" + v + ")"
+		}
 		return fmt.Sprintf("%s[%s] = %s", base, fe.idx(last.Index, strconv.FormatInt(bt.U().Len, 10)), v)
 	}
 	return base + "." + fieldProp(bt, last.Field) + " = " + v
@@ -886,7 +927,7 @@ func (e *emitter) defaultOf(l *ir.Local) string {
 	case "String":
 		return `""`
 	case "Slice":
-		return "Slice.NIL"
+		return sliceNil(l.Type)
 	}
 	return "null"
 }
@@ -1281,7 +1322,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 	case *ir.Cap:
 		fe.w("%s;\n", fe.assign(i.Dst, fe.lenExpr(i.X, true)))
 	case *ir.MakeSlice:
-		fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.makeSlice(%s, %s, () -> %s)", e.rc("core.slice.make"), fe.val(i.Len), fe.val(i.Cap), e.zero(i.Dst.Type.U().Elem))))
+		fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.makeSlice(%s, %s, () -> %s, %v)", e.rc("core.slice.make"), fe.val(i.Len), fe.val(i.Cap), e.zero(i.Dst.Type.U().Elem), byteContainer(i.Dst.Type))))
 	case *ir.MakeMap:
 		fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.makeMap(%s)", e.rc("core.map.make"), e.keyFn(i.Dst.Type.U().Key))))
 	case *ir.Append:
@@ -1296,9 +1337,17 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		default:
 			var es []string
 			for _, x := range i.Elems {
-				es = append(es, fe.val(x))
+				v := fe.val(x)
+				if byteContainer(i.Dst.Type) {
+					v = "(byte) (" + v + ")"
+				}
+				es = append(es, v)
 			}
-			v = fmt.Sprintf("%s.append(%s, new Object[] {%s}, %s)", cls, fe.val(i.S), strings.Join(es, ", "), cl)
+			if byteContainer(i.Dst.Type) {
+				v = fmt.Sprintf("%s.appendBytes(%s, new byte[] {%s})", cls, fe.val(i.S), strings.Join(es, ", "))
+			} else {
+				v = fmt.Sprintf("%s.append(%s, new Object[] {%s}, %s)", cls, fe.val(i.S), strings.Join(es, ", "), cl)
+			}
 		}
 		fe.w("%s;\n", fe.assign(i.Dst, v))
 	case *ir.Copy:
@@ -1599,6 +1648,9 @@ func (fe *fnEmitter) convert(i *ir.Convert) string {
 		return fmt.Sprintf("%s.fromRunes(%s)", e.rc("core.string.from_runes"), x)
 	case ir.ConvSliceToArray:
 		at := i.Dst.Type.U()
+		if byteContainer(at) {
+			return fmt.Sprintf("%s.sliceToByteArray(%s, %d)", e.rc("core.slice.to_array"), x, at.Len)
+		}
 		return fmt.Sprintf("%s.sliceToArray(%s, %d, %s)", e.rc("core.slice.to_array"), x, at.Len, e.cloneFn(at.Elem))
 	}
 	panic(fmt.Sprintf("java: conversion %d", i.Kind))

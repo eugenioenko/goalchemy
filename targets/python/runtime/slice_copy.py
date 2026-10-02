@@ -5,6 +5,9 @@ def copy(dst, src, clone=None):
     n = min(dst.l, src.l)
     if n == 0:
         return 0
+    if dst.b:
+        memoryview(dst.a)[dst.o:dst.o + n] = src.a[src.o:src.o + n]
+        return n
     tmp = src.a[src.o:src.o + n]
     for i in range(n):
         dst.a[dst.o + i] = clone(tmp[i]) if clone else tmp[i]
@@ -13,6 +16,11 @@ def copy(dst, src, clone=None):
 
 def copy_string(dst, s):
     n = min(dst.l, len(s))
+    if n == 0:
+        return 0
+    if dst.b:
+        memoryview(dst.a)[dst.o:dst.o + n] = s[:n]
+        return n
     for i in range(n):
         dst.a[dst.o + i] = s[i]
     return n

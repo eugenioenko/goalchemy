@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 3a76434ad88e80269416a52fef95b3c0f91609f791511a6f488e6aa3a623248a
 symbol: "rt.sliceToArray"
 implementation: runtime/slice_to_array.ts
-implementation_hash: 766a7d64484409addbf55bf6e276364a760481f219b0dfd4eca2b347c04194cc
+implementation_hash: 4151cb567d88f4c86c828e6900ef4ca8ae284864c259a32b01559305235e75c4
 summary: "[N]T(s): copy the first N elements of a slice into a new array value."
 suspension: never
 determinism: deterministic

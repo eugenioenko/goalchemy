@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 18188898e89dfd95e170f4a31ac59533249e6351204a53928c0f53baf2088fb8
 symbol: "Select.select"
 implementation: runtime/Select.java
-implementation_hash: 1c19f4ec498b7b7a5201ca47a135f568e8df0803ce8ca5e13708c8be0e1940ab
+implementation_hash: 1b73ccdee31a40c4fc585f0298fe5341d1fc22079fe9f1d284b37b5dc1ca7c8e
 summary: "select: commit exactly one ready case, chosen uniformly by the scheduler's choice source."
 suspension: may
 determinism: controlled

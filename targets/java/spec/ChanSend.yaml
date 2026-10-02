@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e9fb946048a2549d274a18d49be08e7b402f17988e4746ccc005643b607540a6
 symbol: "ChanSend.chanSend"
 implementation: runtime/ChanSend.java
-implementation_hash: 01a96aa58adc771bd8dbb14b7903011262eef065977b93bcfb59cabcbea2bc0f
+implementation_hash: 988659c828439251b8c22e3767e2dac72b9537f5e265eadfc2bff697bfa53799
 summary: "ch <- v: hand the value to a waiting receiver, buffer it, or wait."
 suspension: may
 determinism: controlled

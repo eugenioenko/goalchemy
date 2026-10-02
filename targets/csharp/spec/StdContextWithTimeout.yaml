@@ -2,13 +2,13 @@
 target: csharp
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "R.stdContextWithTimeout"
 implementation: runtime/StdContextWithTimeout.cs
-implementation_hash: 0decce7b793b938b51a02f253b0f23fb0660f49498b73a41ce8240d786fa0bea
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: 15cb202bc6528aea99fa112d6a888181c0de4958b48d9e6f534e91198be53b98
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

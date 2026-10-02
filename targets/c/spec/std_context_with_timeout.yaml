@@ -2,13 +2,13 @@
 target: c
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "gx_std_context_with_timeout"
 implementation: runtime/std_context_with_timeout.c
-implementation_hash: 30e89b995fe70f7a3f809f3586f1a5e8d3a7caaa10f71f8c1dfba2e5b642f14e
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: 6781d86a2f66a16b0a77b86b0c8748299f27b098439b01ff4dacdcd5afeb78ba
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

@@ -21,6 +21,8 @@ pub enum V {
     Ptr(H, u32),
     /// Slice header: backing object (0 for nil), offset, length, capacity.
     Slice(H, u32, u32, u32),
+    /// Native byte slice header; the variant retains its element hint when nil.
+    ByteSlice(H, u32, u32, u32),
     /// Several results of one call; consumed immediately by the caller.
     Tuple(Rc<[V]>),
     /// A resumable frame returned by a starter.
@@ -28,6 +30,20 @@ pub enum V {
 }
 
 pub const NIL_SLICE: V = V::Slice(0, 0, 0, 0);
+pub const BYTE_NIL: V = V::ByteSlice(0, 0, 0, 0);
+
+/// Shared slice operations preserve the header kind, including typed nil.
+pub fn slice_parts(x: &V) -> (H, u32, u32, u32, bool) {
+    match x {
+        V::Slice(h, o, l, c) => (*h, *o, *l, *c, false),
+        V::ByteSlice(h, o, l, c) => (*h, *o, *l, *c, true),
+        _ => fault("slice expected"),
+    }
+}
+
+pub fn slice_header(h: H, o: u32, l: u32, c: u32, bytes: bool) -> V {
+    if bytes { V::ByteSlice(h, o, l, c) } else { V::Slice(h, o, l, c) }
+}
 
 impl V {
     #[inline]
@@ -104,6 +120,7 @@ pub enum Key {
     H(H),
     Ptr(H, u32),
     List(Rc<[Key]>),
+    Bytes(Rc<[u8]>),
     Iface(u32, Rc<Key>),
 }
 
@@ -139,5 +156,5 @@ pub fn veq(a: &V, b: &V) -> bool {
 
 /// An implementation fault: never a source panic.
 pub fn fault(msg: &str) -> ! {
-    panic!("goalchemy fault: {}", msg)
+    std::panic::resume_unwind(Box::new(format!("goalchemy fault: {}", msg)))
 }

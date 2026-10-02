@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9194a01fb06c385b31dbbb1542b66c91e200d16dc5aba5d4aa6ef613e7c96ab6
 symbol: "gx_std_context_context_done"
 implementation: runtime/std_context_done.c
-implementation_hash: b856adf454d99c1eccc38fdc39e2bdf7bb3f468000a99da8a4f8e20949a3c921
+implementation_hash: f7fa67bac3c9ed0edd1517abf8118fef76cf5441430b4e857c56adb6495391ce
 summary: "Context.Done: the channel closed on cancellation."
 suspension: never
 determinism: deterministic

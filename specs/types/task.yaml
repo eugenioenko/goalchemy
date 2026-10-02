@@ -11,8 +11,13 @@ semantics:
   panics: An unrecovered panic in any task terminates the program instance with exit status 2.
 notes: >-
   Runnable tasks are dispatched FIFO. A running task keeps control until it
-  blocks, yields, returns, or panics. When no task can run and no timer is
-  pending, the instance reports "fatal error: all goroutines are asleep -
-  deadlock!" and exits with status 2. Virtual time advances only when every
-  task is blocked and a timer is pending.
+  blocks, yields, returns, or panics. When no task can run and no timer or
+  host operation is pending, the instance reports "fatal error: all goroutines
+  are asleep - deadlock!" and exits with status 2. The default entry advances
+  virtual time only when every task is blocked and a timer is pending. An
+  explicit host entry uses instance-local monotonic elapsed time and waits
+  for pending operations or the next real timer; it never fast-forwards them.
+  Host callbacks enqueue immutable completions; only the owning scheduler
+  applies task results. Entry return cancels and cleans pending background
+  operations without executing further source tasks.
 exercised_by: [lib.task.all, core.task.spawn, std.sync.mutex.lock, std.sync.mutex.unlock, std.sync.waitgroup.add, std.sync.waitgroup.wait, std.runtime.gosched, std.time.sleep]

@@ -5,6 +5,7 @@ public static partial class R
 {
     public static void stdSyncMutexUnlock(GoMutex m)
     {
+        sched.assertDriver();
         if (!m.locked) fatal("sync: unlock of unlocked mutex");
         if (m.waiters.Count > 0)
         {

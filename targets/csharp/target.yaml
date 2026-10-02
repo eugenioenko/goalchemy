@@ -51,7 +51,7 @@ functions:
   - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "R.fromRunes", implementation: runtime/StringFromRunes.cs, harness: "R.fromRunes({0})"}
   - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "R.toRunes", implementation: runtime/StringToRunes.cs, harness: "R.toRunes({0})"}
   - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "R.fromRune", implementation: runtime/StringFromRune.cs, harness: "R.fromRune({0})"}
-  - {id: core.slice.make, contract_version: 1.0.0, symbol: "R.makeSlice", implementation: runtime/SliceMake.cs, harness: "R.makeSlice({0}, {1}, () => {T.zero})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "R.makeSlice", implementation: runtime/SliceMake.cs, harness: "R.makeSlice({0}, {1}, () => {T.zero}, {T.bytes})"}
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "R.sget", implementation: runtime/SliceIndex.cs, harness: "R.sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "R.sset", implementation: runtime/SliceStore.cs, harness: "R.sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "R.reslice", implementation: runtime/SliceSlice.cs, harness: "R.reslice({0}, {1}, {2}, {3}, false)"}

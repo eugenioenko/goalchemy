@@ -43,22 +43,20 @@ public final class Select {
             return;
         }
         ChanMake.SelectState st = new ChanMake.SelectState();
+        ArrayList<Runnable> releases=new ArrayList<>();
         for (int i = 0; i < cases.length; i++) {
             ChanMake.Chan ch = (ChanMake.Chan) cases[i][0];
             if (ch == null) continue;
             boolean send = (Boolean) cases[i][1];
             ChanMake.Waiter w = new ChanMake.Waiter(t, send ? cases[i][2] : null, st, i);
             (send ? ch.sendq : ch.recvq).add(w);
+            releases.add(()->{ ch.sendq.remove(w); ch.recvq.remove(w); w.clear(); });
         }
         TaskSpawn.sched.block(t);
         t.cleanup = () -> {
-            for (Object[] c : cases) {
-                ChanMake.Chan ch = (ChanMake.Chan) c[0];
-                if (ch != null) {
-                    ch.sendq.removeIf(w -> w.sel == st);
-                    ch.recvq.removeIf(w -> w.sel == st);
-                }
-            }
+            st.done=true;
+            for(Runnable release:releases) release.run();
+            releases.clear();
         };
     }
 }

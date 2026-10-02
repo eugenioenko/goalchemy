@@ -13,6 +13,9 @@ func init() { harnessGenerators["python"] = pyHarness }
 func pyZero(t *contracts.TypeExpr) string {
 	switch t.Kind {
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return "rt.BYTE_NIL"
+		}
 		return "rt.NIL"
 	case "map", "pointer", "chan":
 		return "None"
@@ -35,7 +38,7 @@ func pyDecode(t *contracts.TypeExpr, raw string) string {
 	case "pointer":
 		return "rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
-		return fmt.Sprintf("dec_slice(%s, lambda r: %s, lambda: %s)", raw, pyDecode(t.Elem, "r"), pyZero(t.Elem))
+		return fmt.Sprintf("dec_slice(%s, lambda r: %s, lambda: %s, %s)", raw, pyDecode(t.Elem, "r"), pyZero(t.Elem), pyBoolStorage(t.Elem))
 	case "map":
 		return fmt.Sprintf("dec_map(%s, lambda r: %s, lambda r: %s)", raw, pyDecode(t.Key, "r"), pyDecode(t.Elem, "r"))
 	}
@@ -111,6 +114,7 @@ func pyHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
 			vars[k+".zero"] = pyZero(v)
+			vars[k+".byte"] = pyBoolStorage(v)
 		}
 		call := expand(ci.impl.Harness, args, vars)
 		var rs []string
@@ -151,4 +155,11 @@ func pyHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 	}
 	b.WriteString("}\n")
 	return b.Bytes(), nil
+}
+
+func pyBoolStorage(t *contracts.TypeExpr) string {
+	if tsKind(t) == "u8" {
+		return "True"
+	}
+	return "False"
 }

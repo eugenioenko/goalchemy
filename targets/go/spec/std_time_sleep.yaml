@@ -2,11 +2,11 @@
 target: go
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
+contract_hash: fb986c9aeda4bf814516ae8370fc2c2997e56882ef9d7e0901e3c75b6488d5dd
 symbol: "rt.StdTimeSleep"
 implementation: runtime/std_time_sleep.go
-implementation_hash: e9c6e20743f7084bfa027c0cca1bbc85478a64f9da0a5842acd89d82adaeb84d
-summary: "time.Sleep: suspend for a duration of virtual time."
+implementation_hash: 3172c9460f36b99c9db45f5865bc36ea29f08f456b57a80c774b1c69dd787545
+summary: "time.Sleep: suspend for a duration of scheduler time."
 suspension: may
 determinism: controlled
 signature:

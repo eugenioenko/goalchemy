@@ -68,14 +68,14 @@ pub fn asetu(x: &V, i: &V, n: usize, v: V) {
 
 pub fn slen(x: &V) -> V {
     match x {
-        V::Slice(_, _, l, _) => V::Int(*l as i64),
+        V::Slice(_, _, l, _) | V::ByteSlice(_, _, l, _) => V::Int(*l as i64),
         _ => fault("slice expected"),
     }
 }
 
 pub fn scap(x: &V) -> V {
     match x {
-        V::Slice(_, _, _, c) => V::Int(*c as i64),
+        V::Slice(_, _, _, c) | V::ByteSlice(_, _, _, c) => V::Int(*c as i64),
         _ => fault("slice expected"),
     }
 }
@@ -85,7 +85,7 @@ pub fn strlen(x: &V) -> V {
 }
 
 pub fn nil_slice(x: &V) -> bool {
-    matches!(x, V::Slice(0, ..))
+    matches!(x, V::Slice(0, ..) | V::ByteSlice(0, ..))
 }
 
 /// x.(T) for a concrete T: whether x holds T.
@@ -131,4 +131,48 @@ pub fn zero_string() -> V {
 
 pub fn zero_slice() -> V {
     NIL_SLICE
+}
+
+
+pub fn zero_byte_slice() -> V { BYTE_NIL }
+
+pub fn byte_array(v: Vec<u8>) -> V { V::Obj(alloc(Obj::Bytes(v))) }
+
+/// A byte-only snapshot never creates a payload of scalar V values.
+pub fn byte_snapshot(h: H, offset: usize, len: usize) -> Vec<u8> {
+    if len == 0 { return Vec::new(); }
+    with(h, |o| match o {
+        Obj::Bytes(v) => v[offset..offset + len].to_vec(),
+        _ => fault("byte backing expected"),
+    })
+}
+
+pub fn byte_array_clone(x: &V) -> V {
+    let v = with(x.h(), |o| match o {
+        Obj::Bytes(v) => v.clone(),
+        _ => fault("byte array expected"),
+    });
+    byte_array(v)
+}
+
+pub fn byte_array_set(d: &V, s: &V) {
+    if d.h() == s.h() { return; }
+    let v = byte_snapshot(s.h(), 0, vals_len(s.h()));
+    with(d.h(), |o| match o {
+        Obj::Bytes(dst) => dst.copy_from_slice(&v),
+        _ => fault("byte array expected"),
+    });
+}
+
+pub fn byte_array_eq(a: &V, b: &V) -> bool {
+    if a.h() == b.h() { return true; }
+    let v = byte_snapshot(a.h(), 0, vals_len(a.h()));
+    with(b.h(), |o| match o {
+        Obj::Bytes(w) => v == *w,
+        _ => fault("byte array expected"),
+    })
+}
+
+pub fn byte_array_key(a: &V) -> Key {
+    Key::Bytes(Rc::from(byte_snapshot(a.h(), 0, vals_len(a.h()))))
 }

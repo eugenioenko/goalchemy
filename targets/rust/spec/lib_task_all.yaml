@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "lib_task_all"
 implementation: runtime/lib_task_all.rs
-implementation_hash: ddbae6f47a6fe0a9afa544d4d7255d04ff8079e01d8cd8d9879878848aa7dab9
+implementation_hash: 5d21a9481d3c7262a87a398a25e5772de25ba62c3b415d6feb084f3854c9a779
 summary: "task.All: run each function as a task, in order, and resume the caller when all have finished."
 suspension: may
 determinism: controlled
@@ -16,5 +16,5 @@ signature:
   outputs: []
 tested_instantiations:
   - {}
-requires: [core.task.spawn, std.sync.waitgroup.done]
+requires: [core.task.spawn, std.sync.waitgroup.done, std.sync.waitgroup.wait]
 cases: [empty]

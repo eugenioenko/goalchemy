@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "LibTaskAll.libTaskAll"
 implementation: runtime/LibTaskAll.java
-implementation_hash: d1707c00df0398452833d9cee2fd03e6202b5fb39f08832e92853d482a21b262
+implementation_hash: e0bde8a7ac6623f0a4724ef9da195c80cf64f7341c5c24ed9343aaa195512c72
 summary: "task.All: run each function as a task, in order, and resume the caller when all have finished."
 suspension: may
 determinism: controlled

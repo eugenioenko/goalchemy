@@ -46,12 +46,18 @@ gx_V dec_error(J *r) {
 
 gx_V dec_nil(J *r) { return gx_nil(); }
 
-gx_V dec_slice(J *r, DecFn dec, gx_ZeroFn zero) {
-    if (is_nil(r)) return gx_nil_slice();
+gx_V dec_slice(J *r, DecFn dec, gx_ZeroFn zero, bool bytes) {
+    if (is_nil(r)) return bytes ? gx_nil_byte_slice() : gx_nil_slice();
     J *items = j_get(r, "slice");
     size_t n = items->len;
     J *c = j_get(r, "cap");
     size_t cap = c ? (size_t)num(c) : n;
+    if (n > cap || cap > UINT32_MAX / 2) gx_fault("invalid harness slice capacity");
+    if (bytes) {
+        uint8_t *a = gx_alloc_bytes(cap);
+        for (size_t i = 0; i < n; i++) a[i] = (uint8_t)dec(items->items[i]).u.i;
+        return gx_byte_slice(a, (uint32_t)n, (uint32_t)cap);
+    }
     gx_V *a = gx_alloc_vals(cap ? cap : 1);
     for (size_t i = 0; i < cap; i++) a[i] = i < n ? dec(items->items[i]) : zero();
     return gx_slice(a, (uint32_t)n, (uint32_t)cap);
@@ -62,7 +68,7 @@ gx_V view(gx_V base, J *r) {
     uint32_t l = lo ? (uint32_t)num(lo) : 0;
     uint32_t h = hi ? (uint32_t)num(hi) : base.l;
     uint32_t m = mx ? (uint32_t)num(mx) : base.c;
-    return gx_slice(gx_vals(base) + l, h - l, m - l);
+    return gx_reslice(base, gx_int(l), gx_int(h), gx_int(m), false);
 }
 
 gx_V dec_map(J *r, DecFn dk, DecFn dv) {
@@ -146,7 +152,7 @@ static J *cap_str(size_t c) {
 J *enc_slice(gx_V v, EncFn enc) {
     if (!v.u.p) return nil_obj();
     J *a = j_new(J_ARR);
-    for (uint32_t i = 0; i < v.l; i++) j_push(a, enc(gx_vals(v)[i]));
+    for (uint32_t i = 0; i < v.l; i++) j_push(a, enc(gx_byte_backing(v) ? gx_int(gx_bytes(v)[i]) : gx_vals(v)[i]));
     J *o = j_new(J_OBJ);
     j_set(o, "slice", a);
     j_set(o, "cap", cap_str(v.c));
@@ -155,7 +161,7 @@ J *enc_slice(gx_V v, EncFn enc) {
 
 J *enc_array(gx_V v, size_t n, EncFn enc) {
     J *a = j_new(J_ARR);
-    for (size_t i = 0; i < n; i++) j_push(a, enc(gx_vals(v)[i]));
+    for (size_t i = 0; i < n; i++) j_push(a, enc(gx_byte_backing(v) ? gx_int(gx_bytes(v)[i]) : gx_vals(v)[i]));
     J *o = j_new(J_OBJ);
     j_set(o, "array", a);
     return o;

@@ -7,7 +7,14 @@ public static partial class R
     {
         if (s.l < n) throw Panics.runtimePanic("cannot convert slice with length " + s.l + " to array or pointer to array with length " + n);
         var a = new object[n];
-        for (int i = 0; i < n; i++) a[i] = clone == null ? s.a[s.o + i] : clone(s.a[s.o + i]);
+        for (int i = 0; i < n; i++) a[i] = clone == null ? s.Get(i) : clone(s.Get(i));
+        return a;
+    }
+    public static byte[] sliceToByteArray(Slice s, int n)
+    {
+        if (s.l < n) throw Panics.runtimePanic("cannot convert slice with length " + s.l + " to array or pointer to array with length " + n);
+        var a = new byte[n];
+        if (n != 0) Array.Copy(s.a, s.o, a, 0, n);
         return a;
     }
 }

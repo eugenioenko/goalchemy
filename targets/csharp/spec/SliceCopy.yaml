@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9a43302d85fb534cb962cb14e9a480e094abeb765ff9f52e2f1684c7fc5bcd58
 symbol: "R.copy"
 implementation: runtime/SliceCopy.cs
-implementation_hash: 16f8c2808eaff83835a1112ad0fc7d430150f2688656113ad59d244894c91020
+implementation_hash: 5251dd31d9efa9b6d36e3a5a503335537b2aa9a66b8e33df2a5fe5116ec27b89
 summary: "copy(dst, src) for slices; returns the count copied."
 suspension: never
 determinism: deterministic

@@ -2,7 +2,7 @@
 import { Slice } from "../types/slice.ts";
 
 export function toBytes(s: string): Slice<number> {
-  const a = new Array<number>(s.length);
+  const a = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
   return new Slice(a, 0, a.length, a.length);
 }

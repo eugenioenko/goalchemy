@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9a43302d85fb534cb962cb14e9a480e094abeb765ff9f52e2f1684c7fc5bcd58
 symbol: "copy"
 implementation: runtime/slice_copy.rs
-implementation_hash: cd5d672553ccce34cc819e3c24f218d701f59149c4f84b8617b8152c3d94fff4
+implementation_hash: d4da6ee4ef5c40a2f0ddab52bed9e8d01b5f49b4f464a9213bd4851bbd1e1dce
 summary: "copy(dst, src) for slices; returns the count copied."
 suspension: never
 determinism: deterministic

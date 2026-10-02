@@ -7,7 +7,7 @@ public final class StringFromBytes {
     public static String fromBytes(Slice b) {
         if (b.a == null) return "";
         StringBuilder sb = new StringBuilder(b.l);
-        for (int i = 0; i < b.l; i++) sb.append((char) (long) (Long) b.a[b.o + i]);
+        for (int i = 0; i < b.l; i++) sb.append((char) (((byte[]) b.a)[b.o + i] & 255));
         return sb.toString();
     }
 

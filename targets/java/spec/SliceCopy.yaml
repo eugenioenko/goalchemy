@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9a43302d85fb534cb962cb14e9a480e094abeb765ff9f52e2f1684c7fc5bcd58
 symbol: "SliceCopy.copy"
 implementation: runtime/SliceCopy.java
-implementation_hash: e272ca262386bb090fcff4e9df2341836fd9df7626139ff99eeb8b9e4616b54d
+implementation_hash: 9eb36f417d9adc3fc1a4058f62e1cd877a8022fb963e1187b59605fcfdc0cea3
 summary: "copy(dst, src) for slices; returns the count copied."
 suspension: never
 determinism: deterministic

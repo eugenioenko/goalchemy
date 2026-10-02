@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 6cc431aed8a1b3368c15331b253bba0b197bd68aa7898a09709fbcdb80805a11
 symbol: "SliceMake.makeSlice"
 implementation: runtime/SliceMake.java
-implementation_hash: 0e64d2d9044472a86dd2ad76eede2010452e04a439886586bb9d16a8c315cbef
+implementation_hash: 46affc684f68ee34887d02fc72bc8f0a11a913dbe6b65aeeb3a6ba293af80ec0
 summary: "make([]T, len, cap)."
 suspension: never
 determinism: deterministic

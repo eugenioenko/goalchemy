@@ -8,6 +8,7 @@ public final class StdSyncWaitgroupWait {
         t.rv = new Object[0];
         if (wg.n == 0) return;
         wg.waiters.add(t);
+        t.cleanup=()->wg.waiters.remove(t);
         TaskSpawn.sched.block(t);
     }
 }

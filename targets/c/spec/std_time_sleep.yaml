@@ -2,11 +2,11 @@
 target: c
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
+contract_hash: fb986c9aeda4bf814516ae8370fc2c2997e56882ef9d7e0901e3c75b6488d5dd
 symbol: "gx_std_time_sleep"
 implementation: runtime/std_time_sleep.c
-implementation_hash: 359d5d5b74c3a3a0b0faec33610d4b27d6a54f51838fd79f788f8f4365e9ab55
-summary: "time.Sleep: suspend for a duration of virtual time."
+implementation_hash: 8a55eba9af417d9ff0401760014a990653c1de3cf09ea5fd77a500aa46fafc10
+summary: "time.Sleep: suspend for a duration of scheduler time."
 suspension: may
 determinism: controlled
 signature:

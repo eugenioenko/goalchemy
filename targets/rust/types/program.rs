@@ -1,24 +1,54 @@
 //! Program entry, globals, and unrecovered-panic reports.
 use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
+static EXECUTABLE_ENTRY: AtomicBool = AtomicBool::new(false);
+pub struct EntryReservation;
+impl Drop for EntryReservation { fn drop(&mut self) { EXECUTABLE_ENTRY.store(false, Ordering::Release); } }
+pub fn reserve_entry() -> Result<EntryReservation, HostFault> {
+    if EXECUTABLE_ENTRY.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_err() {
+        return Err(HostFault("overlapping executable entry/reset".into()));
+    }
+    Ok(EntryReservation)
+}
+thread_local! { static SOURCE_DEPTH: Cell<usize> = Cell::new(0); }
+pub struct SourceGuard;
+impl Drop for SourceGuard { fn drop(&mut self) { SOURCE_DEPTH.with(|d| d.set(d.get() - 1)); } }
+/// A bounded generated native stack, not recovery from native stack exhaustion.
+/// Ordinary host calls are capped at 128; virtual conformance keeps its prior
+/// large-stack policy. Cooperative chains are separately bounded by call().
+pub fn source_guard() -> SourceGuard {
+    SOURCE_DEPTH.with(|d| {
+        let host = SCHED.with(|s| s.borrow().epoch.is_some());
+        if host && d.get() >= 128 { std::panic::resume_unwind(Box::new(SourceStackFatal)); }
+        d.set(d.get() + 1);
+    });
+    SourceGuard
+}
+
 
 thread_local! {
-    static GLOBALS: Cell<*mut FrData> = Cell::new(std::ptr::null_mut());
+    static GLOBALS: RefCell<Option<Fr>> = RefCell::new(None);
 }
 
 /// Allocates the program's global variables as a permanent root.
 pub fn init_globals(n: usize) {
-    GLOBALS.with(|g| g.set(Fr::new(n).leak()));
+    GLOBALS.with(|g| {
+        let mut globals = g.borrow_mut();
+        // Each compiler init_zero_globals still zeroes the slots on each entry.
+        // Reuse one separately traced allocation, never leak another ROOTS entry.
+        if globals.as_ref().map_or(false, |f| f.len() == n) { return }
+        *globals = Some(Fr::unrooted(n));
+    });
 }
 
 #[inline]
 pub fn gg(i: usize) -> V {
-    GLOBALS.with(|g| unsafe { (&(*g.get()).v)[i].clone() })
+    GLOBALS.with(|g| g.borrow().as_ref().expect("globals not initialized").g(i))
 }
 
 #[inline]
 pub fn gs(i: usize, x: V) {
-    let old = GLOBALS.with(|g| unsafe { std::mem::replace(&mut (&mut (*g.get()).v)[i], x) });
-    drop(old);
+    GLOBALS.with(|g| g.borrow().as_ref().expect("globals not initialized").s(i, x));
 }
 
 fn indented(b: &[u8]) -> Vec<u8> {
@@ -115,11 +145,17 @@ pub fn run_large(body: impl FnOnce() + Send + 'static) -> ! {
 
 /// The entry point of a sequential program.
 pub fn program_main(nglobals: usize, init: fn(), entry: fn()) -> ! {
+    let reservation = reserve_entry().unwrap_or_else(|e| host_fault(&e.0));
     run_large(move || {
+        let _reservation = reservation;
         init_globals(nglobals);
         init();
         if let Err(p) = catch(entry) {
             report_panic(&p);
         }
     })
+}
+
+pub fn trace_globals(out: &mut Vec<V>) {
+    GLOBALS.with(|g| { if let Some(f) = g.borrow().as_ref() { f.trace(out); } });
 }

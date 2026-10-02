@@ -2,6 +2,7 @@
 #include "gx.h"
 
 void gx_chan_send(gx_Task *t, gx_V ch, gx_V v) {
+    gx_owner_check(t->owner);
     gx_set_rv(t, 0, NULL);
     if (ch.t == GX_NIL) {
         gx_block(t);

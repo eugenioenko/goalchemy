@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 7188685871426fe945290c0b7b591ff0a32de648f022661ceacb36de9d8b268b
 symbol: "rt.LibCryptoGenerateP256"
 implementation: runtime/lib_crypto_generate_p256.go
-implementation_hash: 9d77f860617f76401e3a7089d3cdc0cf0dd47ba26c599791de95d27cd728a1d9
+implementation_hash: 647cc902266dc471feab82fdc27f97f297eebc67d6e131cc2f22dbb1c2cfac52
 summary: "crypto.GenerateP256: native capability boundary."
 suspension: may
 determinism: nondeterministic

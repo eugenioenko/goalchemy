@@ -1,3 +1,4 @@
+import "../../types/node_host.ts";
 // Serves runtime conformance requests for the TypeScript target over JSON
 // Lines on standard input and output.
 import { createInterface } from "node:readline";

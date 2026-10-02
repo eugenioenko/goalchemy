@@ -20,7 +20,9 @@ public final class ChanSend {
             ch.buf.add(v);
             return;
         }
-        ch.sendq.add(new ChanMake.Waiter(t, v, null, 0));
+        ChanMake.Waiter waiter=new ChanMake.Waiter(t,v,null,0);
+        ch.sendq.add(waiter);
+        t.cleanup=()->{ ch.sendq.remove(waiter); waiter.clear(); };
         TaskSpawn.sched.block(t);
     }
 }

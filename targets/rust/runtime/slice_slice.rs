@@ -15,18 +15,19 @@ fn bounds(lo: &V, hi: &V, max: &V, len: i64, cap: i64, word: &str, u: bool) -> (
 }
 
 pub fn reslice(x: V, lo: V, hi: V, max: V, u: bool) -> V {
-    let V::Slice(a, o, len, cap) = x else { fault("slice expected") };
+    let (a, o, len, cap, bytes) = slice_parts(&x);
     let (l, h, m) = bounds(&lo, &hi, &max, len as i64, cap as i64, "capacity", u);
     if a == 0 {
-        return NIL_SLICE;
+        return x;
     }
-    V::Slice(a, o + l as u32, (h - l) as u32, (m - l) as u32)
+    slice_header(a, o + l as u32, (h - l) as u32, (m - l) as u32, bytes)
 }
 
 /// Slices an array through a pointer: (&a)[lo:hi:max].
 pub fn slice_array(arr: V, lo: V, hi: V, max: V, u: bool) -> V {
     let a = nilchk(arr).h();
+    let bytes = with(a, |o| matches!(o, Obj::Bytes(_)));
     let n = vals_len(a) as i64;
     let (l, h, m) = bounds(&lo, &hi, &max, n, n, "length", u);
-    V::Slice(a, l as u32, (h - l) as u32, (m - l) as u32)
+    slice_header(a, l as u32, (h - l) as u32, (m - l) as u32, bytes)
 }

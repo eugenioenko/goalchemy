@@ -47,11 +47,11 @@ The file uses the same restricted YAML as the contract catalog: no anchors, alia
 Each target directory contains the generated program, the runtime files it needs (one file per runtime function, plus shared representation files), a `README.md`, and `goalchemy.manifest.json`. The manifest records the source profile, compiler version, contract IDs, versions, and hashes, and every runtime and generated file. Output is deterministic for the same inputs.
 
 - **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
-- **TypeScript**: `main.ts`, `main.ts.map`, `rt/`, `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces.
-- **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required.
-- **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored).
-- **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works.
-- **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run with `sh run.sh` (plain `rustc`, standard library only) or `cargo run --release`. Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
+- **TypeScript**: sequential output has `main.ts` and `main.ts.map`; cooperative output adds portable `program.ts`, `program.ts.map`, and `host.ts`, with `main.ts` as its Node wrapper. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
+- **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required. Cooperative output exposes synchronous `main.runHost()` with monotonic time, a calling-thread owner and cleanup-before-return; see [its lifecycle and recursion limits](python-host-operations.md).
+- **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored). Cooperative output also exposes `Main.runHost()` for an explicit serialized monotonic executable drive that returns after cleanup; see [its lifecycle and executable-global limits](java-host-operations.md).
+- **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
+- **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run with `sh run.sh` (plain `rustc`, standard library only) or `cargo run --release`. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
 - **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. `CC` and `CFLAGS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
 
 ### C libraries
@@ -96,7 +96,20 @@ With `-gate cooperative` (or `gate: cooperative` in `goalchemy.yaml`), programs 
 
 - Runnable tasks run in FIFO order. A task keeps control until it blocks, yields, returns, or panics.
 - `select` chooses among ready cases with a seeded xorshift32 source: `GOALCHEMY_SEED`, default 1.
-- `time.Sleep` and context deadlines use a virtual clock, which advances only when every task is blocked.
+- The default entry uses a virtual clock for `time.Sleep` and context deadlines,
+  advancing only when every task is blocked. Generated Go programs using HTTP
+  select an explicit host entry with owner-local monotonic real time. TypeScript
+  cooperative output can select real time through portable `host.ts`/`runHost`;
+  its module-global source state is not an isolated library instance. Java
+  cooperative output exposes `Main.runHost()` with the same executable-global
+  limitation and `System.nanoTime` deadlines. C# cooperative output exposes
+  Task-returning `GoProgram.runHost()` with `Stopwatch` deadlines and serialized
+  executable globals; it is not an isolated library API. Python cooperative
+  output exposes blocking `main.runHost()` with `monotonic_ns` deadlines, native
+  mailbox completion and serialized executable globals; it is not an SDK library.
+  C cooperative output exposes `goalchemy_run_host()` with checked monotonic
+  deadlines, owned native wire records and resource ACK before return; see the
+  [C executable boundary and limits](c-host-operations.md).
 - A deadlock prints `fatal error: all goroutines are asleep - deadlock!` and exits with status 2.
 
 Every target follows the same scheduler contract and the same shared lowering:
@@ -106,6 +119,15 @@ Every target follows the same scheduler contract and the same shared lowering:
 3. **Each runtime** provides pause primitives (`recv`, `send`, `select`, lock, sleep, spawn) and a trampoline scheduler. Deferred calls, `panic`, and `recover` in frames are managed by the runtime, per task.
 
 No target relies on native coroutines or threads for source tasks.
+
+Generated Go `lib/http.Do` runs the bounded native transport on host workers.
+Workers enqueue owned completions; the scheduler alone resumes source tasks,
+so concurrent source cancellation remains runnable during network and body
+reads. Context deadlines start at creation and an earlier parent deadline
+shortens the required real HTTP timeout. Entry return cancels and cleans pending
+background operations. Other targets still reject this capability until their
+adapters are implemented; exported asynchronous libraries remain gated. See
+[host lifecycle and target-port requirements](host-operations.md).
 
 `github.com/eugenioenko/goalchemy/lib/task` provides `task.All(fns ...func())`. It runs each function as a task, in argument order and one at a time, and returns when all have finished. With the Go toolchain the same package runs the functions as goroutines.
 
@@ -117,3 +139,25 @@ Goalchemy fixes some behavior that Go leaves to the implementation. These choice
 - When `append` exceeds capacity, the new capacity is `max(needed, max(1, 2*cap))`.
 - `[]byte(s)` and `[]rune(s)` have capacity equal to their length.
 - Operands are evaluated left to right wherever Go allows a choice.
+
+## Byte storage
+
+TypeScript byte slices and arrays use `Uint8Array`, including named types
+with underlying `uint8` elements. Slice views share native storage; byte
+string conversions copy and preserve arbitrary Go string bytes. Java byte
+slices and arrays use native `byte[]`, with unsigned reads through
+Go's existing `long` integer representation. Java preserves aliases, zeroed
+capacity and arbitrary-byte string copies too. C# byte slices and arrays use
+native `byte[]`, with primitive reads widened to Go `long`, zeroed capacity,
+shared views and independent arbitrary-byte string copies. Python byte slices
+and arrays use native `bytearray`, with fixed-length shared views, zeroed
+capacity and independent conversions to/from immutable `bytes` Go strings.
+Rust byte slices and arrays use traced native `Vec<u8>` backing, with typed nil
+headers, zeroed capacity, shared views and independent binary string copies.
+C byte slices and arrays use collector-owned native `uint8_t` backing, with
+typed nil headers, zeroed capacity, shared interior views and independent
+binary string copies. See the bounded [TypeScript evidence](typescript-byte-storage.md),
+[Java evidence](java-byte-storage.md), [C# evidence](csharp-byte-storage.md)
+[Python evidence](python-byte-storage.md), [Rust evidence](rust-byte-storage.md)
+and [C evidence](c-byte-storage.md)
+for coverage and remaining SDK, browser and library requirements.

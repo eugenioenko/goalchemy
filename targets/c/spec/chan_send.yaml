@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e9fb946048a2549d274a18d49be08e7b402f17988e4746ccc005643b607540a6
 symbol: "gx_chan_send"
 implementation: runtime/chan_send.c
-implementation_hash: 1989e30410c36f1514029042c4d785c487abe1e5cf0a6030525d1f9179acb73d
+implementation_hash: 9e329c9ac3e2410a9280c0bfb8830b69a42f58a1c5411684e8fac2114c9476b9
 summary: "ch <- v: hand the value to a waiting receiver, buffer it, or wait."
 suspension: may
 determinism: controlled

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 3a76434ad88e80269416a52fef95b3c0f91609f791511a6f488e6aa3a623248a
 symbol: "rt.slice_to_array"
 implementation: runtime/slice_to_array.py
-implementation_hash: b5ebc6ca8928fd514b79fa364796e2a5d55bf7730d410d49e1f5ec6804f057ef
+implementation_hash: 22d25b217155e584cc59ed5029632ea9ccdee646b438b7ffd94259d6880dcbff
 summary: "[N]T(s): copy the first N elements of a slice into a new array value."
 suspension: never
 determinism: deterministic

@@ -6,8 +6,9 @@
 // Pause primitives either complete immediately, leaving their results in
 // task.rv, or block the task until another task or a timer readies it.
 // Deferred calls, panics, and recover are managed per task by the runtime.
-import { GoPanic, nilDeref } from "../types/panic.ts";
-import { catchPanic, formatChain, panicState, type Deferred, type PanicState } from "../types/program.ts";
+import { installRuntimeHost, runtimeHost, type RuntimeHost } from "../types/host.ts";
+import { Fault, GoPanic, nilDeref } from "../types/panic.ts";
+import { catchPanic, formatChain, panicState, resetPanicBinding, type Deferred, type PanicState } from "../types/program.ts";
 import { writeStderr } from "../types/print.ts";
 import { Slice } from "../types/slice.ts";
 
@@ -48,12 +49,56 @@ interface Timer {
 /** Thrown out of a harness case when its task blocks with nothing runnable. */
 export class Blocked extends Error {}
 
-class FatalPanic extends Error {
+export class FatalPanic extends Error {
   p: GoPanic;
   constructor(p: GoPanic) {
     super("fatal panic");
     this.p = p;
   }
+}
+
+/** Adapter faults bypass source panic/recover. */
+export class HostFault extends Fault {}
+class HostFatal extends Error {}
+interface Completion { readonly id: number; readonly task: number; readonly rv: readonly unknown[]; readonly fault: HostFault | null; }
+class Mailbox {
+  closed = false;
+  retiring = false;
+  queue: Completion[] = [];
+  cleaned = new Set<number>();
+  live = new Map<number, number>();
+  wake: (() => void) | null = null;
+  notify(): void { this.wake?.(); }
+}
+/** Tokens retain mailbox identity and IDs only, never scheduler/frame/inputs. */
+export class HostToken {
+  private readonly mail: Mailbox;
+  readonly operation: number;
+  readonly task: number;
+  constructor(mail: Mailbox, operation: number, task: number) { this.mail=mail; this.operation=operation; this.task=task; }
+  complete(rv: unknown[] = [], failure: HostFault | null = null): void {
+    if (this.mail.closed || this.mail.retiring || this.mail.live.get(this.operation) !== this.task) return;
+    // Adapter results must be structured-cloneable owned data. No functions,
+    // source descriptors, native handles or source frames cross this boundary.
+    let owned: unknown[] = [];
+    let fault = failure === null ? null : new HostFault(failure.message);
+    try { owned = structuredClone(rv); }
+    catch (e) { fault = new HostFault("uncloneable adapter result: " + String(e)); }
+    this.mail.queue.push(Object.freeze({id: this.operation, task: this.task, rv: Object.freeze(owned), fault}));
+    this.mail.notify();
+  }
+  /** Call only after native resources and copied inputs have been released. */
+  acknowledgeCleanup(): void {
+    if (this.mail.closed || this.mail.live.get(this.operation) !== this.task) return;
+    this.mail.cleaned.add(this.operation);
+    this.mail.notify();
+  }
+}
+interface HostOperation {
+  task: Task;
+  cancel: () => void;
+  cleanup: () => void;
+  canceled: () => unknown[] | null;
 }
 
 export class Scheduler {
@@ -66,10 +111,22 @@ export class Scheduler {
   timers: Timer[] = [];
   seq = 0;
   harness = false;
-  constructor(main: Task) {
+  readonly mail = new Mailbox();
+  readonly operations = new Map<number, HostOperation>();
+  readonly tasks = new Set<Task>();
+  readonly disposers = new Set<() => void>();
+  nextOperation = 0;
+  closed = false;
+  hostMode = false;
+  host: RuntimeHost;
+  epoch: number;
+  constructor(main: Task, host: RuntimeHost = runtimeHost) {
     this.cur = main;
     this.main = main;
-    this.rng = seed();
+    this.host = host;
+    this.epoch = host.now();
+    this.rng = host.seed;
+    this.tasks.add(main);
   }
   /** xorshift32 choice source, identical on every target. */
   choose(n: number): number {
@@ -83,15 +140,127 @@ export class Scheduler {
     return x % n;
   }
   ready(t: Task): void {
-    this.runq.push(t);
+    if (!this.closed && !t.done) { this.tasks.add(t); this.runq.push(t); }
   }
   block(t: Task): void {
     t.blocked = true;
   }
-  addTimer(d: bigint, task: Task | null, fn: (() => void) | null): void {
-    this.seq++;
-    this.timers.push({ at: this.clock + d, seq: this.seq, task, fn });
+  now(): bigint {
+    if (this.hostMode) {
+      const measured = BigInt(Math.max(0, Math.floor((this.host.now() - this.epoch) * 1e6)));
+      const bounded = measured > 9223372036854775807n ? 9223372036854775807n : measured;
+      if (bounded > this.clock) this.clock = bounded;
+    }
+    return this.clock;
   }
+  addTimer(d: bigint, task: Task | null, fn: (() => void) | null): () => void {
+    return this.addTimerAt(this.now() + (d > 0n ? d : 0n), task, fn);
+  }
+  addTimerAt(at: bigint, task: Task | null, fn: (() => void) | null): () => void {
+    const timer = { at: at > 9223372036854775807n ? 9223372036854775807n : at, seq: ++this.seq, task, fn };
+    this.timers.push(timer);
+    return () => { this.timers = this.timers.filter(t => t !== timer); };
+  }
+  registerHost(t: Task, cancel: () => void, cleanup: () => void = () => {}, canceled: () => unknown[] | null = () => null): HostToken {
+    if (this.closed || !this.hostMode) throw new HostFault("host registration requires a live host driver");
+    const id = ++this.nextOperation;
+    this.mail.live.set(id, t.id);
+    this.operations.set(id, {task: t, cancel, cleanup, canceled});
+    this.tasks.add(t);
+    this.block(t);
+    return new HostToken(this.mail, id, t.id);
+  }
+  /** Promise adapter boundary. Work owns native snapshots until settlement;
+   * declared failures are result data, unexpected rejection is a host fault.
+   * Both rejection handlers are attached immediately, including synchronous throws. */
+  launchHost(token: HostToken, work: () => Promise<unknown[]>): void {
+    let promise: Promise<unknown[]>;
+    try { promise = work(); }
+    catch (e) { token.complete([], new HostFault(String(e))); token.acknowledgeCleanup(); return; }
+    Promise.resolve(promise).then(
+      rv => { token.complete(rv); token.acknowledgeCleanup(); },
+      e => { token.complete([], new HostFault(String(e))); token.acknowledgeCleanup(); },
+    );
+  }
+  drainHost(): void {
+    const q = this.mail.queue;
+    this.mail.queue = [];
+    for (const c of q) {
+      const op = this.operations.get(c.id);
+      if (!op || op.task.id !== c.task) continue;
+      if (!this.mail.cleaned.has(c.id)) { this.mail.queue.push(c); continue; }
+      this.operations.delete(c.id);
+      this.mail.live.delete(c.id);
+      this.mail.cleaned.delete(c.id);
+      op.cleanup();
+      if (c.fault !== null) throw c.fault;
+      op.task.rv = op.canceled() ?? [...c.rv];
+      this.ready(op.task);
+    }
+  }
+  wait(ms?: number): Promise<void> {
+    return new Promise(resolve => {
+      let cancel = () => {};
+      const wake = () => { cancel(); this.mail.wake = null; resolve(); };
+      this.mail.wake = wake;
+      if (ms !== undefined) cancel = this.host.alarm(Math.min(2147483647, Math.max(0, ms)), wake);
+    });
+  }
+  async nextHost(): Promise<Task> {
+    for (;;) {
+      this.fireDue(this.now());
+      this.drainHost();
+      if (this.runq.length) return this.runq.shift()!;
+      if (!this.operations.size && !this.timers.length) throw new HostFatal("fatal error: all goroutines are asleep - deadlock!\n");
+      const at = this.timers.reduce<bigint | null>((a,t) => a === null || t.at < a ? t.at : a, null);
+      await this.wait(at === null ? undefined : Number(at - this.now()) / 1e6);
+    }
+  }
+  async shutdown(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    this.mail.retiring = true;
+    let failure: unknown;
+    for (const op of this.operations.values()) {
+      try { op.cancel(); } catch (e) { failure ??= e; }
+    }
+    while ([...this.operations.keys()].some(id => !this.mail.cleaned.has(id))) await this.wait();
+    for (const op of this.operations.values()) {
+      try { op.cleanup(); } catch (e) { failure ??= e; }
+    }
+    const rootFailure = this.clearRoots();
+    failure ??= rootFailure;
+    if (failure !== undefined) throw failure;
+  }
+  /** Synchronous reset is only valid with no native operations. */
+  retireVirtual(): void {
+    if (this.closed) return;
+    if (this.operations.size) throw new HostFault("pending owner requires asynchronous shutdown");
+    this.closed = true;
+    const failure = this.clearRoots();
+    if (failure !== undefined) throw failure;
+  }
+  private clearRoots(): unknown {
+    let failure: unknown;
+    this.operations.clear();
+    this.mail.closed = true;
+    this.mail.queue = [];
+    this.mail.cleaned.clear();
+    this.mail.live.clear();
+    this.mail.wake = null;
+    this.runq = [];
+    this.timers = [];
+    for (const dispose of this.disposers) { try { dispose(); } catch (e) { failure ??= e; } }
+    this.disposers.clear();
+    for (const t of this.tasks) {
+      try { t.cleanup?.(); } catch (e) { failure ??= e; }
+      t.cleanup = null; t.frame = null; t.rv = []; t.blocked = false; t.done = true; t.curPanic = null; t.resumePanic = null; t.deferTarget = undefined;
+    }
+    this.tasks.clear();
+    this.cur = this.main = null as unknown as Task;
+    return failure;
+  }
+
   next(): Task {
     while (this.runq.length === 0) {
       if (this.timers.length === 0) {
@@ -106,10 +275,13 @@ export class Scheduler {
     let at = this.timers[0].at;
     for (const t of this.timers) if (t.at < at) at = t.at;
     this.clock = at;
-    const due = this.timers.filter((t) => t.at === at).sort((a, b) => a.seq - b.seq);
-    this.timers = this.timers.filter((t) => t.at !== at);
+    this.fireDue(at);
+  }
+  fireDue(at: bigint): void {
+    const due = this.timers.filter(t => t.at <= at).sort((a,b) => a.at < b.at ? -1 : a.at > b.at ? 1 : a.seq - b.seq);
+    this.timers = this.timers.filter(t => t.at > at);
     for (const t of due) {
-      if (t.fn !== null) t.fn();
+      t.fn?.();
       if (t.task !== null) this.ready(t.task);
     }
   }
@@ -159,10 +331,12 @@ export class Scheduler {
     t.frame = parent;
     if (parent === null) {
       t.done = true;
+      t.rv = []; t.curPanic = null; t.deferTarget = undefined;
+      if (t !== this.main) this.tasks.delete(t);
       if (p !== null) {
-        if (this.harness) throw new FatalPanic(p);
+        if (this.harness || this.hostMode) throw new FatalPanic(p);
         writeStderr(formatChain(p));
-        process.exit(2);
+        runtimeHost.fail(2);
       }
       return;
     }
@@ -243,14 +417,10 @@ class DeferRunner extends Frame {
   }
 }
 
-function seed(): number {
-  const s = Number(process.env.GOALCHEMY_SEED ?? "1");
-  return Number.isInteger(s) && s > 0 && s < 2 ** 32 ? s : 1;
-}
-
 export function fatal(msg: string): never {
+  if (sched.hostMode && !sched.closed) throw new HostFatal("fatal error: " + msg + "\n");
   writeStderr("fatal error: " + msg + "\n");
-  process.exit(2);
+  return runtimeHost.fail(2);
 }
 
 export let sched: Scheduler = new Scheduler(new Task(0, null as unknown as Frame));
@@ -315,10 +485,14 @@ export function spawn(f: Frame): void {
   sched.ready(t);
 }
 
+let activeHost = false;
 function install(main: Task, harness: boolean): Scheduler {
+  if (activeHost) throw new HostFault("overlapping runtime entry is unsupported");
+  sched.retireVirtual();
   sched = new Scheduler(main);
   sched.harness = harness;
-  panicState.current = () => sched.cur;
+  const owner = sched;
+  panicState.current = () => owner.cur;
   return sched;
 }
 
@@ -333,11 +507,50 @@ export function runMain(entry: Frame): void {
     } catch (e) {
       if (e instanceof RangeError && /call stack/.test(e.message)) {
         writeStderr("runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n");
-        process.exit(2);
+        runtimeHost.fail(2);
       }
       throw e;
     }
   }
+}
+
+/** Explicit asynchronous executable entry. Source globals are still executable
+ * globals; overlapping entries and synchronous reset during a drive are rejected. */
+export async function runMainHost(entry: Frame, host: RuntimeHost = runtimeHost): Promise<void> {
+  if (activeHost) throw new HostFault("overlapping runtime entry is unsupported");
+  const main = new Task(0, entry);
+  const s = install(main, false);
+  s.host = host;
+  s.epoch = host.now();
+  s.rng = host.seed;
+  s.hostMode = true;
+  activeHost = true;
+  const previousHost = runtimeHost;
+  installRuntimeHost(host);
+  let failure: unknown;
+  try {
+    s.ready(main);
+    while (!main.done) {
+      s.run(await s.nextHost());
+      // A real host turn lets Promise settlements, timers and I/O progress even
+      // with an always-runnable cooperative source task.
+      if (!main.done) await new Promise<void>(resolve => s.host.alarm(0, resolve));
+    }
+  } catch (e) { failure = e; }
+  try { await s.shutdown(); } catch (e) { failure ??= e; }
+  activeHost = false;
+  resetPanicBinding();
+  installRuntimeHost(previousHost);
+  if (failure instanceof FatalPanic) {
+    host.stderr(Uint8Array.from(formatChain(failure.p), c => c.charCodeAt(0) & 255));
+    host.fail(2);
+  }
+  if (failure instanceof HostFatal || (failure instanceof RangeError && /call stack/.test(failure.message))) {
+    const msg = failure instanceof HostFatal ? failure.message : "runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n";
+    host.stderr(Uint8Array.from(msg, c => c.charCodeAt(0) & 255));
+    host.fail(2);
+  }
+  if (failure !== undefined) throw failure;
 }
 
 /** Requeues the running task: a pause primitive. */

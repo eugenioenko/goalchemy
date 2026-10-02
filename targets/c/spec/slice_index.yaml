@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a8730c5c8f21a156d58347c4cbddfc5870f88067ab8ba7dd1bf6ceaca17a0ab1
 symbol: "gx_sget"
 implementation: runtime/slice_index.c
-implementation_hash: 29c629415cf45ba3f1c4fa4b3a0a8f3494039d7261af2d44f315434ca1a79887
+implementation_hash: 45a1ffbe024541261e74c1577884100bf1d9e6d231bdb93b28f844d979884099
 summary: "Read s[i]."
 suspension: never
 determinism: deterministic

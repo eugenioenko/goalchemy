@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d882107dedcf7a0945ff33520dbc9875638a1dd539d6d3bb0970e9f602732d70
 symbol: "R.chanClose"
 implementation: runtime/ChanClose.cs
-implementation_hash: 4213aa07dd5fac85c0768a327ad8269b5cdb2a664d0b14e1f5332a646e30f77f
+implementation_hash: 722284588bbc3b5ccf58876fc49d7ad25a32817099f82032d1c23a425a786c7f
 summary: "close(ch): mark closed and release every waiting receiver and sender."
 suspension: never
 determinism: deterministic

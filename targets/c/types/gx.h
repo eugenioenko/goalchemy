@@ -9,11 +9,16 @@
 #ifndef GX_H
 #define GX_H
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #ifndef GC_THREADS
 #define GC_THREADS
 #endif
-#include <gc.h>
 #include <pthread.h>
+#include <gc.h>
+#include <time.h>
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -45,9 +50,20 @@ static inline gx_V gx_nil_slice(void) { return gx_slice(NULL, 0, 0); }
 static inline int64_t gx_i(gx_V v) { return v.u.i; }
 static inline bool gx_b(gx_V v) { return v.u.i != 0; }
 static inline bool gx_is_nil(gx_V v) { return v.t == GX_NIL; }
-static inline gx_V *gx_vals(gx_V v) { return (gx_V *)v.u.p; }
-
+/* pad=1 marks pointer-free native uint8 backing on arrays and slice headers.
+ * Preserve this hint even on nil and empty headers. Interior pointers are
+ * traced by Boehm's existing all-interior-pointers configuration. */
+static inline bool gx_byte_backing(gx_V v) { return v.pad == 1; }
+static inline uint8_t *gx_bytes(gx_V v) { return (uint8_t *)v.u.p; }
+static inline gx_V gx_byte_slice(uint8_t *p, uint32_t l, uint32_t c) {
+    gx_V v = gx_slice(NULL, l, c); v.u.p = p; v.pad = 1; return v;
+}
+static inline gx_V gx_nil_byte_slice(void) { return gx_byte_slice(NULL, 0, 0); }
 _Noreturn void gx_fault(const char *msg);
+static inline gx_V *gx_vals(gx_V v) {
+    if (gx_byte_backing(v)) gx_fault("native byte backing used as gx_V storage");
+    return (gx_V *)v.u.p;
+}
 
 /* Strings. */
 gx_V gx_str(const char *b, size_t n);
@@ -57,6 +73,12 @@ static inline size_t gx_slen(gx_V v) { return v.l; }
 
 /* Storage. */
 gx_V *gx_alloc_vals(size_t n);
+uint8_t *gx_alloc_bytes(size_t n);
+gx_V gx_byte_array(size_t n);
+gx_V gx_byte_array_clone(gx_V x, size_t n);
+void gx_byte_array_set(gx_V d, gx_V s, size_t n);
+bool gx_byte_array_eq(gx_V a, gx_V b, size_t n);
+
 gx_V gx_new_vals(size_t n, const gx_V *init);
 gx_V gx_cellv(gx_V v);
 gx_V gx_pget(gx_V p);
@@ -88,6 +110,7 @@ bool gx_veq(gx_V a, gx_V b);
 void gx_vkey(gx_V v, gx_Buf *out);
 void gx_key_open(gx_Buf *out);
 void gx_key_close(gx_Buf *out);
+void gx_byte_array_key(gx_V a, size_t n, gx_Buf *out);
 
 /* Functions, dynamic types, and interfaces. */
 typedef gx_V (*gx_Code)(gx_V *env, gx_V *args, int n);
@@ -148,11 +171,12 @@ typedef struct gx_Panic {
 typedef struct gx_Handler {
     jmp_buf jb;
     struct gx_Handler *prev;
+    size_t source_depth;
 } gx_Handler;
 extern gx_Handler *gx_handler;
 extern gx_Panic *gx_thrown;
 /* Pushes h; evaluates nonzero when a panic arrived (gx_thrown holds it). */
-#define GX_TRY(h) ((h).prev = gx_handler, gx_handler = &(h), setjmp((h).jb) != 0)
+#define GX_TRY(h) ((h).prev = gx_handler, (h).source_depth = gx_source_depth, gx_handler = &(h), setjmp((h).jb) != 0)
 #define GX_END(h) (gx_handler = (h).prev)
 _Noreturn void gx_raise(gx_Panic *p);
 _Noreturn void gx_throw(gx_V v);
@@ -229,7 +253,21 @@ void gx_map_insert(gx_Map *m, gx_V k, gx_V v, uint8_t *key, size_t n);
 bool gx_map_remove(gx_Map *m, const uint8_t *key, size_t n);
 void gx_map_reset(gx_Map *m);
 
-/* Tasks and frames. */
+/* Tasks and frames. Executable source ownership is deliberately process-static. */
+typedef struct gx_Sched gx_Sched;
+typedef struct gx_Context gx_Context;
+typedef struct gx_HostPending gx_HostPending;
+typedef struct gx_Mailbox gx_Mailbox;
+extern size_t gx_source_depth;
+void gx_source_enter(void);
+void gx_source_leave(void);
+bool gx_entry_reserve(void);
+void gx_entry_release(void);
+bool gx_owner_current(gx_Sched *s);
+void gx_owner_check(gx_Sched *s);
+_Noreturn void gx_host_fault(const char *message);
+void gx_retire(gx_Sched *s);
+
 typedef struct gx_Task gx_Task;
 typedef struct gx_Frame gx_Frame;
 typedef void (*gx_Step)(gx_Task *t, gx_Frame *f);
@@ -249,6 +287,8 @@ struct gx_Frame {
 };
 struct gx_Task {
     int id;
+    gx_Sched *owner;
+    bool queued;
     gx_Frame *frame;
     gx_V *rv;
     int nrv;
@@ -266,7 +306,7 @@ typedef struct gx_Timer {
     void (*f)(gx_V);
     gx_V arg;
 } gx_Timer;
-typedef struct gx_Sched {
+struct gx_Sched {
     gx_Task **runq;
     size_t qhead, qlen, qcap;
     gx_Task *cur;
@@ -274,14 +314,27 @@ typedef struct gx_Sched {
     int64_t rng, clock, seq;
     gx_Timer *timers;
     size_t ntimers, tcap;
-    bool harness;
-} gx_Sched;
+    bool harness, host, retiring, retired;
+    pthread_t thread;
+    struct timespec epoch;
+    gx_Task *all;
+    gx_Context *contexts;
+    gx_HostPending *pending;
+    gx_Mailbox *mailbox;
+    uint64_t generation, operation;
+    unsigned context_cancel_depth;
+    jmp_buf *escape;
+    const char *fatal, *fault;
+    gx_Panic *panic;
+    void (*retire)(gx_Sched *s);
+};
 extern gx_Sched *gx_sched;
 gx_Frame *gx_new_frame(int nl, gx_Step step, gx_Results results);
 static inline gx_V gx_vframe(gx_Frame *f) { gx_V v = {0}; v.t = GX_FRAME; v.u.p = f; return v; }
 static inline gx_Frame *gx_frameof(gx_V v) { return (gx_Frame *)v.u.p; }
 gx_Task *gx_new_task(int id, gx_Frame *f);
 gx_Task *gx_cur_task(void);
+void gx_own_task(gx_Sched *s, gx_Task *t);
 void gx_set_rv(gx_Task *t, int n, const gx_V *vs);
 static inline gx_V gx_rv(gx_Task *t, int k) { return t->rv[k]; }
 gx_Sched *gx_new_sched(gx_Task *main, bool harness);
@@ -291,6 +344,7 @@ int64_t gx_seed(void);
 extern int gx_blocked_signal;
 _Noreturn void gx_report_panic(gx_Panic *p);
 const char *gx_panic_text(gx_Panic *p);
+gx_Buf gx_panic_report(gx_Panic *p);
 void gx_format_panic_value(gx_V v, gx_Buf *out);
 void gx_stderr(const void *b, size_t n);
 void gx_run_large(void (*body)(void));
@@ -300,20 +354,23 @@ gx_V gx_zero_int(void);
 gx_V gx_zero_bool(void);
 gx_V gx_zero_string(void);
 gx_V gx_zero_slice(void);
+gx_V gx_zero_byte_slice(void);
 typedef gx_V (*gx_ZeroFn)(void);
 typedef gx_V (*gx_CloneFn)(gx_V);
 
 /* Channel and synchronization objects. */
+typedef struct gx_WaitQ gx_WaitQ;
 typedef struct gx_Waiter {
     gx_Task *task;
     gx_V val;
     bool *sel;
     int idx;
     struct gx_Waiter *next;
+    gx_WaitQ *queue;
 } gx_Waiter;
-typedef struct gx_WaitQ {
+struct gx_WaitQ {
     gx_Waiter *head, *tail;
-} gx_WaitQ;
+};
 typedef struct gx_Chan {
     gx_V *buf;
     size_t head, len, size;
@@ -334,11 +391,15 @@ typedef struct gx_WaitGroup {
     gx_Task **waiters;
     size_t nw, cap;
 } gx_WaitGroup;
-typedef struct gx_Context {
+struct gx_Context {
     gx_V done, err;
     gx_V *children;
     size_t n, cap;
-} gx_Context;
+    gx_Sched *owner;
+    gx_Context *parent, *next_owner;
+    int64_t deadline;
+    bool has_deadline;
+};
 gx_V gx_new_mutex(void);
 gx_V gx_new_waitgroup(void);
 gx_V gx_opaque_clone(gx_V x);
@@ -380,6 +441,7 @@ gx_V gx_from_rune(gx_V r);
 gx_V gx_from_rune_u(gx_V r);
 
 gx_V gx_make_slice(gx_V len, gx_V cap, gx_ZeroFn zero);
+gx_V gx_make_byte_slice(gx_V len, gx_V cap);
 gx_V gx_sget(gx_V s, gx_V i);
 gx_V gx_sgetu(gx_V s, gx_V i);
 void gx_sset(gx_V s, gx_V i, gx_V v);
@@ -387,6 +449,7 @@ void gx_ssetu(gx_V s, gx_V i, gx_V v);
 gx_V gx_reslice(gx_V s, gx_V lo, gx_V hi, gx_V max, bool u);
 gx_V gx_slice_array(gx_V a, size_t n, gx_V lo, gx_V hi, gx_V max, bool u);
 int64_t gx_grow_cap(int64_t old, int64_t required);
+gx_V gx_append_bytes(gx_V s, const uint8_t *p, uint32_t n);
 gx_V gx_append(gx_V s, int n, const gx_V *vs, gx_CloneFn clone);
 gx_V gx_append_slice(gx_V s, gx_V t, gx_CloneFn clone);
 gx_V gx_append_string(gx_V s, gx_V str);
@@ -417,6 +480,10 @@ gx_V gx_std_errors_unwrap(gx_V err);
 void gx_ready(gx_Task *t);
 void gx_block(gx_Task *t);
 size_t gx_choose(size_t n);
+int64_t gx_now(void);
+int64_t gx_deadline(int64_t now, int64_t duration);
+void gx_add_timer_at(int64_t at, gx_Task *task, void (*f)(gx_V), gx_V arg);
+void gx_remove_context_timer(gx_Context *c);
 void gx_add_timer(int64_t d, gx_Task *task, void (*f)(gx_V), gx_V arg);
 _Noreturn void gx_fatal(const char *msg);
 void gx_call(gx_Task *t, gx_V child);
@@ -426,6 +493,11 @@ gx_V gx_adapt(gx_V f, int nres);
 gx_V gx_adapt_slice(gx_V s, int nres);
 void gx_spawn(gx_V frame);
 void gx_spawn_call(gx_V f, int n, const gx_V *args);
+/* Returns 0 success, 1 overlapping entry, 3 host fault.
+ * Source fatal/panic terminates the executable with exit2 after cleanup.
+ * This is an executable runtime entry, not a library/SDK ABI. */
+int gx_run_main_host(void (*init)(void), gx_V (*entry)(void));
+_Noreturn void gx_host_main(void (*init)(void), gx_V (*entry)(void));
 _Noreturn void gx_run_main(void (*init)(void), gx_V (*entry)(void));
 void gx_yield_task(gx_Task *t);
 int gx_run_isolated(void (*prim)(gx_Task *, void *), void *arg, gx_V *out);
@@ -436,6 +508,7 @@ void gx_send_done(gx_Waiter *w, bool closed);
 gx_Waiter *gx_dequeue(gx_WaitQ *q);
 bool gx_has_live(gx_WaitQ *q);
 void gx_enqueue(gx_WaitQ *q, gx_Waiter *w);
+void gx_detach_waiter(void *arg);
 bool gx_try_recv(gx_Chan *c, gx_V *v, bool *ok);
 gx_V gx_make_chan(gx_V size, gx_ZeroFn zero);
 void gx_chan_send(gx_Task *t, gx_V ch, gx_V v);
@@ -461,6 +534,7 @@ gx_V gx_context_canceled(void);
 gx_V gx_context_deadline_exceeded(void);
 gx_V gx_background(void);
 void gx_cancel_ctx(gx_V c, gx_V err);
+void gx_observe_context(gx_V c);
 gx_V gx_new_child(gx_V parent);
 gx_V gx_cancel_code(gx_V *env, gx_V *args, int n);
 gx_V gx_std_context_context_err(gx_V c);
@@ -471,5 +545,26 @@ gx_V gx_std_context_context_done(gx_V c);
 gx_V gx_std_context_canceled(void);
 gx_V gx_std_context_deadline_exceeded(void);
 void gx_lib_task_all(gx_Task *t, gx_V fns);
+
+/* Native tokens retain only a refcounted malloc mailbox and numeric identity.
+ * Copies must explicitly retain/release. Workers must not pass gx_V/source pointers. */
+typedef struct gx_HostToken { gx_Mailbox *mailbox; uint64_t generation, operation; int task; } gx_HostToken;
+typedef struct gx_HostBoundary { gx_Context *context; bool has_deadline; int64_t deadline; gx_V deadline_error; } gx_HostBoundary;
+typedef const char *(*gx_HostAction)(void *native);
+typedef const char *(*gx_HostDecode)(gx_Task *task, const uint8_t *bytes, size_t length, gx_V cancellation, gx_V roots);
+gx_HostBoundary gx_host_boundary(gx_V context, int64_t timeout);
+gx_HostToken gx_host_register(gx_Task *task, gx_HostBoundary boundary, gx_V roots,
+    gx_HostDecode decode, gx_HostAction cancel, gx_HostAction cleanup, void *native);
+/* False means already canceled/expired; publish+ACK without native submission. */
+bool gx_host_should_submit(gx_HostToken token);
+void gx_host_token_retain(gx_HostToken token);
+void gx_host_token_release(gx_HostToken token);
+/* Publication copies bytes/fault into malloc ownership. Never a source descriptor. */
+bool gx_host_publish(gx_HostToken token, const void *bytes, size_t length, const char *fault);
+bool gx_host_ack(gx_HostToken token);
+void gx_host_poll(void);
+void gx_host_wait(int64_t deadline, bool timed);
+void gx_host_context_changed(void);
+size_t gx_host_live_count(gx_HostToken token);
 
 #endif

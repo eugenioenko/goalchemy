@@ -63,12 +63,23 @@ class Codec {
         return new Slice(a, 0, items.size(), cap);
     }
 
+    @SuppressWarnings("unchecked")
+    static Slice decBytes(Object raw) {
+        if (isNil(raw)) return Slice.BYTE_NIL;
+        List<Object> items = (List<Object>) obj(raw).get("slice");
+        Object c = obj(raw).get("cap");
+        int cap = c == null ? items.size() : Integer.parseInt((String) c);
+        byte[] a = new byte[cap];
+        for (int i = 0; i < items.size(); i++) a[i] = (byte) decInt(items.get(i), "u8");
+        return new Slice(a, 0, items.size(), cap);
+    }
+
     static Slice view(Slice base, Object raw) {
         Map<String, Object> m = obj(raw);
         int lo = m.containsKey("lo") ? Integer.parseInt((String) m.get("lo")) : 0;
         int hi = m.containsKey("hi") ? Integer.parseInt((String) m.get("hi")) : base.l;
         int mx = m.containsKey("max") ? Integer.parseInt((String) m.get("max")) : base.c;
-        return new Slice(base.a, base.o + lo, hi - lo, mx - lo);
+        return new Slice(base.a, base.o + lo, hi - lo, mx - lo, base.bytes);
     }
 
     @SuppressWarnings("unchecked")
@@ -126,7 +137,7 @@ class Codec {
             return m;
         }
         List<Object> items = new ArrayList<>();
-        for (int i = 0; i < s.l; i++) items.add(enc.apply(s.a[s.o + i]));
+        for (int i = 0; i < s.l; i++) items.add(enc.apply(s.get(i)));
         m.put("slice", items);
         m.put("cap", Integer.toString(s.c));
         return m;
@@ -134,7 +145,11 @@ class Codec {
 
     static Object encArray(Object v, Function<Object, Object> enc) {
         List<Object> items = new ArrayList<>();
-        for (Object x : (Object[]) v) items.add(enc.apply(x));
+        if (v instanceof byte[] a) {
+            for (byte x : a) items.add(enc.apply((long) (x & 255)));
+        } else {
+            for (Object x : (Object[]) v) items.add(enc.apply(x));
+        }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("array", items);
         return m;

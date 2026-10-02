@@ -8,5 +8,7 @@ def std_time_sleep(t, d):
     if d <= 0:
         yield_task(t)
         return
-    sched().add_timer(d, t, None)
+    owner = sched()
+    timer = owner.add_timer(d, t, None)
+    t.cleanup = lambda: owner.remove_timer(timer)
     sched().block(t)

@@ -7,8 +7,9 @@ public sealed class SelectState
 
 public sealed class Waiter
 {
-    internal readonly GoTask task;
-    internal readonly object val;
+    internal GoTask task;
+    internal object val;
+    internal bool active = true;
     internal readonly SelectState sel;
     internal readonly int idx;
 
@@ -20,8 +21,13 @@ public sealed class Waiter
         this.idx = idx;
     }
 
+    internal bool live() => active && task != null && task.owner.live(task) && (sel == null || !sel.done);
+    internal void clear() { active = false; val = null; task = null; }
+
     internal void recvDone(object v, bool ok)
     {
+        if (!live()) return;
+        task.owner.assertDriver(); active = false;
         if (sel != null)
         {
             sel.done = true;
@@ -31,11 +37,13 @@ public sealed class Waiter
         {
             task.rv = new object[] { v, ok };
         }
-        R.sched.ready(task);
+        task.owner.ready(task);
     }
 
     internal void sendDone(bool closed)
     {
+        if (!live()) return;
+        task.owner.assertDriver(); active = false;
         if (sel != null)
         {
             sel.done = true;
@@ -46,7 +54,7 @@ public sealed class Waiter
             task.rv = Array.Empty<object>();
         }
         if (closed) task.resumePanic = Panics.plainPanic("send on closed channel");
-        R.sched.ready(task);
+        task.owner.ready(task);
     }
 }
 
@@ -75,14 +83,15 @@ public static partial class R
         {
             var w = q[0];
             q.RemoveAt(0);
-            if (w.sel == null || !w.sel.done) return w;
+            if (w.live()) return w;
+            w.clear();
         }
         return null;
     }
 
     internal static bool hasLive(List<Waiter> q)
     {
-        foreach (var w in q) if (w.sel == null || !w.sel.done) return true;
+        foreach (var w in q) if (w.live()) return true;
         return false;
     }
 

@@ -24,6 +24,7 @@ public static partial class R
 {
     public static void stdSyncMutexLock(GoTask t, GoMutex m)
     {
+        sched.assertTask(t);
         t.rv = Array.Empty<object>();
         if (!m.locked)
         {
@@ -31,6 +32,7 @@ public static partial class R
             return;
         }
         m.waiters.Add(t);
+        t.cleanup = () => m.waiters.Remove(t);
         sched.block(t);
     }
 }

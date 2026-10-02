@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 44cbfff1b3b55baa90bcc35424cf26b2d9882da92dad64572364f2199883ae8f
 symbol: "rt.reslice"
 implementation: runtime/slice_slice.py
-implementation_hash: 843e235a0dd7ed7456bef10c991fc099d8d8f4ea299b7f0e7400fe039d113e8c
+implementation_hash: bf3f53adb37499062b61d08c53c82daf24874beb3cbcd96a2d3d9c55e9ac5bdf
 summary: "Full slice expression s[lo:hi:max]."
 suspension: never
 determinism: deterministic

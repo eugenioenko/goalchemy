@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9194a01fb06c385b31dbbb1542b66c91e200d16dc5aba5d4aa6ef613e7c96ab6
 symbol: "R.stdContextContextDone"
 implementation: runtime/StdContextDone.cs
-implementation_hash: 9b09c75c3f17836f3d58ea9d3e4f34a2c64d30efcd625b221278a7e6e4562f08
+implementation_hash: 07d5259af9f3681650b7719aac2d282c8370f4af5812a734c00cba035625c3da
 summary: "Context.Done: the channel closed on cancellation."
 suspension: never
 determinism: deterministic

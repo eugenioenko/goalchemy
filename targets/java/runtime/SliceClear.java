@@ -7,7 +7,11 @@ public final class SliceClear {
     private SliceClear() {}
 
     public static void clearSlice(Slice s, Supplier<Object> zero) {
-        for (int i = 0; i < s.l; i++) s.a[s.o + i] = zero.get();
+        if (s.bytes) {
+            if (s.l != 0) java.util.Arrays.fill((byte[]) s.a, s.o, s.o + s.l, (byte) 0);
+        } else {
+            for (int i = 0; i < s.l; i++) s.set(i, zero.get());
+        }
     }
 
 }

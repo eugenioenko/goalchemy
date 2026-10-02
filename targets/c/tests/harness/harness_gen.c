@@ -10,15 +10,15 @@ static J *codec_5(gx_V v) { return enc_slice(v, enc_int_s); }
 static gx_V codec_6(J *r) { return dec_map(r, dec_int, dec_string); }
 static gx_V codec_7(J *r) { return dec_map(r, dec_string, dec_int); }
 static J *codec_8(gx_V v) { return enc_map(v, enc_string, enc_int_s); }
-static gx_V codec_9(J *r) { return dec_slice(r, dec_string, gx_zero_string); }
+static gx_V codec_9(J *r) { return dec_slice(r, dec_string, gx_zero_string, false); }
 static J *codec_10(gx_V v) { return enc_slice(v, enc_string); }
-static gx_V codec_11(J *r) { return dec_slice(r, dec_int, gx_zero_int); }
-static gx_V codec_12(J *r) { return dec_slice(r, dec_int, gx_zero_int); }
+static gx_V codec_11(J *r) { return dec_slice(r, dec_int, gx_zero_int, false); }
+static gx_V codec_12(J *r) { return dec_slice(r, dec_int, gx_zero_int, true); }
 static J *codec_13(gx_V v) { return enc_slice(v, enc_int_s); }
 static J *codec_14(gx_V v) { return enc_array(v, 2, enc_int_s); }
-static gx_V codec_15(J *r) { return dec_slice(r, dec_int, gx_zero_int); }
+static gx_V codec_15(J *r) { return dec_slice(r, dec_int, gx_zero_int, false); }
 static J *codec_16(gx_V v) { return enc_slice(v, enc_int_s); }
-static gx_V codec_17(J *r) { return dec_slice(r, dec_nil, gx_zero_nil); }
+static gx_V codec_17(J *r) { return dec_slice(r, dec_nil, gx_zero_nil, false); }
 static gx_V codec_18(J *r) { return gx_std_context_background(); }
 static J *codec_19(gx_V v) { return enc_chan(v, enc_zero); }
 static gx_V codec_20(J *r) { return gx_new_mutex(); }
@@ -1248,7 +1248,7 @@ static J *case_114(H *h) {
     gx_V v_len = dec_int(h_let(h, "len"));
     gx_V v_cap = dec_int(h_let(h, "cap"));
     gx_V a[] = {v_len, v_cap};
-    gx_V r0 = gx_make_slice(a[0], a[1], gx_zero_int);
+    gx_V r0 = gx_make_byte_slice(a[0], a[1]);
     J *out = j_new(J_ARR);
     j_push(out, codec_13(r0));
     return out;

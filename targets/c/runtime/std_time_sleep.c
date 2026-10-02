@@ -2,6 +2,7 @@
 #include "gx.h"
 
 void gx_std_time_sleep(gx_Task *t, gx_V d) {
+    gx_owner_check(t->owner);
     gx_set_rv(t, 0, NULL);
     if (d.u.i <= 0) {
         gx_yield_task(t);

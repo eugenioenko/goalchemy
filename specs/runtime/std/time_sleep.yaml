@@ -1,7 +1,7 @@
 id: std.time.sleep
 schema_version: 1
 version: 1.0.0
-summary: "time.Sleep: suspend for a duration of virtual time."
+summary: "time.Sleep: suspend for a duration of scheduler time."
 signature:
   source: declaration
   symbol: "github.com/eugenioenko/goalchemy/lib/time.Sleep"
@@ -19,13 +19,13 @@ behavior:
   nil: "Not applicable."
   bounds: "Not applicable."
   conversions: "Not applicable."
-  overflow: "Not applicable."
+  overflow: "Explicit host entry must prevent positive deadline overflow from becoming an expired deadline; Go saturates at the clock maximum. Default virtual entry overflow is not otherwise specified."
   mutations: "Not applicable."
   aliasing: "Not applicable."
   allocation: "Not applicable."
   errors: "Not applicable."
   panics: "Not applicable."
-  observations: "Virtual time advances to the earliest timer only when no task can run; timers with equal deadlines fire in creation order."
+  observations: "Default entry advances virtual time to the earliest timer only when no task can run. Explicit host entry uses instance-local monotonic elapsed time; due timers run at dispatch boundaries even when tasks are runnable. Timers are ordered by deadline then creation order."
 notes: "Native Go uses wall-clock time; comparisons with native runs rely only on the relative order of different durations."
 cases:
   - name: zero

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 8621f5ec3eaefcf843334d4bb7fa075d9ed15f0fee0cc9df18d05b3189ad1bfa
 symbol: "R.toBytes"
 implementation: runtime/StringToBytes.cs
-implementation_hash: 6964efaa86ae314e3f89de810554c211d81615cfad0e4edead33b46b262cc28f
+implementation_hash: ea3bcdf55c7d052faf76da0dcb2c20a2b8db2f5f2aa1a0393a688b67065d5fa9
 summary: "[]byte(s) conversion."
 suspension: never
 determinism: deterministic

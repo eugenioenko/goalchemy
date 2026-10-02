@@ -1,7 +1,7 @@
 id: std.context.with_timeout
 schema_version: 1
 version: 1.0.0
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 signature:
   source: declaration
   symbol: "github.com/eugenioenko/goalchemy/lib/context.WithTimeout"
@@ -15,19 +15,20 @@ signature:
 depends_on:
   - {id: std.context.with_cancel, version: 1.0.0}
 suspension: never
-determinism: deterministic
+determinism: controlled
 behavior:
   zero: "Not applicable."
   nil: "Not applicable."
   bounds: "Not applicable."
   conversions: "Not applicable."
-  overflow: "Not applicable."
+  overflow: "Explicit host entry must prevent positive deadline overflow from becoming an expired deadline; Go saturates at the clock maximum. Default virtual entry overflow is not otherwise specified."
   mutations: "Not applicable."
   aliasing: "Not applicable."
   allocation: "Not applicable."
   errors: "Not applicable."
   panics: "Not applicable."
-  observations: "The deadline is a scheduler timer on the virtual clock."
+  observations: "Timeout starts at context creation. The earlier inherited deadline wins. Default entry uses virtual time. Explicit host entry uses instance-local real monotonic time, bridges the absolute deadline into host operations, and removes canceled child and timer registrations. These host-entry requirements are implemented in Go; other target ports remain unavailable."
+notes: "The version remains 1.0.0 during pre-release Phase 4: default virtual cases and declaration are unchanged; the explicit host entry extends clock selection. Ports must implement the same host-mode behavior before claiming that capability."
 cases:
   - name: child
     types: {}

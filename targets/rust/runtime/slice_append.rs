@@ -53,10 +53,16 @@ pub fn append(x: V, vs: Vec<V>, clone: Option<fn(&V) -> V>) -> V {
 }
 
 pub fn append_slice(x: V, y: V, clone: Option<fn(&V) -> V>) -> V {
+    if matches!(x, V::ByteSlice(..)) {
+        let (h, o, l, _, bytes) = slice_parts(&y);
+        if !bytes { fault("byte slice expected"); }
+        if l == 0 { return x; }
+        return append_bytes(x, &byte_snapshot(h, o as usize, l as usize));
+    }
     let V::Slice(b, o, l, _) = y else { fault("slice expected") };
     if l == 0 {
-        let V::Slice(a, ..) = x else { fault("slice expected") };
-        return if a == 0 && b == 0 { NIL_SLICE } else { x };
+        let V::Slice(..) = x else { fault("slice expected") };
+        return x;
     }
     let vs: Vec<V> = with(b, |obj| match obj {
         Obj::Vals(v) => v[o as usize..(o + l) as usize].to_vec(),
@@ -70,6 +76,34 @@ pub fn append_slice(x: V, y: V, clone: Option<fn(&V) -> V>) -> V {
 }
 
 pub fn append_string(x: V, y: V) -> V {
+    if matches!(x, V::ByteSlice(..)) { return append_bytes(x, &y.bytes()); }
     let vs: Vec<V> = y.bytes().iter().map(|&c| V::Int(c as i64)).collect();
     append_values(x, vs, None)
+}
+
+
+/// Explicit values, spreads and strings all enter through native bytes.
+/// Snapshots for spreads permit overlap in either direction without heap reentry.
+pub fn append_bytes(x: V, vs: &[u8]) -> V {
+    let (a, o, l, c, bytes) = slice_parts(&x);
+    if !bytes { fault("byte slice expected"); }
+    if vs.is_empty() { return x; }
+    let n = (l as usize).checked_add(vs.len()).unwrap_or_else(|| fault("slice growth exceeds host limits"));
+    if n > u32::MAX as usize / 2 { fault("slice growth exceeds host limits"); }
+    if n <= c as usize {
+        with(a, |obj| match obj {
+            Obj::Bytes(v) => v[o as usize + l as usize..o as usize + n].copy_from_slice(vs),
+            _ => fault("byte backing expected"),
+        });
+        return V::ByteSlice(a, o, n as u32, c);
+    }
+    let nc = grow_cap(c as i64, n as i64);
+    if nc > u32::MAX as i64 / 2 { fault("slice growth exceeds host limits"); }
+    let mut nv = vec![0; nc as usize];
+    if l != 0 { with(a, |obj| match obj {
+        Obj::Bytes(v) => nv[..l as usize].copy_from_slice(&v[o as usize..(o + l) as usize]),
+        _ => fault("byte backing expected"),
+    }); }
+    nv[l as usize..n].copy_from_slice(vs);
+    V::ByteSlice(alloc(Obj::Bytes(nv)), 0, n as u32, nc as u32)
 }

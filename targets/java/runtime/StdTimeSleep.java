@@ -1,6 +1,6 @@
 package rt;
 
-/** std.time.sleep: suspend for d nanoseconds of virtual time; a pause primitive. */
+/** std.time.sleep: suspend for d nanoseconds of scheduler time; a pause primitive. */
 public final class StdTimeSleep {
     private StdTimeSleep() {}
 

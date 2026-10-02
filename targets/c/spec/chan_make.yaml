@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d973a51672009574414745f973a06f85e58015261690632cfc985d50ea8a1199
 symbol: "gx_make_chan"
 implementation: runtime/chan_make.c
-implementation_hash: 00622ed32c075fb1c39b29f30d12ef9977034687c4ce4f6eca7df6c52ae4887b
+implementation_hash: 5aa451f4c01ef2de852f00088be1d61a998bcb9293b4c086907021672e3922d1
 summary: "make(chan T, size)."
 suspension: never
 determinism: deterministic

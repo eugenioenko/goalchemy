@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 _Noreturn void gx_fault(const char *msg) {
+    if (gx_sched && gx_sched->host && !gx_sched->retired && pthread_equal(gx_sched->thread, pthread_self())) gx_host_fault(msg);
     fprintf(stderr, "goalchemy runtime fault: goalchemy fault: %s\n", msg);
     fflush(stderr);
     abort();
@@ -25,8 +26,44 @@ gx_V gx_str(const char *b, size_t n) {
 gx_V gx_cstr(const char *s) { return gx_str(s, strlen(s)); }
 
 gx_V *gx_alloc_vals(size_t n) {
+    if (n > SIZE_MAX / sizeof(gx_V)) gx_fault("allocation exceeds host limits");
     gx_V *p = GC_MALLOC(n ? n * sizeof(gx_V) : sizeof(gx_V));
+    if (!p) gx_fault("allocation failed");
     return p;
+}
+
+uint8_t *gx_alloc_bytes(size_t n) {
+    if (n > UINT32_MAX / 2) gx_fault("allocation exceeds host limits");
+    uint8_t *p = GC_MALLOC_ATOMIC(n ? n : 1);
+    if (!p) gx_fault("allocation failed");
+    /* Atomic allocation need not be cleared by every collector build. */
+    memset(p, 0, n ? n : 1);
+    return p;
+}
+
+gx_V gx_byte_array(size_t n) {
+    gx_V v = gx_obj(gx_alloc_bytes(n)); v.pad = 1; return v;
+}
+
+gx_V gx_byte_array_clone(gx_V x, size_t n) {
+    gx_V v = gx_byte_array(n);
+    if (n) memcpy(v.u.p, x.u.p, n);
+    return v;
+}
+
+void gx_byte_array_set(gx_V d, gx_V s, size_t n) {
+    if (n) memmove(d.u.p, s.u.p, n);
+}
+
+bool gx_byte_array_eq(gx_V a, gx_V b, size_t n) {
+    return !n || memcmp(a.u.p, b.u.p, n) == 0;
+}
+
+void gx_byte_array_key(gx_V a, size_t n, gx_Buf *out) {
+    gx_key_open(out);
+    /* Keep the existing fixed-array scalar key encoding. */
+    for (size_t i = 0; i < n; i++) gx_vkey(gx_int(gx_bytes(a)[i]), out);
+    gx_key_close(out);
 }
 
 gx_V gx_new_vals(size_t n, const gx_V *init) {
@@ -76,22 +113,28 @@ gx_V gx_fptr(gx_V s, size_t k) {
 
 gx_V gx_aget(gx_V a, gx_V i, size_t n) {
     size_t k = gx_idx(i, n);
-    return gx_vals(gx_nilchk(a))[k];
+    gx_nilchk(a);
+    return gx_byte_backing(a) ? gx_int(gx_bytes(a)[k]) : gx_vals(a)[k];
 }
 
 gx_V gx_agetu(gx_V a, gx_V i, size_t n) {
     size_t k = gx_idxu(i, n);
-    return gx_vals(gx_nilchk(a))[k];
+    gx_nilchk(a);
+    return gx_byte_backing(a) ? gx_int(gx_bytes(a)[k]) : gx_vals(a)[k];
 }
 
 void gx_aset(gx_V a, gx_V i, size_t n, gx_V x) {
     size_t k = gx_idx(i, n);
-    gx_vals(gx_nilchk(a))[k] = x;
+    gx_nilchk(a);
+    if (gx_byte_backing(a)) gx_bytes(a)[k] = (uint8_t)x.u.i;
+    else gx_vals(a)[k] = x;
 }
 
 void gx_asetu(gx_V a, gx_V i, size_t n, gx_V x) {
     size_t k = gx_idxu(i, n);
-    gx_vals(gx_nilchk(a))[k] = x;
+    gx_nilchk(a);
+    if (gx_byte_backing(a)) gx_bytes(a)[k] = (uint8_t)x.u.i;
+    else gx_vals(a)[k] = x;
 }
 
 gx_V gx_tuple(int n, const gx_V *vs) {
@@ -175,3 +218,5 @@ gx_V gx_zero_int(void) { return gx_int(0); }
 gx_V gx_zero_bool(void) { return gx_bool(false); }
 gx_V gx_zero_string(void) { return gx_str(NULL, 0); }
 gx_V gx_zero_slice(void) { return gx_nil_slice(); }
+
+gx_V gx_zero_byte_slice(void) { return gx_nil_byte_slice(); }

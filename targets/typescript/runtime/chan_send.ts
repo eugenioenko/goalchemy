@@ -1,5 +1,5 @@
 // core.chan.send: ch <- v, a pause primitive.
-import { dequeue, Waiter, type Chan } from "./chan_make.ts";
+import { dequeue, parkWaiter, Waiter, type Chan } from "./chan_make.ts";
 import { plainPanic } from "../types/panic.ts";
 import { sched, type Task } from "./task_spawn.ts";
 
@@ -19,6 +19,5 @@ export function chanSend(t: Task, ch: Chan | null, v: unknown): void {
     ch.buf.push(v);
     return;
   }
-  ch.sendq.push(new Waiter(t, v));
-  sched.block(t);
+  parkWaiter(t, ch.sendq, new Waiter(t, v));
 }

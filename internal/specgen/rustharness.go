@@ -13,6 +13,9 @@ func init() { harnessGenerators["rust"] = rustHarness }
 func rustZeroFn(t *contracts.TypeExpr) string {
 	switch t.Kind {
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return "zero_byte_slice"
+		}
 		return "zero_slice"
 	case "map", "pointer", "chan":
 		return "zero_nil"
@@ -41,6 +44,9 @@ func rustDecode(t *contracts.TypeExpr, raw string) string {
 		}
 		panic("rust harness: pointer to " + t.Elem.Name)
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return fmt.Sprintf("dec_byte_slice(%s)", raw)
+		}
 		return fmt.Sprintf("dec_slice(%s, &|r: &J| %s, %s)", raw, rustDecode(t.Elem, "r"), rustZeroFn(t.Elem))
 	case "map":
 		return fmt.Sprintf("dec_map(%s, &|r: &J| %s, &|r: &J| %s)", raw, rustDecode(t.Key, "r"), rustDecode(t.Elem, "r"))
@@ -121,6 +127,7 @@ func rustHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
 			vars[k+".zerofn"] = rustZeroFn(v)
+			vars[k+".bytes"] = fmt.Sprint(tsKind(v) == "u8")
 			vars[k+".unsigned"] = fmt.Sprint(tsKind(v) == "u64")
 			vars[k+".count"] = "count"
 			vars[k+".u"] = ""

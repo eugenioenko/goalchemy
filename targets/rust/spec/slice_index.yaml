@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a8730c5c8f21a156d58347c4cbddfc5870f88067ab8ba7dd1bf6ceaca17a0ab1
 symbol: "sget"
 implementation: runtime/slice_index.rs
-implementation_hash: 702656f0a7d12156a2e849b3934893e8b133fa054a42d278ed733f40cec57635
+implementation_hash: ad8b9a398e6e35c89b0588b870199704d4985d581edd2bb3fc83498fc3876953
 summary: "Read s[i]."
 suspension: never
 determinism: deterministic

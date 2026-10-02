@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 44cbfff1b3b55baa90bcc35424cf26b2d9882da92dad64572364f2199883ae8f
 symbol: "gx_reslice"
 implementation: runtime/slice_slice.c
-implementation_hash: 44a3b26024b82919b2a1214272cfccc740772a6fd9b97bb0c6a190172fd4f64c
+implementation_hash: 08fa68788dfcd0c204097fd4d277bccaff9683ae4072c3caa5bdffc369a75e63
 summary: "Full slice expression s[lo:hi:max]."
 suspension: never
 determinism: deterministic

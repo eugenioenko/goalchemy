@@ -5,6 +5,7 @@ public static partial class R
 {
     public static void chanSend(GoTask t, Chan ch, object v)
     {
+        sched.assertTask(t);
         t.rv = Array.Empty<object>();
         if (ch == null)
         {
@@ -23,7 +24,9 @@ public static partial class R
             ch.buf.Enqueue(v);
             return;
         }
-        ch.sendq.Add(new Waiter(t, v, null, 0));
+        var waiter = new Waiter(t, v, null, 0);
+        ch.sendq.Add(waiter);
+        t.cleanup = () => { ch.sendq.Remove(waiter); waiter.clear(); };
         sched.block(t);
     }
 }

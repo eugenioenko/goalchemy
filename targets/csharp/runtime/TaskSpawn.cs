@@ -7,6 +7,7 @@ public abstract class Frame
     public int pc;
     public List<Deferred> defers = new();
     public Frame parent;
+    internal int depth;
     public GoPanic panicking;
 
     public abstract void step(GoTask t);
@@ -17,6 +18,7 @@ public abstract class Frame
 public sealed class GoTask : PanicState
 {
     internal readonly int id;
+    internal Scheduler owner;
     public Frame frame;
     public object[] rv = Array.Empty<object>();
     public bool blocked;
@@ -46,28 +48,36 @@ sealed class FatalPanic : Exception
 
 public sealed class Scheduler
 {
-    sealed record Timer(long at, long seq, GoTask task, Action fn);
-
-    readonly Queue<GoTask> runq = new();
+    internal sealed record Timer(long at, long seq, GoTask task, Action fn);
+    internal readonly Queue<GoTask> runq = new();
     public GoTask cur;
-    internal readonly GoTask main;
+    internal GoTask main;
+    internal readonly HashSet<GoTask> tasks = new();
+    public readonly HashSet<Action> disposers = new();
+    internal readonly Mailbox mail = new();
+    internal readonly Dictionary<long, HostOperation> operations = new();
+    long nextOperation;
+    internal bool closed, hostMode, harness;
+    internal System.Threading.Thread driver = System.Threading.Thread.CurrentThread;
+    readonly Func<long> monotonic;
+    readonly long epoch, frequency;
     internal int nextId = 1;
     long rng;
     public long clock;
-    readonly List<Timer> timers = new();
+    internal readonly List<Timer> timers = new();
     long seq;
-    internal bool harness;
 
-    internal Scheduler(GoTask main)
+    internal Scheduler(GoTask main) : this(main, System.Diagnostics.Stopwatch.GetTimestamp, System.Diagnostics.Stopwatch.Frequency) { }
+    internal Scheduler(GoTask main, Func<long> monotonic, long frequency)
     {
-        cur = main;
-        this.main = main;
-        rng = R.seed();
+        if (frequency <= 0) throw new HostFault("invalid monotonic frequency");
+        cur = this.main = main; rng = R.seed();
+        this.monotonic = monotonic; this.frequency = frequency; epoch = monotonic();
+        main.owner = this; tasks.Add(main);
     }
-
-    /// <summary>xorshift32 choice source, identical on every target.</summary>
     public int choose(int n)
     {
+        assertDriver();
         long x = rng;
         x ^= (x << 13) & 0xFFFFFFFFL;
         x ^= (long)((ulong)x >> 17);
@@ -75,48 +85,153 @@ public sealed class Scheduler
         rng = x;
         return (int)(x % n);
     }
-
-    public void ready(GoTask t) => runq.Enqueue(t);
-
-    public void block(GoTask t) => t.blocked = true;
-
-    public void addTimer(long d, GoTask task, Action fn)
+    public void assertDriver()
     {
-        seq++;
-        timers.Add(new Timer(clock + d, seq, task, fn));
+        if (System.Threading.Thread.CurrentThread != driver) throw new HostFault("source state requires owner driver");
     }
-
+    public void assertTask(GoTask t)
+    {
+        assertDriver(); if (!live(t)) throw new HostFault("foreign or retired source task");
+    }
+    public bool live(GoTask t) => !closed && t.owner == this && !t.done;
+    public void ready(GoTask t)
+    {
+        assertDriver(); if (live(t)) { tasks.Add(t); runq.Enqueue(t); }
+    }
+    public void block(GoTask t) { assertDriver(); t.blocked = true; }
+    public long now()
+    {
+        assertDriver();
+        if (hostMode)
+        {
+            long ticks = unchecked(monotonic() - epoch);
+            if (ticks > 0)
+            {
+                // One division, no double rounding or overflowing ticks * 1e9.
+                UInt128 ns = (UInt128)(ulong)ticks * 1000000000UL / (ulong)frequency;
+                long elapsed = ns > (UInt128)long.MaxValue ? long.MaxValue : (long)ns;
+                if (elapsed > clock) clock = elapsed;
+            }
+        }
+        return clock;
+    }
+    public Action addTimer(long d, GoTask task, Action fn) => addTimerAt(R.deadlineAfter(now(), d), task, fn);
+    public Action addTimerAt(long at, GoTask task, Action fn)
+    {
+        assertDriver(); var timer = new Timer(Math.Max(0, at), ++seq, task, fn); timers.Add(timer);
+        return () => { assertDriver(); timers.Remove(timer); };
+    }
+    public HostToken registerHost(GoTask t, Action cancel, Action cleanup = null,
+        Func<object[]> canceled = null, Func<object[], object[]> decode = null)
+    {
+        assertDriver();
+        if (!hostMode || !live(t)) throw new HostFault("host registration requires a live owner task");
+        long id = ++nextOperation;
+        operations.Add(id, new HostOperation(t, cancel, cleanup ?? (() => {}), canceled ?? (() => null), decode ?? (a => a)));
+        tasks.Add(t); lock (mail) mail.live.Add(id, t.id);
+        block(t); return new HostToken(mail, id, t.id);
+    }
+    /// Work must settle AFTER resource release; Task cancellation is not cleanup.
+    public void launchHost(HostToken token, Func<System.Threading.Tasks.Task<object[]>> work)
+    {
+        assertDriver();
+        try { _ = settle(token, work() ?? throw new HostFault("null adapter Task")); }
+        catch (Exception e) { token.complete(Array.Empty<object>(), new HostFault("adapter submission: " + e)); token.acknowledgeCleanup(); }
+    }
+    static async System.Threading.Tasks.Task settle(HostToken token, System.Threading.Tasks.Task<object[]> work)
+    {
+        try { token.complete(await work.ConfigureAwait(false)); }
+        catch (Exception e) { token.complete(Array.Empty<object>(), new HostFault("unexpected Task exception: " + e)); }
+        finally { token.acknowledgeCleanup(); }
+    }
+    internal void drainHost()
+    {
+        assertDriver(); var applicable = new List<KeyValuePair<long, Completion>>();
+        lock (mail)
+        {
+            foreach (var c in mail.records) if (mail.cleaned.Contains(c.Key)) applicable.Add(c);
+            foreach (var c in applicable) mail.records.Remove(c.Key);
+        }
+        applicable.Sort((a, b) => a.Value.sequence.CompareTo(b.Value.sequence));
+        foreach (var record in applicable)
+        {
+            if (!operations.Remove(record.Key, out var op)) continue;
+            lock (mail) { mail.live.Remove(record.Key); mail.cleaned.Remove(record.Key); }
+            if (op.task.id != record.Value.task) continue;
+            Exception cleanupFault = null;
+            try { op.cleanup(); } catch (Exception e) { cleanupFault = e; }
+            if (record.Value.fault != null) throw record.Value.fault;
+            if (cleanupFault != null) throw new HostFault("operation cleanup: " + cleanupFault);
+            try
+            {
+                op.task.rv = op.canceled() ?? op.decode(record.Value.values);
+                if (op.task.rv == null) throw new HostFault("null source result vector");
+            }
+            catch (Exception e) { throw new HostFault("driver decode/cancellation bridge: " + e); }
+            ready(op.task);
+        }
+    }
+    internal GoTask nextHost()
+    {
+        for (;;)
+        {
+            long version = mail.versionNow();
+            fireDue(now()); drainHost();
+            if (runq.Count > 0) return runq.Dequeue();
+            if (operations.Count == 0 && timers.Count == 0) throw new HostFatal("all goroutines are asleep - deadlock!");
+            long at = long.MaxValue; foreach (var t in timers) at = Math.Min(at, t.at);
+            mail.awaitChange(version, timers.Count == 0 ? -1 : Math.Max(0, at - now()));
+        }
+    }
+    internal void retireIdle() { driver = System.Threading.Thread.CurrentThread; shutdown(); }
+    public void shutdown()
+    {
+        assertDriver(); if (closed) return;
+        closed = true; lock (mail) mail.retiring = true;
+        Exception failure = null;
+        foreach (var op in operations.Values) try { op.cancel?.Invoke(); } catch (Exception e) { failure ??= e; }
+        for (;;)
+        {
+            long version = mail.versionNow(); bool pending;
+            lock (mail) { pending = false; foreach (long id in operations.Keys) if (!mail.cleaned.Contains(id)) { pending = true; break; } }
+            if (!pending) break;
+            mail.awaitChange(version, -1);
+        }
+        foreach (var op in operations.Values) try { op.cleanup(); } catch (Exception e) { failure ??= e; }
+        operations.Clear();
+        lock (mail) { mail.closed = true; mail.records.Clear(); mail.live.Clear(); mail.cleaned.Clear(); }
+        runq.Clear(); timers.Clear();
+        foreach (var dispose in new List<Action>(disposers)) try { dispose(); } catch (Exception e) { failure ??= e; }
+        disposers.Clear();
+        foreach (var t in tasks)
+        {
+            try { t.cleanup?.Invoke(); } catch (Exception e) { failure ??= e; }
+            t.cleanup = null; t.frame = null; t.rv = Array.Empty<object>(); t.done = true; t.blocked = false;
+            t.curPanic = null; t.resumePanic = null; t.deferTarget = null;
+        }
+        tasks.Clear(); cur = null; main = null;
+        if (failure != null) throw new HostFault("owner cleanup: " + failure);
+    }
     internal GoTask next()
     {
         while (runq.Count == 0)
         {
-            if (timers.Count == 0)
-            {
-                if (harness) throw new Blocked();
-                R.fatal("all goroutines are asleep - deadlock!");
-            }
-            fireTimers();
+            if (timers.Count == 0) { if (harness) throw new Blocked(); throw new HostFatal("all goroutines are asleep - deadlock!"); }
+            long at = long.MaxValue; foreach (var t in timers) at = Math.Min(at, t.at);
+            clock = at; fireDue(at);
         }
         return runq.Dequeue();
     }
-
-    void fireTimers()
+    internal void fireDue(long at)
     {
-        long at = long.MaxValue;
-        foreach (var t in timers) at = Math.Min(at, t.at);
-        clock = at;
-        var due = timers.FindAll(t => t.at == at);
-        timers.RemoveAll(t => t.at == at);
-        due.Sort((a, b) => a.seq.CompareTo(b.seq));
-        foreach (var t in due)
-        {
-            t.fn?.Invoke();
-            if (t.task != null) ready(t.task);
-        }
+        var due = timers.FindAll(t => t.at <= at); timers.RemoveAll(t => t.at <= at);
+        due.Sort((a,b) => { int c = a.at.CompareTo(b.at); return c != 0 ? c : a.seq.CompareTo(b.seq); });
+        foreach (var t in due) { t.fn?.Invoke(); if (t.task != null) ready(t.task); }
     }
 
     internal void run(GoTask t)
     {
+        assertDriver();
         cur = t;
         t.blocked = false;
         if (t.cleanup != null)
@@ -170,10 +285,11 @@ public sealed class Scheduler
         if (parent == null)
         {
             t.done = true;
+            t.rv = Array.Empty<object>(); t.curPanic = null; t.deferTarget = null;
+            if (t != main) tasks.Remove(t);
             if (p != null)
             {
-                if (harness) throw new FatalPanic(p);
-                Program.reportPanic(p);
+                throw new FatalPanic(p);
             }
             return;
         }
@@ -326,19 +442,21 @@ public static partial class R
 
     public static void fatal(string msg)
     {
-        Out.stderr("fatal error: " + msg + "\n");
-        Environment.Exit(2);
+        throw new HostFatal(msg);
     }
 
     public static Scheduler sched = new Scheduler(new GoTask(0, null));
 
     public static void call(GoTask t, Frame child)
     {
+        sched.assertTask(t);
+        child.depth = t.frame.depth + 1;
+        if (child.depth >= 4096) throw new SourceStackFatal();
         child.parent = t.frame;
         t.frame = child;
     }
 
-    public static void ret(GoTask t, Frame f) => sched.exit(t, f, null);
+    public static void ret(GoTask t, Frame f) { sched.assertTask(t); sched.exit(t, f, null); }
 
     /// <summary>Runs an ordinary call as a frame.</summary>
     public static Frame sync(Func<object[]> fn) => new SyncFrame(fn);
@@ -358,32 +476,70 @@ public static partial class R
     {
         if (s.a == null) return s;
         var a = new object[s.l];
-        for (int i = 0; i < s.l; i++) a[i] = adapt((Fn)s.a[s.o + i], n);
+        for (int i = 0; i < s.l; i++) a[i] = adapt((Fn)s.Get(i), n);
         return new Slice(a, 0, a.Length, a.Length);
     }
 
     /// <summary>go f(args): starts a task running frame f.</summary>
-    public static void spawn(Frame f) => sched.ready(new GoTask(sched.nextId++, f));
+    public static void spawn(Frame f) => sched.ready(new GoTask(sched.nextId++, f) { owner = sched });
 
+    static int entryActive;
+    static void reserveEntry()
+    {
+        if (System.Threading.Interlocked.CompareExchange(ref entryActive, 1, 0) != 0)
+            throw new HostFault("overlapping executable entry/reset");
+    }
+    static void releaseEntry() => System.Threading.Volatile.Write(ref entryActive, 0);
     static Scheduler install(GoTask main, bool harness)
     {
+        if (!sched.closed)
+        {
+            sched.retireIdle();
+        }
         var s = new Scheduler(main) { harness = harness };
-        sched = s;
-        Program.panicState = () => sched.cur;
+        sched = s; Program.panicState = () => s.cur;
         return s;
     }
+    public static long deadlineAfter(long now, long duration) => duration <= 0 ? now : duration > long.MaxValue - now ? long.MaxValue : now + duration;
 
-    /// <summary>Runs the program entry as the first task until it returns.</summary>
+    /// Explicit executable entry: dedicated driver, serialized static source ABI.
+    /// Init reruns against persistent globals. This is not an isolated library.
+    public static System.Threading.Tasks.Task runMainHost(Func<Frame> entry)
+    {
+        reserveEntry();
+        try
+        {
+            var done = new System.Threading.Tasks.TaskCompletionSource(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            var thread = new System.Threading.Thread(() =>
+            {
+                try { drive(entry, true); done.SetResult(); }
+                catch (Exception e) { done.SetException(e); }
+            }, 16 << 20);
+            thread.Start(); return done.Task;
+        }
+        catch { releaseEntry(); throw; }
+    }
+    public static System.Threading.Tasks.Task runMainHost(Frame entry) => runMainHost(() => entry);
     public static void runMain(Frame entry)
     {
-        Program.runLarge(() =>
+        reserveEntry(); Program.runLarge(() => drive(() => entry, false)); Environment.Exit(0);
+    }
+    static void drive(Func<Frame> entry, bool host)
+    {
+        Scheduler s = null; Exception failure = null;
+        try
         {
-            var main = new GoTask(0, entry);
-            var s = install(main, false);
-            s.ready(main);
-            while (!main.done) s.run(s.next());
-        });
-        Environment.Exit(0);
+            var main = new GoTask(0, null); s = install(main, false); s.hostMode = host;
+            main.frame = entry(); s.ready(main);
+            while (!main.done) s.run(host ? s.nextHost() : s.next());
+        }
+        catch (Exception e) { failure = e; }
+        if (s != null) try { s.shutdown(); } catch (Exception e) { failure ??= e; }
+        Program.resetPanicBinding(); releaseEntry();
+        if (failure is FatalPanic p) Program.reportPanic(p.p);
+        if (failure is HostFatal f) { Out.stderr("fatal error: " + f.Message + "\n"); Environment.Exit(2); }
+        if (failure is SourceStackFatal) { Out.stderr("runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n"); Environment.Exit(2); }
+        if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     /// <summary>Requeues the running task: a pause primitive.</summary>
@@ -397,6 +553,9 @@ public static partial class R
     /// case; throws Blocked when no task can run, and the source panic on panic.</summary>
     public static object[] runIsolated(Action<GoTask> fn)
     {
+        reserveEntry();
+        try
+        {
         var h = new AwaitFrame(fn);
         var main = new GoTask(0, h);
         var s = install(main, true);
@@ -410,7 +569,103 @@ public static partial class R
             throw e.p;
         }
         return h.res;
+        } finally { releaseEntry(); }
     }
 
-    public static void resetScheduler() => install(new GoTask(0, null), true);
+    public static void resetScheduler()
+    {
+        reserveEntry(); try { install(new GoTask(0, null), true); } finally { releaseEntry(); }
+    }
+}
+
+
+/// Adapter implementation faults bypass source panic/recover.
+internal sealed record Completion(long sequence, int task, object[] values, HostFault fault);
+internal sealed record HostOperation(GoTask task, Action cancel, Action cleanup,
+    Func<object[]> canceled, Func<object[], object[]> decode);
+
+/// Only this state may be mutated by native threads. No source roots live here.
+internal sealed class Mailbox
+{
+    internal readonly Dictionary<long, int> live = new();
+    internal readonly HashSet<long> cleaned = new();
+    internal long publicationSequence;
+    internal readonly Dictionary<long, Completion> records = new();
+    internal bool retiring, closed, waiting;
+    long version;
+    internal void signal() { version++; System.Threading.Monitor.PulseAll(this); }
+    internal long versionNow() { lock (this) return version; }
+    internal void awaitChange(long observed, long nanos)
+    {
+        lock (this)
+        {
+            if (version != observed || nanos == 0) return;
+            waiting = true;
+            try
+            {
+                if (nanos < 0) System.Threading.Monitor.Wait(this);
+                else System.Threading.Monitor.Wait(this, (int)Math.Min(int.MaxValue, (nanos - 1) / 1000000 + 1));
+            }
+            catch (System.Threading.ThreadInterruptedException) { /* Still await real resource cleanup. */ }
+            finally { waiting = false; }
+        }
+    }
+}
+/// Retains mailbox identity and numeric IDs only, never frames or input snapshots.
+public sealed class HostToken
+{
+    readonly Mailbox mail;
+    public readonly long operation;
+    public readonly int task;
+    internal HostToken(Mailbox mail, long operation, int task) { this.mail=mail; this.operation=operation; this.task=task; }
+    public void complete(object[] values, HostFault fault = null)
+    {
+        lock (mail)
+        {
+            if (mail.closed || mail.retiring || (!mail.live.TryGetValue(operation, out int expectedTask) || expectedTask != task) || mail.records.ContainsKey(operation)) return;
+            object[] owned = Array.Empty<object>();
+            HostFault failure = fault == null ? null : new HostFault(fault.Message);
+            try { owned = (object[])R.snapshot(values); if (owned == null) throw new HostFault("null wire vector"); }
+            catch (Exception e) { failure = new HostFault("invalid adapter wire result: " + e); }
+            mail.records.Add(operation, new Completion(++mail.publicationSequence, task, owned, failure)); mail.signal();
+        }
+    }
+    /// Only after worker/Task transport, body, key and input cleanup.
+    public void acknowledgeCleanup()
+    {
+        lock (mail)
+        {
+            if (mail.closed || (!mail.live.TryGetValue(operation, out int expectedTask) || expectedTask != task)) return;
+            mail.cleaned.Add(operation); mail.signal();
+        }
+    }
+}
+public static partial class R
+{
+    /// Restricted wire values; source descriptors and opaque handles decode on driver.
+    public static object snapshot(object value) => snapshot(value, new HashSet<object>(System.Collections.Generic.ReferenceEqualityComparer.Instance));
+    static object snapshot(object value, HashSet<object> path)
+    {
+        if (value == null || value is string || value is bool || value is byte || value is sbyte || value is short || value is ushort || value is int || value is uint || value is long || value is ulong || value is float || value is double) return value;
+        if (value is byte[] bytes) return bytes.Clone();
+        if (!path.Add(value)) throw new HostFault("cyclic wire value");
+        try
+        {
+            if (value is object[] a)
+            {
+                var copy = new object[a.Length]; for (int i=0;i<a.Length;i++) copy[i]=snapshot(a[i],path); return copy;
+            }
+            if (value is System.Collections.Generic.IDictionary<string,object> map)
+            {
+                var copy = new Dictionary<string,object>(); foreach (var pair in map) copy.Add(pair.Key,snapshot(pair.Value,path));
+                return new System.Collections.ObjectModel.ReadOnlyDictionary<string,object>(copy);
+            }
+            if (value is System.Collections.Generic.IList<object> list)
+            {
+                var copy = new List<object>(); foreach (var item in list) copy.Add(snapshot(item,path)); return copy.AsReadOnly();
+            }
+            throw new HostFault("unsupported wire value " + value.GetType().FullName);
+        }
+        finally { path.Remove(value); }
+    }
 }

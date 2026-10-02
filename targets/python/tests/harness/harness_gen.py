@@ -703,44 +703,44 @@ def case_100(h):
 
 
 def case_101(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_string(r), lambda: b"")
-    v_vs = dec_slice(h.let("vs"), lambda r: dec_string(r), lambda: b"")
+    v_s = dec_slice(h.let("s"), lambda r: dec_string(r), lambda: b"", False)
+    v_vs = dec_slice(h.let("vs"), lambda r: dec_string(r), lambda: b"", False)
     r0 = rt.append_slice(v_s, v_vs)
     return [enc_slice(r0, lambda e: enc_string(e))]
 
 
 def case_102(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
-    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
+    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.append_slice(v_s, v_vs)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_103(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
-    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
+    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.append_slice(v_s, v_vs)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_104(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_t = view(v_s, h.let("t"))
-    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.append_slice(v_s, v_vs)
     h.after("t", enc_slice(v_t, lambda e: enc_int(e)))
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_105(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
-    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
+    v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.append_slice(v_s, v_vs)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_106(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_a = view(v_s, h.let("a"))
     v_vs = view(v_s, h.let("vs"))
     r0 = rt.append_slice(v_a, v_vs)
@@ -749,7 +749,7 @@ def case_106(h):
 
 
 def case_107(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_t = view(v_s, h.let("t"))
     rt.clear_slice(v_t, lambda: 0)
     h.after("s", enc_slice(v_s, lambda e: enc_int(e)))
@@ -757,7 +757,7 @@ def case_107(h):
 
 
 def case_108(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_d = view(v_s, h.let("d"))
     v_src = view(v_s, h.let("src"))
     r0 = rt.copy(v_d, v_src)
@@ -766,29 +766,29 @@ def case_108(h):
 
 
 def case_109(h):
-    v_d = dec_slice(h.let("d"), lambda r: dec_int(r, "u8"), lambda: 0)
-    v_src = dec_slice(h.let("src"), lambda r: dec_int(r, "u8"), lambda: 0)
+    v_d = dec_slice(h.let("d"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_src = dec_slice(h.let("src"), lambda r: dec_int(r, "u8"), lambda: 0, True)
     r0 = rt.copy(v_d, v_src)
     h.after("d", enc_slice(v_d, lambda e: enc_int(e)))
     return [enc_int(r0)]
 
 
 def case_110(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_i = dec_int(h.let("i"), "i64")
     r0 = rt.sget(v_s, v_i)
     return [enc_int(r0)]
 
 
 def case_111(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_i = dec_int(h.let("i"), "i64")
     r0 = rt.sget(v_s, v_i)
     return [enc_int(r0)]
 
 
 def case_112(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_string(r), lambda: b"")
+    v_s = dec_slice(h.let("s"), lambda r: dec_string(r), lambda: b"", False)
     v_i = dec_int(h.let("i"), "i64")
     r0 = rt.sget(v_s, v_i)
     return [enc_string(r0)]
@@ -797,26 +797,26 @@ def case_112(h):
 def case_113(h):
     v_len = dec_int(h.let("len"), "i64")
     v_cap = dec_int(h.let("cap"), "i64")
-    r0 = rt.make_slice(v_len, v_cap, lambda: 0)
+    r0 = rt.make_slice(v_len, v_cap, lambda: 0, False)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_114(h):
     v_len = dec_int(h.let("len"), "i64")
     v_cap = dec_int(h.let("cap"), "i64")
-    r0 = rt.make_slice(v_len, v_cap, lambda: 0)
+    r0 = rt.make_slice(v_len, v_cap, lambda: 0, True)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_115(h):
     v_len = dec_int(h.let("len"), "i64")
     v_cap = dec_int(h.let("cap"), "i64")
-    r0 = rt.make_slice(v_len, v_cap, lambda: 0)
+    r0 = rt.make_slice(v_len, v_cap, lambda: 0, False)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_116(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_lo = dec_int(h.let("lo"), "i64")
     v_hi = dec_int(h.let("hi"), "i64")
     v_max = dec_int(h.let("max"), "i64")
@@ -825,7 +825,7 @@ def case_116(h):
 
 
 def case_117(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_lo = dec_int(h.let("lo"), "i64")
     v_hi = dec_int(h.let("hi"), "i64")
     v_max = dec_int(h.let("max"), "i64")
@@ -834,7 +834,7 @@ def case_117(h):
 
 
 def case_118(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_lo = dec_int(h.let("lo"), "i64")
     v_hi = dec_int(h.let("hi"), "i64")
     v_max = dec_int(h.let("max"), "i64")
@@ -843,7 +843,7 @@ def case_118(h):
 
 
 def case_119(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_lo = dec_int(h.let("lo"), "i64")
     v_hi = dec_int(h.let("hi"), "i64")
     v_max = dec_int(h.let("max"), "i64")
@@ -852,7 +852,7 @@ def case_119(h):
 
 
 def case_120(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_lo = dec_int(h.let("lo"), "i64")
     v_hi = dec_int(h.let("hi"), "i64")
     v_max = dec_int(h.let("max"), "i64")
@@ -861,7 +861,7 @@ def case_120(h):
 
 
 def case_121(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_t = view(v_s, h.let("t"))
     v_i = dec_int(h.let("i"), "i64")
     v_v = dec_int(h.let("v"), "i64")
@@ -871,7 +871,7 @@ def case_121(h):
 
 
 def case_122(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_i = dec_int(h.let("i"), "i64")
     v_v = dec_int(h.let("v"), "i64")
     rt.sset(v_s, v_i, v_v)
@@ -879,13 +879,13 @@ def case_122(h):
 
 
 def case_123(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.slice_to_array(v_s, 2)
     return [enc_array(r0, lambda e: enc_int(e))]
 
 
 def case_124(h):
-    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0)
+    v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     r0 = rt.slice_to_array(v_s, 2)
     return [enc_array(r0, lambda e: enc_int(e))]
 
@@ -982,13 +982,13 @@ def case_137(h):
 
 
 def case_138(h):
-    v_b = dec_slice(h.let("b"), lambda r: dec_int(r, "u8"), lambda: 0)
+    v_b = dec_slice(h.let("b"), lambda r: dec_int(r, "u8"), lambda: 0, True)
     r0 = rt.from_bytes(v_b)
     return [enc_string(r0)]
 
 
 def case_139(h):
-    v_b = dec_slice(h.let("b"), lambda r: dec_int(r, "u8"), lambda: 0)
+    v_b = dec_slice(h.let("b"), lambda r: dec_int(r, "u8"), lambda: 0, True)
     r0 = rt.from_bytes(v_b)
     return [enc_string(r0)]
 
@@ -1018,13 +1018,13 @@ def case_143(h):
 
 
 def case_144(h):
-    v_r = dec_slice(h.let("r"), lambda r: dec_int(r, "i32"), lambda: 0)
+    v_r = dec_slice(h.let("r"), lambda r: dec_int(r, "i32"), lambda: 0, False)
     r0 = rt.from_runes(v_r)
     return [enc_string(r0)]
 
 
 def case_145(h):
-    v_r = dec_slice(h.let("r"), lambda r: dec_int(r, "i32"), lambda: 0)
+    v_r = dec_slice(h.let("r"), lambda r: dec_int(r, "i32"), lambda: 0, False)
     r0 = rt.from_runes(v_r)
     return [enc_string(r0)]
 
@@ -1114,7 +1114,7 @@ def case_157(h):
 
 
 def case_158(h):
-    v_fns = dec_slice(h.let("fns"), lambda r: None, lambda: None)
+    v_fns = dec_slice(h.let("fns"), lambda r: None, lambda: None, False)
     rv = rt.run_isolated(lambda t: rt.lib_task_all(t, v_fns))
     return []
 

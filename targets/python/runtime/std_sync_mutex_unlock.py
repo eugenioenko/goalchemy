@@ -4,6 +4,8 @@ from .task_spawn import fatal, sched
 
 
 def std_sync_mutex_unlock(m):
+    from .task_spawn import sched
+    sched().check()
     if not m.locked:
         fatal("sync: unlock of unlocked mutex")
     if m.waiters:

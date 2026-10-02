@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: f6243da268a75dc009c984203cfe0415110735ca79859e17ba6b1f8098c889be
 symbol: "gx_std_context_context_err"
 implementation: runtime/std_context_err.c
-implementation_hash: 62279072cb623272f5474d2a2be20ededa3466eb73af7ea1e8c12305b80a924e
+implementation_hash: f47caa0cf77c59395d5a5430b3f3e4b8ea6c5ccebefeba356d3c3ea0f89e2966
 summary: "Context.Err: nil until cancelled, then context.Canceled or context.DeadlineExceeded."
 suspension: never
 determinism: deterministic

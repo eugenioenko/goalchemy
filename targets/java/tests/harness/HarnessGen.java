@@ -773,8 +773,8 @@ final class HarnessGen extends Codec {
     }
 
     static List<Object> case_109(Harness.H h) {
-        var v_d = decSlice(h.let("d"), r -> decInt(r, "u8"), () -> 0L);
-        var v_src = decSlice(h.let("src"), r -> decInt(r, "u8"), () -> 0L);
+        var v_d = decBytes(h.let("d"));
+        var v_src = decBytes(h.let("src"));
         var r0 = SliceCopy.copy(v_d, v_src, null);
         h.after("d", encSlice(v_d, e -> encInt(e, "u8")));
         return Arrays.asList(new Object[] {encInt(r0, "i64")});
@@ -804,21 +804,21 @@ final class HarnessGen extends Codec {
     static List<Object> case_113(Harness.H h) {
         var v_len = decInt(h.let("len"), "i64");
         var v_cap = decInt(h.let("cap"), "i64");
-        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L);
+        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L, false);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
 
     static List<Object> case_114(Harness.H h) {
         var v_len = decInt(h.let("len"), "i64");
         var v_cap = decInt(h.let("cap"), "i64");
-        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L);
+        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L, true);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8"))});
     }
 
     static List<Object> case_115(Harness.H h) {
         var v_len = decInt(h.let("len"), "i64");
         var v_cap = decInt(h.let("cap"), "i64");
-        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L);
+        var r0 = SliceMake.makeSlice(v_len, v_cap, () -> 0L, false);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
 
@@ -1003,13 +1003,13 @@ final class HarnessGen extends Codec {
     }
 
     static List<Object> case_138(Harness.H h) {
-        var v_b = decSlice(h.let("b"), r -> decInt(r, "u8"), () -> 0L);
+        var v_b = decBytes(h.let("b"));
         var r0 = StringFromBytes.fromBytes(v_b);
         return Arrays.asList(new Object[] {encString(r0)});
     }
 
     static List<Object> case_139(Harness.H h) {
-        var v_b = decSlice(h.let("b"), r -> decInt(r, "u8"), () -> 0L);
+        var v_b = decBytes(h.let("b"));
         var r0 = StringFromBytes.fromBytes(v_b);
         return Arrays.asList(new Object[] {encString(r0)});
     }

@@ -2,13 +2,13 @@
 target: rust
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "std_context_with_timeout"
 implementation: runtime/std_context_with_timeout.rs
-implementation_hash: 5db6d886647a9a64be9b49e6e576c32fd6ae4652793b3e24e277008dbfacaa14
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: 48a77ea8d538cd6677058349f664b9f55d384741366aaaf5636d06b610d47865
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

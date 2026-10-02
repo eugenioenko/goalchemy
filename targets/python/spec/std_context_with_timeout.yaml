@@ -2,13 +2,13 @@
 target: python
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "rt.std_context_with_timeout"
 implementation: runtime/std_context_with_timeout.py
-implementation_hash: 9c89be843bcbb64677cb24db4d600038d097f279a5cc1ca8a210034e40124e6b
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: 678facb0456542052e9d39cd7da6ecbd33271a43452af14b599000f7495ed3b0
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

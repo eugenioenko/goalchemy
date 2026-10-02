@@ -1,11 +1,12 @@
 """core.chan.send: ch <- v, a pause primitive."""
 
 from ..types.panic import plain_panic
-from .chan_make import Waiter, dequeue
+from .chan_make import attach_waiter, Waiter, dequeue
 from .task_spawn import sched
 
 
 def chan_send(t, ch, v):
+    sched().check()
     t.rv = []
     if ch is None:
         sched().block(t)
@@ -19,5 +20,5 @@ def chan_send(t, ch, v):
     if len(ch.buf) < ch.size:
         ch.buf.append(v)
         return
-    ch.sendq.append(Waiter(t, v))
+    attach_waiter(t, ch.sendq, Waiter(t, v))
     sched().block(t)

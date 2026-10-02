@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
 symbol: "append"
 implementation: runtime/slice_append.rs
-implementation_hash: 184e9d27dfbaa6c64dd3787b169c6279ee953a57ce50acf998362522de90bb55
+implementation_hash: 5d5a80cd788a7ba8a96b1e229b8dff8dfb01b9fc995df33b9339120c048caa21
 summary: "append(s, vs...)."
 suspension: never
 determinism: deterministic

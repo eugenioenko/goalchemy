@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 8621f5ec3eaefcf843334d4bb7fa075d9ed15f0fee0cc9df18d05b3189ad1bfa
 symbol: "gx_to_bytes"
 implementation: runtime/string_to_bytes.c
-implementation_hash: 83b73dc7cc5a145eb0c44361530fb2abbc3caa97896ca531260bf3175b8d1077
+implementation_hash: 19021ce85617466fadd286985314fa13bd2f85f76af1234ea5cca7caccadf6bc
 summary: "[]byte(s) conversion."
 suspension: never
 determinism: deterministic

@@ -99,7 +99,7 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		} else {
 			fmt.Fprintf(&out, "    return gx_sync_frame(gx_func(-1, w_%s, 0, NULL), 0, NULL, 0);\n", p.Entry.Sym)
 		}
-		out.WriteString("}\n\nint main(void) {\n    gx_run_main(init_zero_globals, entry_frame);\n}\n")
+		out.WriteString("}\n\nint goalchemy_run_host(void) {\n    return gx_run_main_host(init_zero_globals, entry_frame);\n}\n\nint main(void) {\n    gx_run_main(init_zero_globals, entry_frame);\n}\n")
 	} else {
 		fmt.Fprintf(&out, "static void entry(void) {\n    f_%s();\n", p.Init.Sym)
 		if p.Main != nil {
@@ -339,6 +339,15 @@ func (e *emitter) structHelpers(t *ir.Type) {
 func (e *emitter) arrayHelpers(t *ir.Type) {
 	id, el, n := t.ID, t.Elem, t.Len
 	var b strings.Builder
+	if el.U().Kind == ir.KInt && el.U().Int == ir.U8 {
+		fmt.Fprintf(&b, "static gx_V z_%d(void) { return gx_byte_array(%d); }\n", id, n)
+		fmt.Fprintf(&b, "static gx_V c_%d(gx_V x) { return gx_byte_array_clone(x, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static void set_%d(gx_V d, gx_V s) { gx_byte_array_set(d, s, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static bool eq_%d(gx_V a, gx_V b) { return gx_byte_array_eq(a, b, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static void k_%d(gx_V a, gx_Buf *out) { gx_byte_array_key(a, %d, out); }\n\n", id, n)
+		e.helperOut.WriteString(b.String())
+		return
+	}
 	fmt.Fprintf(&b, "static gx_V z_%d(void) {\n    gx_V *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.zero(el))
 	fmt.Fprintf(&b, "static gx_V c_%d(gx_V x) {\n    gx_V *s = gx_vals(x), *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.cloneExpr(el, "s[i]"))
 	if el.IsAggregate() {
@@ -362,6 +371,9 @@ func (e *emitter) zero(t *ir.Type) string {
 	case ir.KString:
 		return "gx_str(NULL, 0)"
 	case ir.KSlice:
+		if u.Elem.U().Kind == ir.KInt && u.Elem.U().Int == ir.U8 {
+			return "gx_nil_byte_slice()"
+		}
 		return "gx_nil_slice()"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
@@ -391,6 +403,9 @@ func (e *emitter) zeroFn(t *ir.Type) string {
 	case ir.KString:
 		return "gx_zero_string"
 	case ir.KSlice:
+		if u.Elem.U().Kind == ir.KInt && u.Elem.U().Int == ir.U8 {
+			return "gx_zero_byte_slice"
+		}
 		return "gx_zero_slice"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
@@ -673,7 +688,7 @@ func (fe *fnEmitter) set(l *ir.Local, x string) string {
 func (e *emitter) constant(c *ir.Const) string {
 	if c.Nil {
 		if c.Type.U().Kind == ir.KSlice {
-			return "gx_nil_slice()"
+			return e.zero(c.Type)
 		}
 		return "gx_nil()"
 	}
@@ -896,6 +911,7 @@ func (e *emitter) function(f *ir.Func) string {
 	ps := append(append([]*ir.Local(nil), f.Env...), f.Params...)
 	e.proto("static gx_V f_%s(%s)", f.Sym, params(len(ps)))
 	fmt.Fprintf(&fe.b, "static gx_V f_%s(%s) {\n", f.Sym, params(len(ps)))
+	fe.w("gx_source_enter();")
 	qual := ""
 	if fe.defers {
 		qual = "volatile "
@@ -919,7 +935,9 @@ func (e *emitter) function(f *ir.Func) string {
 	if fe.defers {
 		fe.b.WriteString("done:\n")
 		fe.w("gx_run_defers(dl, p);")
-		fe.w("return %s;", fe.results())
+		fe.w("gx_V result = %s;", fe.results())
+		fe.w("gx_source_leave();")
+		fe.w("return result;")
 	}
 	fe.b.WriteString("}\n\n")
 	return fe.b.String()
@@ -995,7 +1013,7 @@ func (fe *fnEmitter) term(t ir.Terminator) {
 			fe.w("%sGX_END(h);", m)
 			fe.w("goto done;")
 		default:
-			fe.w("%sreturn %s;", m, fe.results())
+			fe.w("%s{ gx_V result = %s; gx_source_leave(); return result; }", m, fe.results())
 		}
 	case *ir.Panic:
 		fe.w("%sgx_throw(%s);", m, fe.val(t.X))
@@ -1302,7 +1320,12 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		w("%s;", fe.set(i.Dst, fe.lenExpr(i.X, true)))
 	case *ir.MakeSlice:
 		e.use("core.slice.make")
-		w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_make_slice(%s, %s, %s)", fe.val(i.Len), fe.val(i.Cap), e.zeroFn(i.Dst.Type.U().Elem))))
+		el := i.Dst.Type.U().Elem.U()
+		if el.Kind == ir.KInt && el.Int == ir.U8 {
+			w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_make_byte_slice(%s, %s)", fe.val(i.Len), fe.val(i.Cap))))
+		} else {
+			w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_make_slice(%s, %s, %s)", fe.val(i.Len), fe.val(i.Cap), e.zeroFn(i.Dst.Type.U().Elem))))
+		}
 	case *ir.MakeMap:
 		e.use("core.map.make")
 		w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_make_map(%s)", e.keyFn(i.Dst.Type.U().Key))))
@@ -1316,6 +1339,19 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case i.Spread != nil:
 			v = fmt.Sprintf("gx_append_slice(%s, %s, %s)", fe.val(i.S), fe.val(i.Spread), cl)
 		default:
+			el := i.Dst.Type.U().Elem.U()
+			if el.Kind == ir.KInt && el.Int == ir.U8 {
+				var es []string
+				for _, x := range i.Elems {
+					es = append(es, "(uint8_t)gx_i("+fe.val(x)+")")
+				}
+				ev := "NULL"
+				if len(es) != 0 {
+					ev = "(const uint8_t[]){" + strings.Join(es, ", ") + "}"
+				}
+				v = fmt.Sprintf("gx_append_bytes(%s, %s, %d)", fe.val(i.S), ev, len(es))
+				break
+			}
 			var es []string
 			for _, x := range i.Elems {
 				es = append(es, fe.val(x))

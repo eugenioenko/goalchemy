@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9afbf60a5a7a9a11c938ef9846572110995b41ffdfc4823ac4cfad5b984a6fbf
 symbol: "StdSyncWaitgroupWait.stdSyncWaitgroupWait"
 implementation: runtime/StdSyncWaitgroupWait.java
-implementation_hash: 8b41d639f80a5886a3e93c806903483e2434ca45ce5030f5a484df1fac4e2430
+implementation_hash: 3a70c4e0d60562de7c5d78c5f0e0bbb98ed9134c8a38a64ab238c699927438fc
 summary: "sync.WaitGroup.Wait: return at zero, otherwise wait."
 suspension: may
 determinism: controlled

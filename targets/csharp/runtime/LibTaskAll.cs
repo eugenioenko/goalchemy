@@ -35,7 +35,7 @@ public static partial class R
         t.rv = Array.Empty<object>();
         if (fns.l == 0) return;
         var n = new[] { fns.l };
-        for (int i = 0; i < fns.l; i++) spawn(new AllChild((Fn)fns.a[fns.o + i], n, t));
+        for (int i = 0; i < fns.l; i++) spawn(new AllChild((Fn)fns.Get(i), n, t));
         sched.block(t);
     }
 }

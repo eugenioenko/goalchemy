@@ -3,6 +3,7 @@
 import { box, type Box, type TypeDesc, typeDesc } from "./iface.ts";
 import { GoPanic, nilDeref, runtimePanic, TYPE_ASSERTION_ERROR } from "./panic.ts";
 import { writeStderr } from "./print.ts";
+import { runtimeHost } from "./host.ts";
 
 export interface Deferred {
   f: ((...args: any[]) => any) | null;
@@ -23,6 +24,10 @@ const mainState: PanicState = { curPanic: null, deferTarget: undefined };
 
 /** Returns the running task's recover state; the scheduler replaces it. */
 export const panicState = { current: (): PanicState => mainState };
+export function resetPanicBinding(): void {
+  mainState.curPanic = null; mainState.deferTarget = undefined;
+  panicState.current = () => mainState;
+}
 
 const PANIC_NIL_ERROR: TypeDesc = typeDesc({
   name: "*runtime.PanicNilError",
@@ -160,11 +165,11 @@ export function main(entry: () => void): void {
   } catch (e) {
     if (e instanceof GoPanic) {
       writeStderr(formatChain(e));
-      process.exit(2);
+      runtimeHost.fail(2);
     }
     if (e instanceof RangeError && /call stack/.test(e.message)) {
       writeStderr("runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n");
-      process.exit(2);
+      runtimeHost.fail(2);
     }
     throw e;
   }

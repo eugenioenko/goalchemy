@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9a43302d85fb534cb962cb14e9a480e094abeb765ff9f52e2f1684c7fc5bcd58
 symbol: "gx_copy"
 implementation: runtime/slice_copy.c
-implementation_hash: 3a64f658b58973e735593a2cf71924f415010a2e2a20fd719f48b3abe13f1bbd
+implementation_hash: eb32cb9d90b669db889439162e86c01cae01755c2846b5f806746967fa77f1cc
 summary: "copy(dst, src) for slices; returns the count copied."
 suspension: never
 determinism: deterministic

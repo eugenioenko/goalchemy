@@ -42,18 +42,20 @@ export function select(t: Task, cases: SelectCase[], hasDefault: boolean): void 
     return;
   }
   const st = new SelectState();
+  const registrations: [Waiter[], Waiter][] = [];
   cases.forEach((c, i) => {
     if (c.ch === null) return;
     const w = new Waiter(t, c.send ? c.val : undefined, st, i);
-    (c.send ? c.ch.sendq : c.ch.recvq).push(w);
+    const q = c.send ? c.ch.sendq : c.ch.recvq;
+    q.push(w); registrations.push([q,w]);
   });
   sched.block(t);
   t.cleanup = () => {
-    for (const c of cases) {
-      if (c.ch !== null) {
-        c.ch.sendq = c.ch.sendq.filter((w) => w.sel !== st);
-        c.ch.recvq = c.ch.recvq.filter((w) => w.sel !== st);
-      }
+    st.done = true;
+    for (const [q,w] of registrations) {
+      const i=q.indexOf(w); if(i>=0)q.splice(i,1);
+      w.clear();
     }
+    registrations.length = 0;
   };
 }

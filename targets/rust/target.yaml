@@ -10,9 +10,9 @@ representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: "V::Bool."}
   - {type: type.integer, contract_version: 1.0.0, representation: "V::Int holding an i64 normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/ints.rs)."}
   - {type: type.string, contract_version: 1.0.0, representation: "V::Str: an immutable shared byte string compared bytewise."}
-  - {type: type.array, contract_version: 1.0.0, representation: "A heap Vals object of elements with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.array, contract_version: 1.0.0, representation: "Underlying uint8 arrays use traced Bytes(Vec<u8>) leaves with native zero, clone, in-place set, equality and byte key snapshots; other arrays use Vals(Vec<V>)."}
   - {type: type.struct, contract_version: 1.0.0, representation: "A heap Vals object of fields with generated helpers; storage objects are updated in place, so field pointers stay valid."}
-  - {type: type.slice, contract_version: 1.0.0, representation: "V::Slice headers (backing handle, offset, length, capacity) over heap Vals objects; handle 0 is the nil slice."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "V::ByteSlice headers over traced Bytes(Vec<u8>) leaves for all underlying uint8 slices; V::Slice over Vals for other elements. Both hold backing handle, offset, length and capacity. Handle 0 is nil; the header variant retains the element hint."}
   - {type: type.map, contract_version: 1.0.0, representation: "A heap GoMap: a HashMap from encoded keys to insertion-ordered entries (types/map.rs); nil is V::Nil."}
   - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are object handles; other pointers are V::Ptr(object, slot) into cells or struct fields; nil is V::Nil."}
   - {type: type.interface, contract_version: 1.0.0, representation: "V::Nil or a handle to a heap Box (static TypeDesc, value) with equality, key encoding, and method tables (types/func.rs)."}
@@ -51,7 +51,7 @@ functions:
   - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "from_runes", implementation: runtime/string_from_runes.rs, harness: "from_runes({0})"}
   - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "to_runes", implementation: runtime/string_to_runes.rs, harness: "to_runes({0})"}
   - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "from_rune", implementation: runtime/string_from_rune.rs, harness: "from_rune({0})"}
-  - {id: core.slice.make, contract_version: 1.0.0, symbol: "make_slice", implementation: runtime/slice_make.rs, harness: "make_slice({0}, {1}, {T.zerofn})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "make_slice", implementation: runtime/slice_make.rs, harness: "make_slice({0}, {1}, {T.zerofn}, {T.bytes})"}
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "sget", implementation: runtime/slice_index.rs, harness: "sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "sset", implementation: runtime/slice_store.rs, harness: "sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "reslice", implementation: runtime/slice_slice.rs, harness: "reslice({0}, {1}, {2}, {3}, false)"}
@@ -70,7 +70,7 @@ functions:
   - {id: std.errors.new, contract_version: 1.0.0, symbol: "std_errors_new", implementation: runtime/std_errors_new.rs, harness: "std_errors_new({0})"}
   - {id: std.errors.is, contract_version: 1.0.0, symbol: "std_errors_is", implementation: runtime/std_errors_is.rs, harness: "std_errors_is({0}, {1})"}
   - {id: std.errors.unwrap, contract_version: 1.0.0, symbol: "std_errors_unwrap", implementation: runtime/std_errors_unwrap.rs, harness: "std_errors_unwrap({0})"}
-  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "spawn", implementation: runtime/task_spawn.rs, harness: "await: call(t, new_spawn_check())"}
+  - {id: core.task.spawn, contract_version: 1.0.0, symbol: "spawn", implementation: runtime/task_spawn.rs, harness: "await: call(t, new_spawn_check())", requires: [std.context.err]}
   - {id: core.chan.make, contract_version: 1.0.0, symbol: "make_chan", implementation: runtime/chan_make.rs, harness: "make_chan({0}, {T.zerofn})", requires: [core.task.spawn]}
   - {id: core.chan.send, contract_version: 1.0.0, symbol: "chan_send", implementation: runtime/chan_send.rs, harness: "await: chan_send(t, {0}, {1})", requires: [core.chan.make]}
   - {id: core.chan.recv, contract_version: 1.0.0, symbol: "chan_recv", implementation: runtime/chan_recv.rs, harness: "await: chan_recv(t, {0})", requires: [core.chan.make]}
@@ -92,4 +92,4 @@ functions:
   - {id: std.context.err, contract_version: 1.0.0, symbol: "std_context_context_err", implementation: runtime/std_context_err.rs, harness: "std_context_context_err({0})", requires: [core.chan.close, std.errors.new]}
   - {id: std.context.canceled, contract_version: 1.0.0, symbol: "std_context_canceled", implementation: runtime/std_context_canceled.rs, harness: "std_context_canceled()", requires: [std.context.err]}
   - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "std_context_deadline_exceeded", implementation: runtime/std_context_deadline_exceeded.rs, harness: "std_context_deadline_exceeded()", requires: [std.context.err]}
-  - {id: lib.task.all, contract_version: 1.0.0, symbol: "lib_task_all", implementation: runtime/lib_task_all.rs, harness: "await: lib_task_all(t, {0})", requires: [core.task.spawn, std.sync.waitgroup.done]}
+  - {id: lib.task.all, contract_version: 1.0.0, symbol: "lib_task_all", implementation: runtime/lib_task_all.rs, harness: "await: lib_task_all(t, {0})", requires: [core.task.spawn, std.sync.waitgroup.done, std.sync.waitgroup.wait]}

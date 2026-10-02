@@ -6,9 +6,9 @@ public final class StdSyncMutexUnlock {
 
     public static void stdSyncMutexUnlock(StdSyncMutexLock.Mutex m) {
         if (!m.locked) TaskSpawn.fatal("sync: unlock of unlocked mutex");
-        if (!m.waiters.isEmpty()) {
-            TaskSpawn.sched.ready(m.waiters.remove(0));
-            return;
+        while (!m.waiters.isEmpty()) {
+            TaskSpawn.Task t=m.waiters.remove(0);
+            if(t.owner==TaskSpawn.sched && TaskSpawn.sched.live(t)) { TaskSpawn.sched.ready(t); return; }
         }
         m.locked = false;
     }

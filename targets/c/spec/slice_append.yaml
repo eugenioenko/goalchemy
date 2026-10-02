@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
 symbol: "gx_append"
 implementation: runtime/slice_append.c
-implementation_hash: a1408439eaa293b45dd4ecbf649328298e4aa9d8bb551ba0193957e02d940ddc
+implementation_hash: 4c3529049104822989c4ca10e7baad63e0a4395403e45b4b585cbfe466e10553
 summary: "append(s, vs...)."
 suspension: never
 determinism: deterministic

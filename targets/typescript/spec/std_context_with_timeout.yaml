@@ -2,13 +2,13 @@
 target: typescript
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "rt.stdContextWithTimeout"
 implementation: runtime/std_context_with_timeout.ts
-implementation_hash: 009585a43c41ece5e85b1e18b95fd8bc9ad9161627d5c3bb69da5bb56a1323a4
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: ca56b19292cc09aa0bffad99085b3e3bec6c32e0575c5a1c43161de0daba1ae6
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

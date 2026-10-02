@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: f6243da268a75dc009c984203cfe0415110735ca79859e17ba6b1f8098c889be
 symbol: "rt.StdContextContextErr"
 implementation: runtime/std_context_err.go
-implementation_hash: f38c15d102cc28fa43652b8edd463f78e8541540c5b3c2aca48ac779837ba9c3
+implementation_hash: 318abd3f1ac5da50c875708b914ad7c235c15bf1e38f6138abd17588e5d97890
 summary: "Context.Err: nil until cancelled, then context.Canceled or context.DeadlineExceeded."
 suspension: never
 determinism: deterministic

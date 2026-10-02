@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 6cc431aed8a1b3368c15331b253bba0b197bd68aa7898a09709fbcdb80805a11
 symbol: "rt.make_slice"
 implementation: runtime/slice_make.py
-implementation_hash: add8218e63452aa6ed67c4aa8cf68d4cbabc825d87ba34d7b3f4a8c0f9cb8044
+implementation_hash: d1618acd392ab3e1c43c7b11235e2ea10b54d0b96d37b7dbf73d5ebb7cd02091
 summary: "make([]T, len, cap)."
 suspension: never
 determinism: deterministic

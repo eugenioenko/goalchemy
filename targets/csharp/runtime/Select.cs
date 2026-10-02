@@ -8,6 +8,7 @@ public static partial class R
 
     public static void select(GoTask t, bool hasDefault, params object[][] cases)
     {
+        sched.assertTask(t);
         var ready = new List<int>();
         for (int i = 0; i < cases.Length; i++)
         {
@@ -45,6 +46,7 @@ public static partial class R
             return;
         }
         var st = new SelectState();
+        var registrations = new List<(Chan ch, Waiter w, bool send)>();
         for (int i = 0; i < cases.Length; i++)
         {
             var ch = (Chan)cases[i][0];
@@ -52,18 +54,17 @@ public static partial class R
             bool send = (bool)cases[i][1];
             var w = new Waiter(t, send ? cases[i][2] : null, st, i);
             (send ? ch.sendq : ch.recvq).Add(w);
+            registrations.Add((ch, w, send));
         }
         sched.block(t);
         t.cleanup = () =>
         {
-            foreach (var c in cases)
+            st.done = true;
+            foreach (var r in registrations)
             {
-                if (c[0] is Chan ch)
-                {
-                    ch.sendq.RemoveAll(w => w.sel == st);
-                    ch.recvq.RemoveAll(w => w.sel == st);
-                }
+                (r.send ? r.ch.sendq : r.ch.recvq).Remove(r.w); r.w.clear();
             }
+            registrations.Clear();
         };
     }
 }

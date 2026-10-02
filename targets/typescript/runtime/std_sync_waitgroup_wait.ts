@@ -6,5 +6,6 @@ export function stdSyncWaitgroupWait(t: Task, wg: WaitGroup): void {
   t.rv = [];
   if (wg.n === 0n) return;
   wg.waiters.push(t);
+  t.cleanup = () => { wg.waiters = wg.waiters.filter(w => w !== t); };
   sched.block(t);
 }

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a95daf0a4a6fcb0d0f34f763299660a2ed4ec522be729901291d0e267abbf566
 symbol: "SliceClear.clearSlice"
 implementation: runtime/SliceClear.java
-implementation_hash: 088fd79838ae7b7351c9e4bc2c45e069f17f873baf4a03d6202e1963f2848658
+implementation_hash: ff253e0de5962c58e41f912d5036066e3b6d5f91348e7125093ee6dd5f1f6e2a
 summary: "clear(s): set every element of s[0:len(s)] to its zero value."
 suspension: never
 determinism: deterministic

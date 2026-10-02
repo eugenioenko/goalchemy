@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 44cbfff1b3b55baa90bcc35424cf26b2d9882da92dad64572364f2199883ae8f
 symbol: "rt.reslice"
 implementation: runtime/slice_slice.ts
-implementation_hash: b3f771fbad0e327bac5263d7cb7f53a8d53d4decf01d6b09d8952db59c78d4de
+implementation_hash: 52ff2ed401f2496c52178817f3a9f042168f9f026370f26a68653907c122a07d
 summary: "Full slice expression s[lo:hi:max]."
 suspension: never
 determinism: deterministic

@@ -2,6 +2,7 @@
 use super::*;
 
 pub fn chan_recv(t: &Rc<Task>, ch: V) {
+    check_task(t);
     if ch.is_nil() {
         block(t);
         return;
@@ -10,6 +11,8 @@ pub fn chan_recv(t: &Rc<Task>, ch: V) {
         t.set_rv(vec![v, V::Bool(ok)]);
         return;
     }
-    with_chan(&ch, |c| c.recvq.push_back(Waiter { task: t.clone(), val: V::Nil, sel: None, idx: 0 }));
+    let w = new_waiter(t, V::Nil, None, 0);
+    with_chan(&ch, |c| c.recvq.push_back(w.clone()));
+    attach_waiter_cleanup(t, vec![(ch, w)]);
     block(t);
 }

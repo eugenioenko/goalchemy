@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 1feba55797d9256ac36657434dd5d3ce3451b913212f6573a65253b1493eefe1
 symbol: "from_bytes"
 implementation: runtime/string_from_bytes.rs
-implementation_hash: 78b8e19ca1725874d5ce0f63eae226290bbfc86d1a555d6137e51b88f80caa88
+implementation_hash: 35ad4afc85c6dbe7a51c06fa6922b5366d75f238ab40323f282bfc5a003de94d
 summary: "string(b) for a byte slice."
 suspension: never
 determinism: deterministic

@@ -2,11 +2,11 @@
 target: java
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
+contract_hash: fb986c9aeda4bf814516ae8370fc2c2997e56882ef9d7e0901e3c75b6488d5dd
 symbol: "StdTimeSleep.stdTimeSleep"
 implementation: runtime/StdTimeSleep.java
-implementation_hash: f24c0031473d68abeab55b411321889b130cf101b0aff9902b24291a11a10851
-summary: "time.Sleep: suspend for a duration of virtual time."
+implementation_hash: bcd2996106fe893d8f09768dffcf41e7fea6c2011402b96214089a6fc254035a
+summary: "time.Sleep: suspend for a duration of scheduler time."
 suspension: may
 determinism: controlled
 signature:

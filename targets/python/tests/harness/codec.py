@@ -30,9 +30,16 @@ def dec_error(raw):
     return rt.std_errors_new(raw["error"].encode("utf-8"))
 
 
-def dec_slice(raw, dec, zero):
+def dec_slice(raw, dec, zero, byte=False):
     if raw.get("nil"):
-        return rt.NIL
+        return rt.BYTE_NIL if byte else rt.NIL
+    if byte:
+        n = len(raw["slice"])
+        c = int(raw["cap"]) if "cap" in raw else n
+        a = rt.alloc_bytes(c)
+        for i, v in enumerate(raw["slice"]):
+            a[i] = dec(v)
+        return rt.Slice(a, 0, n, c)
     items = [dec(v) for v in raw["slice"]]
     c = int(raw["cap"]) if "cap" in raw else len(items)
     a = items + [zero() for _ in range(c - len(items))]
@@ -43,7 +50,7 @@ def view(base, raw):
     lo = int(raw["lo"]) if "lo" in raw else 0
     hi = int(raw["hi"]) if "hi" in raw else base.l
     mx = int(raw["max"]) if "max" in raw else base.c
-    return rt.Slice(base.a, base.o + lo, hi - lo, mx - lo)
+    return rt.Slice(base.a, base.o + lo, hi - lo, mx - lo, base.b)
 
 
 def dec_map(raw, dk, dv):

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9a43302d85fb534cb962cb14e9a480e094abeb765ff9f52e2f1684c7fc5bcd58
 symbol: "rt.copy"
 implementation: runtime/slice_copy.py
-implementation_hash: d50f4951e0e7f50f3081a526abf169eb3c875bb7936667986a553977b0bce201
+implementation_hash: e3783ece751b97f76b70e5b6f5923b8edf4ce626c5c64ab6ccf4cfd4a8f764ee
 summary: "copy(dst, src) for slices; returns the count copied."
 suspension: never
 determinism: deterministic

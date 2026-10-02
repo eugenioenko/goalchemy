@@ -24,6 +24,9 @@ func tsKind(t *contracts.TypeExpr) string {
 func tsZero(t *contracts.TypeExpr) string {
 	switch t.Kind {
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return "rt.BYTE_NIL"
+		}
 		return "rt.NIL"
 	case "map", "pointer":
 		return "null"
@@ -49,7 +52,7 @@ func tsDecode(t *contracts.TypeExpr, raw string) string {
 	case "pointer":
 		return "new rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
-		return fmt.Sprintf("decSlice(%s, (r: any) => %s)", raw, tsDecode(t.Elem, "r"))
+		return fmt.Sprintf("decSlice(%s, (r: any) => %s, %t)", raw, tsDecode(t.Elem, "r"), tsKind(t.Elem) == "u8")
 	case "map":
 		return fmt.Sprintf("decMap(%s, (r: any) => %s, (r: any) => %s)", raw, tsDecode(t.Key, "r"), tsDecode(t.Elem, "r"))
 	}
@@ -127,6 +130,7 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		vars := map[string]string{}
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
+			vars[k+".bytes"] = fmt.Sprint(tsKind(v) == "u8")
 			vars[k+".zero"] = tsZero(v)
 		}
 		call := expand(ci.impl.Harness, args, vars)
@@ -136,18 +140,18 @@ func tsHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 				fmt.Fprintf(&b, "    const r%d: any = rv[%d];\n", i, i)
 			}
 		} else {
-		switch len(ci.outs) {
-		case 0:
-			fmt.Fprintf(&b, "    %s;\n", call)
-		case 1:
-			fmt.Fprintf(&b, "    const r0 = %s;\n", call)
-		default:
-			var rs []string
-			for i := range ci.outs {
-				rs = append(rs, fmt.Sprintf("r%d", i))
+			switch len(ci.outs) {
+			case 0:
+				fmt.Fprintf(&b, "    %s;\n", call)
+			case 1:
+				fmt.Fprintf(&b, "    const r0 = %s;\n", call)
+			default:
+				var rs []string
+				for i := range ci.outs {
+					rs = append(rs, fmt.Sprintf("r%d", i))
+				}
+				fmt.Fprintf(&b, "    const [%s] = %s;\n", join(rs), call)
 			}
-			fmt.Fprintf(&b, "    const [%s] = %s;\n", join(rs), call)
-		}
 		}
 		for _, a := range ci.c.Expect.After {
 			var lt *contracts.TypeExpr

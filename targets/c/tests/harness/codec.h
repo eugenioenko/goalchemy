@@ -21,7 +21,7 @@ gx_V dec_bool(J *r);
 gx_V dec_string(J *r);
 gx_V dec_error(J *r);
 gx_V dec_nil(J *r);
-gx_V dec_slice(J *r, DecFn dec, gx_ZeroFn zero);
+gx_V dec_slice(J *r, DecFn dec, gx_ZeroFn zero, bool bytes);
 gx_V view(gx_V base, J *r);
 gx_V dec_map(J *r, DecFn dk, DecFn dv);
 gx_V dec_chan(J *r, DecFn dec, gx_ZeroFn zero);

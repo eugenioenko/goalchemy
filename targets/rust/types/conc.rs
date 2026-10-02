@@ -2,19 +2,24 @@
 use super::*;
 use std::collections::VecDeque;
 
-pub struct Waiter {
-    pub task: Rc<Task>,
-    pub val: V,
+pub type Waiter = Rc<WaiterData>;
+pub struct WaiterData {
+    pub task: std::rc::Weak<Task>,
+    pub val: RefCell<V>,
     pub sel: Option<Rc<Cell<bool>>>,
     pub idx: usize,
+    pub retired: Cell<bool>,
 }
-
-impl Waiter {
+impl WaiterData {
     pub fn live(&self) -> bool {
-        self.sel.as_ref().map_or(true, |s| !s.get())
+        !self.retired.get() && self.task.upgrade().map_or(false, |t| task_live(&t)) && self.sel.as_ref().map_or(true, |s| !s.get())
     }
+    pub fn clear(&self) { self.retired.set(true); self.val.replace(V::Nil); }
 }
-
+pub fn new_waiter(t: &Rc<Task>, val: V, sel: Option<Rc<Cell<bool>>>, idx: usize) -> Waiter {
+    check_task(t);
+    Rc::new(WaiterData { task: Rc::downgrade(t), val: RefCell::new(val), sel, idx, retired: Cell::new(false) })
+}
 pub struct Chan {
     pub buf: VecDeque<V>,
     pub size: usize,
@@ -34,7 +39,11 @@ pub struct WaitGroup {
     pub waiters: Vec<Rc<Task>>,
 }
 
+pub struct ContextHook { pub roots: Vec<V>, pub call: Box<dyn FnOnce()> }
 pub struct Context {
+    pub owner: u64, pub thread: std::thread::ThreadId,
+    pub parent: V, pub deadline: Option<i64>, pub timer: Option<i64>,
+    pub hooks: std::collections::BTreeMap<u64, ContextHook>, pub hook_sequence: u64,
     pub done: V,
     pub err: V,
     pub children: Vec<V>,

@@ -18,6 +18,39 @@ Widening this is the "library mode" work an SDK consumer such as OpenTDF needs: 
 
 ## All targets
 
-### Byte slices are boxed
+### Native byte storage and generic growth
 
-On every target except Go, a `[]byte` is a slice of boxed integers (one dynamic value per byte). That is correct but slow and memory-hungry for bulk data such as encryption and file I/O. Specialized byte-slice storage, and fast paths in the string conversions and `copy`, would fix it.
+TypeScript now uses `Uint8Array` for byte slices and arrays, including named
+uint8 element types. See [design, verification and memory evidence](typescript-byte-storage.md).
+Java now uses native `byte[]` for byte slices and arrays, including named
+uint8 elements, with unsigned primitive reads and zeroed capacity. See
+[Java design, verification and memory evidence](java-byte-storage.md).
+C# now uses native `byte[]` for byte slices and arrays, including named
+uint8 elements, with primitive `long` reads and zeroed capacity. See
+[C# design, verification and memory evidence](csharp-byte-storage.md).
+Python now uses native `bytearray` for byte slices and arrays, including named
+uint8 elements, with immutable `bytes` string copies and zeroed capacity. See
+[Python design, verification and memory evidence](python-byte-storage.md).
+Rust now uses traced native `Vec<u8>` leaves for byte arrays and slices, with
+unsigned `V::Int` reads, typed nil headers and zeroed capacity. See
+[Rust design, verification and memory evidence](rust-byte-storage.md).
+C now uses collector-owned native `uint8_t` arrays and slice backing, with
+unsigned scalar reads, typed nil headers and zeroed capacity. See
+[C design, verification and memory evidence](c-byte-storage.md).
+
+The stronger growth-zeroing regressions recorded in these evidence documents
+expose unset spare capacity after append growth in generic storage.
+All six non-Go byte implementations now zero capacity; existing generic non-byte
+append paths still leave spare capacity uninitialized. These follow-ups must
+preserve aliasing and the established capacity rule.
+
+### Host operations and portable libraries
+
+Generated Go now provides pending host I/O and its cancellation/completion
+lifecycle for the actual native HTTP transport. See [host-operation design and
+bounded evidence](host-operations.md). TypeScript now has a generic portable
+[Promise lifecycle and executable entry](typescript-host-operations.md), verified
+in Node and an actual browser. Java now has a bounded [worker/future mailbox lifecycle](java-host-operations.md) and explicit monotonic executable entry. C# now has a bounded [Task/mailbox lifecycle](csharp-host-operations.md), monotonic executable entry and managed source-recursion guard. Python now has a bounded [Condition/Future mailbox lifecycle](python-host-operations.md), blocking monotonic executable entry and managed source-recursion handling. Rust now has a bounded [native mailbox/resource-ACK lifecycle](rust-host-operations.md), dedicated monotonic executable entry and generated recursion guards. C now has a bounded [native wire mailbox/resource-ACK lifecycle](c-host-operations.md), serialized monotonic executable entry and generated source guards. Production TypeScript/Java/C#/Python/Rust/C HTTP/crypto adapters and SDK library exports remain unimplemented. The
+default executable wrapper remains Node-specific; cooperative Promise artifacts
+and byte/runtime helpers are portable. Browser SDK acceptance still requires
+package emission/declarations, full adapters and interoperability from the SDK plan.

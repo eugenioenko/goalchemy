@@ -8,6 +8,7 @@ from .task_spawn import sched
 
 
 def select(t, cases, has_default):
+    sched().check()
     ready = []
     for i, (ch, send, _) in enumerate(cases):
         if ch is None:
@@ -37,17 +38,22 @@ def select(t, cases, has_default):
         t.rv = [-1, None, False]
         return
     st = SelectState()
+    registered = []
     for i, (ch, send, val) in enumerate(cases):
         if ch is None:
             continue
         w = Waiter(t, val if send else None, st, i)
-        (ch.sendq if send else ch.recvq).append(w)
+        queue = ch.sendq if send else ch.recvq
+        queue.append(w)
+        registered.append((queue, w))
     sched().block(t)
 
     def cleanup():
-        for ch, _, _ in cases:
-            if ch is not None:
-                ch.sendq = [w for w in ch.sendq if w.sel is not st]
-                ch.recvq = [w for w in ch.recvq if w.sel is not st]
+        st.done = True
+        for queue, waiter in registered:
+            if waiter in queue:
+                queue.remove(waiter)
+            waiter.detach()
+        registered.clear()
 
     t.cleanup = cleanup

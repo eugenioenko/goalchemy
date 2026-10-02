@@ -2,13 +2,13 @@
 target: java
 function: std.context.with_timeout
 contract_version: 1.0.0
-contract_hash: 5c864a23a554c49e1bdae90c8dae0cb7305dda3f66fdfd17b3484bb30ed15d7b
+contract_hash: aaa04c09e587b641552fc24486af1532ed637698fb954a41a94af845e16a2146
 symbol: "StdContextWithTimeout.stdContextWithTimeout"
 implementation: runtime/StdContextWithTimeout.java
-implementation_hash: 3069139aebb23e8295de1bbaeab837c3cb622aeda2b2069336859566873df7c2
-summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a virtual-time duration."
+implementation_hash: f826abca555c52fd7e91e33c2a0dd2990fb9bb2ccb153c41ca2ab165c49dcae2
+summary: "context.WithTimeout: a child cancelled with context.DeadlineExceeded after a scheduler-clock duration."
 suspension: never
-determinism: deterministic
+determinism: controlled
 signature:
   type_parameters: []
   inputs:

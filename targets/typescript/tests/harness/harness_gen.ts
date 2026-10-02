@@ -601,39 +601,39 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encInt(r0)];
   },
   "core.slice.append/from_nil": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => decString(r));
-    const v_vs = decSlice(h.let("vs"), (r: any) => decString(r));
+    const v_s = decSlice(h.let("s"), (r: any) => decString(r), false);
+    const v_vs = decSlice(h.let("vs"), (r: any) => decString(r), false);
     const r0 = rt.appendSlice(v_s, v_vs);
     return [encSlice(r0, (e: any) => encString(e))];
   },
   "core.slice.append/grow_doubles": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
-    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
+    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.appendSlice(v_s, v_vs);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/grow_required": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
-    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
+    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.appendSlice(v_s, v_vs);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/in_place": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_t = view(v_s, h.let("t"));
-    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.appendSlice(v_s, v_vs);
     h.after("t", encSlice(v_t, (e: any) => encInt(e)));
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/nil_empty": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
-    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
+    const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.appendSlice(v_s, v_vs);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/overlap": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_a = view(v_s, h.let("a"));
     const v_vs = view(v_s, h.let("vs"));
     const r0 = rt.appendSlice(v_a, v_vs);
@@ -641,14 +641,14 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.clear/shared": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_t = view(v_s, h.let("t"));
     rt.clearSlice(v_t, () => 0n);
     h.after("s", encSlice(v_s, (e: any) => encInt(e)));
     return [];
   },
   "core.slice.copy/overlap_forward": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_d = view(v_s, h.let("d"));
     const v_src = view(v_s, h.let("src"));
     const r0 = rt.copy(v_d, v_src);
@@ -656,26 +656,26 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encInt(r0)];
   },
   "core.slice.copy/short_dst": (h: H) => {
-    const v_d = decSlice(h.let("d"), (r: any) => (decInt(r, "u8") as number));
-    const v_src = decSlice(h.let("src"), (r: any) => (decInt(r, "u8") as number));
+    const v_d = decSlice(h.let("d"), (r: any) => (decInt(r, "u8") as number), true);
+    const v_src = decSlice(h.let("src"), (r: any) => (decInt(r, "u8") as number), true);
     const r0 = rt.copy(v_d, v_src);
     h.after("d", encSlice(v_d, (e: any) => encInt(e)));
     return [encInt(r0)];
   },
   "core.slice.index/basic": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_i = (decInt(h.let("i"), "i64") as bigint);
     const r0 = rt.sget(v_s, v_i);
     return [encInt(r0)];
   },
   "core.slice.index/beyond_len": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_i = (decInt(h.let("i"), "i64") as bigint);
     const r0 = rt.sget(v_s, v_i);
     return [encInt(r0)];
   },
   "core.slice.index/nil": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => decString(r));
+    const v_s = decSlice(h.let("s"), (r: any) => decString(r), false);
     const v_i = (decInt(h.let("i"), "i64") as bigint);
     const r0 = rt.sget(v_s, v_i);
     return [encString(r0)];
@@ -683,23 +683,23 @@ export const cases: Record<string, (h: H) => unknown[]> = {
   "core.slice.make/basic": (h: H) => {
     const v_len = (decInt(h.let("len"), "i64") as bigint);
     const v_cap = (decInt(h.let("cap"), "i64") as bigint);
-    const r0 = rt.makeSlice(v_len, v_cap, () => 0n);
+    const r0 = rt.makeSlice(v_len, v_cap, () => 0n, false);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.make/cap_lt_len": (h: H) => {
     const v_len = (decInt(h.let("len"), "i64") as bigint);
     const v_cap = (decInt(h.let("cap"), "i64") as bigint);
-    const r0 = rt.makeSlice(v_len, v_cap, () => 0);
+    const r0 = rt.makeSlice(v_len, v_cap, () => 0, true);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.make/neg_len": (h: H) => {
     const v_len = (decInt(h.let("len"), "i64") as bigint);
     const v_cap = (decInt(h.let("cap"), "i64") as bigint);
-    const r0 = rt.makeSlice(v_len, v_cap, () => 0n);
+    const r0 = rt.makeSlice(v_len, v_cap, () => 0n, false);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.slice/hi_gt_max": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_lo = (decInt(h.let("lo"), "i64") as bigint);
     const v_hi = (decInt(h.let("hi"), "i64") as bigint);
     const v_max = (decInt(h.let("max"), "i64") as bigint);
@@ -707,7 +707,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.slice/lo_gt_hi": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_lo = (decInt(h.let("lo"), "i64") as bigint);
     const v_hi = (decInt(h.let("hi"), "i64") as bigint);
     const v_max = (decInt(h.let("max"), "i64") as bigint);
@@ -715,7 +715,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.slice/max_oob": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_lo = (decInt(h.let("lo"), "i64") as bigint);
     const v_hi = (decInt(h.let("hi"), "i64") as bigint);
     const v_max = (decInt(h.let("max"), "i64") as bigint);
@@ -723,7 +723,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.slice/nil_empty": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_lo = (decInt(h.let("lo"), "i64") as bigint);
     const v_hi = (decInt(h.let("hi"), "i64") as bigint);
     const v_max = (decInt(h.let("max"), "i64") as bigint);
@@ -731,7 +731,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.slice/share": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_lo = (decInt(h.let("lo"), "i64") as bigint);
     const v_hi = (decInt(h.let("hi"), "i64") as bigint);
     const v_max = (decInt(h.let("max"), "i64") as bigint);
@@ -739,7 +739,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.store/alias_visible": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_t = view(v_s, h.let("t"));
     const v_i = (decInt(h.let("i"), "i64") as bigint);
     const v_v = (decInt(h.let("v"), "i64") as bigint);
@@ -748,19 +748,19 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [];
   },
   "core.slice.store/oob": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_i = (decInt(h.let("i"), "i64") as bigint);
     const v_v = (decInt(h.let("v"), "i64") as bigint);
     rt.sset(v_s, v_i, v_v);
     return [];
   },
   "core.slice.to_array/prefix": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.sliceToArray(v_s, 2);
     return [encArray(r0, (e: any) => encInt(e))];
   },
   "core.slice.to_array/short": (h: H) => {
-    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint));
+    const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const r0 = rt.sliceToArray(v_s, 2);
     return [encArray(r0, (e: any) => encInt(e))];
   },
@@ -843,12 +843,12 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encInt(r0), encInt(r1)];
   },
   "core.string.from_bytes/basic": (h: H) => {
-    const v_b = decSlice(h.let("b"), (r: any) => (decInt(r, "u8") as number));
+    const v_b = decSlice(h.let("b"), (r: any) => (decInt(r, "u8") as number), true);
     const r0 = rt.fromBytes(v_b);
     return [encString(r0)];
   },
   "core.string.from_bytes/nil": (h: H) => {
-    const v_b = decSlice(h.let("b"), (r: any) => (decInt(r, "u8") as number));
+    const v_b = decSlice(h.let("b"), (r: any) => (decInt(r, "u8") as number), true);
     const r0 = rt.fromBytes(v_b);
     return [encString(r0)];
   },
@@ -873,12 +873,12 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encString(r0)];
   },
   "core.string.from_runes/basic": (h: H) => {
-    const v_r = decSlice(h.let("r"), (r: any) => (decInt(r, "i32") as number));
+    const v_r = decSlice(h.let("r"), (r: any) => (decInt(r, "i32") as number), false);
     const r0 = rt.fromRunes(v_r);
     return [encString(r0)];
   },
   "core.string.from_runes/invalid": (h: H) => {
-    const v_r = decSlice(h.let("r"), (r: any) => (decInt(r, "i32") as number));
+    const v_r = decSlice(h.let("r"), (r: any) => (decInt(r, "i32") as number), false);
     const r0 = rt.fromRunes(v_r);
     return [encString(r0)];
   },
@@ -955,7 +955,7 @@ export const cases: Record<string, (h: H) => unknown[]> = {
     return [encBool(r0)];
   },
   "lib.task.all/empty": (h: H) => {
-    const v_fns = decSlice(h.let("fns"), (r: any) => null);
+    const v_fns = decSlice(h.let("fns"), (r: any) => null, false);
     const rv = rt.runIsolated((t: any) => { rt.libTaskAll(t, v_fns); });
     return [];
   },

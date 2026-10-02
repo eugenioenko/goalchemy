@@ -880,8 +880,8 @@ static partial class Harness
 
     static JsonArray case_109(H h)
     {
-        var v_d = decSlice(h.Let("d"), r => decInt(r, "u8"), () => 0L);
-        var v_src = decSlice(h.Let("src"), r => decInt(r, "u8"), () => 0L);
+        var v_d = decByteSlice(h.Let("d"));
+        var v_src = decByteSlice(h.Let("src"));
         var r0 = R.copy(v_d, v_src, null);
         h.After("d", encSlice(v_d, e => encInt(e, "u8")));
         return new JsonArray(encInt(r0, "i64"));
@@ -915,7 +915,7 @@ static partial class Harness
     {
         var v_len = decInt(h.Let("len"), "i64");
         var v_cap = decInt(h.Let("cap"), "i64");
-        var r0 = R.makeSlice(v_len, v_cap, () => 0L);
+        var r0 = R.makeSlice(v_len, v_cap, () => 0L, false);
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
 
@@ -923,7 +923,7 @@ static partial class Harness
     {
         var v_len = decInt(h.Let("len"), "i64");
         var v_cap = decInt(h.Let("cap"), "i64");
-        var r0 = R.makeSlice(v_len, v_cap, () => 0L);
+        var r0 = R.makeSlice(v_len, v_cap, () => 0L, true);
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")));
     }
 
@@ -931,7 +931,7 @@ static partial class Harness
     {
         var v_len = decInt(h.Let("len"), "i64");
         var v_cap = decInt(h.Let("cap"), "i64");
-        var r0 = R.makeSlice(v_len, v_cap, () => 0L);
+        var r0 = R.makeSlice(v_len, v_cap, () => 0L, false);
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
 
@@ -1139,14 +1139,14 @@ static partial class Harness
 
     static JsonArray case_138(H h)
     {
-        var v_b = decSlice(h.Let("b"), r => decInt(r, "u8"), () => 0L);
+        var v_b = decByteSlice(h.Let("b"));
         var r0 = R.fromBytes(v_b);
         return new JsonArray(encString(r0));
     }
 
     static JsonArray case_139(H h)
     {
-        var v_b = decSlice(h.Let("b"), r => decInt(r, "u8"), () => 0L);
+        var v_b = decByteSlice(h.Let("b"));
         var r0 = R.fromBytes(v_b);
         return new JsonArray(encString(r0));
     }

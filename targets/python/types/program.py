@@ -10,6 +10,16 @@ from .panic import GoPanic, TYPE_ASSERTION_ERROR, nil_deref
 from .print import write_stderr
 
 
+class HostFault(Exception):
+    """Unexpected native bridge fault, outside source panic/recover."""
+
+
+class SourceFatal(BaseException):
+    """Unrecoverable source runtime fatal, reported only after owner cleanup."""
+    def __init__(self, report):
+        self.report = report
+
+
 class Deferred:
     """A deferred call with its callee and arguments evaluated. start is set
     when calling f returns a frame (a suspending callee)."""
@@ -197,6 +207,9 @@ def _run_large_stack(fn):
         except GoPanic as p:
             report_panic(p)
         except BaseException as e:  # noqa: BLE001 - faults are reported and exit
+            if isinstance(e, SourceFatal):
+                write_stderr(e.report)
+                os._exit(2)
             result.append(e)
 
     t = threading.Thread(target=target)
@@ -206,7 +219,60 @@ def _run_large_stack(fn):
         raise result[0]
 
 
+_entry_lock = threading.Lock()
+_entry_active = False
+
+
+def reserve():
+    global _entry_active
+    with _entry_lock:
+        if _entry_active:
+            raise HostFault("overlapping executable entry/reset")
+        _entry_active = True
+
+
+def unreserve():
+    global _entry_active
+    with _entry_lock:
+        _entry_active = False
+
+
+sequential_start = lambda: None
+sequential_end = lambda: None
+
+
 def main(entry):
-    """Runs the program entry; unrecovered panics exit with status 2."""
-    _run_large_stack(entry)
-    sys.stdout.flush()
+    """Legacy sequential executable, serialized with virtual/host/harness entries."""
+    reserve()
+    def drive():
+        sequential_start()
+        try:
+            entry()
+        finally:
+            sequential_end()
+    try:
+        _run_large_stack(drive)
+        sys.stdout.flush()
+    finally:
+        unreserve()
+
+
+# This guard is enabled only by the explicit host owner. It never changes the
+# process recursion limit or default native thread stack size. The legacy virtual
+# executable keeps its historical conformance policy.
+source_guard_state = threading.local()
+
+
+def source_guard(fn):
+    def guarded(*args, **kwargs):
+        if not getattr(source_guard_state, "enabled", False):
+            return fn(*args, **kwargs)
+        depth = getattr(source_guard_state, "depth", 0)
+        if depth >= 128:
+            raise SourceFatal(b"runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n")
+        source_guard_state.depth = depth + 1
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            source_guard_state.depth = depth
+    return guarded

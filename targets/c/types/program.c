@@ -83,6 +83,8 @@ static void format_chain(gx_Panic *p, gx_Buf *out) {
     gx_buf_put(out, "\n", 1);
 }
 
+gx_Buf gx_panic_report(gx_Panic *p) { gx_Buf b = {0}; format_chain(p, &b); return b; }
+
 /* The report of an unrecovered panic as a NUL-terminated string. */
 const char *gx_panic_text(gx_Panic *p) {
     gx_Buf b = {0};
@@ -93,6 +95,12 @@ const char *gx_panic_text(gx_Panic *p) {
 }
 
 _Noreturn void gx_report_panic(gx_Panic *p) {
+    if (gx_sched && gx_sched->host && gx_sched->escape) {
+        gx_sched->panic = p;
+        gx_handler = NULL;
+        gx_source_depth = 0;
+        longjmp(*gx_sched->escape, 1);
+    }
     gx_Buf b = {0};
     format_chain(p, &b);
     gx_stderr(b.b, b.n);
@@ -120,6 +128,7 @@ void gx_run_large(void (*body)(void)) {
     pthread_attr_setstacksize(&a, (size_t)1 << 30);
     pthread_t t;
     if (GC_pthread_create(&t, &a, large_main, NULL) != 0) gx_fault("cannot start the main thread");
+    pthread_attr_destroy(&a);
     GC_pthread_join(t, NULL);
 }
 
@@ -135,10 +144,13 @@ static void program_body(void) {
 }
 
 _Noreturn void gx_program_main(void (*init)(void), void (*entry)(void)) {
+    if (!gx_entry_reserve()) gx_host_fault("overlapping executable entry");
     GC_INIT();
+    gx_retire(gx_sched); gx_sched = NULL;
     init_fn = init;
     entry_fn = entry;
     gx_run_large(program_body);
+    gx_entry_release();
     exit(0);
 }
 

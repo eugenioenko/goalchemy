@@ -13,6 +13,9 @@ func init() { harnessGenerators["csharp"] = csHarness }
 func csZero(t *contracts.TypeExpr) string {
 	switch t.Kind {
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return "Slice.BYTE_NIL"
+		}
 		return "Slice.NIL"
 	case "map", "pointer", "chan":
 		return "null"
@@ -41,6 +44,9 @@ func csDecode(t *contracts.TypeExpr, raw string) string {
 		}
 		panic("csharp harness: pointer to " + t.Elem.Name)
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return fmt.Sprintf("decByteSlice(%s)", raw)
+		}
 		return fmt.Sprintf("decSlice(%s, r => %s, () => %s)", raw, csDecode(t.Elem, "r"), csZero(t.Elem))
 	case "map":
 		return fmt.Sprintf("decMap(%s, r => %s, r => %s)", raw, csDecode(t.Key, "r"), csDecode(t.Elem, "r"))
@@ -117,6 +123,7 @@ func csHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
 			vars[k+".zero"] = csZero(v)
+			vars[k+".bytes"] = fmt.Sprint(tsKind(v) == "u8")
 			vars[k+".unsigned"] = fmt.Sprint(tsKind(v) == "u64")
 			vars[k+".count"] = "Ints.count"
 			vars[k+".u"] = ""

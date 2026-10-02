@@ -7,7 +7,7 @@ public static partial class R
     {
         if (b.a == null) return "";
         var cs = new char[b.l];
-        for (int i = 0; i < b.l; i++) cs[i] = (char)(long)b.a[b.o + i];
+        for (int i = 0; i < b.l; i++) cs[i] = (char)((byte[])b.a)[b.o + i];
         return new string(cs);
     }
 }

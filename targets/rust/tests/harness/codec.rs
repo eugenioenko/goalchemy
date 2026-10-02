@@ -46,12 +46,21 @@ pub fn dec_slice(raw: &J, dec: &dyn Fn(&J) -> V, zero: fn() -> V) -> V {
     V::Slice(alloc(Obj::Vals(v)), 0, items.len() as u32, cap as u32)
 }
 
+pub fn dec_byte_slice(raw: &J) -> V {
+    if is_nil(raw) { return BYTE_NIL; }
+    let items = raw.get("slice").map_or(&[][..], |x| x.arr());
+    let cap = raw.get("cap").map_or(items.len(), |c| num(c) as usize);
+    let mut v = vec![0; cap];
+    for (k, item) in items.iter().enumerate() { v[k] = num(item) as u8; }
+    V::ByteSlice(alloc(Obj::Bytes(v)), 0, items.len() as u32, cap as u32)
+}
+
 pub fn view(base: &V, raw: &J) -> V {
-    let V::Slice(a, o, l, c) = base.clone() else { panic!("slice expected") };
+    let (a, o, l, c, bytes) = slice_parts(base);
     let lo = raw.get("lo").map_or(0, |x| num(x) as u32);
     let hi = raw.get("hi").map_or(l, |x| num(x) as u32);
     let mx = raw.get("max").map_or(c, |x| num(x) as u32);
-    V::Slice(a, o + lo, hi - lo, mx - lo)
+    slice_header(a, o + lo, hi - lo, mx - lo, bytes)
 }
 
 pub fn dec_map(raw: &J, dk: &dyn Fn(&J) -> V, dv: &dyn Fn(&J) -> V) -> V {
@@ -106,7 +115,7 @@ pub fn enc_error(v: &V) -> J {
 }
 
 pub fn enc_slice(v: &V, enc: &dyn Fn(&V) -> J) -> J {
-    let V::Slice(a, o, l, c) = v.clone() else { panic!("slice expected") };
+    let (a, o, l, c, _) = slice_parts(v);
     if a == 0 {
         return J::obj(vec![("nil", J::Bool(true))]);
     }
@@ -115,7 +124,7 @@ pub fn enc_slice(v: &V, enc: &dyn Fn(&V) -> J) -> J {
 }
 
 pub fn enc_array(v: &V, enc: &dyn Fn(&V) -> J) -> J {
-    let items = vals_copy(v.h()).iter().map(|x| enc(x)).collect();
+    let items = (0..vals_len(v.h())).map(|i| enc(&slot(v.h(), i))).collect();
     J::obj(vec![("array", J::Arr(items))])
 }
 

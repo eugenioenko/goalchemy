@@ -41,12 +41,22 @@ static partial class Harness
         return new Slice(a, 0, items.Count, cap);
     }
 
+    static Slice decByteSlice(JsonNode raw)
+    {
+        if (isNil(raw)) return Slice.BYTE_NIL;
+        var items = raw["slice"].AsArray();
+        int cap = raw["cap"] is JsonNode c ? int.Parse(str(c)) : items.Count;
+        var a = new byte[cap];
+        for (int i = 0; i < items.Count; i++) a[i] = unchecked((byte)decInt(items[i], "u8"));
+        return new Slice(a, 0, items.Count, cap);
+    }
+
     static Slice view(Slice b, JsonNode raw)
     {
         int lo = raw["lo"] is JsonNode l ? int.Parse(str(l)) : 0;
         int hi = raw["hi"] is JsonNode h ? int.Parse(str(h)) : b.l;
         int mx = raw["max"] is JsonNode m ? int.Parse(str(m)) : b.c;
-        return new Slice(b.a, b.o + lo, hi - lo, mx - lo);
+        return new Slice(b.a, b.o + lo, hi - lo, mx - lo, b.bytes);
     }
 
     static GoMap decMap(JsonNode raw, Func<JsonNode, object> dk, Func<JsonNode, object> dv)
@@ -88,14 +98,15 @@ static partial class Harness
         var s = (Slice)v;
         if (s.a == null) return new JsonObject { ["nil"] = true };
         var items = new JsonArray();
-        for (int i = 0; i < s.l; i++) items.Add(enc(s.a[s.o + i]));
+        for (int i = 0; i < s.l; i++) items.Add(enc(s.Get(i)));
         return new JsonObject { ["slice"] = items, ["cap"] = s.c.ToString() };
     }
 
     static JsonNode encArray(object v, Func<object, JsonNode> enc)
     {
         var items = new JsonArray();
-        foreach (var x in (object[])v) items.Add(enc(x));
+        if (v is byte[] bytes) { foreach (var x in bytes) items.Add(enc((long)x)); }
+        else foreach (var x in (object[])v) items.Add(enc(x));
         return new JsonObject { ["array"] = items };
     }
 

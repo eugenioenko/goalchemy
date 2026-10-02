@@ -1,8 +1,11 @@
 package rt
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"sync"
+	"time"
 )
 
 // The cooperative scheduler. Suspending functions are compiled to resumable
@@ -68,15 +71,191 @@ type timer struct {
 }
 
 type scheduler struct {
-	runq    []*Task
-	cur     *Task
-	main    *Task
-	nextID  int
-	rng     uint32
-	clock   int64
-	timers  []*timer
-	seq     int64
-	harness bool
+	runq          []*Task
+	cur           *Task
+	main          *Task
+	nextID        int
+	rng           uint32
+	clock         int64
+	timers        []*timer
+	seq           int64
+	harness       bool
+	host          bool
+	epoch         time.Time
+	mail          *hostMailbox
+	operations    map[uint64]*hostOperation
+	nextOperation uint64
+	workers       sync.WaitGroup
+	closed        bool
+	// Library hooks are installed only by the serialized importing boundary.
+	library   bool
+	callbacks any
+	boundary  func()
+	retire    []func()
+}
+
+// HostFault is an adapter implementation failure, never a source panic or
+// a declared transport error. Drivers propagate it outside Step recovery.
+type HostFault struct{ Value any }
+
+func (f HostFault) Error() string { return fmt.Sprintf("host operation fault: %v", f.Value) }
+
+type hostCompletion struct {
+	id    uint64
+	task  int
+	rv    []any
+	fault *HostFault
+}
+
+// A token retains only its mailbox, not scheduler/task/frame/input state.
+// Every fresh scheduler has a fresh mailbox: its identity is the generation.
+type hostToken struct {
+	mail *hostMailbox
+	id   uint64
+	task int
+}
+type hostMailbox struct {
+	mu     sync.Mutex
+	closed bool
+	queue  []hostCompletion
+	wake   chan struct{}
+}
+type hostOperation struct {
+	t        *Task
+	cancel   func()
+	cleanup  func()
+	canceled func() []any
+}
+
+func (s *scheduler) mailbox() *hostMailbox {
+	if s.mail == nil {
+		s.mail = &hostMailbox{wake: make(chan struct{}, 1)}
+	}
+	return s.mail
+}
+func (token hostToken) complete(rv []any, fault *HostFault) {
+	m := token.mail
+	m.mu.Lock()
+	if !m.closed {
+		// The result vector is copied; its owned payloads transfer to the
+		// mailbox and the adapter must never mutate them after publication.
+		rv = append([]any(nil), rv...)
+		if fault != nil {
+			copy := *fault
+			fault = &copy
+		}
+		m.queue = append(m.queue, hostCompletion{token.id, token.task, rv, fault})
+		select {
+		case m.wake <- struct{}{}:
+		default:
+		}
+	}
+	m.mu.Unlock()
+}
+
+// registerHost parks before submission, including synchronous callbacks. The
+// adapter must release its resources before publishing a terminal completion.
+func (s *scheduler) registerHost(t *Task, cancel, cleanup func(), canceled func() []any) hostToken {
+	if s.closed {
+		panic(HostFault{Value: "registration on closed scheduler"})
+	}
+	if s.operations == nil {
+		s.operations = make(map[uint64]*hostOperation)
+	}
+	s.nextOperation++
+	id := s.nextOperation
+	s.operations[id] = &hostOperation{t, cancel, cleanup, canceled}
+	s.block(t)
+	return hostToken{s.mailbox(), id, t.id}
+}
+
+// launchHost is the Go worker adapter. Neither work nor its panic handler runs
+// source code. WaitGroup ownership includes publication and finished cleanup.
+func (s *scheduler) launchHost(token hostToken, work func() []any) {
+	s.workers.Add(1)
+	go func() {
+		defer s.workers.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				token.complete(nil, &HostFault{r})
+			}
+		}()
+		token.complete(work(), nil)
+	}()
+}
+func (s *scheduler) drainHost() {
+	if s.mail == nil {
+		return
+	}
+	m := s.mail
+	m.mu.Lock()
+	q := m.queue
+	m.queue = nil
+	m.mu.Unlock()
+	for _, c := range q {
+		op := s.operations[c.id]
+		if op == nil || op.t.id != c.task {
+			continue
+		}
+		delete(s.operations, c.id)
+		if op.cleanup != nil {
+			op.cleanup()
+		}
+		// A live owner's implementation fault wins even over cancellation.
+		if c.fault != nil {
+			panic(*c.fault)
+		}
+		rv := c.rv
+		if op.canceled != nil {
+			if canceled := op.canceled(); canceled != nil {
+				rv = canceled
+			}
+		}
+		if !op.t.done {
+			op.t.RV = rv
+			s.ready(op.t)
+		}
+	}
+}
+func (s *scheduler) shutdown() {
+	if s.closed {
+		return
+	}
+	s.closed = true
+	for _, op := range s.operations {
+		if op.cancel != nil {
+			op.cancel()
+		}
+	}
+	s.workers.Wait()
+	// Shutdown discards completions: it never drives frames or channels.
+	if s.mail != nil {
+		s.mail.mu.Lock()
+		s.mail.closed = true
+		s.mail.queue = nil
+		s.mail.mu.Unlock()
+	}
+	for _, op := range s.operations {
+		if op.cleanup != nil {
+			op.cleanup()
+		}
+	}
+	for _, close := range s.retire {
+		close()
+	}
+	s.retire = nil
+	s.boundary = nil
+	s.operations = nil
+	s.runq = nil
+	s.timers = nil
+	s.cur = nil
+	s.main = nil
+}
+func (s *scheduler) now() int64 {
+	if s.host {
+		s.clock = time.Since(s.epoch).Nanoseconds()
+	}
+	return s.clock
 }
 
 var sched = &scheduler{rng: 1}
@@ -112,14 +291,43 @@ type deadlockSignal struct{}
 type fatalPanicSignal struct{ p *Panic }
 
 func (s *scheduler) next() *Task {
-	for len(s.runq) == 0 {
-		if len(s.timers) == 0 {
+	for {
+		if s.boundary != nil {
+			s.boundary()
+		}
+		if s.host {
+			s.fireDue(s.now())
+		}
+		s.drainHost()
+		if len(s.runq) != 0 {
+			break
+		}
+		if !s.host && len(s.timers) != 0 {
+			s.fireTimers()
+			continue
+		}
+		if len(s.operations) == 0 && len(s.timers) == 0 {
 			if s.harness {
 				panic(deadlockSignal{})
 			}
+			s.shutdown()
 			fatal("all goroutines are asleep - deadlock!")
 		}
-		s.fireTimers()
+		m := s.mailbox()
+		if len(s.timers) == 0 {
+			<-m.wake
+			continue
+		}
+		at := s.timers[0].at
+		for _, t := range s.timers {
+			at = min(at, t.at)
+		}
+		alarm := time.NewTimer(time.Duration(max(0, at-s.now())))
+		select {
+		case <-m.wake:
+		case <-alarm.C:
+		}
+		alarm.Stop()
 	}
 	t := s.runq[0]
 	s.runq = s.runq[1:]
@@ -132,9 +340,13 @@ func (s *scheduler) fireTimers() {
 		at = min(at, t.at)
 	}
 	s.clock = at
+	s.fireDue(at)
+}
+
+func (s *scheduler) fireDue(at int64) {
 	var due, keep []*timer
 	for _, t := range s.timers {
-		if t.at == at {
+		if t.at <= at {
 			due = append(due, t)
 		} else {
 			keep = append(keep, t)
@@ -142,7 +354,7 @@ func (s *scheduler) fireTimers() {
 	}
 	s.timers = keep
 	for i := 1; i < len(due); i++ {
-		for j := i; j > 0 && due[j].seq < due[j-1].seq; j-- {
+		for j := i; j > 0 && (due[j].at < due[j-1].at || (due[j].at == due[j-1].at && due[j].seq < due[j-1].seq)); j-- {
 			due[j], due[j-1] = due[j-1], due[j]
 		}
 	}
@@ -156,9 +368,24 @@ func (s *scheduler) fireTimers() {
 	}
 }
 
-func (s *scheduler) addTimer(d int64, t *Task, fn func()) {
+func (s *scheduler) addTimer(d int64, t *Task, fn func()) *timer {
 	s.seq++
-	s.timers = append(s.timers, &timer{at: s.clock + d, seq: s.seq, t: t, fn: fn})
+	now := s.now()
+	at := now + d
+	if d > 0 && at < now {
+		at = int64(^uint64(0) >> 1)
+	}
+	tm := &timer{at: at, seq: s.seq, t: t, fn: fn}
+	s.timers = append(s.timers, tm)
+	return tm
+}
+func (s *scheduler) removeTimer(tm *timer) {
+	for i, t := range s.timers {
+		if t == tm {
+			s.timers = append(s.timers[:i], s.timers[i+1:]...)
+			return
+		}
+	}
 }
 
 func fatal(msg string) {
@@ -175,6 +402,9 @@ func (s *scheduler) run(t *Task) {
 		c()
 	}
 	for !t.blocked && t.Frame != nil {
+		if s.boundary != nil {
+			s.boundary()
+		}
 		if p := t.resumePanic; p != nil {
 			t.resumePanic = nil
 			s.exit(t, t.Frame, p)
@@ -188,6 +418,9 @@ func (s *scheduler) step(t *Task) {
 	f := t.Frame
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(HostFault); ok {
+				panic(r)
+			}
 			s.exit(t, f, &Panic{Value: r})
 		}
 	}()
@@ -226,6 +459,7 @@ func (s *scheduler) finish(t *Task, f Frame) {
 			if s.harness {
 				panic(fatalPanicSignal{p})
 			}
+			s.shutdown()
 			reportChain(p)
 		}
 		return
@@ -322,6 +556,9 @@ func (r *deferRunner) after(tb *FrameBase, p *Panic) {
 func callProtected(f func()) (p *Panic) {
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(HostFault); ok {
+				panic(r)
+			}
 			p = &Panic{Value: r}
 		}
 	}()
@@ -332,6 +569,9 @@ func callProtected(f func()) (p *Panic) {
 func startProtected(f func() Frame) (fr Frame, p *Panic) {
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(HostFault); ok {
+				panic(r)
+			}
 			p = &Panic{Value: r}
 		}
 	}()
@@ -399,8 +639,16 @@ func Spawn(f Frame) {
 
 // RunMain runs the program entry as the first task until it returns.
 func RunMain(entry Frame) {
-	s := &scheduler{rng: seed(), nextID: 1}
+	runMain(entry, false)
+}
+
+// RunMainHost selects real monotonic scheduler time for host-I/O programs.
+func RunMainHost(entry Frame) { runMain(entry, true) }
+func runMain(entry Frame, host bool) {
+	sched.shutdown()
+	s := &scheduler{rng: seed(), nextID: 1, host: host, epoch: time.Now()}
 	sched = s
+	defer s.shutdown()
 	main := &Task{Frame: entry, deferTarget: -1}
 	s.main = main
 	s.ready(main)
@@ -436,8 +684,10 @@ func (h *harnessFrame) Step(t *Task) {
 // primitive delivered. It reports blocked when no task can run, and
 // panics with the source panic value when the case panics.
 func Await(fn func(t *Task)) (rv []any, blocked bool) {
+	sched.shutdown()
 	s := &scheduler{rng: seed(), nextID: 1, harness: true}
 	sched = s
+	defer s.shutdown()
 	h := &harnessFrame{fn: fn}
 	main := &Task{Frame: h, deferTarget: -1}
 	s.main = main
@@ -463,6 +713,7 @@ func Await(fn func(t *Task)) (rv []any, blocked bool) {
 // ResetScheduler installs a fresh isolated scheduler for a conformance case
 // that uses no pause primitive.
 func ResetScheduler() {
+	sched.shutdown()
 	sched = &scheduler{rng: seed(), nextID: 1, harness: true}
 	sched.cur = &Task{deferTarget: -1}
 }

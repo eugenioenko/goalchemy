@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: b95b2428b3ab5c697525d462a523f9e704a073ab22c84388681219cb3e0bbf79
 symbol: "spawn"
 implementation: runtime/task_spawn.rs
-implementation_hash: 74d61b80f95c19846780e4322a26daa3c1cf4aec4a3215203622a47772ddf061
+implementation_hash: 984109c227bd285c79d36b742a3bd917f86db80e18f3bcb701999eb458b6fb86
 summary: "go f(args): enqueue a new task after evaluating its callee and arguments; the parent continues."
 suspension: may
 determinism: controlled
@@ -16,4 +16,5 @@ signature:
     - {name: child_ran_first, type: "bool"}
 tested_instantiations:
   - {}
+requires: [std.context.err]
 cases: [parent_continues]

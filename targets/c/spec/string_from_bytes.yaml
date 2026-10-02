@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 1feba55797d9256ac36657434dd5d3ce3451b913212f6573a65253b1493eefe1
 symbol: "gx_from_bytes"
 implementation: runtime/string_from_bytes.c
-implementation_hash: d99cde891aec0b64b9b929fd291d1f37dde937dcb26c6bc6bf631eacc54301a5
+implementation_hash: 3de51b22a52383484b0e95b9fb9af9d3134913f54ac5b51109cd45cb267f63d8
 summary: "string(b) for a byte slice."
 suspension: never
 determinism: deterministic

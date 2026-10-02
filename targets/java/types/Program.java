@@ -40,6 +40,11 @@ public final class Program {
 
     public static StateSource panicState = () -> MAIN_STATE;
 
+    public static void resetPanicBinding() {
+        MAIN_STATE.curPanic=null; MAIN_STATE.deferTarget=null;
+        panicState=()->MAIN_STATE;
+    }
+
     public static final TypeDesc PANIC_NIL_ERROR = new TypeDesc("*runtime.PanicNilError", "runtime_error",
             (a, b) -> a == b, a -> a,
             TypeDesc.methods("Error", (Fn) a -> "runtime error: panic called with nil argument", "RuntimeError", (Fn) a -> null),

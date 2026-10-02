@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 1feba55797d9256ac36657434dd5d3ce3451b913212f6573a65253b1493eefe1
 symbol: "StringFromBytes.fromBytes"
 implementation: runtime/StringFromBytes.java
-implementation_hash: f156de6c9cc026ef35fe44dd840ec2f10e27846502ad08f21b073c25fe865176
+implementation_hash: d5d8b59108b7f704d9fab5c03caa81ddbf5e19240c96035d765f400f60b87f29
 summary: "string(b) for a byte slice."
 suspension: never
 determinism: deterministic

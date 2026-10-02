@@ -8,7 +8,8 @@ export class SelectState {
 }
 
 export class Waiter {
-  task: Task;
+  task: Task | null;
+  readonly owner = sched;
   val: unknown;
   sel: SelectState | null;
   idx: number;
@@ -18,26 +19,34 @@ export class Waiter {
     this.sel = sel;
     this.idx = idx;
   }
+  live(): boolean { return this.task !== null && !this.task.done && !this.owner.closed && (this.sel === null || !this.sel.done); }
+  clear(): void { this.task = null; this.val = undefined; }
   /** Completes a waiting receiver with a value or closure. */
   recvDone(val: unknown, ok: boolean): void {
+    if (!this.live()) { this.clear(); return; }
+    const task = this.task!;
     if (this.sel !== null) {
       this.sel.done = true;
-      this.task.rv = [this.idx, val, ok];
+      task.rv = [this.idx, val, ok];
     } else {
-      this.task.rv = [val, ok];
+      task.rv = [val, ok];
     }
-    sched.ready(this.task);
+    this.clear();
+    this.owner.ready(task);
   }
   /** Completes a waiting sender; closed makes it panic when it resumes. */
   sendDone(closed: boolean): void {
+    if (!this.live()) { this.clear(); return; }
+    const task = this.task!;
     if (this.sel !== null) {
       this.sel.done = true;
-      this.task.rv = [this.idx, undefined, false];
+      task.rv = [this.idx, undefined, false];
     } else {
-      this.task.rv = [];
+      task.rv = [];
     }
-    if (closed) this.task.resumePanic = plainPanic("send on closed channel") as GoPanic;
-    sched.ready(this.task);
+    if (closed) task.resumePanic = plainPanic("send on closed channel") as GoPanic;
+    this.clear();
+    this.owner.ready(task);
   }
 }
 
@@ -58,13 +67,14 @@ export class Chan {
 export function dequeue(q: Waiter[]): Waiter | null {
   while (q.length > 0) {
     const w = q.shift()!;
-    if (w.sel === null || !w.sel.done) return w;
+    if (w.live()) return w;
+    w.clear();
   }
   return null;
 }
 
 export function hasLive(q: Waiter[]): boolean {
-  return q.some((w) => w.sel === null || !w.sel.done);
+  return q.some(w => w.live());
 }
 
 /** Receives without blocking: [value, ok, done]. */
@@ -91,4 +101,14 @@ export function tryRecv(ch: Chan): [unknown, boolean, boolean] {
 export function makeChan(size: number | bigint, zero: () => unknown = () => undefined): Chan {
   if (size < 0 || size > Number.MAX_SAFE_INTEGER) throw plainPanic("makechan: size out of range");
   return new Chan(Number(size), zero);
+}
+
+/** Install one removable source waiter; task cleanup also runs on retirement. */
+export function parkWaiter(t: Task, q: Waiter[], w: Waiter): void {
+  q.push(w);
+  t.cleanup = () => {
+    const i = q.indexOf(w); if (i >= 0) q.splice(i,1);
+    w.clear();
+  };
+  sched.block(t);
 }

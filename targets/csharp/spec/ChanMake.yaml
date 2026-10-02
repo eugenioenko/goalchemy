@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d973a51672009574414745f973a06f85e58015261690632cfc985d50ea8a1199
 symbol: "R.makeChan"
 implementation: runtime/ChanMake.cs
-implementation_hash: e60cab3681e1185174ad7140bfbb44bbc730b33aecd0e966b07c268a57e8a9e3
+implementation_hash: 345cc67412b7ee2b096e13866dd1211ac7ff383c0648e69437ae06d55a596b09
 summary: "make(chan T, size)."
 suspension: never
 determinism: deterministic

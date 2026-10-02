@@ -5,6 +5,8 @@ from .chan_make import dequeue
 
 
 def chan_close(ch):
+    from .task_spawn import sched
+    sched().check()
     if ch is None:
         raise plain_panic("close of nil channel")
     if ch.closed:

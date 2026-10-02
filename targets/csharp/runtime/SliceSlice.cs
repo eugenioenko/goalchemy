@@ -18,12 +18,12 @@ public static partial class R
         {
             Bounds.check2(l, h, s.c, "capacity", u);
         }
-        if (s.a == null) return Slice.NIL;
+        if (s.a == null) return s;
         return new Slice(s.a, s.o + (int)l, (int)(h - l), (int)(m - l));
     }
 
     /// <summary>Slices an array through a pointer: (&amp;a)[lo:hi:max].</summary>
-    public static Slice sliceArray(object[] a, long? lo, long? hi, long? max, bool u)
+    public static Slice sliceArray(Array a, long? lo, long? hi, long? max, bool u)
     {
         long l = lo ?? 0;
         long h = hi ?? a.Length;

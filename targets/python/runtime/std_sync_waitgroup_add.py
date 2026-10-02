@@ -24,6 +24,8 @@ class WaitGroup:
 
 
 def std_sync_waitgroup_add(wg, d):
+    from .task_spawn import sched
+    sched().check()
     wg.n += d
     if wg.n < 0:
         raise GoPanic(box(STRING_TYPE, b"sync: negative WaitGroup counter"))

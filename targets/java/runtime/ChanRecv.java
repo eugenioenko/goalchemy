@@ -15,7 +15,9 @@ public final class ChanRecv {
             t.rv = new Object[] {r[0], r[1]};
             return;
         }
-        ch.recvq.add(new ChanMake.Waiter(t, null, null, 0));
+        ChanMake.Waiter waiter=new ChanMake.Waiter(t,null,null,0);
+        ch.recvq.add(waiter);
+        t.cleanup=()->{ ch.recvq.remove(waiter); waiter.clear(); };
         TaskSpawn.sched.block(t);
     }
 }

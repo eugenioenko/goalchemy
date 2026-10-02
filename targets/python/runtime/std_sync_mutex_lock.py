@@ -21,10 +21,15 @@ class Mutex:
 
 
 def std_sync_mutex_lock(t, m):
+    sched().check()
     """A pause primitive."""
     t.rv = []
     if not m.locked:
         m.locked = True
         return
     m.waiters.append(t)
+    def cleanup():
+        if t in m.waiters:
+            m.waiters.remove(t)
+    t.cleanup = cleanup
     sched().block(t)

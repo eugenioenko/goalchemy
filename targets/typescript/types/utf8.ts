@@ -52,5 +52,5 @@ export function encode(r: number): string {
 
 /** Converts a JavaScript (UTF-16) string to its UTF-8 binary string. */
 export function fromHost(s: string): string {
-  return Buffer.from(s, "utf8").toString("latin1");
+  return Array.from(new TextEncoder().encode(s), b => String.fromCharCode(b)).join("");
 }

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a95daf0a4a6fcb0d0f34f763299660a2ed4ec522be729901291d0e267abbf566
 symbol: "rt.clearSlice"
 implementation: runtime/slice_clear.ts
-implementation_hash: ff9557465713a8e3310f312c7226d4c6306836c5130b414d9256f2593bce7131
+implementation_hash: 32033a169f65cafba075ee511ff2aefb8d4d138dcfdd776a3440dd55b84673ab
 summary: "clear(s): set every element of s[0:len(s)] to its zero value."
 suspension: never
 determinism: deterministic

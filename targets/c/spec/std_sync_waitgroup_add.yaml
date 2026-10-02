@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9032d6dbdee30f768f52e7355aceb2a9f038afb1215052a6d66fab30bbe1c491
 symbol: "gx_std_sync_waitgroup_add"
 implementation: runtime/std_sync_waitgroup_add.c
-implementation_hash: 9d4cec2728b0165ceb18371c44b86a121dd2cc136eabc5aea4230832d89a4121
+implementation_hash: 8e2d5a0bc07fad75287380feaf93cbbfe22538b6781ff8ff2ae961c2cdf20b1c
 summary: "sync.WaitGroup.Add: adjust the counter; at zero, release every waiter."
 suspension: never
 determinism: deterministic

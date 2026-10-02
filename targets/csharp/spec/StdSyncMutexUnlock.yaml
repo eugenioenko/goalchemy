@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d432bb323379bd873c39346fa27f78ca8a93a8bc55125efd0418fa32c82e5e93
 symbol: "R.stdSyncMutexUnlock"
 implementation: runtime/StdSyncMutexUnlock.cs
-implementation_hash: 1cc545ac852da76adfb0fb2b72c42f88ec42b51cecbeb08451def0ba74a1e2b0
+implementation_hash: 301cd02ec414536ea5da45fa86db4a17d4115f49a41db5719aec7b74509c2db9
 summary: "sync.Mutex.Unlock: hand the lock to the first waiter or release it."
 suspension: never
 determinism: deterministic

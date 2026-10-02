@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 9032d6dbdee30f768f52e7355aceb2a9f038afb1215052a6d66fab30bbe1c491
 symbol: "rt.std_sync_waitgroup_add"
 implementation: runtime/std_sync_waitgroup_add.py
-implementation_hash: e49c9017f9bcc6edbb3c39118f766c016fe63652f4dd20c4bace6f8ccc08271a
+implementation_hash: 1c819eee90a3607e841b59e5d64c4f0fa55c374ea5e9475d33bd0969769d2947
 summary: "sync.WaitGroup.Add: adjust the counter; at zero, release every waiter."
 suspension: never
 determinism: deterministic

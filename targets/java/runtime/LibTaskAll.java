@@ -33,7 +33,7 @@ public final class LibTaskAll {
         t.rv = new Object[0];
         if (fns.l == 0) return;
         int[] n = {fns.l};
-        for (int i = 0; i < fns.l; i++) TaskSpawn.spawn(new AllChild((Fn) fns.a[fns.o + i], n, t));
+        for (int i = 0; i < fns.l; i++) TaskSpawn.spawn(new AllChild((Fn) fns.get(i), n, t));
         TaskSpawn.sched.block(t);
     }
 }

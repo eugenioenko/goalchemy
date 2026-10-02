@@ -11,6 +11,9 @@ import (
 func init() { harnessGenerators["c"] = cHarness }
 
 func cZeroFn(t *contracts.TypeExpr) string {
+	if t.Kind == "slice" && (t.Elem.Name == "byte" || t.Elem.Name == "uint8") {
+		return "gx_zero_byte_slice"
+	}
 	return "gx_" + rustZeroFn(t)
 }
 
@@ -39,7 +42,7 @@ func (c *cCodec) dec(t *contracts.TypeExpr) string {
 		return c.fn("dec:"+t.String(), "static gx_V %s(J *r) { return dec_chan(r, "+el+", "+cZeroFn(t.Elem)+"); }\n")
 	case "slice":
 		el := c.dec(t.Elem)
-		return c.fn("dec:"+t.String(), "static gx_V %s(J *r) { return dec_slice(r, "+el+", "+cZeroFn(t.Elem)+"); }\n")
+		return c.fn("dec:"+t.String(), "static gx_V %s(J *r) { return dec_slice(r, "+el+", "+cZeroFn(t.Elem)+", "+fmt.Sprint(t.Elem.Name == "byte" || t.Elem.Name == "uint8")+"); }\n")
 	case "map":
 		k, v := c.dec(t.Key), c.dec(t.Elem)
 		return c.fn("dec:"+t.String(), "static gx_V %s(J *r) { return dec_map(r, "+k+", "+v+"); }\n")
@@ -114,6 +117,12 @@ func cHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
 			vars[k+".zerofn"] = cZeroFn(v)
+			vars[k+".makefn"] = "gx_make_slice"
+			vars[k+".makezero"] = ", " + cZeroFn(v)
+			if v.Name == "byte" || v.Name == "uint8" {
+				vars[k+".makefn"] = "gx_make_byte_slice"
+				vars[k+".makezero"] = ""
+			}
 			vars[k+".unsigned"] = fmt.Sprint(tsKind(v) == "u64")
 			vars[k+".count"] = "gx_count"
 			vars[k+".u"] = ""

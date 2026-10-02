@@ -13,6 +13,7 @@ fn all_child_step(t: &Rc<Task>, f: &Rc<Frame>) {
 }
 
 pub fn lib_task_all(t: &Rc<Task>, fns: V) {
+    check_task(t);
     t.set_rv(Vec::new());
     let V::Slice(h, o, l, _) = fns else { fault("slice expected") };
     if l == 0 {
@@ -27,6 +28,5 @@ pub fn lib_task_all(t: &Rc<Task>, fns: V) {
         c.l.s(1, wg.clone());
         spawn(V::Frame(c));
     }
-    with_wg(&wg, |x| x.waiters.push(t.clone()));
-    block(t);
+    std_sync_waitgroup_wait(t, wg);
 }

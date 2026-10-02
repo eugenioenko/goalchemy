@@ -2,11 +2,11 @@
 target: csharp
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
+contract_hash: fb986c9aeda4bf814516ae8370fc2c2997e56882ef9d7e0901e3c75b6488d5dd
 symbol: "R.stdTimeSleep"
 implementation: runtime/StdTimeSleep.cs
-implementation_hash: 625511412cf5d92bad73cb2f251646ab1c1804c2b51958237f23f58e63ba0053
-summary: "time.Sleep: suspend for a duration of virtual time."
+implementation_hash: 5322ffa3e76693f9a5f6469f5d885649de1fcbed56f69364c4147701b87d060d
+summary: "time.Sleep: suspend for a duration of scheduler time."
 suspension: may
 determinism: controlled
 signature:

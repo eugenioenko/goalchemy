@@ -1,5 +1,5 @@
 // Canonical value encoding for the TypeScript harness.
-import { Slice, NIL } from "../../types/slice.ts";
+import { Slice, NIL, BYTE_NIL, allocate, type Backing } from "../../types/slice.ts";
 import { GoMap, identityKey } from "../../types/map.ts";
 import { mapSet } from "../../runtime/map_store.ts";
 import { mapIter, mapNext } from "../../runtime/map_iterate.ts";
@@ -86,13 +86,13 @@ export function decString(raw: any): string {
   return Buffer.from(raw.hex, "hex").toString("latin1");
 }
 
-export function decSlice<T>(raw: any, dec: (r: any) => T): Slice<T> {
-  if (raw.nil) return NIL;
+export function decSlice<T>(raw: any, dec: (r: any) => T, bytes = false): Slice<T> {
+  if (raw.nil) return (bytes ? BYTE_NIL : NIL) as Slice<T>;
   const items: T[] = raw.slice.map(dec);
   const c = raw.cap !== undefined ? Number(raw.cap) : items.length;
-  const a = new Array<T>(c);
+  const a = allocate<T>(c, bytes);
   for (let i = 0; i < items.length; i++) a[i] = items[i];
-  for (let i = items.length; i < c; i++) a[i] = items.length > 0 ? items[0] : (undefined as T);
+  if (!bytes) for (let i = items.length; i < c; i++) a[i] = items.length > 0 ? items[0] : (undefined as T);
   return new Slice(a, 0, items.length, c);
 }
 
@@ -100,7 +100,7 @@ export function view<T>(base: Slice<T>, raw: any): Slice<T> {
   const lo = raw.lo !== undefined ? Number(raw.lo) : 0;
   const hi = raw.hi !== undefined ? Number(raw.hi) : base.l;
   const max = raw.max !== undefined ? Number(raw.max) : base.c;
-  return new Slice(base.a, base.o + lo, hi - lo, max - lo);
+  return new Slice(base.a, base.o + lo, hi - lo, max - lo, base.bytes);
 }
 
 export function decMap<K, V>(raw: any, dk: (r: any) => K, dv: (r: any) => V): GoMap<K, V> | null {
@@ -129,8 +129,8 @@ export function encSlice<T>(s: Slice<T>, enc: (v: T) => unknown): unknown {
   return { slice: items, cap: String(s.c) };
 }
 
-export function encArray<T>(a: T[], enc: (v: T) => unknown): unknown {
-  return { array: a.map(enc) };
+export function encArray<T>(a: Backing<T>, enc: (v: T) => unknown): unknown {
+  return { array: Array.from(a, enc) };
 }
 
 export function encMap<K, V>(m: GoMap<K, V> | null, ek: (k: K) => unknown, ev: (v: V) => unknown): unknown {

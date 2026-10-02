@@ -5,13 +5,14 @@ public static partial class R
 {
     public static void stdTimeSleep(GoTask t, long d)
     {
+        sched.assertTask(t);
         t.rv = Array.Empty<object>();
         if (d <= 0)
         {
             yieldTask(t);
             return;
         }
-        sched.addTimer(d, t, null);
+        t.cleanup = sched.addTimer(d, t, null);
         sched.block(t);
     }
 }

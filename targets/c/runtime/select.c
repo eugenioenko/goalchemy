@@ -17,7 +17,13 @@ static void remove_sel(gx_WaitQ *q, bool *st) {
                 prev->next = nx;
             else
                 q->head = nx;
-            if (q->tail == w) q->tail = prev;
+            if (q->tail == w)
+                q->tail = prev;
+            w->task = NULL;
+            w->val = gx_nil();
+            w->next = NULL;
+            w->queue = NULL;
+            w->sel = NULL;
         } else {
             prev = w;
         }
@@ -27,29 +33,39 @@ static void remove_sel(gx_WaitQ *q, bool *st) {
 
 static void cleanup(void *p) {
     cleanup_arg *a = p;
+    if (!gx_owner_current(gx_sched))
+        return;
     for (int i = 0; i < a->n; i++) {
-        if (a->cases[i].ch.t == GX_NIL) continue;
+        if (a->cases[i].ch.t == GX_NIL)
+            continue;
         gx_Chan *c = a->cases[i].ch.u.p;
         remove_sel(&c->sendq, a->st);
         remove_sel(&c->recvq, a->st);
     }
+    a->cases = NULL;
+    a->st = NULL;
+    a->n = 0;
 }
 
 void gx_select(gx_Task *t, bool has_default, int n, const gx_Case *cases) {
+    gx_owner_check(t->owner);
     int *ready = GC_MALLOC_ATOMIC((size_t)(n ? n : 1) * sizeof(int));
     int nr = 0;
     for (int i = 0; i < n; i++) {
-        if (cases[i].ch.t == GX_NIL) continue;
+        if (cases[i].ch.t == GX_NIL)
+            continue;
         gx_Chan *c = cases[i].ch.u.p;
         bool ok = cases[i].send ? (c->closed || gx_has_live(&c->recvq) || c->len < c->size)
                                 : (c->len > 0 || gx_has_live(&c->sendq) || c->closed);
-        if (ok) ready[nr++] = i;
+        if (ok)
+            ready[nr++] = i;
     }
     if (nr > 0) {
         int i = ready[gx_choose((size_t)nr)];
         gx_Chan *c = cases[i].ch.u.p;
         if (cases[i].send) {
-            if (c->closed) gx_plain_panic("send on closed channel");
+            if (c->closed)
+                gx_plain_panic("send on closed channel");
             gx_Waiter *w = gx_dequeue(&c->recvq);
             if (w) {
                 gx_recv_done(w, cases[i].v, true);
@@ -76,7 +92,8 @@ void gx_select(gx_Task *t, bool has_default, int n, const gx_Case *cases) {
     bool *st = GC_MALLOC_ATOMIC(sizeof(bool));
     *st = false;
     for (int i = 0; i < n; i++) {
-        if (cases[i].ch.t == GX_NIL) continue;
+        if (cases[i].ch.t == GX_NIL)
+            continue;
         gx_Chan *c = cases[i].ch.u.p;
         gx_Waiter *w = GC_MALLOC(sizeof(gx_Waiter));
         w->task = t;
@@ -89,7 +106,10 @@ void gx_select(gx_Task *t, bool has_default, int n, const gx_Case *cases) {
     cleanup_arg *a = GC_MALLOC(sizeof(cleanup_arg));
     a->n = n;
     a->cases = GC_MALLOC((size_t)(n ? n : 1) * sizeof(gx_Case));
-    if (n) memcpy(a->cases, cases, (size_t)n * sizeof(gx_Case));
+    if (n)
+        memcpy(a->cases, cases, (size_t)n * sizeof(gx_Case));
+    for (int i = 0; i < n; i++)
+        a->cases[i].v = gx_nil();
     a->st = st;
     t->cleanup = cleanup;
     t->cleanup_arg = a;

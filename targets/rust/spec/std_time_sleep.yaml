@@ -2,11 +2,11 @@
 target: rust
 function: std.time.sleep
 contract_version: 1.0.0
-contract_hash: 75f748e3a2a615b994422403f6d52d000f5ac595ce98ce2ad7f39643eaccbb06
+contract_hash: fb986c9aeda4bf814516ae8370fc2c2997e56882ef9d7e0901e3c75b6488d5dd
 symbol: "std_time_sleep"
 implementation: runtime/std_time_sleep.rs
-implementation_hash: 1c0cf98402d8aaab23e6158678bb7929296e2ea8a2f0965c8cf4ad30c231313e
-summary: "time.Sleep: suspend for a duration of virtual time."
+implementation_hash: 4f910f5481f412dcb656acee1b926a2a99eb60addf15247c1ec4f033ecbc8890
+summary: "time.Sleep: suspend for a duration of scheduler time."
 suspension: may
 determinism: controlled
 signature:

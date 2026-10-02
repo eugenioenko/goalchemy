@@ -4,6 +4,10 @@ import type { Slice } from "../types/slice.ts";
 export function copy<T>(dst: Slice<T>, src: Slice<T>, clone?: (v: T) => T): bigint {
   const n = Math.min(dst.l, src.l);
   if (n === 0) return 0n;
+  if (dst.a instanceof Uint8Array && src.a instanceof Uint8Array) {
+    dst.a.set(src.a.subarray(src.o, src.o + n), dst.o);
+    return BigInt(n);
+  }
   const tmp = src.a!.slice(src.o, src.o + n);
   for (let i = 0; i < n; i++) dst.a![dst.o + i] = clone ? clone(tmp[i]) : tmp[i];
   return BigInt(n);

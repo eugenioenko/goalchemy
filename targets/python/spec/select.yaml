@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 18188898e89dfd95e170f4a31ac59533249e6351204a53928c0f53baf2088fb8
 symbol: "rt.select"
 implementation: runtime/select.py
-implementation_hash: cf2ff41db51648ad975950b4858219e2869f0447af1d1aa355b892998ca15abc
+implementation_hash: b0c21c952156b2448c27753c68f455998a7c66efe0f5235da906ae07e45f50cd
 summary: "select: commit exactly one ready case, chosen uniformly by the scheduler's choice source."
 suspension: may
 determinism: controlled

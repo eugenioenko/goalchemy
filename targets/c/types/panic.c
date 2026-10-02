@@ -17,6 +17,7 @@ _Noreturn void gx_raise(gx_Panic *p) {
     gx_Handler *h = gx_handler;
     if (!h) gx_report_panic(p);
     gx_handler = h->prev;
+    gx_source_depth = h->source_depth;
     gx_thrown = p;
     longjmp(h->jb, 1);
 }

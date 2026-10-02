@@ -9,6 +9,8 @@ pub enum Obj {
     Free,
     /// Struct fields, array elements, slice backing arrays, and cells.
     Vals(Vec<V>),
+    /// One byte per element, a traced leaf with no child handles.
+    Bytes(Vec<u8>),
     Map(GoMap),
     Box(&'static TypeDesc, V),
     Func(Func),
@@ -96,6 +98,7 @@ pub fn vals(v: Vec<V>) -> V {
 pub fn slot(h: H, i: usize) -> V {
     with(h, |o| match o {
         Obj::Vals(v) => v[i].clone(),
+        Obj::Bytes(v) => V::Int(v[i] as i64),
         _ => fault("slot of non-storage object"),
     })
 }
@@ -104,6 +107,7 @@ pub fn slot(h: H, i: usize) -> V {
 pub fn set_slot(h: H, i: usize, x: V) {
     let old = with(h, |o| match o {
         Obj::Vals(v) => std::mem::replace(&mut v[i], x),
+        Obj::Bytes(v) => { v[i] = x.i() as u8; V::Nil },
         _ => fault("slot of non-storage object"),
     });
     drop(old);
@@ -112,6 +116,7 @@ pub fn set_slot(h: H, i: usize, x: V) {
 pub fn vals_len(h: H) -> usize {
     with(h, |o| match o {
         Obj::Vals(v) => v.len(),
+        Obj::Bytes(v) => v.len(),
         _ => fault("length of non-storage object"),
     })
 }
@@ -161,6 +166,8 @@ impl Fr {
     }
 
     #[inline]
+    pub fn len(&self) -> usize { unsafe { (*self.p).v.len() } }
+
     pub fn g(&self, i: usize) -> V {
         unsafe { (&(*self.p).v)[i].clone() }
     }
@@ -179,11 +186,15 @@ impl Fr {
         unsafe { (*self.p).d.pop() }
     }
 
+    pub fn clear(&self) {
+        unsafe { for v in &mut (*self.p).v { *v = V::Nil; } (*self.p).d.clear(); }
+    }
+
     pub fn has_defers(&self) -> bool {
         unsafe { !(*self.p).d.is_empty() }
     }
 
-    fn trace(&self, out: &mut Vec<V>) {
+    pub fn trace(&self, out: &mut Vec<V>) {
         trace_data(self.p, out)
     }
 
@@ -258,6 +269,7 @@ pub fn collect() {
     });
     TEMP.with(|t| stack.extend(t.borrow().iter().cloned()));
     PERM.with(|t| stack.extend(t.borrow().iter().cloned()));
+    trace_globals(&mut stack);
     trace_sched(&mut stack, &mut frames);
     let mut seen_frames: Vec<*const Frame> = Vec::new();
     let garbage = HEAP.with(|hp| {
@@ -269,7 +281,7 @@ pub fn collect() {
         loop {
             while let Some(v) = stack.pop() {
                 let h = match &v {
-                    V::Obj(h) | V::Ptr(h, _) | V::Slice(h, _, _, _) => *h,
+                    V::Obj(h) | V::Ptr(h, _) | V::Slice(h, _, _, _) | V::ByteSlice(h, _, _, _) => *h,
                     V::Tuple(t) => {
                         stack.extend(t.iter().cloned());
                         continue;
@@ -310,9 +322,9 @@ pub fn collect() {
     drop(garbage);
 }
 
-fn trace_obj(o: &Obj, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
+pub(crate) fn trace_obj(o: &Obj, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
     match o {
-        Obj::Free => {}
+        Obj::Free | Obj::Bytes(_) => {}
         Obj::Vals(v) => out.extend(v.iter().cloned()),
         Obj::Map(m) => {
             for e in m.entries.iter() {
@@ -326,8 +338,8 @@ fn trace_obj(o: &Obj, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
         Obj::Chan(c) => {
             out.extend(c.buf.iter().cloned());
             for w in c.recvq.iter().chain(c.sendq.iter()) {
-                out.push(w.val.clone());
-                trace_task(&w.task, out, frames);
+                out.push(w.val.borrow().clone());
+                if let Some(t) = w.task.upgrade() { trace_task(&t, out, frames); }
             }
         }
         Obj::Mutex(m) => {
@@ -344,6 +356,8 @@ fn trace_obj(o: &Obj, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
             out.push(c.done.clone());
             out.push(c.err.clone());
             out.extend(c.children.iter().cloned());
+            out.push(c.parent.clone());
+            for h in c.hooks.values() { out.extend(h.roots.iter().cloned()); }
         }
         Obj::Iter(it) => {
             for e in it.entries.iter() {
@@ -377,6 +391,7 @@ pub fn trace_task(t: &Rc<Task>, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
     if let Some(f) = t.frame.borrow().as_ref() {
         frames.push(f.clone());
     }
+    out.extend(t.cleanup_roots.borrow().iter().cloned());
     out.extend(t.rv.borrow().iter().cloned());
     out.push(t.resume_panic.borrow().clone());
     out.push(t.cur_panic.borrow().clone());

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e9fb946048a2549d274a18d49be08e7b402f17988e4746ccc005643b607540a6
 symbol: "R.chanSend"
 implementation: runtime/ChanSend.cs
-implementation_hash: c34c72a2f573e5ae2a71a249a9c0031adad8b972f30010681b9daf01fcda2810
+implementation_hash: f395a74507b58283bd25e98f9cebedeb3127acb0aca811360d9ded4ba06c3a7d
 summary: "ch <- v: hand the value to a waiting receiver, buffer it, or wait."
 suspension: may
 determinism: controlled

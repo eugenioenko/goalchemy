@@ -1,0 +1,61 @@
+{
+  "id": "lib.callback.request",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "callback.Request: scoped asynchronous host callback with resource acknowledgment.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/callback.Request",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "ctx",
+        "type": "context.Context"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "request",
+        "type": "[]byte"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "reply",
+        "type": "[]byte"
+      },
+      {
+        "name": "err",
+        "type": "error"
+      }
+    ]
+  },
+  "depends_on": [
+    {
+      "id": "core.task.spawn",
+      "version": "1.0.0"
+    }
+  ],
+  "suspension": "may",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "Empty request/reply bytes permitted.",
+    "nil": "Nil contexts return error; absent registry/name returns unavailable.",
+    "bounds": "Name length 1..128 bytes; requests and replies <=1MiB.",
+    "conversions": "Opaque bytes; no implicit text encoding.",
+    "overflow": "Not applicable.",
+    "mutations": "Inputs never mutated; replies copied before publication.",
+    "aliasing": "Each reply independently owned; registry is scoped to the acquiring runtime generation.",
+    "allocation": "Host owns resources until terminal completion; cancel is nonblocking.",
+    "errors": "Provider rejection, canceled/deadline context and bounds return nil reply/error.",
+    "panics": "Unexpected native provider/bridge panic is a host fault outside source recover.",
+    "observations": "A provider must settle after cancellation once resources are released. Earliest inherited deadline applies. Source frames are resumed only by their scheduler."
+  },
+  "notes": "Only Go implements this capability. Native registries are context-scoped; generated library registries are scheduler-scoped. Completion acknowledges released resources. Cancellation requests stop and waits for terminal settlement. Duplicate/stale settlements cannot resume source.",
+  "cases": [],
+  "native_tests": [
+    "lib/callback/callback_test.go"
+  ]
+}

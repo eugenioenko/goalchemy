@@ -5,6 +5,7 @@ public static partial class R
 {
     public static void chanClose(Chan ch)
     {
+        sched.assertDriver();
         if (ch == null) throw Panics.plainPanic("close of nil channel");
         if (ch.closed) throw Panics.plainPanic("close of closed channel");
         ch.closed = true;

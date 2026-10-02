@@ -1,6 +1,6 @@
 // core.chan.recv: v, ok := <-ch, a pause primitive; results arrive in
 // t.rv as [value, ok].
-import { tryRecv, Waiter, type Chan } from "./chan_make.ts";
+import { tryRecv, parkWaiter, Waiter, type Chan } from "./chan_make.ts";
 import { sched, type Task } from "./task_spawn.ts";
 
 export function chanRecv(t: Task, ch: Chan | null): void {
@@ -13,6 +13,5 @@ export function chanRecv(t: Task, ch: Chan | null): void {
     t.rv = [v, ok];
     return;
   }
-  ch.recvq.push(new Waiter(t, undefined));
-  sched.block(t);
+  parkWaiter(t, ch.recvq, new Waiter(t, undefined));
 }

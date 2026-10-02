@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
 symbol: "SliceAppend.append"
 implementation: runtime/SliceAppend.java
-implementation_hash: c637c8918414abbea7b9de7513cbbb8cddb40039da09fb27f83bf181f6ab7bd7
+implementation_hash: 34e301e4a0c44a2d9110461888c474cd7831cc7e04e78b6adb710d9d8cfea3d4
 summary: "append(s, vs...)."
 suspension: never
 determinism: deterministic

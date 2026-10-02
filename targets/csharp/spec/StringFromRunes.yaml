@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 36488de4beda8ce69fde6410245419321af6b49331e140cf84d16f58021c10e0
 symbol: "R.fromRunes"
 implementation: runtime/StringFromRunes.cs
-implementation_hash: f5acfef18eb68e3c7c90f183f7e30453e2f003add87d262e33fd0f5aecd9027d
+implementation_hash: 18c533f53b638c5a70a98a4ea31b570445e95d9b08ff179c57860f5aa0e09eae
 summary: "string(r) for a rune slice."
 suspension: never
 determinism: deterministic

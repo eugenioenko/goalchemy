@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e1506642bcf5c87bc57b335339f1617655a14eb59e3080f4a0c39b5edc703465
 symbol: "SliceStore.sset"
 implementation: runtime/SliceStore.java
-implementation_hash: 2139f1c9eb2a58fac6dd3099adec09f4548c9d60ec11053c618e932f78275749
+implementation_hash: 96c860df8e7f2cc0bdf9a2628a422cd7ffad5f34c8e3ca716cd1296952cd6fdf
 summary: "Write s[i] = v."
 suspension: never
 determinism: deterministic

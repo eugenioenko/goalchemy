@@ -24,5 +24,6 @@ export function stdSyncMutexLock(t: Task, m: Mutex): void {
     return;
   }
   m.waiters.push(t);
+  t.cleanup = () => { m.waiters = m.waiters.filter(w => w !== t); };
   sched.block(t);
 }

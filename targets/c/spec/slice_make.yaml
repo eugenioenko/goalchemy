@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 6cc431aed8a1b3368c15331b253bba0b197bd68aa7898a09709fbcdb80805a11
 symbol: "gx_make_slice"
 implementation: runtime/slice_make.c
-implementation_hash: ee3a30fc5a5099d5f135d2debe71c64afc8dc08e6178250cf353687d6c9b3a81
+implementation_hash: c5b9a5786266660e100dcfffc1577f76a0ecb0d9a5b83c81866d00b8f8949926
 summary: "make([]T, len, cap)."
 suspension: never
 determinism: deterministic

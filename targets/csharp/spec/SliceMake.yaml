@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 6cc431aed8a1b3368c15331b253bba0b197bd68aa7898a09709fbcdb80805a11
 symbol: "R.makeSlice"
 implementation: runtime/SliceMake.cs
-implementation_hash: c15622d87f5a500a842c844ca55a6d95505f9910510350200227a44a01444d68
+implementation_hash: 4d9e422e3aae10f08f153cd70e2ca294273388e3f0193f33250b8d094712158d
 summary: "make([]T, len, cap)."
 suspension: never
 determinism: deterministic

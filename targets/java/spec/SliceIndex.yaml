@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a8730c5c8f21a156d58347c4cbddfc5870f88067ab8ba7dd1bf6ceaca17a0ab1
 symbol: "SliceIndex.sget"
 implementation: runtime/SliceIndex.java
-implementation_hash: 7b9db479cdef24c47972f6c5d6a0ef974b73e984afb131c7c5148566f1fec6f3
+implementation_hash: 30e79eb446167d86c31ab8700ef5de3019a3b5dd751c9dabdf75b6561b18004c
 summary: "Read s[i]."
 suspension: never
 determinism: deterministic

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: a8730c5c8f21a156d58347c4cbddfc5870f88067ab8ba7dd1bf6ceaca17a0ab1
 symbol: "R.sget"
 implementation: runtime/SliceIndex.cs
-implementation_hash: 870411b140ed9bf31bd2292e79ce2a3fa614a0126ed1336b271febc46fde5aac
+implementation_hash: 2b2a911af68803f9b0d52cb293083d596406ab31bf7e07eaf2320b8223fda974
 summary: "Read s[i]."
 suspension: never
 determinism: deterministic

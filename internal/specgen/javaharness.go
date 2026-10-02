@@ -16,6 +16,9 @@ var unsetU = regexp.MustCompile(`\{[A-Z]\.u\}`)
 func javaZero(t *contracts.TypeExpr) string {
 	switch t.Kind {
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return "Slice.BYTE_NIL"
+		}
 		return "Slice.NIL"
 	case "map", "pointer", "chan":
 		return "null"
@@ -44,6 +47,9 @@ func javaDecode(t *contracts.TypeExpr, raw string) string {
 		}
 		panic("java harness: pointer to " + t.Elem.Name)
 	case "slice":
+		if tsKind(t.Elem) == "u8" {
+			return fmt.Sprintf("decBytes(%s)", raw)
+		}
 		return fmt.Sprintf("decSlice(%s, r -> %s, () -> %s)", raw, javaDecode(t.Elem, "r"), javaZero(t.Elem))
 	case "map":
 		return fmt.Sprintf("decMap(%s, r -> %s, r -> %s)", raw, javaDecode(t.Key, "r"), javaDecode(t.Elem, "r"))
@@ -120,6 +126,7 @@ func javaHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		vars := map[string]string{}
 		for k, v := range ci.args {
 			vars[k+".kind"] = tsKind(v)
+			vars[k+".bytes"] = fmt.Sprint(tsKind(v) == "u8")
 			vars[k+".zero"] = javaZero(v)
 			vars[k+".unsigned"] = fmt.Sprint(tsKind(v) == "u64")
 			vars[k+".count"] = "Ints.count"

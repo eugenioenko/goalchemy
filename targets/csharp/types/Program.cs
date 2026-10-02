@@ -25,8 +25,30 @@ public class PanicState
 
 /// <summary>Program-level runtime: deferred calls, recover, closures, pointers
 /// to fields, and the entry point reporting unrecovered panics as Go does.</summary>
+public sealed class HostFault : Exception { public HostFault(string message) : base(message) { } }
+public sealed class HostFatal : Exception { public HostFatal(string message) : base(message) { } }
+
+public sealed class SourceStackFatal : Exception { }
+
 public static class Program
 {
+    [ThreadStatic] static int sourceDepth;
+    public readonly struct SourceScope : IDisposable
+    {
+        public void Dispose() => sourceDepth--;
+    }
+    // Managed guard, not a catch for uncatchable native CLR stack exhaustion.
+    public static SourceScope enterSource()
+    {
+        if (sourceDepth >= 4096 || !System.Runtime.CompilerServices.RuntimeHelpers.TryEnsureSufficientExecutionStack()) throw new SourceStackFatal();
+        sourceDepth++; return new SourceScope();
+    }
+    public static void resetPanicBinding()
+    {
+        MAIN_STATE.curPanic = null; MAIN_STATE.deferTarget = null;
+        panicState = () => MAIN_STATE;
+    }
+
     static readonly PanicState MAIN_STATE = new();
 
     public static Func<PanicState> panicState = () => MAIN_STATE;
@@ -191,6 +213,15 @@ public static class Program
             catch (GoPanic p)
             {
                 reportPanic(p);
+            }
+            catch (HostFatal e)
+            {
+                Out.stderr("fatal error: " + e.Message + "\n"); Environment.Exit(2);
+            }
+            catch (SourceStackFatal)
+            {
+                Out.stderr("runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n");
+                Environment.Exit(2);
             }
             catch (Exception e)
             {

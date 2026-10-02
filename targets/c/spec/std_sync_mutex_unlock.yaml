@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d432bb323379bd873c39346fa27f78ca8a93a8bc55125efd0418fa32c82e5e93
 symbol: "gx_std_sync_mutex_unlock"
 implementation: runtime/std_sync_mutex_unlock.c
-implementation_hash: 67a4dc060a41ee638a8e0f24a7d4553c909d41559fecae356e94bb41633d2971
+implementation_hash: 9bf4d14163a350353c18730fd9d85fb85575f463e56af8cbc980fb528010bfdd
 summary: "sync.Mutex.Unlock: hand the lock to the first waiter or release it."
 suspension: never
 determinism: deterministic

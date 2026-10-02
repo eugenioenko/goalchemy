@@ -24,6 +24,7 @@ public static partial class R
 {
     public static void stdSyncWaitgroupAdd(WaitGroup wg, long d)
     {
+        sched.assertDriver();
         wg.n += d;
         if (wg.n < 0) throw new GoPanic(new Box(Program.STRING_TYPE, "sync: negative WaitGroup counter"));
         if (wg.n == 0)

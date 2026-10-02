@@ -29,6 +29,7 @@ public final class StdSyncMutexLock {
             return;
         }
         m.waiters.add(t);
+        t.cleanup=()->m.waiters.remove(t);
         TaskSpawn.sched.block(t);
     }
 }

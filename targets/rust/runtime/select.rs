@@ -8,6 +8,7 @@ pub fn scase(ch: V, send: bool, v: V) -> (V, bool, V) {
 }
 
 pub fn select(t: &Rc<Task>, has_default: bool, cases: Vec<(V, bool, V)>) {
+    check_task(t);
     let mut ready_cases = Vec::new();
     for (i, (ch, send, _)) in cases.iter().enumerate() {
         if ch.is_nil() {
@@ -57,21 +58,15 @@ pub fn select(t: &Rc<Task>, has_default: bool, cases: Vec<(V, bool, V)>) {
         return;
     }
     let st = Rc::new(Cell::new(false));
+    let mut registrations = Vec::new();
     for (i, (ch, send, v)) in cases.iter().enumerate() {
         if ch.is_nil() {
             continue;
         }
-        let w = Waiter { task: t.clone(), val: if *send { v.clone() } else { V::Nil }, sel: Some(st.clone()), idx: i };
-        with_chan(ch, |c| if *send { c.sendq.push_back(w) } else { c.recvq.push_back(w) });
+        let w = new_waiter(t, if *send { v.clone() } else { V::Nil }, Some(st.clone()), i);
+        with_chan(ch, |c| if *send { c.sendq.push_back(w.clone()) } else { c.recvq.push_back(w.clone()) });
+        registrations.push((ch.clone(), w));
     }
     block(t);
-    let chans: Vec<V> = cases.into_iter().map(|c| c.0).filter(|c| !c.is_nil()).collect();
-    t.cleanup.replace(Some(Box::new(move || {
-        for ch in chans.iter() {
-            with_chan(ch, |c| {
-                c.sendq.retain(|w| !w.sel.as_ref().map_or(false, |s| Rc::ptr_eq(s, &st)));
-                c.recvq.retain(|w| !w.sel.as_ref().map_or(false, |s| Rc::ptr_eq(s, &st)));
-            });
-        }
-    })));
+    attach_waiter_cleanup(t, registrations);
 }

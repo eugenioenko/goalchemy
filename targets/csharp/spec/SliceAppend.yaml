@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
 symbol: "R.append"
 implementation: runtime/SliceAppend.cs
-implementation_hash: 9650a22be2934831ae37c694ee339f59b8f71c5cf6fbea99e0007bb41c21c84c
+implementation_hash: 376f4aa1c1e39d0c0567b3f72989ba8ef4ce09323c8551870b5a69df84d9b81e
 summary: "append(s, vs...)."
 suspension: never
 determinism: deterministic

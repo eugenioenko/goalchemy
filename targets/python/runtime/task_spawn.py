@@ -11,9 +11,12 @@ by the runtime.
 """
 
 import os
+import time
+import threading
+from concurrent.futures import Future
 
 from ..types.panic import GoPanic, nil_deref
-from ..types.program import catch_panic, format_chain, panic_state, report_panic, _run_large_stack
+from ..types.program import catch_panic, format_chain, panic_state, report_panic, _run_large_stack, source_guard_state, SourceFatal, reserve, unreserve, HostFault
 from ..types.print import write_stderr
 from ..types.slice import Slice
 
@@ -43,6 +46,8 @@ class Task:
         self.cur_panic = None
         self.defer_target = None
         self.cleanup = None
+        self.owner = None
+        self.depth = 1
 
 
 class Blocked(Exception):
@@ -64,12 +69,22 @@ def _seed():
 
 
 def fatal(msg):
-    write_stderr(b"fatal error: " + msg.encode() + b"\n")
-    os._exit(2)
+    raise SourceFatal(b"fatal error: " + msg.encode() + b"\n")
 
 
 class Scheduler:
-    def __init__(self, main):
+    def __init__(self, main, real=False, clock=None):
+        self.real = real
+        self.native_clock = clock or time.monotonic_ns
+        self.epoch = self.native_clock() if real else 0
+        self.thread = threading.get_ident()
+        self.active = True
+        self.tasks = set()
+        self.contexts = set()
+        self.operations = {}
+        self.next_op = 0
+        self.mailbox = Mailbox()
+        self.retiring_wait = None
         self.runq = []
         self.cur = main
         self.main = main
@@ -82,6 +97,7 @@ class Scheduler:
 
     def choose(self, n):
         """xorshift32 choice source, identical on every target."""
+        self.check()
         x = self.rng
         x ^= (x << 13) & 0xFFFFFFFF
         x ^= x >> 17
@@ -89,39 +105,179 @@ class Scheduler:
         self.rng = x
         return x % n
 
+    def check(self):
+        if self.thread != threading.get_ident():
+            raise HostFault("source access from native callback")
+
+    def now(self):
+        self.check()
+        if self.real:
+            self.clock = max(self.clock, min(MAX_TIME, max(0, self.native_clock() - self.epoch)))
+        return self.clock
+
     def ready(self, t):
-        self.runq.append(t)
+        self.check()
+        if not self.active or t.done or (t.owner is not None and t.owner is not self):
+            return
+        t.owner = self
+        self.tasks.add(t)
+        if t not in self.runq:
+            self.runq.append(t)
 
     def block(self, t):
+        self.check()
+        if not self.active or t.done or t.owner not in (None, self):
+            raise HostFault("invalid blocked task owner")
+        t.owner = self
+        self.tasks.add(t)
         t.blocked = True
 
     def add_timer(self, d, task, fn):
+        return self.add_timer_at(deadline(self.now(), d), task, fn)
+
+    def add_timer_at(self, at, task, fn):
+        self.check()
+        if type(at) is not int or not 0 <= at <= MAX_TIME:
+            raise HostFault("absolute deadline outside signed clock range")
         self.seq += 1
-        self.timers.append((self.clock + d, self.seq, task, fn))
+        timer = [at, self.seq, task, fn]
+        self.timers.append(timer)
+        return timer
+
+    def remove_timer(self, timer):
+        self.check()
+        if timer in self.timers:
+            self.timers.remove(timer)
+        timer[2:] = [None, None]
+
+    def dispatch(self):
+        self.now()
+        if self.real:
+            self.fire_timers(False)
+        self.drain()
 
     def next(self):
-        while not self.runq:
-            if not self.timers:
-                if self.harness:
-                    raise Blocked()
-                fatal("all goroutines are asleep - deadlock!")
-            self.fire_timers()
-        return self.runq.pop(0)
+        while True:
+            self.dispatch()
+            if self.runq:
+                return self.runq.pop(0)
+            if not self.real and self.timers:
+                self.fire_timers(True)
+                continue
+            if self.operations or (self.real and self.timers):
+                with self.mailbox.condition:
+                    # Recheck inside the publication lock to avoid lost wakeups.
+                    if self.mailbox.applicable():
+                        continue
+                    delay = None
+                    if self.timers:
+                        delay = max(0, min(t[0] for t in self.timers) - self.now()) / 1e9
+                        delay = min(delay, threading.TIMEOUT_MAX)
+                    self.mailbox.condition.wait(delay)
+                continue
+            if self.harness:
+                raise Blocked()
+            fatal("all goroutines are asleep - deadlock!")
 
-    def fire_timers(self):
-        at = min(t[0] for t in self.timers)
-        self.clock = at
-        due = sorted((t for t in self.timers if t[0] == at), key=lambda t: t[1])
-        self.timers = [t for t in self.timers if t[0] != at]
-        for _, _, task, fn in due:
+    def fire_timers(self, advance=True):
+        self.check()
+        if not self.timers:
+            return
+        if advance:
+            self.clock = min(t[0] for t in self.timers)
+        due = sorted((t for t in self.timers if t[0] <= self.clock), key=lambda t: (t[0], t[1]))
+        for timer in due:
+            if timer not in self.timers:
+                continue
+            self.timers.remove(timer)
+            _, _, task, fn = timer
+            timer[2:] = [None, None]
             if fn is not None:
                 fn()
             if task is not None:
                 self.ready(task)
 
+    def drain(self):
+        self.check()
+        with self.mailbox.condition:
+            records = [(oid, record) for oid, record in self.mailbox.records.items()
+                       if oid in self.mailbox.acks]
+        for oid, (tid, wire, fault_record) in records:
+            op = self.operations.get(oid)
+            if op is None or tid != op.task.id:
+                continue
+            self.operations.pop(oid)
+            self.mailbox.forget(oid)
+            try:
+                op.cleanup()
+            except BaseException as e:
+                raise HostFault("registration cleanup: " + fault_text(e)) from e
+            if fault_record is not None:
+                raise HostFault(fault_record)
+            err = op.context.err if op.context is not None else None
+            try:
+                op.task.rv = op.cancel_result(err) if err is not None else op.decode(wire)
+            except BaseException as e:
+                raise HostFault("driver decode: " + fault_text(e)) from e
+            self.ready(op.task)
+
+    def retire(self):
+        self.check()
+        errors = []
+        self.active = False
+        for op in list(self.operations.values()):
+            try:
+                op.cancel()
+            except BaseException as e:
+                errors.append(e)
+        with self.mailbox.condition:
+            if len(self.mailbox.acks) < len(self.operations) and self.retiring_wait is not None:
+                try:
+                    self.retiring_wait()
+                except BaseException as e:
+                    errors.append(e)
+            while len(self.mailbox.acks) < len(self.operations):
+                self.mailbox.condition.wait()
+        for op in list(self.operations.values()):
+            try:
+                op.cleanup()
+            except BaseException as e:
+                errors.append(e)
+        self.operations.clear()
+        self.mailbox.close()
+        for c in list(self.contexts):
+            try:
+                c.detach()
+            except BaseException as e:
+                errors.append(e)
+        self.contexts.clear()
+        for t in list(self.tasks):
+            try:
+                if t.cleanup is not None:
+                    t.cleanup()
+            except BaseException as e:
+                errors.append(e)
+            t.cleanup = None
+            t.frame = None
+            t.rv = []
+            t.cur_panic = t.resume_panic = t.defer_target = None
+            t.done = True
+            t.owner = None
+        self.tasks.clear()
+        self.runq.clear()
+        for timer in self.timers:
+            timer[2:] = [None, None]
+        self.timers.clear()
+        self.cur = self.main = None
+        if errors:
+            raise HostFault("retirement cleanup: " + "; ".join(fault_text(e) for e in errors))
+
     def run(self, t):
         """Drives a task's frames until it blocks or finishes."""
+        self.check()
         self.cur = t
+        t.owner = self
+        self.tasks.add(t)
         t.blocked = False
         if t.cleanup is not None:
             c, t.cleanup = t.cleanup, None
@@ -140,6 +296,7 @@ class Scheduler:
 
     def exit(self, t, f, p):
         """Leaves frame f (panicking when p is set); deferred calls run first."""
+        self.check()
         if p is not None:
             if p.prev is None and f.panicking is not None and f.panicking is not p:
                 p.prev = f.panicking
@@ -154,15 +311,18 @@ class Scheduler:
 
     def finish(self, t, f):
         """Pops f and delivers its results, or its panic, to the caller."""
+        self.check()
         p = f.panicking
         parent = f.parent
         t.frame = parent
+        t.depth = max(0, t.depth - 1)
         if parent is None:
             t.done = True
+            self.tasks.discard(t)
+            t.rv = []
+            t.cur_panic = t.resume_panic = t.defer_target = None
             if p is not None:
-                if self.harness:
-                    raise _FatalPanic(p)
-                report_panic(p)
+                raise _FatalPanic(p)
             return
         if isinstance(parent, _DeferRunner) and parent.child is f:
             parent.child_done(t, p)
@@ -229,15 +389,177 @@ class _DeferRunner(Frame):
             tf.panicking = None
 
 
+MAX_TIME = (1 << 63) - 1
+
+
+def deadline(now, duration):
+    # Go duration is signed int64 even though Python integers are unbounded.
+    if type(duration) is not int or not -(1 << 63) <= duration <= MAX_TIME:
+        raise HostFault("duration outside signed int64")
+    return min(MAX_TIME, now + max(0, duration))
+
+
+def fault_text(value):
+    try:
+        return str(value)
+    except BaseException:
+        return "unprintable native fault (" + type(value).__name__ + ")"
+
+
+def snapshot(value, seen=None):
+    kind = type(value)
+    if kind in (type(None), bool, int, float, str, bytes):
+        return value
+    if kind is bytearray:
+        return bytes(value)
+    if kind not in (list, tuple, dict):
+        raise HostFault("unsupported native wire value")
+    seen = set() if seen is None else seen
+    if id(value) in seen:
+        raise HostFault("cyclic native wire value")
+    seen.add(id(value))
+    try:
+        if kind is dict:
+            if any(type(k) is not str for k in value):
+                raise HostFault("wire dictionary keys must be exact strings")
+            return {k: snapshot(v, seen) for k, v in value.items()}
+        values = [snapshot(v, seen) for v in value]
+        return tuple(values) if kind is tuple else values
+    finally:
+        seen.remove(id(value))
+
+
+class Mailbox:
+    def __init__(self):
+        self.condition = threading.Condition()
+        self.live = {}
+        self.records = {}  # Python insertion order preserves publication FIFO across holes.
+        self.acks = set()
+        self.closed = False
+
+    def applicable(self):
+        return any(oid in self.acks for oid in self.records)
+
+    def forget(self, oid):
+        with self.condition:
+            self.live.pop(oid, None)
+            self.records.pop(oid, None)
+            self.acks.discard(oid)
+
+    def close(self):
+        with self.condition:
+            self.closed = True
+            self.live.clear()
+            self.records.clear()
+            self.acks.clear()
+            self.condition.notify_all()
+
+
+class HostToken:
+    __slots__ = ("mailbox", "operation", "task")
+
+    def __init__(self, mailbox, operation, task):
+        self.mailbox, self.operation, self.task = mailbox, operation, task
+
+    def publish(self, value=None, fault=None):
+        # Never carry an exception object/traceback/source root across the boundary.
+        try:
+            wire = snapshot(value)
+            fault = None if fault is None else fault_text(fault)
+        except BaseException as e:
+            wire, fault = None, "native publication: " + fault_text(e)
+        m = self.mailbox
+        with m.condition:
+            if m.closed or type(self.operation) is not int or type(self.task) is not int or m.live.get(self.operation) != self.task or self.operation in m.records:
+                return False
+            m.records[self.operation] = (self.task, wire, fault)
+            m.condition.notify_all()
+            return True
+
+    def acknowledge_cleanup(self):
+        m = self.mailbox
+        with m.condition:
+            if m.closed or type(self.operation) is not int or type(self.task) is not int or m.live.get(self.operation) != self.task:
+                return False
+            m.acks.add(self.operation)
+            m.condition.notify_all()
+            return True
+
+
+class HostOperation:
+    def __init__(self, task, context, cancel, cleanup, decode, cancel_result):
+        self.task, self.context = task, context
+        self.cancel, self.cleanup = cancel, cleanup
+        self.decode, self.cancel_result = decode, cancel_result
+
+
+def register_host(t, context=None, cancel=lambda: None, cleanup=lambda: None,
+                  decode=lambda wire: wire, cancel_result=lambda err: [None, err]):
+    s = sched()
+    s.check()
+    if not s.real or not s.active or t.done or t.owner not in (None, s):
+        raise HostFault("invalid host task owner")
+    if context is not None:
+        from .std_context_err import check_context
+        check_context(context)
+    s.next_op += 1
+    oid = s.next_op
+    detach = context._add_hook(cancel)[1] if context is not None else lambda: None
+    def release():
+        try:
+            detach()
+        finally:
+            cleanup()
+    s.operations[oid] = HostOperation(t, context, cancel, release, decode, cancel_result)
+    with s.mailbox.condition:
+        s.mailbox.live[oid] = t.id
+    t.owner = s
+    s.tasks.add(t)
+    s.block(t)
+    return HostToken(s.mailbox, oid, t.id)
+
+
+def launch_host(t, submit, context=None, inputs=None, cancel=lambda: None,
+                cleanup=lambda: None, decode=lambda wire: wire,
+                cancel_result=lambda err: [None, err]):
+    copied = snapshot(inputs)
+    token = register_host(t, context, cancel, cleanup, decode, cancel_result)
+    try:
+        future = submit(copied)
+        if type(future) is not Future:
+            raise HostFault("launch_host requires an exact concurrent.futures.Future")
+        # Contract: submit returns/raises and this Future settles only after the
+        # adapter has released native leases; Future state alone proves no cleanup.
+        def done(f):
+            try:
+                token.publish(f.result())
+            except BaseException as e:
+                token.publish(fault="native Future: " + fault_text(e))
+            finally:
+                token.acknowledge_cleanup()
+        future.add_done_callback(done)
+    except BaseException as e:
+        token.publish(fault="native submission: " + fault_text(e))
+        token.acknowledge_cleanup()
+    return token
+
+
 _sched = [Scheduler(Task(0, None))]
 
 
 def sched():
+    _sched[0].check()
     return _sched[0]
 
 
 def call(t, child):
     """Pushes a callee frame; the caller resumes with its results in t.rv."""
+    owner = sched()
+    if t.owner is not owner or not owner.active or t.done:
+        raise HostFault("invalid source call owner")
+    if owner.real and t.depth >= 512:
+        raise SourceFatal(b"runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n")
+    t.depth += 1
     child.parent = t.frame
     t.frame = child
 
@@ -304,17 +626,75 @@ def _install(main, harness):
     return s
 
 
-def run_main(entry):
-    """Runs the program entry as the first task until it returns."""
-
-    def body():
-        main = Task(0, entry)
-        s = _install(main, False)
+def _drive(factory, real=False, harness=False):
+    s = None
+    failure = None
+    result = None
+    prior_guard = getattr(source_guard_state, "enabled", False)
+    source_guard_state.enabled = real
+    source_guard_state.depth = 0
+    try:
+        old = _sched[0]
+        old.thread = threading.get_ident()
+        old.retire()
+        main = Task(0, None)
+        s = Scheduler(main, real)
+        s.harness = harness
+        _sched[0] = s
+        panic_state.get = lambda: s.cur
+        # Construct emitted frames and source init on the owner, after reservation.
+        main.frame = factory()
         s.ready(main)
         while not main.done:
             s.run(s.next())
+        result = main.rv
+    except RecursionError:
+        failure = SourceFatal(b"runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n")
+    except BaseException as e:
+        failure = e
+    finally:
+        try:
+            if s is not None:
+                s.retire()
+        except BaseException as e:
+            if failure is None:
+                failure = e
+        from ..types.program import _main_state
+        panic_state.get = lambda: _main_state
+        source_guard_state.enabled = prior_guard
+        source_guard_state.depth = 0
+    if isinstance(failure, _FatalPanic):
+        if harness:
+            raise failure.p
+        report_panic(failure.p)
+    if isinstance(failure, SourceFatal):
+        write_stderr(failure.report)
+        os._exit(2)
+    if failure is not None:
+        raise failure
+    return result
 
-    _run_large_stack(body)
+
+def run_main(entry):
+    """Legacy virtual executable. Reservation precedes the owner-thread start."""
+    reserve()
+    try:
+        _run_large_stack(lambda: _drive(lambda: entry))
+    finally:
+        unreserve()
+
+
+def run_main_host(factory):
+    """Blocking real-monotonic executable entry; native callbacks only publish.
+
+    factory constructs compiler frames on this calling owner thread. This is
+    neither a returned Future nor an exported SDK async/library wrapper.
+    """
+    reserve()
+    try:
+        return _drive(factory, real=True)
+    finally:
+        unreserve()
 
 
 def yield_task(t):
@@ -342,19 +722,39 @@ class _AwaitFrame(Frame):
 
 
 def run_isolated(fn):
-    """Runs one pause primitive in an isolated scheduler for a harness case;
-    raises Blocked when no task can run, and the source panic on panic."""
-    h = _AwaitFrame(fn)
-    main = Task(0, h)
-    s = _install(main, True)
-    s.ready(main)
+    reserve()
     try:
-        while not main.done:
-            s.run(s.next())
-    except _FatalPanic as e:
-        raise e.p
-    return h.res
+        h = _AwaitFrame(fn)
+        _drive(lambda: h, harness=True)
+        return h.res
+    finally:
+        unreserve()
 
 
 def reset_scheduler():
-    _install(Task(0, None), True)
+    reserve()
+    try:
+        old = _sched[0]
+        old.thread = threading.get_ident()
+        old.retire()
+        _install(Task(0, None), True)
+    finally:
+        unreserve()
+
+
+def _sequential_start():
+    old = _sched[0]
+    old.thread = threading.get_ident()
+    old.retire()
+    _sched[0] = Scheduler(Task(0, None))
+
+
+def _sequential_end():
+    _sched[0].retire()
+
+
+# types/program is always linked; sequential programs link this runtime only
+# when a source primitive needs it. No optional scheduler import from program.
+from ..types import program as _program
+_program.sequential_start = _sequential_start
+_program.sequential_end = _sequential_end

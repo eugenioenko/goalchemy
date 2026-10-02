@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 3a76434ad88e80269416a52fef95b3c0f91609f791511a6f488e6aa3a623248a
 symbol: "gx_slice_to_array"
 implementation: runtime/slice_to_array.c
-implementation_hash: f469a8e73691138142f14a90a26fba8458143fa6bbd45e97be7eb1ba13cc13fa
+implementation_hash: 20628120d0f4adce7181a9a9a91950b9175212ceeda7cc620a3189a00e696220
 summary: "[N]T(s): copy the first N elements of a slice into a new array value."
 suspension: never
 determinism: deterministic

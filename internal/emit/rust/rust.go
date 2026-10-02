@@ -82,7 +82,7 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		} else {
 			fmt.Fprintf(&out, "    sync_frame(func(-1, w_%s, Vec::new()), Vec::new(), 0)\n", p.Entry.Sym)
 		}
-		fmt.Fprintf(&out, "}\n\nfn main() {\n    run_main(%d, init_zero_globals, entry_frame)\n}\n", len(p.Globals))
+		fmt.Fprintf(&out, "}\n\npub fn run_host() -> Result<(), HostError> {\n    run_main_host(%d, init_zero_globals, entry_frame)\n}\n\nfn main() {\n    run_main(%d, init_zero_globals, entry_frame)\n}\n", len(p.Globals), len(p.Globals))
 	} else {
 		fmt.Fprintf(&out, "fn entry() {\n    f_%s();\n", p.Init.Sym)
 		if p.Main != nil {
@@ -213,9 +213,23 @@ func (e *emitter) structHelpers(t *ir.Type) {
 	e.helperOut.WriteString(b.String())
 }
 
+func byteElem(t *ir.Type) bool {
+	u := t.U()
+	return u.Kind == ir.KInt && u.Int == ir.U8
+}
+
 func (e *emitter) arrayHelpers(t *ir.Type) {
 	id, el, n := t.ID, t.Elem, t.Len
 	var b strings.Builder
+	if byteElem(el) {
+		fmt.Fprintf(&b, "fn z_%d() -> V { byte_array(vec![0; %d]) }\n", id, n)
+		fmt.Fprintf(&b, "fn c_%d(x: &V) -> V { byte_array_clone(x) }\n", id)
+		fmt.Fprintf(&b, "fn set_%d(d: &V, s: &V) { byte_array_set(d, s) }\n", id)
+		fmt.Fprintf(&b, "fn eq_%d(a: &V, b: &V) -> bool { byte_array_eq(a, b) }\n", id)
+		fmt.Fprintf(&b, "fn k_%d(a: &V) -> Key { byte_array_key(a) }\n\n", id)
+		e.helperOut.WriteString(b.String())
+		return
+	}
 	fmt.Fprintf(&b, "fn z_%d() -> V {\n    vals((0..%d).map(|_| %s).collect())\n}\n\n", id, n, e.zero(el))
 	fmt.Fprintf(&b, "fn c_%d(x: &V) -> V {\n    let v = vals_copy(x.h());\n    vals(v.iter().map(|x| %s).collect())\n}\n\n", id, e.cloneExpr(el, "x", true))
 	if el.IsAggregate() {
@@ -239,6 +253,9 @@ func (e *emitter) zero(t *ir.Type) string {
 	case ir.KString:
 		return `s(b"")`
 	case ir.KSlice:
+		if byteElem(u.Elem) {
+			return "BYTE_NIL"
+		}
 		return "NIL_SLICE"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
@@ -268,6 +285,9 @@ func (e *emitter) zeroFn(t *ir.Type) string {
 	case ir.KString:
 		return "zero_string"
 	case ir.KSlice:
+		if byteElem(u.Elem) {
+			return "zero_byte_slice"
+		}
 		return "zero_slice"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
@@ -541,7 +561,7 @@ func (fe *fnEmitter) set(l *ir.Local, x string) string {
 func (e *emitter) constant(c *ir.Const) string {
 	if c.Nil {
 		if c.Type.U().Kind == ir.KSlice {
-			return "NIL_SLICE"
+			return e.zero(c.Type)
 		}
 		return "V::Nil"
 	}
@@ -754,6 +774,7 @@ func (e *emitter) function(f *ir.Func) string {
 	}
 	fe.w("fn f_%s(%s) -> V {", f.Sym, strings.Join(params, ", "))
 	fe.indent = "    "
+	fe.w("let _source_depth = source_guard();")
 	fe.w("let l = Fr::new(%d);", len(f.Locals))
 	for i, p := range append(append([]*ir.Local(nil), f.Env...), f.Params...) {
 		fe.w("l.s(%d, a%d);", fe.slots[p], i)
@@ -1171,7 +1192,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		w("%s;", fe.set(i.Dst, fe.lenExpr(i.X, true)))
 	case *ir.MakeSlice:
 		e.use("core.slice.make")
-		w("%s;", fe.set(i.Dst, fmt.Sprintf("make_slice(%s, %s, %s)", fe.val(i.Len), fe.val(i.Cap), e.zeroFn(i.Dst.Type.U().Elem))))
+		if byteElem(i.Dst.Type.U().Elem) {
+			w("%s;", fe.set(i.Dst, fmt.Sprintf("make_byte_slice(%s, %s)", fe.val(i.Len), fe.val(i.Cap))))
+		} else {
+			w("%s;", fe.set(i.Dst, fmt.Sprintf("make_slice(%s, %s, %s, false)", fe.val(i.Len), fe.val(i.Cap), e.zeroFn(i.Dst.Type.U().Elem))))
+		}
 	case *ir.MakeMap:
 		e.use("core.map.make")
 		w("%s;", fe.set(i.Dst, fmt.Sprintf("make_map(%s)", e.keyFn(i.Dst.Type.U().Key))))
@@ -1187,9 +1212,17 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		default:
 			var es []string
 			for _, x := range i.Elems {
-				es = append(es, fe.val(x))
+				v := fe.val(x)
+				if byteElem(i.Dst.Type.U().Elem) {
+					v = "(" + v + ").i() as u8"
+				}
+				es = append(es, v)
 			}
-			v = fmt.Sprintf("append(%s, vec![%s], %s)", fe.val(i.S), strings.Join(es, ", "), cl)
+			if byteElem(i.Dst.Type.U().Elem) {
+				v = fmt.Sprintf("append_bytes(%s, &[%s])", fe.val(i.S), strings.Join(es, ", "))
+			} else {
+				v = fmt.Sprintf("append(%s, vec![%s], %s)", fe.val(i.S), strings.Join(es, ", "), cl)
+			}
 		}
 		w("%s;", fe.set(i.Dst, v))
 	case *ir.Copy:

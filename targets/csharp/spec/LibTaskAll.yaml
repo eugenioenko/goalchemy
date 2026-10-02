@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 859eeb085109dec70bc14ac6a84439f051d6b1568ab0ab878704802816c82384
 symbol: "R.libTaskAll"
 implementation: runtime/LibTaskAll.cs
-implementation_hash: ae2cd6b292565f30f3b5191c622c9a8be685ac0390d13f3c9a82a95309833478
+implementation_hash: 37942b0fb23fc141d8593cb9f27132835be46b8b939c9c292d1af3217772229f
 summary: "task.All: run each function as a task, in order, and resume the caller when all have finished."
 suspension: may
 determinism: controlled

@@ -75,7 +75,7 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		if !p.Entry.MaySuspend {
 			start = "rt.sync(lambda: (" + p.Entry.Sym + "(), [])[1])"
 		}
-		fmt.Fprintf(&out, "\nif __name__ == \"__main__\":\n    rt.run_main(%s)\n", start)
+		fmt.Fprintf(&out, "\ndef runHost():\n    return rt.run_main_host(lambda: %s)\n\nif __name__ == \"__main__\":\n    rt.run_main(%s)\n", start, start)
 	} else {
 		fmt.Fprintf(&out, "\n\ndef _entry():\n    %s()\n", p.Init.Sym)
 		if p.Main != nil {
@@ -129,6 +129,13 @@ var opaqueContracts = map[string]string{
 	"sync.Mutex":      "std.sync.mutex.lock",
 	"sync.WaitGroup":  "std.sync.waitgroup.add",
 	"context.Context": "std.context.err",
+}
+
+func byteElem(t *ir.Type) bool { u := t.U(); return u.Kind == ir.KInt && u.Int == ir.U8 }
+
+func byteStorage(t *ir.Type) bool {
+	u := t.U()
+	return (u.Kind == ir.KSlice || u.Kind == ir.KArray) && byteElem(u.Elem)
 }
 
 func intKind(t *ir.Type) string { return t.U().Int.String() }
@@ -233,6 +240,10 @@ func (e *emitter) structClass(t *ir.Type) {
 func (e *emitter) arrayHelpers(t *ir.Type) {
 	id := t.ID
 	el := t.Elem
+	if byteElem(el) {
+		fmt.Fprintf(&e.helperOut, "def zero_%d():\n    return rt.alloc_bytes(%d)\n\n\ndef clone_%d(s):\n    return bytearray(s)\n\n\ndef set_%d(d, s):\n    memoryview(d)[:] = s\n\n\ndef eq_%d(x, y):\n    return x == y\n\n\ndef key_%d(x):\n    return bytes(x)\n\n\n", id, t.Len, id, id, id, id)
+		return
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "def zero_%d():\n    return [%s for _ in range(%d)]\n\n\n", id, e.zero(el), t.Len)
 	fmt.Fprintf(&b, "def clone_%d(s):\n    return [%s for x in s]\n\n\n", id, e.cloneExpr(el, "x"))
@@ -256,6 +267,9 @@ func (e *emitter) zero(t *ir.Type) string {
 	case ir.KString:
 		return `b""`
 	case ir.KSlice:
+		if byteStorage(t) {
+			return "rt.BYTE_NIL"
+		}
 		return "rt.NIL"
 	case ir.KStruct:
 		return e.class(u) + "()"
@@ -471,7 +485,7 @@ func (fe *fnEmitter) val(v ir.Value) string {
 func (e *emitter) constant(c *ir.Const) string {
 	if c.Nil {
 		if c.Type.U().Kind == ir.KSlice {
-			return "rt.NIL"
+			return e.zero(c.Type)
 		}
 		return "None"
 	}
@@ -631,6 +645,7 @@ func (e *emitter) function(f *ir.Func) string {
 	for _, l := range f.Params {
 		params = append(params, localName(l))
 	}
+	fe.w("@rt.source_guard")
 	fe.w("def %s(%s):", f.Sym, strings.Join(params, ", "))
 	fe.indent = "    "
 	fe.globalDecl()
@@ -1083,7 +1098,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		w("%s = %s", fe.val(i.Dst), fe.lenExpr(i.X, true))
 	case *ir.MakeSlice:
 		e.use("core.slice.make")
-		w("%s = rt.make_slice(%s, %s, lambda: %s)", fe.val(i.Dst), fe.val(i.Len), fe.val(i.Cap), e.zero(i.Dst.Type.U().Elem))
+		w("%s = rt.make_slice(%s, %s, lambda: %s, %s)", fe.val(i.Dst), fe.val(i.Len), fe.val(i.Cap), e.zero(i.Dst.Type.U().Elem), pyBool(byteStorage(i.Dst.Type)))
 	case *ir.MakeMap:
 		e.use("core.map.make")
 		w("%s = rt.make_map(%s)", fe.val(i.Dst), e.keyFn(i.Dst.Type.U().Key))
@@ -1100,7 +1115,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 			for _, x := range i.Elems {
 				es = append(es, fe.val(x))
 			}
-			w("%s = rt.append(%s, [%s]%s)", fe.val(i.Dst), fe.val(i.S), strings.Join(es, ", "), optArg(cl))
+			if byteStorage(i.Dst.Type) {
+				w("%s = rt.append(%s, bytearray((%s))%s)", fe.val(i.Dst), fe.val(i.S), strings.Join(es, ", ")+comma(es), optArg(cl))
+			} else {
+				w("%s = rt.append(%s, [%s]%s)", fe.val(i.Dst), fe.val(i.S), strings.Join(es, ", "), optArg(cl))
+			}
 		}
 	case *ir.Copy:
 		e.use("core.slice.copy")
@@ -1388,4 +1407,12 @@ func (fe *fnEmitter) typeAssert(i *ir.TypeAssert, w func(string, ...any)) {
 	w("if not %s:", test)
 	w("    raise rt.assert_panic(%s, %q, %q, None)", x, ir.TypeString(i.X.IRType()), ir.TypeString(i.T))
 	w("%s = %s", d, val)
+}
+
+// A trailing comma keeps a single appended element a tuple.
+func comma(es []string) string {
+	if len(es) > 0 {
+		return ","
+	}
+	return ""
 }

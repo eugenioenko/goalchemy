@@ -1,6 +1,7 @@
 package rt;
 
-import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.function.Supplier;
 
@@ -14,8 +15,9 @@ public final class ChanMake {
     }
 
     public static final class Waiter {
-        final TaskSpawn.Task task;
-        final Object val;
+        TaskSpawn.Task task;
+        Object val;
+        boolean active=true;
         final SelectState sel;
         final int idx;
 
@@ -26,7 +28,11 @@ public final class ChanMake {
             this.idx = idx;
         }
 
+        boolean live() { return active && task!=null && task.owner.live(task) && (sel==null || !sel.done); }
+        void clear() { active=false; val=null; task=null; }
         void recvDone(Object v, boolean ok) {
+            if(!live()) return;
+            active=false;
             if (sel != null) {
                 sel.done = true;
                 task.rv = new Object[] {(long) idx, v, ok};
@@ -37,6 +43,8 @@ public final class ChanMake {
         }
 
         void sendDone(boolean closed) {
+            if(!live()) return;
+            active=false;
             if (sel != null) {
                 sel.done = true;
                 task.rv = new Object[] {(long) idx, null, false};
@@ -49,7 +57,7 @@ public final class ChanMake {
     }
 
     public static final class Chan {
-        final ArrayDeque<Object> buf = new ArrayDeque<>();
+        final Deque<Object> buf = new LinkedList<>();
         public final int size;
         public boolean closed;
         ArrayList<Waiter> recvq = new ArrayList<>();
@@ -61,7 +69,7 @@ public final class ChanMake {
             this.zero = zero;
         }
 
-        public ArrayDeque<Object> buffer() {
+        public Deque<Object> buffer() {
             return buf;
         }
     }
@@ -69,13 +77,14 @@ public final class ChanMake {
     static Waiter dequeue(ArrayList<Waiter> q) {
         while (!q.isEmpty()) {
             Waiter w = q.remove(0);
-            if (w.sel == null || !w.sel.done) return w;
+            if (w.live()) return w;
+            w.clear();
         }
         return null;
     }
 
     static boolean hasLive(ArrayList<Waiter> q) {
-        for (Waiter w : q) if (w.sel == null || !w.sel.done) return true;
+        for (Waiter w : q) if (w.live()) return true;
         return false;
     }
 

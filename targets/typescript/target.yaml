@@ -3,18 +3,18 @@ target: typescript
 version: 0.1.0
 status: experimental
 environment:
-  runtime: Node.js with TypeScript type stripping
+  runtime: Node.js executable with TypeScript type stripping; portable Promise cooperative entry for Node/browser
   minimum: Node.js 22.6 (ES2022)
   build: node main.ts
 representations:
   - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/chan_make.ts); null is the nil channel."}
-  - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.ts): suspending functions compile to frame classes with a step method; exactly one task runs at a time, dispatched FIFO."}
+  - {type: type.task, contract_version: 1.0.0, representation: "Resumable frame stacks dispatched FIFO by runtime/task_spawn.ts; synchronous executable/conformance entry uses virtual time, explicit Promise host entry uses owner-local real monotonic time, mailbox completions and cleanup acknowledgement. Global executable binding rejects overlapping entries; isolated library exports remain gated."}
   - {type: type.boolean, contract_version: 1.0.0, representation: JavaScript boolean.}
   - {type: type.integer, contract_version: 1.0.0, representation: "8-, 16-, and 32-bit kinds are numbers kept in range by explicit wrapping; int, uint, int64, and uint64 are BigInt values normalized with BigInt.asIntN/asUintN (types/integer.ts)."}
   - {type: type.string, contract_version: 1.0.0, representation: "Binary JavaScript strings holding one byte per UTF-16 code unit; comparison and concatenation are bytewise."}
-  - {type: type.array, contract_version: 1.0.0, representation: "JavaScript arrays with generated zero, clone, in-place set, equality, and key helpers per array type."}
+  - {type: type.array, contract_version: 1.0.0, representation: "Uint8Array for uint8-underlying elements; JavaScript arrays otherwise, with generated zero, clone, in-place set, equality, and key helpers per array type."}
   - {type: type.struct, contract_version: 1.0.0, representation: "One generated class per struct type; variables and fields of struct type are stable objects updated in place by $set, so field pointers stay valid."}
-  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers {a, o, l, c} over shared JavaScript arrays (types/slice.ts); rt.NIL is the nil slice."}
+  - {type: type.slice, contract_version: 1.0.0, representation: "Immutable Slice headers {a, o, l, c, bytes} over shared Uint8Array for uint8-underlying elements and JavaScript arrays otherwise (types/slice.ts); rt.BYTE_NIL and rt.NIL preserve nil byte and generic storage hints."}
   - {type: type.map, contract_version: 1.0.0, representation: "GoMap: a host Map from encoded keys to entries plus an insertion-ordered entry list for snapshot iteration (types/map.ts); nil is null."}
   - {type: type.pointer, contract_version: 1.0.0, representation: "Pointers to structs and arrays are the objects themselves; other pointers are Cell or canonical FieldRef objects with a v accessor (types/ref.ts); nil is null."}
   - {type: type.interface, contract_version: 1.0.0, representation: "null or a Box {t: TypeDesc, v} with per-type equality, key encoding, and method tables (types/iface.ts)."}
@@ -24,7 +24,7 @@ harness:
   support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
   generated: tests/harness/harness_gen.ts
   command: [node, targets/typescript/tests/harness/harness.ts]
-support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts]
+support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts]
 functions:
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.ts, harness: "rt.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.ts, harness: "rt.sub_{T.kind}({0}, {1})"}
@@ -51,7 +51,7 @@ functions:
   - {id: core.string.from_runes, contract_version: 1.0.0, symbol: "rt.fromRunes", implementation: runtime/string_from_runes.ts, harness: "rt.fromRunes({0})"}
   - {id: core.string.to_runes, contract_version: 1.0.0, symbol: "rt.toRunes", implementation: runtime/string_to_runes.ts, harness: "rt.toRunes({0})"}
   - {id: core.string.from_rune, contract_version: 1.0.0, symbol: "rt.fromRune", implementation: runtime/string_from_rune.ts, harness: "rt.fromRune({0})"}
-  - {id: core.slice.make, contract_version: 1.0.0, symbol: "rt.makeSlice", implementation: runtime/slice_make.ts, harness: "rt.makeSlice({0}, {1}, () => {T.zero})"}
+  - {id: core.slice.make, contract_version: 1.0.0, symbol: "rt.makeSlice", implementation: runtime/slice_make.ts, harness: "rt.makeSlice({0}, {1}, () => {T.zero}, {T.bytes})"}
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.sget", implementation: runtime/slice_index.ts, harness: "rt.sget({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.sset", implementation: runtime/slice_store.ts, harness: "rt.sset({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.reslice", implementation: runtime/slice_slice.ts, harness: "rt.reslice({0}, {1}, {2}, {3})"}

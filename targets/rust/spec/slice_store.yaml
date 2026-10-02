@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: e1506642bcf5c87bc57b335339f1617655a14eb59e3080f4a0c39b5edc703465
 symbol: "sset"
 implementation: runtime/slice_store.rs
-implementation_hash: 36809f0f3e16816579178c72e796f9f15b4302c6ef1d453e496fea2519ec11c5
+implementation_hash: be0c20d17c4c0892094530a947de77dedeacd2e18b7a5e4d8d6c6a8c40edf5be
 summary: "Write s[i] = v."
 suspension: never
 determinism: deterministic

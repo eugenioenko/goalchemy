@@ -2,6 +2,7 @@
 #include "gx.h"
 
 void gx_chan_close(gx_V ch) {
+    gx_cur_task(); gx_owner_check(gx_sched);
     if (ch.t == GX_NIL) gx_plain_panic("close of nil channel");
     gx_Chan *c = ch.u.p;
     if (c->closed) gx_plain_panic("close of closed channel");

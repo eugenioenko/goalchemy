@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: d882107dedcf7a0945ff33520dbc9875638a1dd539d6d3bb0970e9f602732d70
 symbol: "gx_chan_close"
 implementation: runtime/chan_close.c
-implementation_hash: 4df9c74fdd22198f3d32aaab25489cc965199ef833841a6661f805fd280c3bec
+implementation_hash: 2e52dff6fceeb8fe22d6936e52b5da3fc2566cb0106cd3227a88267a105092e8
 summary: "close(ch): mark closed and release every waiting receiver and sender."
 suspension: never
 determinism: deterministic

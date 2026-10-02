@@ -13,8 +13,8 @@ def reslice(s, lo=None, hi=None, mx=None):
         check2(lo, hi, s.c, "capacity")
         mx = s.c
     if s.a is None:
-        return NIL
-    return Slice(s.a, s.o + lo, hi - lo, mx - lo)
+        return s
+    return Slice(s.a, s.o + lo, hi - lo, mx - lo, s.b)
 
 
 def slice_array(a, lo=None, hi=None, mx=None):

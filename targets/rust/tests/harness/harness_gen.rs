@@ -1066,8 +1066,8 @@ fn case_108(h: &H) -> Vec<J> {
 }
 
 fn case_109(h: &H) -> Vec<J> {
-    let v_d = dec_slice(h.let_("d"), &|r: &J| dec_int(r, "u8"), zero_int);
-    let v_src = dec_slice(h.let_("src"), &|r: &J| dec_int(r, "u8"), zero_int);
+    let v_d = dec_byte_slice(h.let_("d"));
+    let v_src = dec_byte_slice(h.let_("src"));
     let _roots = temp_root(&[v_d.clone(), v_src.clone()]);
     let a0 = v_d.clone();
     let a1 = v_src.clone();
@@ -1112,7 +1112,7 @@ fn case_113(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_len.clone(), v_cap.clone()]);
     let a0 = v_len.clone();
     let a1 = v_cap.clone();
-    let r0 = make_slice(a0.clone(), a1.clone(), zero_int);
+    let r0 = make_slice(a0.clone(), a1.clone(), zero_int, false);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
 
@@ -1122,7 +1122,7 @@ fn case_114(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_len.clone(), v_cap.clone()]);
     let a0 = v_len.clone();
     let a1 = v_cap.clone();
-    let r0 = make_slice(a0.clone(), a1.clone(), zero_int);
+    let r0 = make_slice(a0.clone(), a1.clone(), zero_int, true);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8"))]
 }
 
@@ -1132,7 +1132,7 @@ fn case_115(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_len.clone(), v_cap.clone()]);
     let a0 = v_len.clone();
     let a1 = v_cap.clone();
-    let r0 = make_slice(a0.clone(), a1.clone(), zero_int);
+    let r0 = make_slice(a0.clone(), a1.clone(), zero_int, false);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
 
@@ -1393,7 +1393,7 @@ fn case_137(h: &H) -> Vec<J> {
 }
 
 fn case_138(h: &H) -> Vec<J> {
-    let v_b = dec_slice(h.let_("b"), &|r: &J| dec_int(r, "u8"), zero_int);
+    let v_b = dec_byte_slice(h.let_("b"));
     let _roots = temp_root(&[v_b.clone()]);
     let a0 = v_b.clone();
     let r0 = from_bytes(a0.clone());
@@ -1401,7 +1401,7 @@ fn case_138(h: &H) -> Vec<J> {
 }
 
 fn case_139(h: &H) -> Vec<J> {
-    let v_b = dec_slice(h.let_("b"), &|r: &J| dec_int(r, "u8"), zero_int);
+    let v_b = dec_byte_slice(h.let_("b"));
     let _roots = temp_root(&[v_b.clone()]);
     let a0 = v_b.clone();
     let r0 = from_bytes(a0.clone());
