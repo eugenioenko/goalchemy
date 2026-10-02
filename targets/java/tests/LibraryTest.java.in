@@ -1,0 +1,170 @@
+package consumer;
+import io.goalchemy.generated.Generated;
+import io.goalchemy.runtime.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.lang.ref.WeakReference;
+import java.net.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+/** Separate named-package, JAR-only consumer: exercises actual generated frames. */
+public final class LibraryTest {
+ static int checks;
+ static void check(boolean ok,String label){checks++;if(!ok)throw new AssertionError(label);}
+ static <T>T get(Library.Operation<T> op)throws Exception{return op.completion().toCompletableFuture().get(15,TimeUnit.SECONDS);}
+ static Library.Failure failure(Library.Operation<?> op,String kind)throws Exception{
+  try{get(op);throw new AssertionError("expected "+kind);}catch(ExecutionException e){check(e.getCause() instanceof Library.Failure,"typed failure");var f=(Library.Failure)e.getCause();check(f.kind.equals(kind),"category "+f.kind+" expected "+kind);return f;}
+ }
+ static Library.Options options(String name,Callback.Provider provider){var o=new Library.Options();o.callbacks=new Callback.Registration[]{new Callback.Registration(name,provider)};return o;}
+ static Generated.Value value(){var v=new Generated.Value();v.Data=new byte[]{0,(byte)255};v.Nested=new byte[][]{null,new byte[0],new byte[]{(byte)128}};v.Names=new String[]{"\u0000\u00ff"};v.Count=Long.MAX_VALUE;v.Small=-128;v.Empty=new byte[0];v.Item=new Generated.Item();v.Item.Name="before";v.Item.Data=new byte[]{9};return v;}
+ static void recovery()throws Exception{check(Arrays.equals(get(Generated.Fixed(null)),new byte[]{0,(byte)255,(byte)128}),"next-call recovery");}
+ static final class Held {
+  final CountDownLatch acquired=new CountDownLatch(1),stop=new CountDownLatch(1);final AtomicReference<Callback.Request> request=new AtomicReference<>();
+  final Library.Options opts=options("held",r->{r.onStop(stop::countDown);request.set(r);acquired.countDown();});
+  void acquired()throws Exception{check(acquired.await(5,TimeUnit.SECONDS),"acquired");}
+  void settle(){request.get().resolve(new byte[]{1});}
+ }
+ static void values()throws Exception{
+  var original=value();var out=get(Generated.Echo(original,null));check(out.Count==5&&out.Data[0]==1,"source mutation/init");check(original.Data[0]==0,"input owned");check(out.Nested[0]==null&&out.Nested[1].length==0&&out.Empty.length==0,"nil empty distinction");check(out.Names[0].equals("\u0000\u00ff"),"raw string bytes");out.Data[0]=55;out.Nested[2][0]=3;check(get(Generated.Echo(value(),null)).Count==5,"globals reset");
+  check(get(Generated.Wide(Long.MIN_VALUE,null))==Long.MIN_VALUE&&get(Generated.Wide(Long.MAX_VALUE,null))==Long.MAX_VALUE,"full int64");
+  var invalid=value();invalid.Small=128;failure(Generated.Echo(invalid,null),"invalid_argument");invalid=value();invalid.Names[0]="\u0100";failure(Generated.Echo(invalid,null),"invalid_argument");
+  byte[] fixed=get(Generated.Fixed(null));fixed[1]=0;recovery();
+  var f=failure(Generated.ErrorGlobal(null),"source");Map<?,?> fields=f.fields();Map<?,?> item=(Map<?,?>)fields.get("Item");((byte[])item.get("Data"))[0]=99;Object[] items=(Object[])fields.get("Items");((byte[])((Map<?,?>)items[0]).get("Data"))[0]=77;items[0]=null;
+  check(((byte[])((Map<?,?>)f.fields().get("Item")).get("Data"))[0]==9,"recursive durable error bytes");check(((byte[])((Map<?,?>)((Object[])f.fields().get("Items"))[0]).get("Data"))[0]==8,"recursive durable error arrays");
+  Held first=new Held();var active=Generated.Owned(value(),first.opts);first.acquired();var pending=value();var queued=Generated.Echo(pending,null);pending.Data[0]=44;pending.Nested[2][0]=44;pending.Item.Name="changed";pending.Item.Data[0]=44;first.settle();get(active);out=get(queued);check(out.Data[0]==1&&out.Nested[2][0]==(byte)128&&out.Item.Name.equals("before")&&out.Item.Data[0]==9,"snapshot before queue");
+ }
+ static void callbacks()throws Exception{
+  byte[] bytes=get(Generated.Provider("p",new byte[]{1,2},options("p",r->{byte[] i=r.input();i[0]=77;check(r.input()[0]==1,"provider copied input");byte[] output={4,5};r.resolve(output);output[0]=66;r.reject("late");r.resolve(new byte[]{99});})));check(bytes[0]==4,"settlement copy/first wins");
+  failure(Generated.Provider("p",null,options("p",r->r.reject("declared"))),"source");recovery();
+  failure(Generated.Provider("p",null,options("p",r->{throw new IllegalStateException("pre-acquisition");})),"host_fault");recovery();
+  for(boolean resolve:new boolean[]{false,true}){failure(Generated.Provider("p",null,options("p",r->{if(resolve)r.resolve(new byte[]{7});else r.reject("declared");throw new IllegalStateException("after settlement");})),"host_fault");recovery();}
+  Held held=new Held();var active=Generated.Owned(value(),held.opts);held.acquired();check(active.cancel(),"active cancel requested");check(held.stop.await(5,TimeUnit.SECONDS),"stop delivered");check(!active.completion().toCompletableFuture().isDone(),"cancel waits real settlement");held.settle();failure(active,"canceled");held.request.get().resolve(new byte[]{99});recovery();
+  CountDownLatch stop=new CountDownLatch(1);final CountDownLatch submissionStop=stop;AtomicReference<Callback.Request> retained=new AtomicReference<>();var fault=Generated.Provider("p",null,options("p",r->{r.onStop(submissionStop::countDown);retained.set(r);throw new IllegalStateException("retained fault");}));check(stop.await(5,TimeUnit.SECONDS),"submission fault stop");check(!fault.completion().toCompletableFuture().isDone(),"submission fault waits held resource");retained.get().reject("released");failure(fault,"host_fault");recovery();
+  stop=new CountDownLatch(1);final CountDownLatch observedStop=stop;retained.set(null);var stopFault=Generated.Provider("p",null,options("p",r->{r.onStop(()->{observedStop.countDown();throw new IllegalStateException("stop fault");});retained.set(r);}));while(retained.get()==null)Thread.sleep(1);stopFault.cancel();check(stop.await(5,TimeUnit.SECONDS),"stop-fault observed");check(!stopFault.completion().toCompletableFuture().isDone(),"stop fault retains");retained.get().resolve(new byte[]{1});failure(stopFault,"host_fault");recovery();
+  Held blocker=new Held();var blocked=Generated.Owned(value(),blocker.opts);blocker.acquired();var canceled=Generated.Echo(value(),null);var continuation=canceled.completion().handle((v,e)->{blocked.cancel();blocker.settle();try{return get(Generated.Wide(42,null));}catch(Exception x){throw new CompletionException(x);}}).toCompletableFuture();Thread thread=Thread.ofVirtual().start(canceled::cancel);check(continuation.get(5,TimeUnit.SECONDS)==42,"queued cancel continuation submit/join");thread.join();failure(blocked,"canceled");
+  var repeat=get(Generated.Wide(31,null).completion().thenCompose(v->Generated.Wide(v+1,null).completion()).toCompletableFuture().get(5,TimeUnit.SECONDS)==32?Generated.Wide(32,null):Generated.Wide(0,null));check(repeat==32,"completion reentry");
+ }
+ static void ownerRetirementGuard()throws Exception{
+  CountDownLatch retiring=new CountDownLatch(1),released=new CountDownLatch(1);AtomicReference<Throwable> fault=new AtomicReference<>();
+  Thread owner=Thread.ofVirtual().start(()->{try{TaskSpawn.driveLibrary(()->TaskSpawn.sync(()->new Object[0]),rv->null,()->{},w->{},()->{retiring.countDown();try{released.await();}catch(InterruptedException e){throw new IllegalStateException(e);}throw new IllegalStateException("retirement fault");});}catch(Throwable e){fault.set(e);}});
+  check(retiring.await(5,TimeUnit.SECONDS),"retirement hook under owner guard");
+  try{TaskSpawn.runMainHost(()->TaskSpawn.sync(()->new Object[0]));throw new AssertionError("overlapping entry accepted");}catch(TaskSpawn.HostFault expected){checks++;}
+  released.countDown();owner.join();check(fault.get() instanceof Library.Failure f&&f.kind.equals("host_fault"),"retirement fault category");recovery();
+ }
+ static void stages()throws Exception{
+  failure(Generated.Provider("p",null,options("p",Callback.fromStage(r->CompletableFuture.failedFuture(new IllegalStateException("declared rejection"))))),"source");recovery();
+  AtomicReference<Callback.Request> retained=new AtomicReference<>();CountDownLatch stopped=new CountDownLatch(1);
+  class AttachmentFault extends CompletableFuture<byte[]> {public CompletableFuture<byte[]> whenComplete(java.util.function.BiConsumer<? super byte[],? super Throwable> action){super.whenComplete(action);throw new IllegalStateException("attachment fault");}}
+  AttachmentFault stage=new AttachmentFault();var op=Generated.Provider("p",null,options("p",Callback.fromStage(r->{retained.set(r);r.onStop(stopped::countDown);return stage;})));
+  check(stopped.await(5,TimeUnit.SECONDS),"live stage attachment fault stops");check(!op.completion().toCompletableFuture().isDone(),"live stage not detached before settlement");stage.complete(new byte[]{1});failure(op,"host_fault");recovery();retained.get().reject("late");
+ }
+ @SuppressWarnings("removal")
+ static void launchFaults()throws Exception{
+  AtomicBoolean armed=new AtomicBoolean(true);
+  System.setSecurityManager(new SecurityManager(){public void checkPermission(java.security.Permission ignored){}public void checkAccess(ThreadGroup group){boolean submit=Arrays.stream(Thread.currentThread().getStackTrace()).anyMatch(f->f.getClassName().equals("io.goalchemy.runtime.Library")&&f.getMethodName().equals("submit"));if(submit&&armed.compareAndSet(true,false))throw new SecurityException("native owner construction rejected");}});
+  try{failure(Generated.Fixed(null),"host_fault");}finally{System.setSecurityManager(null);}recovery();
+  var launch=Library.class.getDeclaredField("completionThreads");var fallback=Library.class.getDeclaredField("completionFallback");launch.setAccessible(true);fallback.setAccessible(true);Object originalLaunch=launch.get(null),originalFallback=fallback.get(null);
+  java.util.concurrent.ThreadFactory rejected=work->new Thread(work){public synchronized void start(){throw new SecurityException("native completion start rejected");}};
+  Held held=new Held();var active=Generated.FieldAlias(value(),held.opts);held.acquired();var successor=Generated.Wide(91,null);
+  AtomicBoolean rejectOnce=new AtomicBoolean(true);launch.set(null,(java.util.concurrent.ThreadFactory)work->rejectOnce.compareAndSet(true,false)?rejected.newThread(work):((java.util.concurrent.ThreadFactory)originalLaunch).newThread(work));
+  var continuation=active.completion().handle((v,e)->{launchSet(launch,originalLaunch);Throwable observed=e instanceof CompletionException?e.getCause():e;check(observed instanceof Library.Failure f&&f.kind.equals("host_fault"),"publication fault category");try{return get(Generated.Wide(92,null));}catch(Exception x){throw new CompletionException(x);}}).toCompletableFuture();
+  try{held.settle();check(continuation.get(10,TimeUnit.SECONDS)==92,"fallback continuation submits and waits");check(get(successor)==91,"fallback preserves queued successor");failure(active,"host_fault");recovery();}finally{launch.set(null,originalLaunch);fallback.set(null,originalFallback);}
+  // Both independent publishers reject: source ownership must already be released.
+  held=new Held();active=Generated.FieldAlias(value(),held.opts);held.acquired();successor=Generated.Wide(93,null);launch.set(null,rejected);fallback.set(null,(java.util.concurrent.Executor)work->{throw new java.util.concurrent.RejectedExecutionException("no independent publisher");});
+  try{held.settle();failure(successor,"host_fault");failure(active,"host_fault");var guard=TaskSpawn.class.getDeclaredField("activeEntry");guard.setAccessible(true);check(!(Boolean)guard.get(null),"emergency source gate released");var refs=Program.class.getDeclaredField("refs");refs.setAccessible(true);check(((Map<?,?>)refs.get(null)).isEmpty(),"emergency source refs retired");var registry=Native.class.getDeclaredField("current");registry.setAccessible(true);check(registry.get(null)==null,"emergency native registry retired");}finally{launch.set(null,originalLaunch);fallback.set(null,originalFallback);}recovery();
+ }
+ static void launchSet(java.lang.reflect.Field field,Object value){try{field.set(null,value);}catch(Exception e){throw new IllegalStateException(e);}}
+ static void fieldRetirement()throws Exception{
+  var refsField=Program.class.getDeclaredField("refs");refsField.setAccessible(true);
+  for(String mode:new String[]{"success","cancel","fault"}){
+   var observed=new ArrayList<WeakReference<Object>>();AtomicReference<Callback.Request> provider=new AtomicReference<>();CountDownLatch acquired=new CountDownLatch(1);
+   var op=Generated.FieldAlias(value(),options("held",r->{Map<?,?> refs=(Map<?,?>)refsField.get(null);for(var e:refs.entrySet()){observed.add(new WeakReference<>(e.getKey()));for(Object ref:((Map<?,?>)e.getValue()).values())observed.add(new WeakReference<>(ref));}r.retain();provider.set(r);acquired.countDown();}));
+   check(acquired.await(5,TimeUnit.SECONDS)&&!observed.isEmpty(),"actual canonical source field refs held");
+   if(mode.equals("cancel"))op.cancel();if(mode.equals("fault"))provider.get().fault(new IllegalStateException("retire"));else provider.get().resolve(new byte[]{1});
+   if(mode.equals("success"))check(get(op).Item.Name.equals("alias"),"field pointer aliases canonical");else failure(op,mode.equals("cancel")?"canceled":"host_fault");
+   check(((Map<?,?>)refsField.get(null)).isEmpty(),"owner clears field refs");provider.set(null);op=null;
+   for(int n=0;n<100&&observed.stream().anyMatch(w->w.get()!=null);n++){System.gc();Thread.sleep(10);}
+   check(observed.stream().allMatch(w->w.get()==null),"source struct and refs released after "+mode);
+  }
+ }
+ static final class Gate {
+  final CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+  final List<WeakReference<Object>> weak=new CopyOnWriteArrayList<>();
+  void hold(Object... objects){for(Object o:objects)weak.add(new WeakReference<>(o));entered.countDown();boolean interrupted=false;for(;;)try{release.await();break;}catch(InterruptedException e){interrupted=true;}if(interrupted)Thread.currentThread().interrupt();}
+ }
+ static volatile Gate signatureGate,generationGate;
+ public static final class GatedSignature extends java.security.SignatureSpi {
+  final java.security.Signature nativeSignature;java.security.PrivateKey privateKey;
+  public GatedSignature(){try{nativeSignature=java.security.Signature.getInstance("SHA256withRSA","SunRsaSign");}catch(Exception e){throw new IllegalStateException(e);}}
+  protected void engineInitSign(java.security.PrivateKey key)throws java.security.InvalidKeyException{privateKey=key;nativeSignature.initSign(key);}
+  protected void engineInitVerify(java.security.PublicKey key)throws java.security.InvalidKeyException{nativeSignature.initVerify(key);}
+  protected void engineUpdate(byte b)throws java.security.SignatureException{nativeSignature.update(b);}
+  protected void engineUpdate(byte[] b,int o,int n)throws java.security.SignatureException{nativeSignature.update(b,o,n);}
+  protected byte[] engineSign()throws java.security.SignatureException{byte[] real=nativeSignature.sign();signatureGate.hold(privateKey);privateKey=null;return real;}
+  protected boolean engineVerify(byte[] b)throws java.security.SignatureException{return nativeSignature.verify(b);}
+  @Deprecated protected void engineSetParameter(String name,Object v){throw new UnsupportedOperationException();}
+  @Deprecated protected Object engineGetParameter(String name){throw new UnsupportedOperationException();}
+ }
+ public static final class GatedRSA extends java.security.KeyPairGeneratorSpi {
+  final java.security.KeyPairGenerator generator;
+  public GatedRSA(){try{generator=java.security.KeyPairGenerator.getInstance("RSA","SunRsaSign");}catch(Exception e){throw new IllegalStateException(e);}}
+  public void initialize(int bits,java.security.SecureRandom rng){generator.initialize(bits,rng);}
+  public void initialize(java.security.spec.AlgorithmParameterSpec p,java.security.SecureRandom rng)throws java.security.InvalidAlgorithmParameterException{generator.initialize(p,rng);}
+  public java.security.KeyPair generateKeyPair(){var pair=generator.generateKeyPair();generationGate.hold(pair.getPrivate(),pair.getPublic());return pair;}
+ }
+ static java.security.Provider testProvider(String algorithm,String clazz){return new java.security.Provider("GeneratedResourceFixture","1","isolated real JCA delegate"){{put(algorithm,clazz);}};}
+ static void collected(Gate gate,String label)throws Exception{for(int n=0;n<200&&gate.weak.stream().anyMatch(w->w.get()!=null);n++){System.gc();Thread.sleep(10);}check(gate.weak.stream().allMatch(w->w.get()==null),label);}
+ static void keyRaces()throws Exception{
+  signatureGate=new Gate();java.security.Security.insertProviderAt(testProvider("Signature.SHA256withRSA",GatedSignature.class.getName()),1);
+  try{
+   CountDownLatch invalidated=new CountDownLatch(1);var opts=new Library.Options();opts.callbacks=new Callback.Registration[]{new Callback.Registration("ready",r->{r.retain();Thread.ofVirtual().start(()->{try{if(!signatureGate.entered.await(5,TimeUnit.SECONDS))throw new AssertionError("real native signature acquired");r.resolve(new byte[]{1});}catch(Throwable e){r.fault(e);}});}),new Callback.Registration("closed",r->{invalidated.countDown();r.resolve(new byte[]{1});})};
+   var op=Generated.KeyRace(opts);check(invalidated.await(5,TimeUnit.SECONDS),"source aliases immediately invalidated");check(!op.completion().toCompletableFuture().isDone(),"Close waits acquired real JCA signature");signatureGate.release.countDown();check(Arrays.equals(get(op),new byte[]{1,2,(byte)255}),"acquired snapshot finishes after alias Close");recovery();collected(signatureGate,"native signing key released after worker termination");
+  }finally{signatureGate.release.countDown();java.security.Security.removeProvider("GeneratedResourceFixture");}
+  generationGate=new Gate();java.security.Security.insertProviderAt(testProvider("KeyPairGenerator.RSA",GatedRSA.class.getName()),1);
+  try{
+   CountDownLatch faultSent=new CountDownLatch(1);var op=Generated.AcquireFault(options("fault",r->{r.retain();Thread.ofVirtual().start(()->{try{if(!generationGate.entered.await(10,TimeUnit.SECONDS))throw new AssertionError("actual generated native key held");r.fault(new IllegalStateException("retirement fault"));faultSent.countDown();}catch(Throwable e){r.fault(e);}});}));
+   check(faultSent.await(12,TimeUnit.SECONDS),"fault delivered while generation held");check(!op.completion().toCompletableFuture().isDone(),"host fault waits late native generation");generationGate.release.countDown();failure(op,"host_fault");recovery();collected(generationGate,"late generated native keys discarded before retirement");
+  }finally{generationGate.release.countDown();java.security.Security.removeProvider("GeneratedResourceFixture");}
+ }
+ static void heldHttpCleanup()throws Exception{
+  var field=LibHttpDo.class.getDeclaredField("bodyWrapper");field.setAccessible(true);Object original=field.get(null);Gate gate=new Gate();AtomicBoolean closed=new AtomicBoolean();
+  java.util.function.Function<InputStream,InputStream> wrapper=reader->new FilterInputStream(reader){public void close()throws IOException{gate.hold();super.close();closed.set(true);throw new IOException("distinct fixture cleanup failure");}};
+  field.set(null,wrapper);
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\nx"),0)){
+   var op=Generated.Fetch(server.url(),null,3,2000,null);check(gate.entered.await(5,TimeUnit.SECONDS),"actual JDK reader cleanup held");check(!op.completion().toCompletableFuture().isDone(),"cleanup failure not ACKed before real reader release");var queued=Generated.Wide(11,null);check(!queued.completion().toCompletableFuture().isDone(),"owner not retired while native cleanup held");gate.release.countDown();failure(op,"host_fault");check(closed.get(),"underlying JDK reader closed before fault publication");check(get(queued)==11,"queued next call after cleanup fault");recovery();
+  }finally{gate.release.countDown();field.set(null,original);}
+  // A wrapper that throws before delegation cannot hide the owned native reader.
+  field.set(null,(java.util.function.Function<InputStream,InputStream>)reader->new FilterInputStream(reader){public void close()throws IOException{throw new IOException("pre-delegation distinct close fault");}});
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\nx"),0)){failure(Generated.Fetch(server.url(),null,3,2000,null),"host_fault");recovery();}finally{field.set(null,original);}
+  field.set(null,(java.util.function.Function<InputStream,InputStream>)reader->new FilterInputStream(reader){public void close()throws IOException{throw new IOException("distinct close after declared read failure");}});
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\nx"),0)){failure(Generated.Fetch(server.url(),null,200,2000,null),"host_fault");recovery();}finally{field.set(null,original);}
+  // Wrapper acquisition throw must still close the previously registered native reader.
+  field.set(null,(java.util.function.Function<InputStream,InputStream>)reader->{throw new IllegalStateException("wrapper acquisition fault");});
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\nx"),0)){failure(Generated.Fetch(server.url(),null,3,2000,null),"host_fault");recovery();}finally{field.set(null,original);}
+ }
+ static final class Raw implements AutoCloseable {
+  final ServerSocket socket=new ServerSocket(0,10,InetAddress.getLoopbackAddress());final AtomicInteger contacts=new AtomicInteger();final Thread worker;
+  Raw(byte[] reply,long delay)throws IOException{worker=Thread.ofVirtual().start(()->{try(var client=socket.accept()){contacts.incrementAndGet();client.setSoTimeout(5000);InputStream in=client.getInputStream();int state=0;while(state<4){int b=in.read();if(b<0)return;state=b==new int[]{13,10,13,10}[state]?state+1:(b==13?1:0);}if(delay>0)Thread.sleep(delay);client.getOutputStream().write(reply);client.getOutputStream().flush();}catch(Exception expected){}});}
+  String url(){return "http://127.0.0.1:"+socket.getLocalPort()+"/";}
+  public void close()throws Exception{socket.close();worker.join(6000);check(!worker.isAlive(),"native fixture settlement");}
+ }
+ static byte[] raw(String text){return text.getBytes(StandardCharsets.ISO_8859_1);}
+ static void http()throws Exception{
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\n\u0000\u00ff\u0080"),0)){check(Arrays.equals(get(Generated.Fetch(server.url(),null,3,2000,null)),new byte[]{0,(byte)255,(byte)128}),"native binary HTTP");}
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nX-Bytes: \u00ff\r\nX-Dup: first\r\nX-Dup: second\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"),0)){String[] headers=get(Generated.FetchHeaders(server.url(),null));check(Arrays.asList(headers).contains("\u00ff"),"response obs-text byte preserved");int p=Arrays.asList(headers).indexOf("X-Dup");check(p>=0&&headers[p+1].equals("first")&&headers[p+3].equals("second"),"duplicate response order");}
+  for(String val:new String[]{"\u00ff","\u00c3\u00a9"})try(var server=new Raw(new byte[0],0)){failure(Generated.Fetch(server.url(),new String[]{"X-Test",val},1024,2000,null),"source");check(server.contacts.get()==0,"nonASCII request no contact");}
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nx"),0)){failure(Generated.Fetch(server.url(),null,10,2000,null),"source");recovery();}
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nxxxx"),0)){failure(Generated.Fetch(server.url(),null,3,2000,null),"source");}
+  try(var server=new Raw(raw("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"),200)){failure(Generated.Fetch(server.url(),null,3,10,null),"source");recovery();}
+  try(var server=new Raw(raw("HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:1/no\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"),0)){check(get(Generated.Fetch(server.url(),null,3,2000,null)).length==0,"no redirect follow");check(server.contacts.get()==1,"single contact");}
+ }
+ public static void main(String[] args)throws Exception{
+  if(args[0].equals("missing-dependency")){failure(Generated.Derive(null),"host_fault");recovery();System.out.println("missing dependency checks "+checks);return;}
+  values();callbacks();stages();ownerRetirementGuard();launchFaults();fieldRetirement();http();heldHttpCleanup();keyRaces();failure(Generated.SourcePanic(null),"source_panic");recovery();
+  check(get(Generated.KeySuccess(null))[0]==7,"generated suspending deferred native Close");check(get(Generated.BoundClose(null))[0]==9,"generated bound native deferred Close");check(get(Generated.GoClose(null))[0]==8,"generated go native Close");recovery();
+  Held held=new Held();var key=Generated.KeyProvider("held",held.opts);held.acquired();key.cancel();check(held.stop.await(5,TimeUnit.SECONDS),"key operation stop");check(!key.completion().toCompletableFuture().isDone(),"key cleanup awaits callback resource");held.settle();failure(key,"canceled");recovery();
+  System.out.println("actual generated importing consumer checks "+checks);
+ }
+}

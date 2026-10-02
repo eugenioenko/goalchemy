@@ -440,6 +440,9 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	if len(path) == 0 && !t.IsInterface() {
 		recv := m.Signature().Recv()
 		if types.Identical(recv.Type(), t.Go) {
+			if ext := l.extern(m); ext != nil {
+				return l.externWrapper(ext, m)
+			}
 			return l.declared(m)
 		}
 	}
@@ -519,7 +522,11 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	if iface {
 		c.Kind, c.Recv, c.Method = ir.CallInterface, rv, m.Id()
 	} else {
-		c.Kind, c.Func = ir.CallStatic, l.declared(m)
+		if ext := l.extern(m); ext != nil {
+			c.Kind, c.Extern = ir.CallExtern, ext
+		} else {
+			c.Kind, c.Func = ir.CallStatic, l.declared(m)
+		}
 		c.Args = append([]ir.Value{rv}, args...)
 	}
 	// Results are written through temps so stores keep value semantics.
@@ -544,11 +551,17 @@ func (l *Lowerer) externWrapper(ext *ir.Extern, obj *types.Func) *ir.Func {
 		return f
 	}
 	sig := obj.Signature()
-	f := l.addFunc(&ir.Func{Name: obj.FullName(), Sym: l.sym("extern_" + sanitize(ext.Contract)), Sig: l.ts.Of(sig), Wrapper: true})
+	f := l.addFunc(&ir.Func{Name: obj.FullName(), Sym: l.sym("extern_" + sanitize(ext.Contract)), Sig: ext.Sig, Wrapper: true})
 	l.wrappers[key] = f
 	fl := l.newFn(nil, f)
 	fl.start()
 	var args []ir.Value
+	if recv := sig.Recv(); recv != nil {
+		p := f.NewLocal("recv", l.ts.Of(recv.Type()), ir.LParam)
+		f.Params = append(f.Params, p)
+		f.Recv = p
+		args = append(args, p)
+	}
 	for i := 0; i < sig.Params().Len(); i++ {
 		p := f.NewLocal("", l.ts.Of(sig.Params().At(i).Type()), ir.LParam)
 		f.Params = append(f.Params, p)

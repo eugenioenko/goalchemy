@@ -10,11 +10,11 @@ Non-`main` packages build as C libraries (`goalchemy.h`, `libgoalchemy.a`). Curr
 
 - Parameters and results may only be integers, `bool`, and `string`. Structs, slices, maps, errors, and function values are rejected.
 - Exported functions must not suspend, so cooperative code cannot be exported.
-- Library builds are C-only; other targets report GCE006.
+- C's scalar library boundary does not support the value/async exports available on Go, TypeScript and Java. C#, Python and Rust library builds still report GCE006.
 - The host must call `goalchemy_init` and the exports from one thread. Other host threads are not registered with the collector.
 - Returned strings point into collected memory, so the host must copy them before dropping its references.
 
-Widening this is the "library mode" work an SDK consumer such as OpenTDF needs: idiomatic host APIs per target, value conversion, error mapping, and async exports.
+Widening C's boundary remains necessary for SDK consumers: native value conversion, error mapping, owned outputs and async exports. See the accepted [Go](go-library-boundary.md), [TypeScript](typescript-library-boundary.md) and [Java](java-library-boundary.md) boundaries.
 
 ## All targets
 
@@ -50,7 +50,6 @@ Generated Go now provides pending host I/O and its cancellation/completion
 lifecycle for the actual native HTTP transport. See [host-operation design and
 bounded evidence](host-operations.md). TypeScript now has a generic portable
 [Promise lifecycle and executable entry](typescript-host-operations.md), verified
-in Node and an actual browser. Java now has a bounded [worker/future mailbox lifecycle](java-host-operations.md) and explicit monotonic executable entry. C# now has a bounded [Task/mailbox lifecycle](csharp-host-operations.md), monotonic executable entry and managed source-recursion guard. Python now has a bounded [Condition/Future mailbox lifecycle](python-host-operations.md), blocking monotonic executable entry and managed source-recursion handling. Rust now has a bounded [native mailbox/resource-ACK lifecycle](rust-host-operations.md), dedicated monotonic executable entry and generated recursion guards. C now has a bounded [native wire mailbox/resource-ACK lifecycle](c-host-operations.md), serialized monotonic executable entry and generated source guards. Production TypeScript/Java/C#/Python/Rust/C HTTP/crypto adapters and SDK library exports remain unimplemented. The
-default executable wrapper remains Node-specific; cooperative Promise artifacts
-and byte/runtime helpers are portable. Browser SDK acceptance still requires
-package emission/declarations, full adapters and interoperability from the SDK plan.
+in Node and an actual browser. Java now has a bounded [worker/future mailbox lifecycle](java-host-operations.md) and explicit monotonic executable entry. C# now has a bounded [Task/mailbox lifecycle](csharp-host-operations.md), monotonic executable entry and managed source-recursion guard. Python now has a bounded [Condition/Future mailbox lifecycle](python-host-operations.md), blocking monotonic executable entry and managed source-recursion handling. Rust now has a bounded [native mailbox/resource-ACK lifecycle](rust-host-operations.md), dedicated monotonic executable entry and generated recursion guards. C now has a bounded [native wire mailbox/resource-ACK lifecycle](c-host-operations.md), serialized monotonic executable entry and generated source guards.
+
+Go, TypeScript and Java now provide production crypto/HTTP capabilities and importable value libraries. TypeScript's WebCrypto/fetch library graph works in Node and actual browsers; its executable wrapper remains Node-specific. Java uses JDK 21 native capabilities and pinned BC 1.86 for HKDF and omitted-public-point P-256 imports. Production C#/Python/Rust/C adapters and SDK library exports remain open, together with final all-target package/CI delivery checks in the adjacent SDK plan.

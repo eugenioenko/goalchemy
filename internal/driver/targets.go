@@ -315,9 +315,22 @@ javac -nowarn -encoding UTF-8 -d classes Main.java rt/types/*.java rt/runtime/*.
 exec java -cp classes Main
 `
 
+const javaLibraryBuild = `#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+if [ -n "${JAVA_HOME:-}" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
+mkdir -p classes
+javac -nowarn -encoding UTF-8 -d classes Generated.java rt/types/*.java rt/runtime/*.java
+jar --create --date=2026-01-01T00:00:00Z --file goalchemy-generated.jar -C classes .
+`
+
 func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := java.Emit(res.IR, symbols(res, "java"))
 	if err != nil {
+		var boundary *java.LibraryBoundaryError
+		if errors.As(err, &boundary) {
+			return []diagnostics.Diagnostic{{Code: "GCE007", Severity: diagnostics.Error, Feature: "Java library boundary", Message: boundary.Error(), Remedy: "Use bounded public value trees and a final error result."}}
+		}
 		return emitErr("GCE004", err.Error())
 	}
 	refs, files, ds := link.Plan(res.Catalog, "java", o.Contracts)
@@ -327,6 +340,32 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 	rtFiles, err := link.CopyRuntime(res.Catalog, "java", files, out, "rt", false)
 	if err != nil {
 		return emitErr("GCE005", err.Error())
+	}
+	if res.IR.Library {
+		for _, name := range rtFiles {
+			data, err := os.ReadFile(filepath.Join(out, name))
+			if err != nil {
+				return emitErr("GCE005", err.Error())
+			}
+			data = []byte(strings.ReplaceAll(string(data), "package rt;", "package io.goalchemy.runtime;"))
+			if err := link.WriteFile(out, name, data); err != nil {
+				return emitErr("GCE005", err.Error())
+			}
+		}
+		source := []byte(strings.ReplaceAll(string(o.Source), "import rt.*;", "import io.goalchemy.runtime.*;"))
+		gen := map[string][]byte{"Generated.java": source, "Generated.java.lines": lineTable(o.Lines, out), "build.sh": []byte(javaLibraryBuild), "README.md": []byte(readme("java", "sh build.sh; import io.goalchemy.generated.Generated from goalchemy-generated.jar", "JDK21; serialized cancellable value operations; production crypto additionally requires declared BC1.86."))}
+		var names []string
+		for name, data := range gen {
+			if err := link.WriteFile(out, name, data); err != nil {
+				return emitErr("GCE005", err.Error())
+			}
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		return nil
 	}
 	gen := map[string][]byte{
 		"Main.java":       o.Source,

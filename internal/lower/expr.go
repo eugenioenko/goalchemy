@@ -443,7 +443,13 @@ func (fl *fnLowerer) selector(x *ast.SelectorExpr) ir.Value {
 		if iface {
 			fl.emit(&ir.MakeIfaceBound{At: at(x), Dst: dst, Recv: recv, Method: m.Id()})
 		} else {
-			fl.emit(&ir.MakeBound{At: at(x), Dst: dst, Func: fl.l.declared(m), Recv: recv})
+			var fn *ir.Func
+			if ext := fl.l.extern(m); ext != nil {
+				fn = fl.l.externWrapper(ext, m)
+			} else {
+				fn = fl.l.declared(m)
+			}
+			fl.emit(&ir.MakeBound{At: at(x), Dst: dst, Func: fn, Recv: recv})
 		}
 		return dst
 	case types.MethodExpr:

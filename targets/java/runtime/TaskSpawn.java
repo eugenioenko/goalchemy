@@ -132,6 +132,7 @@ public final class TaskSpawn {
     private static Object snapshot(Object value, IdentityHashMap<Object, Boolean> path) {
         if (value == null || value instanceof String || value instanceof Boolean || value instanceof Long || value instanceof Integer || value instanceof Double || value instanceof Float || value instanceof Short || value instanceof Byte) return value;
         if (value instanceof byte[] b) return b.clone();
+        if (value instanceof String[] a) return a.clone();
         if (path.put(value, true) != null) throw new HostFault("cyclic wire value");
         try {
             if (value instanceof Object[] a) {
@@ -171,6 +172,7 @@ public final class TaskSpawn {
         final LinkedHashMap<Long, HostOperation> operations = new LinkedHashMap<>();
         long nextOperation;
         boolean closed, hostMode;
+        Runnable libraryControl=()->{};
         Thread driver = Thread.currentThread();
         final LongSupplier monotonic;
         final long epoch;
@@ -287,7 +289,7 @@ public final class TaskSpawn {
         Task nextHost() {
             for(;;) {
                 long version=mail.version();
-                fireDue(now()); drainHost();
+                libraryControl.run(); fireDue(now()); drainHost();
                 if(!runq.isEmpty()) return runq.poll();
                 if(operations.isEmpty() && timers.isEmpty()) throw new HostFatal("all goroutines are asleep - deadlock!");
                 long at=Long.MAX_VALUE;
@@ -596,6 +598,38 @@ public final class TaskSpawn {
         if(failure!=null) throw new HostFault(String.valueOf(failure));
     }
 
+    /** A library entry owns the same guard as executables, but returns copied
+     * host values and faults only after native resource retirement. */
+    public static <T> T driveLibrary(Supplier<Frame> entry, Function<Object[],T> capture,
+                                     Runnable control, java.util.function.Consumer<Runnable> attach) {
+        return driveLibrary(entry,capture,control,attach,()->{});
+    }
+    public static <T> T driveLibrary(Supplier<Frame> entry, Function<Object[],T> capture,
+                                     Runnable control, java.util.function.Consumer<Runnable> attach,Runnable retire) {
+        reserveEntry(); Scheduler s=null; Throwable failure=null; T result=null;
+        try {
+            Task main=new Task(0,null); s=install(main,false); s.hostMode=true;
+            s.libraryControl=control;
+            Mailbox mailbox=s.mail;
+            attach.accept(mailbox::signal);
+            Frame root=entry.get();main.frame=root; s.ready(main);
+            while(!main.done) { control.run(); s.run(s.nextHost()); }
+            // Frame results, including structured errors, remain source-owned here.
+            result=capture.apply(root.results());
+        } catch(Throwable e) { failure=e; }
+        if(s!=null) try { s.shutdown(); } catch(Throwable e) { failure=e; }
+        if(s!=null) { s.libraryControl=()->{}; if(s.mail.interrupted) Thread.currentThread().interrupt(); }
+        try { retire.run(); } catch(Throwable e) { failure=e; }
+        try { Program.resetPanicBinding(); } catch(Throwable e) { failure=e; }
+        try { attach.accept(()->{}); } catch(Throwable e) { failure=e; }
+        finally { releaseEntry(); }
+        if(failure instanceof Library.Failure e) throw e;
+        if(failure instanceof FatalPanic || failure instanceof HostFatal || failure instanceof StackOverflowError)
+            throw new Library.Failure("source_panic");
+        if(failure!=null) throw new Library.Failure("host_fault",java.util.Map.of(),failure);
+        return result;
+    }
+
     /** Requeues the running task: a pause primitive. */
     public static void yieldTask(Task t) {
         sched.ready(t);
@@ -628,6 +662,9 @@ public final class TaskSpawn {
             return res;
         }
     }
+
+    /** Frames preserve the Task-style ABI of possibly suspending capabilities. */
+    public static Frame nativeFrame(Primitive fn) { return new AwaitFrame(fn); }
 
     /** Runs one pause primitive in an isolated scheduler for a harness case;
      * throws Blocked when no task can run, and the source panic on panic. */

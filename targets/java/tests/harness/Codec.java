@@ -226,4 +226,8 @@ class Codec {
     static void harnessSelect2(TaskSpawn.Task t, ChanMake.Chan a, ChanMake.Chan b, boolean dflt) {
         Select.select(t, dflt, Select.scase(a, false, null), Select.scase(b, false, null));
     }
+    static Object encKey(Object value){if(value!=null)throw new IllegalStateException("key fixture must be nil");return java.util.Map.of("nil",true);}
+    static Object[] host(TaskSpawn.Primitive primitive) {
+        return TaskSpawn.driveLibrary(()->TaskSpawn.nativeFrame(primitive),rv->rv.clone(),()->{},w->{});
+    }
 }

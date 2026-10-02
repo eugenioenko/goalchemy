@@ -157,6 +157,9 @@ public final class Program {
 
     private static final Map<Object, HashMap<String, Ref>> refs = new WeakHashMap<>();
 
+    /** Library retirement drops field-pointer graphs after copied host results. */
+    public static void clearFieldRefs() { TaskSpawn.sched.assertDriver(); refs.clear(); }
+
     /** The canonical pointer to a struct field, so pointer equality holds. */
     public static Ref fieldRef(Object o, String k, Function<Object, Object> get, BiConsumer<Object, Object> set) {
         HashMap<String, Ref> m = refs.computeIfAbsent(o, x -> new HashMap<>());

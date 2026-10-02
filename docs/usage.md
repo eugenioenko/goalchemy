@@ -54,9 +54,17 @@ Each target directory contains the generated program, the runtime files it needs
 - **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run with `sh run.sh` (plain `rustc`, standard library only) or `cargo run --release`. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
 - **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. `CC` and `CFLAGS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
 
-### C libraries
+### Libraries
 
-Compiling a package other than `main` for the C target produces a library instead of a program: `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected. Library builds are available only on the C target.
+Non-`main` packages can emit value libraries for Go, TypeScript and Java:
+
+- [Go libraries](go-library-boundary.md) expose copied values and cancellable, serialized calls.
+- [TypeScript libraries](typescript-library-boundary.md) emit portable JavaScript and declarations for Node and browsers.
+- [Java libraries](java-library-boundary.md) emit `Generated.java`, `build.sh` and a named-package JAR with byte arrays, typed values and cancellable asynchronous operations. Production crypto requires the pinned BC 1.86 dependency alongside JDK 21.
+
+C#, Python and Rust library emission remains gated with `GCE006`. Unsupported public value shapes on supported value-library targets fail with `GCE007`.
+
+Compiling a package other than `main` for the C target produces `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected.
 
 When the working directory or a parent has a `.toolchains` directory holding `jdk-*` or `dotnet`, `goalchemy run` and the test suites use those toolchains.
 On Linux x64, `scripts/fetch-toolchains.sh` installs the versions and verified
