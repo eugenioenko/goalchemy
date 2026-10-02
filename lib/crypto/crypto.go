@@ -92,6 +92,19 @@ func HMACSHA256(key, data []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
+// HMACSHA256Verify verifies a 32-byte SHA-256 MAC using constant-time equality.
+// Invalid sizes/bounds return false,error; a well-formed mismatch is false,nil.
+func HMACSHA256Verify(key, data, mac []byte) (bool, error) {
+	if !bounded(key, data) || len(mac) != sha256.Size {
+		return false, invalid
+	}
+	digest, err := HMACSHA256(key, data)
+	if err != nil {
+		return false, err
+	}
+	return hmac.Equal(digest, mac), nil
+}
+
 // HKDFSHA256 implements RFC 5869 extract then expand, including empty salt/info.
 func HKDFSHA256(secret, salt, info []byte, n int) ([]byte, error) {
 	if !bounded(secret, salt, info) || n < 0 || n > 255*sha256.Size {

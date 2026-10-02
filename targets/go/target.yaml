@@ -118,3 +118,4 @@ functions:
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64URLEncode, implementation: runtime/lib_encoding_base64_url_encode.go}
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64URLDecode, implementation: runtime/lib_encoding_base64_url_decode.go}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.LibClockUnix, implementation: runtime/lib_clock_unix.go}
+  - {id: lib.crypto.hmac_sha256_verify, contract_version: 1.0.0, symbol: rt.LibCryptoHMACSHA256Verify, implementation: runtime/lib_crypto_hmac_sha256_verify.go, requires: [lib.crypto.close]}

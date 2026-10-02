@@ -1,0 +1,135 @@
+{
+  "id": "lib.crypto.hmac_sha256_verify",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "crypto.HMACSHA256Verify: constant-time bounded HMAC verification.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.HMACSHA256Verify",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "key",
+        "type": "[]byte"
+      },
+      {
+        "name": "data",
+        "type": "[]byte"
+      },
+      {
+        "name": "mac",
+        "type": "[]byte"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "valid",
+        "type": "bool"
+      },
+      {
+        "name": "err",
+        "type": "error"
+      }
+    ]
+  },
+  "depends_on": [
+    {
+      "id": "core.task.spawn",
+      "version": "1.0.0"
+    }
+  ],
+  "suspension": "may",
+  "determinism": "deterministic",
+  "behavior": {
+    "zero": "Empty byte key/data are valid. A zero-length MAC is invalid.",
+    "nil": "Nil key/data slices mean empty bytes. Nil MAC is invalid.",
+    "bounds": "Each key/data input <=64MiB; MAC exactly 32 bytes.",
+    "conversions": "Not applicable.",
+    "overflow": "Not applicable.",
+    "mutations": "All byte inputs are read-only and never mutated.",
+    "aliasing": "No buffers are returned. Byte input aliases remain unchanged.",
+    "allocation": "Native digest buffers are host-managed. Async adapters retain or copy byte inputs through completion and never borrow mutable host buffers.",
+    "errors": "Well-formed MAC mismatch returns false,nil. Invalid byte bounds or a MAC whose length is not 32 return false,error.",
+    "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
+    "observations": "Uses native crypto/hmac.Equal for constant-time MAC comparison."
+  },
+  "notes": "HMAC-SHA256 over exact bytes. Host verification may suspend (WebCrypto verify); inputs remain read-only and must be retained through completion.",
+  "cases": [
+    {
+      "name": "boundary_example",
+      "types": {},
+      "let": [
+        {
+          "name": "key",
+          "type": "[]byte",
+          "value": {
+            "nil": true
+          }
+        },
+        {
+          "name": "data",
+          "type": "[]byte",
+          "value": {
+            "nil": true
+          }
+        },
+        {
+          "name": "mac",
+          "type": "[]byte",
+          "value": {
+            "slice": [
+              "182",
+              "19",
+              "103",
+              "154",
+              "8",
+              "20",
+              "217",
+              "236",
+              "119",
+              "47",
+              "149",
+              "215",
+              "120",
+              "195",
+              "95",
+              "197",
+              "255",
+              "22",
+              "151",
+              "196",
+              "147",
+              "113",
+              "86",
+              "83",
+              "198",
+              "199",
+              "18",
+              "20",
+              "66",
+              "146",
+              "197",
+              "173"
+            ]
+          }
+        }
+      ],
+      "call": [
+        "key",
+        "data",
+        "mac"
+      ],
+      "expect": {
+        "results": [
+          "true",
+          {
+            "nil": true
+          }
+        ]
+      }
+    }
+  ],
+  "native_tests": [
+    "lib/crypto/hmac_verify_test.go"
+  ]
+}
