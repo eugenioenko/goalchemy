@@ -446,6 +446,9 @@ const csharpProject = `<Project Sdk="Microsoft.NET.Sdk">
 func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := csharp.Emit(res.IR, symbols(res, "csharp"))
 	if err != nil {
+		if _, ok := err.(*csharp.LibraryBoundaryError); ok {
+			return emitErr("GCE007", err.Error())
+		}
 		return emitErr("GCE004", err.Error())
 	}
 	refs, files, ds := link.Plan(res.Catalog, "csharp", o.Contracts)
@@ -456,12 +459,21 @@ func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
+	project := csharpProject
+	if res.IR.Library {
+		project = strings.Replace(project, "<OutputType>Exe</OutputType>", "<OutputType>Library</OutputType>", 1)
+	}
 	gen := map[string][]byte{
 		"Main.cs":       o.Source,
 		"Main.cs.lines": lineTable(o.Lines, out),
-		"main.csproj":   []byte(csharpProject),
+		"main.csproj":   []byte(project),
 		"run.sh":        []byte(csharpRun),
 		"README.md":     []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
+	}
+	if res.IR.Library {
+		delete(gen, "run.sh")
+		gen["build.sh"] = []byte("#!/bin/sh\nset -eu\ndotnet build main.csproj -c Release -o lib --nologo\n")
+		gen["README.md"] = []byte(readme("csharp", "sh build.sh; reference lib/main.dll and Goalchemy.Generated.GoProgram", ".NET8; serialized cancellable copied value operations, byte-preserving generic strings and typed Rt.Library.Failure."))
 	}
 	var names []string
 	for name, data := range gen {

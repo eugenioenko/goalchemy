@@ -24,7 +24,7 @@ harness:
   support: [tests/harness/Harness.cs, tests/harness/Codec.cs, tests/harness/run.sh]
   generated: tests/harness/HarnessGen.cs
   command: [sh, targets/csharp/tests/harness/run.sh]
-support_files: [types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs]
+support_files: [types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs, types/Native.cs, types/Crypto.cs, types/Callback.cs, runtime/Library.cs, runtime/TaskSpawn.cs, runtime/StdContextErr.cs, runtime/StdContextWithCancel.cs, runtime/ChanMake.cs, runtime/ChanClose.cs, runtime/StdErrorsNew.cs]
 functions:
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "R.add_<k>", implementation: runtime/IntegerAdd.cs, harness: "R.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "R.sub_<k>", implementation: runtime/IntegerSub.cs, harness: "R.sub_{T.kind}({0}, {1})"}
@@ -93,3 +93,32 @@ functions:
   - {id: std.context.canceled, contract_version: 1.0.0, symbol: "R.stdContextCanceled", implementation: runtime/StdContextCanceled.cs, harness: "R.stdContextCanceled()", requires: [std.context.err]}
   - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "R.stdContextDeadlineExceeded", implementation: runtime/StdContextDeadlineExceeded.cs, harness: "R.stdContextDeadlineExceeded()", requires: [std.context.err]}
   - {id: lib.task.all, contract_version: 1.0.0, symbol: "R.libTaskAll", implementation: runtime/LibTaskAll.cs, harness: "await: R.libTaskAll(t, {0})", requires: [core.task.spawn]}
+
+  - {id: lib.crypto.random, contract_version: 1.0.0, symbol: R.libCryptoRandom, implementation: runtime/LibCryptoRandom.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoRandom(t, {0})"}
+  - {id: lib.crypto.sha256, contract_version: 1.0.0, symbol: R.libCryptoSha256, implementation: runtime/LibCryptoSha256.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoSha256(t, {0})"}
+  - {id: lib.crypto.hmac_sha256, contract_version: 1.0.0, symbol: R.libCryptoHmacSha256, implementation: runtime/LibCryptoHmacSha256.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoHmacSha256(t, {0}, {1})"}
+  - {id: lib.crypto.hmac_sha256_verify, contract_version: 1.0.0, symbol: R.libCryptoHmacSha256Verify, implementation: runtime/LibCryptoHmacSha256Verify.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoHmacSha256Verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.hkdf_sha256, contract_version: 1.0.0, symbol: R.libCryptoHkdfSha256, implementation: runtime/LibCryptoHkdfSha256.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoHkdfSha256(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.aes256_gcm_encrypt, contract_version: 1.0.0, symbol: R.libCryptoAes256GcmEncrypt, implementation: runtime/LibCryptoAes256GcmEncrypt.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoAes256GcmEncrypt(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.aes256_gcm_decrypt, contract_version: 1.0.0, symbol: R.libCryptoAes256GcmDecrypt, implementation: runtime/LibCryptoAes256GcmDecrypt.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoAes256GcmDecrypt(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.rsa_oaep_encrypt, contract_version: 1.0.0, symbol: R.libCryptoRsaOaepEncrypt, implementation: runtime/LibCryptoRsaOaepEncrypt.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoRsaOaepEncrypt(t, {0}, {1})"}
+  - {id: lib.crypto.rsa_oaep_decrypt, contract_version: 1.0.0, symbol: R.libCryptoRsaOaepDecrypt, implementation: runtime/LibCryptoRsaOaepDecrypt.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoRsaOaepDecrypt(t, {0}, {1})"}
+  - {id: lib.crypto.rs256_sign, contract_version: 1.0.0, symbol: R.libCryptoRs256Sign, implementation: runtime/LibCryptoRs256Sign.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoRs256Sign(t, {0}, {1})"}
+  - {id: lib.crypto.es256_sign, contract_version: 1.0.0, symbol: R.libCryptoEs256Sign, implementation: runtime/LibCryptoEs256Sign.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoEs256Sign(t, {0}, {1})"}
+  - {id: lib.crypto.rs256_verify, contract_version: 1.0.0, symbol: R.libCryptoRs256Verify, implementation: runtime/LibCryptoRs256Verify.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoRs256Verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.es256_verify, contract_version: 1.0.0, symbol: R.libCryptoEs256Verify, implementation: runtime/LibCryptoEs256Verify.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoEs256Verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.generate_rsa2048, contract_version: 1.0.0, symbol: R.libCryptoGenerateRsa2048, implementation: runtime/LibCryptoGenerateRsa2048.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoGenerateRsa2048(t)"}
+  - {id: lib.crypto.generate_p256, contract_version: 1.0.0, symbol: R.libCryptoGenerateP256, implementation: runtime/LibCryptoGenerateP256.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoGenerateP256(t)"}
+  - {id: lib.crypto.import_pem, contract_version: 1.0.0, symbol: R.libCryptoImportPem, implementation: runtime/LibCryptoImportPem.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoImportPem(t, {0})"}
+  - {id: lib.crypto.public_pem, contract_version: 1.0.0, symbol: R.libCryptoPublicPem, implementation: runtime/LibCryptoPublicPem.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoPublicPem(t, {0})"}
+  - {id: lib.crypto.private_pem, contract_version: 1.0.0, symbol: R.libCryptoPrivatePem, implementation: runtime/LibCryptoPrivatePem.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoPrivatePem(t, {0})"}
+  - {id: lib.crypto.public_jwk, contract_version: 1.0.0, symbol: R.libCryptoPublicJwk, implementation: runtime/LibCryptoPublicJwk.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoPublicJwk(t, {0})"}
+  - {id: lib.crypto.ecdh, contract_version: 1.0.0, symbol: R.libCryptoEcdh, implementation: runtime/LibCryptoEcdh.cs, requires: [lib.crypto.close], harness: "host: R.libCryptoEcdh(t, {0}, {1})"}
+  - {id: lib.crypto.close, contract_version: 1.0.0, symbol: R.libCryptoClose, implementation: runtime/LibCryptoClose.cs, requires: [core.task.spawn, std.errors.new], harness: "host: R.libCryptoClose(t,{0})"}
+  - {id: lib.encoding.base64_encode, contract_version: 1.0.0, symbol: R.libEncodingBase64Encode, implementation: runtime/LibEncodingBase64Encode.cs, requires: [std.errors.new], harness: "R.libEncodingBase64Encode({0})"}
+  - {id: lib.encoding.base64_decode, contract_version: 1.0.0, symbol: R.libEncodingBase64Decode, implementation: runtime/LibEncodingBase64Decode.cs, requires: [std.errors.new], harness: "R.libEncodingBase64Decode({0})"}
+  - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: R.libEncodingBase64UrlEncode, implementation: runtime/LibEncodingBase64UrlEncode.cs, requires: [std.errors.new], harness: "R.libEncodingBase64UrlEncode({0})"}
+  - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: R.libEncodingBase64UrlDecode, implementation: runtime/LibEncodingBase64UrlDecode.cs, requires: [std.errors.new, lib.encoding.base64_decode], harness: "R.libEncodingBase64UrlDecode({0})"}
+  - {id: lib.clock.unix, contract_version: 1.0.0, symbol: R.libClockUnix, implementation: runtime/LibClockUnix.cs, harness: "R.libClockUnix()"}
+  - {id: lib.callback.request, contract_version: 1.0.0, symbol: R.libCallbackRequest, implementation: runtime/LibCallbackRequest.cs, requires: [std.context.err], harness: "host: R.libCallbackRequest(t,{0},{1},{2})"}
+  - {id: lib.http.do, contract_version: 1.0.0, symbol: R.libHttpDo, implementation: runtime/LibHttpDo.cs, requires: [std.context.err], harness: "host: R.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}

@@ -1,0 +1,124 @@
+using System;using System.IO;using System.Net;using System.Net.Sockets;using System.Text;using System.Collections.Generic;using System.Linq;using System.Threading;using System.Threading.Tasks;using System.Reflection;using Rt;using Generated=Goalchemy.Generated.GoProgram;
+namespace Independent;
+
+/// Imports the built assembly only. Actual generated exports drive lifecycle assertions.
+static class LibraryTest
+{
+ static int checks;static void Check(bool value,string name){checks++;if(!value)throw new Exception("ASSERT: "+name);}static T Await<T>(Library.Operation<T> operation)=>operation.Completion.WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();static void Failure<T>(Library.Operation<T> operation,string kind){try{Await(operation);throw new Exception("accepted "+kind);}catch(Library.Failure e){Check(e.Kind==kind,"typed "+kind);}}
+ static Library.Options Providers(params Callback.Registration[] callbacks)=>new(){Callbacks=callbacks};
+ sealed class BrokenFormat : Exception{public override string ToString()=>throw new Exception("provider formatting invoked");}
+ static Generated.Value Value()=>new(){Data=new byte[]{0,255,128},Nested=new[]{new byte[]{7},new byte[]{8}},Names=new[]{"one","two"},Count=long.MaxValue,Small=-128,Empty=Array.Empty<byte>(),Item=new(){Name="name",Data=new byte[]{9}}};
+ static void Values()
+ {
+  var input=Value();var result=Await(Generated.Echo(input,null));Check(result.Count==5&&result.Data[0]==1&&input.Data[0]==0,"initialization/input ownership");var again=Await(Generated.Echo(input,null));Check(again.Count==5,"fresh init");again.Nested[0][0]=99;Check(result.Nested[0][0]==7,"nested output ownership");Check(result.Empty.Length==0,"empty presence");input.Empty=null;Check(Await(Generated.Echo(input,null)).Empty==null,"nil presence");
+  foreach(long n in new[]{long.MinValue,long.MaxValue,9007199254740993})Check(Await(Generated.Wide(n,null))==n,"exact long");input.Small=128;Failure(Generated.Echo(input,null),"invalid_argument");input=Value();input.Names[0]="\u0100";Failure(Generated.Echo(input,null),"invalid_argument");
+  try{Await(Generated.ErrorGlobal(null));throw new Exception("missing source error");}catch(Library.Failure e){Check(e.Kind=="source","source category");var f=e.Fields;Check((string)f["Code"]=="saved","typed source fields");var item=(IDictionary<string,object>)f["Item"];((byte[])item["Data"])[0]=44;Check(((byte[])((IDictionary<string,object>)e.Fields["Item"])["Data"])[0]==9,"nested error snapshot");}
+  Failure(Generated.SourcePanic(null),"panic");Check(Await(Generated.Fixed(null)).SequenceEqual(new byte[]{0,255,128}),"panic recovery");
+ }
+ static void ProvidersAndCancellation()
+ {
+  foreach(bool resolve in new[]{true,false})
+  {var options=Providers(new Callback.Registration("settle",r=>{if(resolve)r.Resolve(new byte[]{1});else r.Reject("rejected");throw new InvalidOperationException("submission after settlement");}));Failure(Generated.Provider("settle",null,options),"host_fault");}
+  var duplicate=Providers(new Callback.Registration("duplicate",r=>{var value=new byte[]{1,255};r.Resolve(value);value[0]=99;r.Reject("late");r.Resolve(new byte[]{99});}));Check(Await(Generated.Provider("duplicate",null,duplicate)).SequenceEqual(new byte[]{1,255}),"duplicate/copied completion");
+  using var entered=new ManualResetEventSlim();Callback.Request held=null;var registry=new[]{new Callback.Registration("held",r=>{r.Retain();held=r;entered.Set();})};var optionsHeld=Providers(registry);var input=Value();var active=Generated.Owned(input,optionsHeld);Check(entered.Wait(10000),"actual held resource");input.Data[0]=99;input.Nested[0][0]=99;input.Item.Data[0]=99;registry[0]=new("held",r=>r.Resolve(new byte[]{99}));
+  var queued=Generated.Echo(Value(),null);var continuation=queued.Completion.ContinueWith(_=>Await(Generated.Fixed(null)),CancellationToken.None,TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);Check(queued.Cancel(),"queued cancellation");Failure(queued,"canceled");Check(active.Cancel(),"active cancellation");Thread.Sleep(30);Check(!active.Completion.IsCompleted,"stop is not ACK");held.Resolve(new byte[]{1});Failure(active,"canceled");Check(continuation.Wait(10000)&&continuation.Result.Length==3,"queued-cancel reentrant continuation");held.Resolve(new byte[]{99});
+  using var started=new ManualResetEventSlim();Callback.Request settle=null;var pending=Generated.Provider("held",null,Providers(new Callback.Registration("held",r=>{r.Retain();r.OnStop(()=>throw new InvalidOperationException("stop fault"));settle=r;started.Set();throw new InvalidOperationException("submission fault");})));Check(started.Wait(10000),"retained submission fault");Thread.Sleep(30);Check(!pending.Completion.IsCompleted,"fault waits settlement");settle.Resolve(new byte[]{1});Failure(pending,"host_fault");Check(Await(Generated.Fixed(null)).Length==3,"provider fault recovery");
+  using var ownedGate=new ManualResetEventSlim();Callback.Request owner=null;input=Value();var owned=Generated.Owned(input,Providers(new Callback.Registration("held",r=>{owner=r;ownedGate.Set();})));Check(ownedGate.Wait(10000),"snapshot held");input.Data[0]=22;input.Item.Data[0]=22;input.Nested[0][0]=22;owner.Resolve(Array.Empty<byte>());var copy=Await(owned);Check(copy.Data[0]==0&&copy.Item.Data[0]==9&&copy.Nested[0][0]==7,"nested snapshot before enqueue");
+
+  using var predecessorEntered=new ManualResetEventSlim();Callback.Request predecessor=null;var first=Generated.Provider("held",null,Providers(new Callback.Registration("held",r=>{predecessor=r;predecessorEntered.Set();})));Check(predecessorEntered.Wait(10000),"queued snapshot predecessor");input=Value();int originalProvider=0;var callbacks=new[]{new Callback.Registration("held",r=>{originalProvider++;r.Resolve(Array.Empty<byte>());})};var queuedOptions=Providers(callbacks);var snapshot=Generated.Owned(input,queuedOptions);input.Data[0]=99;input.Nested[0][0]=99;input.Item.Data[0]=99;input.Names[0]="changed";callbacks[0]=new Callback.Registration("held",r=>throw new Exception("mutable registry escaped"));queuedOptions.Callbacks=Array.Empty<Callback.Registration>();predecessor.Resolve(Array.Empty<byte>());Await(first);var ownedSnapshot=Await(snapshot);Check(ownedSnapshot.Data[0]==0&&ownedSnapshot.Nested[0][0]==7&&ownedSnapshot.Item.Data[0]==9&&ownedSnapshot.Names[0]=="one"&&originalProvider==1,"queued nested input and provider registry snapshot");
+  using var canceled=new CancellationTokenSource();canceled.Cancel();Failure(Generated.Fixed(new Library.Options{Cancellation=canceled.Token}),"canceled");
+ }
+ [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+ static WeakReference LateHook(Callback.Request request)
+ {
+  var bytes=new byte[]{42};var weak=new WeakReference(bytes);request.Retain();request.OnStop(()=>{GC.KeepAlive(bytes);throw new Exception("late hook executed");});return weak;
+ }
+ static void StopSettlement()
+ {
+  Callback.Request terminal=null;Check(Await(Generated.Provider("terminal",null,Providers(new Callback.Registration("terminal",r=>{terminal=r;r.Resolve(new byte[]{7});})))).SequenceEqual(new byte[]{7}),"terminal provider");
+  var retained=typeof(Callback.Request).GetField("retained",BindingFlags.NonPublic|BindingFlags.Instance);Check(!(bool)retained.GetValue(terminal),"terminal initial registration unretained");var weak=LateHook(terminal);terminal.Cancel();Check(!(bool)retained.GetValue(terminal),"late Retain sealed");for(int i=0;i<10&&weak.IsAlive;i++){GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();Thread.Sleep(5);}Check(!weak.IsAlive,"late OnStop roots not retained");Check(typeof(Callback.Request).GetField("stop",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(terminal)==null,"late OnStop not installed");
+  foreach(bool fault in new[]{false,true})
+  {
+   using var started=new ManualResetEventSlim();using var resolved=new ManualResetEventSlim();using var release=new ManualResetEventSlim();Callback.Request owned=null;
+   var work=Generated.Provider("held",null,Providers(new Callback.Registration("held",r=>{owned=r;r.Retain();r.OnStop(()=>{var native=Task.Run(()=>{r.Resolve(new byte[]{9});resolved.Set();});Check(native.Wait(10000),"native Resolve acquires request monitor during stop hook");Check(release.Wait(10000),"stop helper real release");if(fault)throw new InvalidOperationException("stop after native settlement");});started.Set();})));
+   Check(started.Wait(10000),"stop race started");Check(work.Cancel(),"stop race cancellation request");Check(resolved.Wait(10000),"native settlement during stop hook");Thread.Sleep(30);Check(!work.Completion.IsCompleted,"ACK waits acquired stop helper release");owned.OnStop(()=>throw new Exception("late stop after terminal claim"));release.Set();Failure(work,fault?"host_fault":"canceled");
+  }
+  Check(Await(Generated.Fixed(null)).Length==3,"stop settlement recovery");
+  Failure(Generated.Provider("broken",null,Providers(new Callback.Registration("broken",r=>r.Fault(new BrokenFormat())))),"host_fault");
+  Failure(Generated.Provider("broken",null,Providers(new Callback.Registration("broken",r=>throw new BrokenFormat()))),"host_fault");
+  using var brokenStarted=new ManualResetEventSlim();
+  var brokenStop=Generated.Provider("broken",null,Providers(new Callback.Registration("broken",r=>{r.OnStop(()=>{r.Resolve(new byte[]{1});throw new BrokenFormat();});brokenStarted.Set();})));
+  Check(brokenStarted.Wait(10000),"broken format stop registered");Check(brokenStop.Cancel(),"broken format stop canceled");Failure(brokenStop,"host_fault");
+  Check(Await(Generated.Fixed(null)).Length==3,"broken exception formatting fault recovery");
+ }
+ static void NativeKeys()
+ {
+  Check(Await(Generated.KeySuccess(null))[0]==7,"native deferred Close");Check(Await(Generated.GoClose(null))[0]==8,"native goroutine Close");Check(Await(Generated.BoundClose(null))[0]==9,"native bound deferred Close");
+  var hook=typeof(Crypto).GetField("beforeWork",BindingFlags.NonPublic|BindingFlags.Static);using var started=new ManualResetEventSlim();using var release=new ManualResetEventSlim();Action<string> old=(Action<string>)hook.GetValue(null);
+  hook.SetValue(null,(Action<string>)(operation=>{if(operation=="rs_sign"){started.Set();Check(release.Wait(10000),"keywork release");}}));
+  try
+  {
+   var options=Providers(new Callback.Registration("ready",r=>{r.Retain();_=Task.Run(()=>{Check(started.Wait(10000),"actual native sign acquired");r.Resolve(Array.Empty<byte>());});}),new Callback.Registration("closed",r=>{Check(started.IsSet&&!release.IsSet,"alias closed while native key acquired");release.Set();r.Resolve(Array.Empty<byte>());}));
+   Check(Await(Generated.KeyRace(options)).SequenceEqual(new byte[]{1,2,255}),"real native alias Close preserves acquired work");
+  }
+  finally{release.Set();hook.SetValue(null,old);}
+ }
+ static (string,Task<byte[]>) Server()
+ {
+  var listener=new TcpListener(IPAddress.Loopback,0);listener.Start();string url="http://127.0.0.1:"+((IPEndPoint)listener.LocalEndpoint).Port+"/";
+  var server=Task.Run(()=>{try{using var connection=listener.AcceptTcpClient();using var stream=connection.GetStream();using var request=new MemoryStream();int last=0;for(int i=0;i<65536;i++){int b=stream.ReadByte();if(b<0)break;request.WriteByte((byte)b);last=((last<<8)|b);if(last==0x0d0a0d0a)break;}var headers=Encoding.Latin1.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 3\r\nX-Byte: \xff\r\nConnection: close\r\n\r\n");stream.Write(headers);stream.Write(new byte[]{0,255,128});return request.ToArray();}finally{listener.Stop();}});return(url,server);
+ }
+ sealed class HeldStream : Stream
+ {
+  readonly Stream inner;readonly ManualResetEventSlim entered,release;internal HeldStream(Stream inner,ManualResetEventSlim entered,ManualResetEventSlim release){this.inner=inner;this.entered=entered;this.release=release;}
+  public override bool CanRead=>inner.CanRead;public override bool CanSeek=>false;public override bool CanWrite=>false;public override long Length=>throw new NotSupportedException();public override long Position{get=>throw new NotSupportedException();set=>throw new NotSupportedException();}public override void Flush()=>inner.Flush();public override int Read(byte[] bytes,int offset,int count)=>inner.Read(bytes,offset,count);public override ValueTask<int> ReadAsync(Memory<byte> bytes,CancellationToken cancel=default)=>inner.ReadAsync(bytes,cancel);public override long Seek(long offset,SeekOrigin origin)=>throw new NotSupportedException();public override void SetLength(long value)=>throw new NotSupportedException();public override void Write(byte[] value,int offset,int count)=>throw new NotSupportedException();
+  protected override void Dispose(bool disposing){if(disposing){entered.Set();Check(release.Wait(10000),"native HTTP body release gate");inner.Dispose();}base.Dispose(disposing);}
+ }
+ static void HTTP()
+ {
+  var (url,server)=Server();Check(Await(Generated.Fetch(url,new[]{"X-Test","\x80\xff"},1024,2000,null)).SequenceEqual(new byte[]{0,255,128}),"native HTTP binary body");var raw=server.GetAwaiter().GetResult();Check(Encoding.Latin1.GetString(raw).Contains("X-Test: \x80\xff"),"actual Latin1 request header wire");
+  (url,server)=Server();var headers=Await(Generated.FetchHeaders(url,null));server.GetAwaiter().GetResult();Check(Array.IndexOf(headers,"\xff")>=0,"raw response header bytes");
+  var hook=typeof(R).GetField("httpBodyWrapper",BindingFlags.Static|BindingFlags.NonPublic);var old=(Func<Stream,Stream>)hook.GetValue(null);using var entered=new ManualResetEventSlim();using var release=new ManualResetEventSlim();hook.SetValue(null,(Func<Stream,Stream>)(body=>new HeldStream(body,entered,release)));
+  try{(url,server)=Server();var work=Generated.Fetch(url,null,1024,2000,null);Check(entered.Wait(10000),"actual acquired HTTP body");Check(work.Cancel(),"HTTP cancel while releasing");Thread.Sleep(30);Check(!work.Completion.IsCompleted,"HTTP body release precedes cancellation ACK");release.Set();Failure(work,"canceled");server.GetAwaiter().GetResult();}finally{release.Set();hook.SetValue(null,old);}
+  Check(Await(Generated.Fixed(null)).Length==3,"HTTP recovery");
+ }
+ [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+ static WeakReference SourceRoot()
+ {
+  Frame frame=R.sched.cur.frame;while(frame!=null){foreach(var field in frame.GetType().GetFields(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance)){var value=field.GetValue(frame);if(value!=null&&value.GetType().DeclaringType==typeof(Generated)&&value.GetType().Name.StartsWith("S"))return new WeakReference(value);}frame=frame.parent;}throw new Exception("actual source root not found");
+ }
+ static void GCRelease()
+ {
+  using var entered=new ManualResetEventSlim();Callback.Request held=null;WeakReference root=null;var work=Generated.FieldAlias(Value(),Providers(new Callback.Registration("held",r=>{held=r;root=SourceRoot();entered.Set();})));Check(entered.Wait(10000),"actual aliased source root");held.Resolve(Array.Empty<byte>());Check(Await(work).Item.Name=="alias","field canonicality");held=null;work=null;for(int i=0;i<10&&root.IsAlive;i++){GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();Thread.Sleep(5);}Check(!root.IsAlive,"weak source GC after retirement");
+ }
+ [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+ static (WeakReference Root,Library.Failure Error) RetainedCompositePanic()
+ {
+  WeakReference root=null;
+  var work=Generated.CompositePanic(Value(),Providers(new Callback.Registration("panic",r=>{root=SourceRoot();r.Resolve(Array.Empty<byte>());})));
+  try{Await(work);throw new Exception("missing composite panic");}catch(Library.Failure error){return(root,error);}
+ }
+ static void PanicOwnership()
+ {
+  var (root,error)=RetainedCompositePanic();Check(error.Kind=="panic","actual generated chained composite panic");Check(error.InnerException==null&&error.Fields.Count==0,"owned panic failure exposes no GoPanic Box or source graph");
+  for(int i=0;i<10&&root.IsAlive;i++){GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();Thread.Sleep(5);}Check(!root.IsAlive,"source panic graph collects while public failure retained");GC.KeepAlive(error);
+  Check(Await(Generated.Fixed(null)).Length==3,"composite panic recovery");
+ }
+ [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+ static WeakReference QueuedRoot(CancellationToken token)
+ {
+  var retained=new byte[]{42};var registration=new Callback.Registration("unused",r=>r.Resolve(retained));var reference=new WeakReference(retained);var operation=Generated.Echo(Value(),new Library.Options{Callbacks=new[]{registration},Cancellation=token});Check(operation.Cancel(),"queued token cancel");Failure(operation,"canceled");return reference;
+ }
+ static void TokenGC()
+ {
+  using var entered=new ManualResetEventSlim();using var token=new CancellationTokenSource();Callback.Request active=null;var work=Generated.Provider("held",null,Providers(new Callback.Registration("held",r=>{active=r;entered.Set();})));Check(entered.Wait(10000),"held predecessor for queued token GC");var weak=QueuedRoot(token.Token);for(int i=0;i<10&&weak.IsAlive;i++){GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();Thread.Sleep(5);}Check(!weak.IsAlive,"queued cancellation retires token registration roots");active.Resolve(Array.Empty<byte>());Await(work);GC.KeepAlive(token);
+ }
+ static void Launch()
+ {
+  var field=typeof(Library).GetField("ownerThreads",BindingFlags.NonPublic|BindingFlags.Static);var old=(Func<ThreadStart,Thread>)field.GetValue(null);using var launched=new ManualResetEventSlim();var bad=new Thread(()=>launched.Set());bad.Start();bad.Join();field.SetValue(null,(Func<ThreadStart,Thread>)(_=>bad));
+  try{Failure(Generated.Fixed(null),"host_fault");}finally{field.SetValue(null,old);}Check(Await(Generated.Fixed(null)).Length==3,"actual native Start rejection recovers");
+  using var token=new CancellationTokenSource();Task cancel=null;field.SetValue(null,(Func<ThreadStart,Thread>)(_=>{cancel=Task.Run(()=>token.Cancel());Check(SpinWait.SpinUntil(()=>token.IsCancellationRequested,10000),"concurrent native token cancel");return bad;}));
+  try{Failure(Generated.Fixed(new Library.Options{Cancellation=token.Token}),"host_fault");Check(cancel.Wait(10000),"launch rollback releases monitor before registration disposal");}finally{field.SetValue(null,old);}Check(Await(Generated.Fixed(null)).Length==3,"concurrent launch failure recovery");
+ }
+ public static void Main(string[] args){if(args.Length>0&&args[0]=="launch-only"){Launch();return;}Values();ProvidersAndCancellation();StopSettlement();NativeKeys();HTTP();GCRelease();PanicOwnership();TokenGC();Launch();Console.WriteLine("{\"status\":\"pass\",\"checks\":"+checks+"}");}
+}

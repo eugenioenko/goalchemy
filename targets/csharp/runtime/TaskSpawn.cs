@@ -58,6 +58,7 @@ public sealed class Scheduler
     internal readonly Dictionary<long, HostOperation> operations = new();
     long nextOperation;
     internal bool closed, hostMode, harness;
+    internal Action libraryObserve;
     internal System.Threading.Thread driver = System.Threading.Thread.CurrentThread;
     readonly Func<long> monotonic;
     readonly long epoch, frequency;
@@ -176,6 +177,7 @@ public sealed class Scheduler
         for (;;)
         {
             long version = mail.versionNow();
+            libraryObserve?.Invoke();
             fireDue(now()); drainHost();
             if (runq.Count > 0) return runq.Dequeue();
             if (operations.Count == 0 && timers.Count == 0) throw new HostFatal("all goroutines are asleep - deadlock!");
@@ -209,7 +211,7 @@ public sealed class Scheduler
             t.cleanup = null; t.frame = null; t.rv = Array.Empty<object>(); t.done = true; t.blocked = false;
             t.curPanic = null; t.resumePanic = null; t.deferTarget = null;
         }
-        tasks.Clear(); cur = null; main = null;
+        tasks.Clear(); cur = null; main = null; libraryObserve=null;
         if (failure != null) throw new HostFault("owner cleanup: " + failure);
     }
     internal GoTask next()
@@ -540,6 +542,31 @@ public static partial class R
         if (failure is HostFatal f) { Out.stderr("fatal error: " + f.Message + "\n"); Environment.Exit(2); }
         if (failure is SourceStackFatal) { Out.stderr("runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n"); Environment.Exit(2); }
         if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    public static Frame nativeFrame(Action<GoTask> primitive)=>new AwaitFrame(primitive);
+    public static T driveLibrary<T>(Func<Frame> entry, Func<object[],T> capture, Action observe, Action<Action> wake, Action retire)
+    {
+        reserveEntry();Scheduler owner=null;Frame root=null;T value=default;Exception failure=null;
+        try
+        {
+            var main=new GoTask(0,null);owner=install(main,false);owner.hostMode=true;owner.libraryObserve=observe;
+            var mail=owner.mail;wake(() => {lock(mail)mail.signal();});root=entry();main.frame=root;owner.ready(main);
+            while(!main.done){observe();owner.run(owner.nextHost());}
+            value=capture(root.results());
+        }
+        catch(FatalPanic){failure=new Library.Failure("panic");}
+        catch(HostFatal e){failure=new Library.Failure("fatal",null,e);}
+        catch(SourceStackFatal e){failure=new Library.Failure("fatal",null,e);}
+        catch(Exception e){failure=e;}
+        finally
+        {
+            if(owner!=null)try{owner.shutdown();}catch(Exception e){failure=new Library.Failure("host_fault",null,e);}
+            try{retire();}catch(Exception e){failure=new Library.Failure("host_fault",null,e);}
+            root=null;try{Program.resetPanicBinding();}catch(Exception e){failure=new Library.Failure("host_fault",null,e);}
+            releaseEntry();
+        }
+        if(failure!=null)System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();return value;
     }
 
     /// <summary>Requeues the running task: a pause primitive.</summary>

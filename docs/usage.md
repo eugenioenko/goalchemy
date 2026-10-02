@@ -56,13 +56,14 @@ Each target directory contains the generated program, the runtime files it needs
 
 ### Libraries
 
-Non-`main` packages can emit value libraries for Go, TypeScript and Java:
+Non-`main` packages can emit value libraries for Go, TypeScript, Java and C#:
 
 - [Go libraries](go-library-boundary.md) expose copied values and cancellable, serialized calls.
 - [TypeScript libraries](typescript-library-boundary.md) emit portable JavaScript and declarations for Node and browsers.
 - [Java libraries](java-library-boundary.md) emit `Generated.java`, `build.sh` and a named-package JAR with byte arrays, typed values and cancellable asynchronous operations. Production crypto requires the pinned BC 1.86 dependency alongside JDK 21.
+- [C# libraries](csharp-library-boundary.md) emit .NET 8 class libraries with owned values and cancellable asynchronous operations. Crypto and HTTP use .NET built-ins without NuGet dependencies.
 
-C#, Python and Rust library emission remains gated with `GCE006`. Unsupported public value shapes on supported value-library targets fail with `GCE007`.
+Python and Rust library emission remains gated with `GCE006`. Unsupported public value shapes on supported value-library targets fail with `GCE007`.
 
 Compiling a package other than `main` for the C target produces `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected.
 

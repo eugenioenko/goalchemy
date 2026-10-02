@@ -162,3 +162,9 @@ static partial class Harness
     static void harnessSelect2(GoTask t, Chan a, Chan b, bool dflt) =>
         R.select(t, dflt, R.scase(a, false, null), R.scase(b, false, null));
 }
+
+static partial class Harness
+{
+ static JsonNode encKey(object value) {if(value!=null)throw new InvalidOperationException("key fixture must be nil");return new JsonObject{["nil"]=true};}
+ static object[] host(Action<GoTask> primitive)=>R.driveLibrary(()=>R.nativeFrame(primitive),rv=>(object[])rv.Clone(),()=>{},w=>{},()=>{});
+}

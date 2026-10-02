@@ -41,6 +41,8 @@ func csDecode(t *contracts.TypeExpr, raw string) string {
 			return "new WaitGroup()"
 		case "sync.Mutex":
 			return "new GoMutex()"
+		case "crypto.Key":
+			return "(Native.Key)null"
 		}
 		panic("csharp harness: pointer to " + t.Elem.Name)
 	case "slice":
@@ -70,6 +72,10 @@ func csDecode(t *contracts.TypeExpr, raw string) string {
 
 func csEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "encKey(" + v + ")"
+		}
 	case "chan":
 		return fmt.Sprintf("encChan(%s, e => %s)", v, csEncode(t.Elem, "e"))
 	case "slice":
@@ -134,6 +140,11 @@ func csHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		}
 		call := unsetU.ReplaceAllString(expand(ci.impl.Harness, args, vars), "")
 		switch {
+		case strings.HasPrefix(call, "host:"):
+			fmt.Fprintf(&b, "        object[] rv = host(t => { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "host:")))
+			for i := range ci.outs {
+				fmt.Fprintf(&b, "        var r%d = rv[%d];\n", i, i)
+			}
 		case strings.HasPrefix(call, "await:"):
 			fmt.Fprintf(&b, "        object[] rv = R.runIsolated(t => { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
 			for i := range ci.outs {

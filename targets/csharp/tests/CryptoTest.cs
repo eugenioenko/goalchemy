@@ -1,0 +1,33 @@
+using System;using System.IO;using System.Linq;using System.Text;using System.Security.Cryptography;using System.Formats.Asn1;
+namespace Rt;
+
+/// Published vectors and independently generated native Go interoperability fixtures.
+static class CryptoTest
+{
+ static int checks;static byte[] H(string value)=>Convert.FromHexString(value);static void Check(bool value,string name){checks++;if(!value)throw new Exception("ASSERT: "+name);}static void Eq(byte[] value,string hex,string name)=>Check(value.SequenceEqual(H(hex)),name);static void Reject(Action work,string name){try{work();throw new Exception("accepted: "+name);}catch(Native.Reject){checks++;}}
+ static byte[] Raw(byte[] der){var reader=new AsnReader(der,AsnEncodingRules.DER);var seq=reader.ReadSequence();byte[] r=seq.ReadIntegerBytes().ToArray(),s=seq.ReadIntegerBytes().ToArray();seq.ThrowIfNotEmpty();reader.ThrowIfNotEmpty();var raw=new byte[64];if(r.Length==33)r=r[1..];if(s.Length==33)s=s[1..];r.CopyTo(raw,32-r.Length);s.CopyTo(raw,64-s.Length);return raw;}
+ static byte[] Der(byte[] raw){var writer=new AsnWriter(AsnEncodingRules.DER);writer.PushSequence();writer.WriteIntegerUnsigned(raw.AsSpan(0,32));writer.WriteIntegerUnsigned(raw.AsSpan(32,32));writer.PopSequence();return writer.Encode();}
+ public static void Main(string[] args)
+ {
+  Eq(Crypto.sha(Array.Empty<byte>()),"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","SHA empty");Eq(Crypto.sha(H("616263")),"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","SHA abc");Eq(Crypto.hmac(Array.Empty<byte>(),Array.Empty<byte>()),"b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad","HMAC empty");var key=Enumerable.Repeat((byte)11,20).ToArray();Eq(Crypto.hmac(key,Encoding.ASCII.GetBytes("Hi There")),"b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7","RFC4231");var secret=Enumerable.Repeat((byte)11,22).ToArray();Eq(Crypto.hkdf(secret,H("000102030405060708090a0b0c"),H("f0f1f2f3f4f5f6f7f8f9"),42),"3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865","RFC5869");Eq(Crypto.hkdf(secret,Array.Empty<byte>(),Array.Empty<byte>(),42),"8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8","HKDF empty");Check(Crypto.hkdf(secret,key,key,0).Length==0,"HKDF0");Reject(()=>Crypto.hkdf(key,key,key,8161),"HKDF bound");var cipher=Crypto.aes(new byte[32],new byte[12],new byte[16],Array.Empty<byte>(),true);Eq(cipher,"cea7403d4d606b6e074ec5d3baf39d18d0d1c8a799996bf0265b98b5d48ab919","NIST AES");Check(Crypto.aes(new byte[32],new byte[12],cipher,Array.Empty<byte>(),false).SequenceEqual(new byte[16]),"AES decrypt");cipher[0]^=1;Reject(()=>Crypto.aes(new byte[32],new byte[12],cipher,Array.Empty<byte>(),false),"AES badtag");
+  foreach(string input in new[]{"A","Zg=","Zh==","Zg==\n","Zg== ","-_=="})Check(R.libEncodingBase64Decode(input)[1]!=null,"strict base64");foreach(string input in new[]{"Zg=","Zh","Zg\n","+w","/w"})Check(R.libEncodingBase64UrlDecode(input)[1]!=null,"strict url64");Check(((Slice)R.libEncodingBase64Decode("")[0]).l==0,"empty encoding");
+  string dir=args[0];var properties=File.ReadAllLines(Path.Combine(dir,"native.properties")).Select(v=>v.Split('=',2)).ToDictionary(v=>v[0],v=>Convert.FromBase64String(v[1]));byte[] data=properties["data"];
+  foreach(string name in new[]{"rsa","ec"})
+  {
+   bool ec=name=="ec";var material=Crypto.importPEM(File.ReadAllText(Path.Combine(dir,name+"-private.pem")));var certificate=Crypto.importPEM(File.ReadAllText(Path.Combine(dir,name+"-cert.pem")));
+   using(var own=material.acquire())using(var cert=certificate.acquire())
+   {
+    Check(own.publicDer.SequenceEqual(cert.publicDer),"certificate "+name);var jwk=Crypto.jwk(own);string canonical=ec?"{\"crv\":\""+jwk[1]+"\",\"kty\":\""+jwk[0]+"\",\"x\":\""+jwk[4]+"\",\"y\":\""+jwk[5]+"\"}":"{\"e\":\""+jwk[3]+"\",\"kty\":\""+jwk[0]+"\",\"n\":\""+jwk[2]+"\"}";Check(Encoding.ASCII.GetBytes(canonical).SequenceEqual(properties[name+"-jwk"]),"Go JWK "+name);Check(Crypto.verify(cert,data,ec?Raw(properties[name+"-signature"]):properties[name+"-signature"],ec),"Go signature "+name);var sig=Crypto.sign(own,data,ec);File.WriteAllBytes(Path.Combine(dir,name+"-java-signature.bin"),ec?Der(sig):sig);sig[0]^=1;Check(!Crypto.verify(cert,data,sig,ec),"bad signature");
+    if(!ec){Check(Crypto.rsa(own,properties["rsa-cipher"],false).SequenceEqual(data),"Go OAEP");File.WriteAllBytes(Path.Combine(dir,"rsa-java-cipher.bin"),Crypto.rsa(cert,data,true));Reject(()=>Crypto.rsa(cert,new byte[215],true),"RSA bound");using var native=RSA.Create();native.ImportPkcs8PrivateKey(own.privateDer,out _);foreach(var tuple in new[]{("RSA PRIVATE KEY",native.ExportRSAPrivateKey()),("RSA PUBLIC KEY",native.ExportRSAPublicKey())}){var imported=Crypto.importPEM(PemEncoding.WriteString(tuple.Item1,tuple.Item2));using(var lease=imported.acquire())Check(Crypto.jwk(lease).SequenceEqual(jwk),"PKCS1 "+tuple.Item1);imported.close();}}
+    else
+    {
+     var peer=Crypto.importPEM(File.ReadAllText(Path.Combine(dir,"ec-peer-public.pem")));using(var lease=peer.acquire()){var agreement=Crypto.ecdh(own,lease);Check(agreement.SequenceEqual(properties["ecdh"]),"Go ECDH");File.WriteAllBytes(Path.Combine(dir,"ecdh-java.bin"),agreement);}peer.close();
+     using var native=ECDsa.Create();native.ImportPkcs8PrivateKey(own.privateDer,out _);var p=native.ExportParameters(true);var outer=new AsnWriter(AsnEncodingRules.DER);outer.PushSequence();outer.WriteInteger(0);outer.PushSequence();outer.WriteObjectIdentifier("1.2.840.10045.2.1");outer.WriteObjectIdentifier("1.2.840.10045.3.1.7");outer.PopSequence();var inner=new AsnWriter(AsnEncodingRules.DER);inner.PushSequence();inner.WriteInteger(1);inner.WriteOctetString(p.D);inner.PopSequence();outer.WriteOctetString(inner.Encode());outer.PopSequence();var noQ=Crypto.importPEM(PemEncoding.WriteString("PRIVATE KEY",outer.Encode()));using(var lease=noQ.acquire())Check(Crypto.jwk(lease).SequenceEqual(jwk),"omitted Q native derive");noQ.close();
+     using var wrong=ECDsa.Create(ECCurve.NamedCurves.nistP384);Reject(()=>Crypto.importPEM(PemEncoding.WriteString("PRIVATE KEY",wrong.ExportPkcs8PrivateKey())),"wrong curve");
+    }
+   }
+   material.close();certificate.close();
+  }
+  byte[] derived=Crypto.hkdf(properties["secret"],properties["salt"],properties["info"],42);Check(derived.SequenceEqual(properties["hkdf"]),"Go HKDF");File.WriteAllBytes(Path.Combine(dir,"hkdf-java.bin"),derived);Console.WriteLine("{\"status\":\"pass\",\"checks\":"+checks+",\"runtime\":\""+Environment.Version+"\"}");
+ }
+}

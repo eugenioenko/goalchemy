@@ -154,7 +154,8 @@ public static class Program
         return new GoPanic(new Box(Panics.TYPE_ASSERTION_ERROR, msg));
     }
 
-    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, Dictionary<string, Ref>> refs = new();
+    static System.Runtime.CompilerServices.ConditionalWeakTable<object, Dictionary<string, Ref>> refs = new();
+    public static void clearFieldRefs() => refs.Clear();
 
     /// <summary>The canonical pointer to a struct field, so pointer equality holds.</summary>
     public static Ref fieldRef(object o, string k, Func<object, object> get, Action<object, object> set)
