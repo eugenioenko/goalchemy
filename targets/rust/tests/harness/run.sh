@@ -13,5 +13,5 @@ cp "$root"/tests/harness/*.rs "$out/"
     printf '#[path = "%s/%s.rs"]\npub mod %s;\npub use %s::*;\n' "$d" "$n" "$n" "$n"
   done
 } > "$out/rt/mod.rs"
-rustc --edition 2021 -C opt-level=1 -C debuginfo=0 -o "$out/harness" "$out/main.rs" >&2
-"$out/harness"
+cp "$root/tests/harness/Cargo.toml" "$out/Cargo.toml"
+CARGO_TARGET_DIR="$root/../../out/rust-tdf-library/sdk/target" cargo run --offline --quiet --release --manifest-path "$out/Cargo.toml"

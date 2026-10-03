@@ -1,0 +1,33 @@
+package fixture
+import("github.com/eugenioenko/goalchemy/lib/context";"github.com/eugenioenko/goalchemy/lib/callback";"github.com/eugenioenko/goalchemy/lib/crypto";"github.com/eugenioenko/goalchemy/lib/encoding")
+type Value struct{Bytes []byte;Text string;Numbers []int64;Items []Item}
+type Item struct{Data []byte;Count int64}
+type Empty struct{}
+type NestedEmpty struct{Items []Empty}
+func CountEmpty(v []Empty)int64{return int64(len(v))}
+func CountNestedEmpty(v []NestedEmpty)int64{return int64(len(v[0].Items))}
+func EchoArrays(v [2]byte,records [2]Empty)[2]byte{return v}
+var initialized=1
+func Echo(ctx context.Context,v Value)(Value,error){initialized++;return v,nil}
+func Fresh()int64{return int64(initialized)}
+func Panic(){panic("owned panic")}
+func Provider(ctx context.Context,name string,payload []byte)([]byte,error){return callback.Request(ctx,name,payload)}
+func SHA(b []byte)([]byte,error){return crypto.SHA256(b)}
+func HMAC(k,b []byte)([]byte,error){return crypto.HMACSHA256(k,b)}
+func MAC(k,b,mac []byte)(bool,error){return crypto.HMACSHA256Verify(k,b,mac)}
+func HKDF(secret,salt,info []byte,n int)([]byte,error){return crypto.HKDFSHA256(secret,salt,info,n)}
+func AES(k,n,b,aad []byte,decrypt bool)([]byte,error){if decrypt{return crypto.AES256GCMDecrypt(k,n,b,aad)};return crypto.AES256GCMEncrypt(k,n,b,aad)}
+func Generate(alg string)(string,string,error){var k *crypto.Key;var e error;if alg=="RSA"{k,e=crypto.GenerateRSA2048()}else{k,e=crypto.GenerateP256()};if e!=nil{return "","",e};defer k.Close();p,e:=k.PrivatePEM();if e!=nil{return "","",e};q,e:=k.PublicPEM();return p,q,e}
+func Public(pem string)(string,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return "",e};defer k.Close();return k.PublicPEM()}
+func Private(pem string)(string,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return "",e};defer k.Close();return k.PrivatePEM()}
+func JWK(pem string)([]string,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return nil,e};defer k.Close();return k.PublicJWK()}
+func Sign(alg,pem string,msg []byte)([]byte,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return nil,e};defer k.Close();if alg=="RSA"{return crypto.RS256Sign(k,msg)};return crypto.ES256Sign(k,msg)}
+func Verify(alg,pem string,msg,sig []byte)(bool,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return false,e};defer k.Close();if alg=="RSA"{return crypto.RS256Verify(k,msg,sig)};return crypto.ES256Verify(k,msg,sig)}
+func OAEP(pem string,msg []byte,decrypt bool)([]byte,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return nil,e};defer k.Close();if decrypt{return crypto.RSAOAEPDecrypt(k,msg)};return crypto.RSAOAEPEncrypt(k,msg)}
+func ECDH(p,q string)([]byte,error){a,e:=crypto.ImportPEM(p);if e!=nil{return nil,e};defer a.Close();b,e:=crypto.ImportPEM(q);if e!=nil{return nil,e};defer b.Close();return crypto.ECDH(a,b)}
+func AliasClose()bool{k,e:=crypto.GenerateP256();if e!=nil{return false};alias:=k;k.Close();k.Close();_,e=alias.PublicPEM();return e!=nil}
+func Encoding(b []byte,text string,url,decode bool)([]byte,string,error){if decode{var out []byte;var e error;if url{out,e=encoding.Base64URLDecode(text)}else{out,e=encoding.Base64Decode(text)};return out,"",e};var out string;var e error;if url{out,e=encoding.Base64URLEncode(b)}else{out,e=encoding.Base64Encode(b)};return nil,out,e}
+func InvalidImportIsNil()bool{k,e:=crypto.ImportPEM("bad");return k==nil&&e!=nil}
+func InvalidImportHasNilKey(pem string)bool{k,e:=crypto.ImportPEM(pem);return k==nil&&e!=nil&&e.Error()=="crypto: invalid input or key"}
+
+func PanicBinary(){panic(string([]byte{255,0,128}))}

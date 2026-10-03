@@ -41,6 +41,8 @@ func rustDecode(t *contracts.TypeExpr, raw string) string {
 			return "new_waitgroup()"
 		case "sync.Mutex":
 			return "new_mutex()"
+		case "crypto.Key":
+			return "V::Nil"
 		}
 		panic("rust harness: pointer to " + t.Elem.Name)
 	case "slice":
@@ -68,6 +70,10 @@ func rustDecode(t *contracts.TypeExpr, raw string) string {
 
 func rustEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "enc_native_key(" + v + ")"
+		}
 	case "chan":
 		return fmt.Sprintf("enc_chan(%s, &|e: &V| %s)", v, rustEncode(t.Elem, "e"))
 	case "slice":
@@ -138,6 +144,11 @@ func rustHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 		}
 		call := unsetU.ReplaceAllString(expand(ci.impl.Harness, args, vars), "")
 		switch {
+		case strings.HasPrefix(call, "host:"):
+			fmt.Fprintf(&b, "    let rv = run_host_isolated(move |t: &Rc<Task>| { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "host:")))
+			for i := range ci.outs {
+				fmt.Fprintf(&b, "    let r%d = rv[%d].clone();\n", i, i)
+			}
 		case strings.HasPrefix(call, "await:"):
 			fmt.Fprintf(&b, "    let rv = run_isolated(move |t: &Rc<Task>| { %s; });\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
 			for i := range ci.outs {

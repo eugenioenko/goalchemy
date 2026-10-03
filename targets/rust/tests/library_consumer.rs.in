@@ -1,0 +1,337 @@
+use goalchemy_generated::*;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+fn hx(s: &str) -> Vec<u8> {
+    s.as_bytes()
+        .chunks(2)
+        .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+        .collect()
+}
+fn o() -> CallOptions {
+    CallOptions::default()
+}
+fn main() {
+    let mut checks = 0;
+    let mut check = |v: bool| {
+        assert!(v);
+        checks += 1
+    };
+    let value = Value {
+        Bytes: vec![0, 255, 128],
+        Text: vec![0, 255],
+        Numbers: vec![i64::MIN, i64::MAX, 9007199254740993],
+        Items: vec![Item {
+            Data: vec![0, 255],
+            Count: i64::MIN,
+        }],
+    };
+    let shared = o();
+    check(Echo(value.clone(), shared.clone()).wait().unwrap() == value);
+    check(Echo(value.clone(), shared).wait().unwrap() == value);
+    let mut input = value.clone();
+    let work = Echo(input.clone(), o());
+    input.Bytes.fill(7);
+    check(work.wait().unwrap() == value);
+    for _ in 0..4 {
+        check(Fresh(o()).wait().unwrap() == 1)
+    }
+    check(Panic(o()).wait().unwrap_err().kind == ErrorKind::SourcePanic);
+    let error = PanicBinary(o()).wait().unwrap_err();
+    check(error.diagnostic.windows(3).any(|v| v == [255, 0, 128]));
+    check(Fresh(o()).wait().unwrap() == 1);
+    check(CountEmpty(vec![Empty::default(); 3], o()).wait().unwrap() == 3);
+    check(
+        EchoArrays(vec![0, 255], vec![Empty::default(); 2], o())
+            .wait()
+            .unwrap()
+            == vec![0, 255],
+    );
+    check(
+        EchoArrays(vec![0], vec![Empty::default(); 2], o())
+            .wait()
+            .unwrap_err()
+            .kind
+            == ErrorKind::InvalidArgument,
+    );
+    if usize::BITS > 32 {
+        let huge_length = usize::try_from(u64::from(u32::MAX) + 1).unwrap();
+        assert_eq!(std::mem::size_of::<Empty>(), 0);
+        let huge = vec![Empty::default(); huge_length];
+        assert_eq!(huge.len(), huge_length);
+        let error = CountEmpty(huge, o()).wait().unwrap_err();
+        check(error.kind == ErrorKind::InvalidArgument);
+        check(error.message.contains("source descriptor"));
+        check(
+            CountNestedEmpty(
+                vec![NestedEmpty {
+                    Items: vec![Empty::default(); huge_length],
+                }],
+                o(),
+            )
+            .wait()
+            .unwrap_err()
+            .kind
+                == ErrorKind::InvalidArgument,
+        );
+        check(
+            EchoArrays(vec![0, 255], vec![Empty::default(); huge_length], o())
+                .wait()
+                .unwrap_err()
+                .kind
+                == ErrorKind::InvalidArgument,
+        );
+        check(Fresh(o()).wait().unwrap() == 1);
+        check(Echo(value.clone(), o()).wait().unwrap() == value);
+    }
+    check(
+        SHA(b"abc".to_vec(), o()).wait().unwrap()
+            == hx("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+    );
+    check(
+        HMAC(vec![0x0b; 20], b"Hi There".to_vec(), o())
+            .wait()
+            .unwrap()
+            == hx("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"),
+    );
+    let secret = vec![0x0b; 22];
+    let salt = (0..13).collect();
+    let info = (0xf0..=0xf9).collect();
+    let want =
+        hx("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865");
+    check(HKDF(secret, salt, info, 42, o()).wait().unwrap() == want);
+    check(
+        HKDF(vec![], vec![], vec![], 0, o())
+            .wait()
+            .unwrap()
+            .is_empty(),
+    );
+    check(HKDF(vec![], vec![], vec![], 8161, o()).wait().is_err());
+    let key = vec![0; 32];
+    let nonce = vec![0; 12];
+    let ciphertext = AES(key.clone(), nonce.clone(), vec![0; 16], vec![], false, o())
+        .wait()
+        .unwrap();
+    check(ciphertext == hx("cea7403d4d606b6e074ec5d3baf39d18d0d1c8a799996bf0265b98b5d48ab919"));
+    check(
+        AES(
+            key.clone(),
+            nonce.clone(),
+            ciphertext.clone(),
+            vec![],
+            true,
+            o(),
+        )
+        .wait()
+        .unwrap()
+            == vec![0; 16],
+    );
+    let mut tampered = ciphertext;
+    tampered[0] ^= 1;
+    check(AES(key, nonce, tampered, vec![], true, o()).wait().is_err());
+    let mac = HMAC(vec![], vec![], o()).wait().unwrap();
+    check(MAC(vec![], vec![], mac.clone(), o()).wait().unwrap());
+    for i in 0..32 {
+        let mut changed = mac.clone();
+        changed[i] ^= 1;
+        check(!MAC(vec![], vec![], changed, o()).wait().unwrap())
+    }
+    check(MAC(vec![], vec![], vec![0; 31], o()).wait().is_err());
+    check(AliasClose(o()).wait().unwrap());
+    check(InvalidImportIsNil(o()).wait().unwrap());
+    for url in [false, true] {
+        let (bytes, text) = Encoding(vec![0, 255, 128], vec![], url, false, o())
+            .wait()
+            .unwrap();
+        check(bytes.is_empty());
+        let (back, _) = Encoding(vec![], text, url, true, o()).wait().unwrap();
+        check(back == vec![0, 255, 128]);
+        for bad in ["A", "Zg==\n", "Zh==", "Zg="] {
+            check(
+                Encoding(vec![], bad.as_bytes().to_vec(), url, true, o())
+                    .wait()
+                    .is_err(),
+            )
+        }
+    }
+    let native = std::path::PathBuf::from(std::env::var("RUST_NATIVE_PROOF").unwrap());
+    let read = |n: &str| std::fs::read(native.join(n)).unwrap();
+    let message = read("message");
+    check(mac == read("hmac.empty"));
+    std::fs::write(native.join("hmac.rust.empty"), &mac).unwrap();
+    for name in [
+        "rsa.exponent-one.pem",
+        "rsa.exponent-even.pem",
+        "rsa.exponent-overflow.pem",
+        "rsa.inconsistent-d.pem",
+        "rsa.inconsistent-prime.pem",
+        "ec.inconsistent-point.pem",
+        "ec.zero-scalar.pem",
+    ] {
+        check(InvalidImportHasNilKey(read(name), o()).wait().unwrap());
+        let error = Public(read(name), o()).wait().unwrap_err();
+        check(error.kind == ErrorKind::Source && error.message == "crypto: invalid input or key");
+        check(Fresh(o()).wait().unwrap() == 1);
+    }
+    for name in [
+        "rsa.exponent-three.pem",
+        "ec.omitted-point.pem",
+        "rsa.valid-private.pem",
+        "ec.valid-private.pem",
+    ] {
+        check(Public(read(name), o()).wait().is_ok());
+    }
+    for alg in ["rsa", "ec"] {
+        let private = read(&format!("{alg}.private.pem"));
+        let public = read(&format!("{alg}.public.pem"));
+        let name = if alg == "rsa" {
+            b"RSA".to_vec()
+        } else {
+            b"EC".to_vec()
+        };
+        check(Public(private.clone(), o()).wait().unwrap() == public);
+        check(Private(private.clone(), o()).wait().unwrap() == private);
+        check(Private(public.clone(), o()).wait().is_err());
+        check(
+            Verify(
+                name.clone(),
+                public.clone(),
+                message.clone(),
+                read(&format!("{alg}.go.sig")),
+                o(),
+            )
+            .wait()
+            .unwrap(),
+        );
+        let sig = Sign(name.clone(), private.clone(), message.clone(), o())
+            .wait()
+            .unwrap();
+        std::fs::write(native.join(format!("{alg}.rust.sig")), &sig).unwrap();
+        check(
+            Verify(
+                name.clone(),
+                public.clone(),
+                message.clone(),
+                sig.clone(),
+                o(),
+            )
+            .wait()
+            .unwrap(),
+        );
+        let mut changed = sig;
+        changed[0] ^= 1;
+        check(
+            !Verify(name.clone(), public.clone(), message.clone(), changed, o())
+                .wait()
+                .unwrap(),
+        );
+        check(
+            Verify(name, public.clone(), message.clone(), vec![0; 1], o())
+                .wait()
+                .is_err(),
+        );
+        check(
+            JWK(private, o()).wait().unwrap()[0]
+                == if alg == "rsa" {
+                    b"RSA".to_vec()
+                } else {
+                    b"EC".to_vec()
+                },
+        );
+        for suffix in [b"garbage".as_slice(), public.as_slice()] {
+            let mut invalid = public.clone();
+            invalid.extend(suffix);
+            check(Public(invalid, o()).wait().is_err())
+        }
+    }
+    for label in [
+        "rsa.pkcs1-private.pem",
+        "rsa.pkcs1-public.pem",
+        "rsa.cert.pem",
+    ] {
+        check(Public(read(label), o()).wait().unwrap() == read("rsa.public.pem"))
+    }
+    check(
+        OAEP(read("rsa.private.pem"), read("rsa.go.oaep"), true, o())
+            .wait()
+            .unwrap()
+            == message,
+    );
+    let ct = OAEP(read("rsa.public.pem"), message.clone(), false, o())
+        .wait()
+        .unwrap();
+    std::fs::write(native.join("rsa.rust.oaep"), ct).unwrap();
+    check(
+        OAEP(read("rsa.public.pem"), vec![0; 215], false, o())
+            .wait()
+            .is_err(),
+    );
+    check(
+        ECDH(read("ec.private.pem"), read("peer.public.pem"), o())
+            .wait()
+            .unwrap()
+            == read("ec.go.ecdh"),
+    );
+    check(
+        ECDH(read("ec.public.pem"), read("peer.public.pem"), o())
+            .wait()
+            .is_err(),
+    );
+    let started = Arc::new(AtomicBool::new(false));
+    let released = Arc::new(AtomicBool::new(false));
+    let s = started.clone();
+    let r = released.clone();
+    let mut opt = o();
+    opt.providers.insert(
+        "hold".into(),
+        Arc::new(move |request| {
+            s.store(true, Ordering::Release);
+            while !request.cancellation.is_canceled() {
+                std::thread::sleep(Duration::from_millis(1))
+            }
+            std::thread::sleep(Duration::from_millis(30));
+            r.store(true, Ordering::Release);
+            Err(ProviderError::Rejected("stopped".into()))
+        }),
+    );
+    let active = Provider(b"hold".to_vec(), vec![0, 255], opt);
+    for _ in 0..10000 {
+        if started.load(Ordering::Acquire) {
+            break;
+        };
+        std::thread::sleep(Duration::from_millis(1))
+    }
+    check(started.load(Ordering::Acquire));
+    let queued = Echo(value.clone(), o());
+    queued.cancel();
+    check(queued.wait().unwrap_err().kind == ErrorKind::Canceled);
+    check(!released.load(Ordering::Acquire));
+    active.cancel();
+    check(active.wait().unwrap_err().kind == ErrorKind::Canceled);
+    check(released.load(Ordering::Acquire));
+    let mut opt = o();
+    opt.providers.insert(
+        "fault".into(),
+        Arc::new(|_| Err(ProviderError::Fault("native provider fault".into()))),
+    );
+    check(
+        Provider(b"fault".to_vec(), vec![], opt)
+            .wait()
+            .unwrap_err()
+            .kind
+            == ErrorKind::HostFault,
+    );
+    check(Echo(value.clone(), o()).wait().unwrap() == value);
+    let mut opt = o();
+    opt.providers
+        .insert("success".into(), Arc::new(|r| Ok(r.payload)));
+    check(
+        Provider(b"success".to_vec(), vec![0, 255], opt)
+            .wait()
+            .unwrap()
+            == vec![0, 255],
+    );
+    println!("PASS {checks} independent generated Rust boundary, native vectors, Go interchange and lifecycle checks");
+}

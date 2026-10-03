@@ -186,3 +186,5 @@ pub fn new_spawn_check() -> V {
 pub fn harness_select2(t: &Rc<Task>, a: V, b: V, dflt: V) {
     select(t, dflt.b(), vec![scase(a, false, V::Nil), scase(b, false, V::Nil)])
 }
+
+pub fn enc_native_key(v:&V)->J{if v.is_nil(){J::obj(vec![("nil",J::Bool(true))])}else{J::obj(vec![("opaque",J::Bool(true))])}}

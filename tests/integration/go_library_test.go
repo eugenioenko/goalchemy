@@ -157,7 +157,7 @@ func TestGoLibraryRejectsUnsupportedPublicBoundary(t *testing.T) {
 	for _, target := range []string{"python", "java", "csharp", "rust"} {
 		ds := testutil.CompileGate(fixture, target, t.TempDir(), "cooperative")
 		want := "GCE006"
-		if target == "java" || target == "csharp" || target == "python" {
+		if target == "java" || target == "csharp" || target == "python" || target == "rust" {
 			want = "GCE007"
 		}
 		if len(ds) != 1 || ds[0].Code != want {

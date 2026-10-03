@@ -78,7 +78,8 @@ fn next() -> Rc<Task> {
             if sched(|s| !s.runq.is_empty()) { continue }
             let now = clock_now();
             let deadline = sched(|s| s.timers.iter().map(|t| t.at).chain(s.pending.values().filter_map(|p| p.boundary.deadline.filter(|_| !p.canceled))).min());
-            mailbox.wait(version, deadline.map(|d| Duration::from_nanos(d.saturating_sub(now).max(0) as u64)));
+            let wait = deadline.map(|d| Duration::from_nanos(d.saturating_sub(now).max(0) as u64));
+            mailbox.wait(version, if host_poll_active() {Some(wait.unwrap_or(Duration::from_millis(5)).min(Duration::from_millis(5)))} else {wait});
             continue;
         }
         if !timers {
@@ -311,7 +312,7 @@ fn install(main: Rc<Task>, harness: bool) {
 }
 #[derive(Debug, PartialEq)]
 pub enum HostError { Fault(String), Fatal(String), SourcePanic(Vec<u8>), Blocked }
-fn classify(e: Box<dyn std::any::Any + Send>) -> HostError {
+pub fn classify(e: Box<dyn std::any::Any + Send>) -> HostError {
     if let Some(p) = e.downcast_ref::<GoPanicPayload>() {
         let p = V::Obj(p.0); let _root = temp_root(&[p.clone()]);
         return match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| format_chain(&p))) {
@@ -499,6 +500,7 @@ fn cancel_pending() -> Result<(), String> {
     failure.map_or(Ok(()), Err)
 }
 fn dispatch_host() {
+    poll_host();
     fire_timers(true);
     cancel_pending().unwrap_or_else(|e| host_fault(&e));
     let mailbox = sched(|s| s.mailbox.clone());
@@ -596,4 +598,16 @@ fn detach_owner_frames(tasks: &[Rc<Task>]) {
         owned.push(f);
     }
     for f in owned {f.parent.replace(None);f.a.replace(None);f.b.replace(None);f.panicking.replace(V::Nil);f.prim.borrow_mut().take();f.l.clear();}
+}
+
+thread_local! { static HOST_POLL: RefCell<Option<Rc<dyn Fn()>>> = RefCell::new(None); }
+pub fn set_host_poll(p:Option<Rc<dyn Fn()>>){HOST_POLL.with(|x|*x.borrow_mut()=p);}
+fn host_poll_active()->bool{HOST_POLL.with(|x|x.borrow().is_some())}
+fn poll_host(){let p=HOST_POLL.with(|x|x.borrow().clone());if let Some(p)=p{p()}}
+pub fn library_install(){install(Task::new(0,None),false);sched(|s|s.epoch=Some(Instant::now()));}
+pub fn library_run(main:&Rc<Task>){while !main.done.get(){let t=next();run(&t);safepoint();}}
+
+/// Harness-only owner-local values; production library returns detached native types.
+pub fn run_host_isolated(prim:impl FnOnce(&Rc<Task>)+'static)->Vec<V>{
+ let _reservation=reserve_entry().unwrap_or_else(|e|host_fault(&e.0));let mut output=Vec::new();let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||{let h=Frame::new(1,await_step,Some(await_results));h.prim.replace(Some(Box::new(prim)));let main=Task::new(0,Some(h.clone()));install(main.clone(),true);sched(|s|s.epoch=Some(Instant::now()));ready(&main);while !main.done.get(){let t=next();run(&t)};output=await_results(&h)}));let _roots=temp_root(&output);let retirement=retire_owner();if let Err(e)=result{std::panic::resume_unwind(e)};retirement.unwrap_or_else(|e|host_fault(&e));output
 }

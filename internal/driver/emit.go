@@ -39,7 +39,7 @@ func Emit(name string, res *Result, out string) (ds []diagnostics.Diagnostic) {
 		return []diagnostics.Diagnostic{{Code: "GCE001", Severity: diagnostics.Error, Feature: "target",
 			Message: "unknown or unimplemented target " + name, Remedy: "Choose one of: " + joinTargets()}}
 	}
-	if res.IR != nil && res.IR.Library && name != "c" && name != "go" && name != "typescript" && name != "java" && name != "csharp" && name != "python" && name != "ir" {
+	if res.IR != nil && res.IR.Library && name != "c" && name != "go" && name != "typescript" && name != "java" && name != "csharp" && name != "python" && name != "rust" && name != "ir" {
 		return []diagnostics.Diagnostic{{Code: "GCE006", Severity: diagnostics.Error, Feature: "library build",
 			Message: "target " + name + " cannot build a library; only the go, typescript, java, csharp, python and c targets export a library API",
 			Remedy:  "Compile package main for this target, or use -target go, -target typescript, -target java, -target csharp, -target python or -target c for a library."}}

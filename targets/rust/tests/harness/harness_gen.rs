@@ -1576,6 +1576,300 @@ fn case_157(h: &H) -> Vec<J> {
 }
 
 fn case_158(h: &H) -> Vec<J> {
+    let v_key = dec_byte_slice(h.let_("key"));
+    let v_nonce = dec_byte_slice(h.let_("nonce"));
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_aad = dec_byte_slice(h.let_("aad"));
+    let _roots = temp_root(&[v_key.clone(), v_nonce.clone(), v_data.clone(), v_aad.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_nonce.clone();
+    let a2 = v_data.clone();
+    let a3 = v_aad.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_aes256_gcm_decrypt(t, a0.clone(), a1.clone(), a2.clone(), a3.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_159(h: &H) -> Vec<J> {
+    let v_key = dec_byte_slice(h.let_("key"));
+    let v_nonce = dec_byte_slice(h.let_("nonce"));
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_aad = dec_byte_slice(h.let_("aad"));
+    let _roots = temp_root(&[v_key.clone(), v_nonce.clone(), v_data.clone(), v_aad.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_nonce.clone();
+    let a2 = v_data.clone();
+    let a3 = v_aad.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_aes256_gcm_encrypt(t, a0.clone(), a1.clone(), a2.clone(), a3.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_160(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let _roots = temp_root(&[v_key.clone()]);
+    let a0 = v_key.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_close(t,a0.clone()); });
+    vec![]
+}
+
+fn case_161(h: &H) -> Vec<J> {
+    let v_private_key = V::Nil;
+    let v_public_key = V::Nil;
+    let _roots = temp_root(&[v_private_key.clone(), v_public_key.clone()]);
+    let a0 = v_private_key.clone();
+    let a1 = v_public_key.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_ecdh(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_162(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es256_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_163(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es256_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_164(h: &H) -> Vec<J> {
+    let v_secret = dec_byte_slice(h.let_("secret"));
+    let v_salt = dec_byte_slice(h.let_("salt"));
+    let v_info = dec_byte_slice(h.let_("info"));
+    let v_n = dec_int(h.let_("n"), "i64");
+    let _roots = temp_root(&[v_secret.clone(), v_salt.clone(), v_info.clone(), v_n.clone()]);
+    let a0 = v_secret.clone();
+    let a1 = v_salt.clone();
+    let a2 = v_info.clone();
+    let a3 = v_n.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_hkdf_sha256(t, a0.clone(), a1.clone(), a2.clone(), a3.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_165(h: &H) -> Vec<J> {
+    let v_key = dec_byte_slice(h.let_("key"));
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_hmac_sha256(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_166(h: &H) -> Vec<J> {
+    let v_key = dec_byte_slice(h.let_("key"));
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_mac = dec_byte_slice(h.let_("mac"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_mac.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_mac.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_hmac_sha256_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_167(h: &H) -> Vec<J> {
+    let v_data = dec_string(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_import_pem(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_native_key(&r0), enc_error(&r1)]
+}
+
+fn case_168(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let _roots = temp_root(&[v_key.clone()]);
+    let a0 = v_key.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_private_pem(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_string(&r0), enc_error(&r1)]
+}
+
+fn case_169(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let _roots = temp_root(&[v_key.clone()]);
+    let a0 = v_key.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_public_jwk(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_string(e)), enc_error(&r1)]
+}
+
+fn case_170(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let _roots = temp_root(&[v_key.clone()]);
+    let a0 = v_key.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_public_pem(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_string(&r0), enc_error(&r1)]
+}
+
+fn case_171(h: &H) -> Vec<J> {
+    let v_n = dec_int(h.let_("n"), "i64");
+    let _roots = temp_root(&[v_n.clone()]);
+    let a0 = v_n.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_random(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_172(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs256_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_173(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs256_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_174(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rsa_oaep_decrypt(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_175(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rsa_oaep_encrypt(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_176(h: &H) -> Vec<J> {
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_sha256(t, a0.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_177(h: &H) -> Vec<J> {
+    let v_data = dec_string(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = lib_encoding_base64_decode(a0.clone());
+    let r0 = rv.at(0);
+    let r1 = rv.at(1);
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_178(h: &H) -> Vec<J> {
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = lib_encoding_base64_encode(a0.clone());
+    let r0 = rv.at(0);
+    let r1 = rv.at(1);
+    vec![enc_string(&r0), enc_error(&r1)]
+}
+
+fn case_179(h: &H) -> Vec<J> {
+    let v_data = dec_string(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = lib_encoding_base64_url_decode(a0.clone());
+    let r0 = rv.at(0);
+    let r1 = rv.at(1);
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_180(h: &H) -> Vec<J> {
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_data.clone()]);
+    let a0 = v_data.clone();
+    let rv = lib_encoding_base64_url_encode(a0.clone());
+    let r0 = rv.at(0);
+    let r1 = rv.at(1);
+    vec![enc_string(&r0), enc_error(&r1)]
+}
+
+fn case_181(h: &H) -> Vec<J> {
+    let v_ctx = std_context_background();
+    let v_method = dec_string(h.let_("method"));
+    let v_url = dec_string(h.let_("url"));
+    let v_headers = dec_slice(h.let_("headers"), &|r: &J| dec_string(r), zero_string);
+    let v_body = dec_byte_slice(h.let_("body"));
+    let v_max_response_bytes = dec_int(h.let_("max_response_bytes"), "i64");
+    let v_timeout_millis = dec_int(h.let_("timeout_millis"), "i64");
+    let _roots = temp_root(&[v_ctx.clone(), v_method.clone(), v_url.clone(), v_headers.clone(), v_body.clone(), v_max_response_bytes.clone(), v_timeout_millis.clone()]);
+    let a0 = v_ctx.clone();
+    let a1 = v_method.clone();
+    let a2 = v_url.clone();
+    let a3 = v_headers.clone();
+    let a4 = v_body.clone();
+    let a5 = v_max_response_bytes.clone();
+    let a6 = v_timeout_millis.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_http_do(t,a0.clone(),a1.clone(),a2.clone(),a3.clone(),a4.clone(),a5.clone(),a6.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    let r2 = rv[2].clone();
+    let r3 = rv[3].clone();
+    vec![enc_int(&r0, "i64"), enc_slice(&r1, &|e: &V| enc_string(e)), enc_slice(&r2, &|e: &V| enc_int(e, "u8")), enc_error(&r3)]
+}
+
+fn case_182(h: &H) -> Vec<J> {
     let v_fns = dec_slice(h.let_("fns"), &|r: &J| V::Nil, zero_nil);
     let _roots = temp_root(&[v_fns.clone()]);
     let a0 = v_fns.clone();
@@ -1583,25 +1877,25 @@ fn case_158(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_159(h: &H) -> Vec<J> {
+fn case_183(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_background();
     vec![enc_zero(&r0)]
 }
 
-fn case_160(h: &H) -> Vec<J> {
+fn case_184(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_canceled();
     vec![enc_error(&r0)]
 }
 
-fn case_161(h: &H) -> Vec<J> {
+fn case_185(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_deadline_exceeded();
     vec![enc_error(&r0)]
 }
 
-fn case_162(h: &H) -> Vec<J> {
+fn case_186(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -1609,7 +1903,7 @@ fn case_162(h: &H) -> Vec<J> {
     vec![enc_chan(&r0, &|e: &V| enc_zero(e))]
 }
 
-fn case_163(h: &H) -> Vec<J> {
+fn case_187(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -1617,7 +1911,7 @@ fn case_163(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_164(h: &H) -> Vec<J> {
+fn case_188(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let _roots = temp_root(&[v_parent.clone()]);
     let a0 = v_parent.clone();
@@ -1627,7 +1921,7 @@ fn case_164(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_165(h: &H) -> Vec<J> {
+fn case_189(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_parent.clone(), v_d.clone()]);
@@ -1639,7 +1933,7 @@ fn case_165(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_166(h: &H) -> Vec<J> {
+fn case_190(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -1649,7 +1943,7 @@ fn case_166(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_167(h: &H) -> Vec<J> {
+fn case_191(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -1659,7 +1953,7 @@ fn case_167(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_168(h: &H) -> Vec<J> {
+fn case_192(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = v_err.clone();
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -1669,7 +1963,7 @@ fn case_168(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_169(h: &H) -> Vec<J> {
+fn case_193(h: &H) -> Vec<J> {
     let v_text = dec_string(h.let_("text"));
     let _roots = temp_root(&[v_text.clone()]);
     let a0 = v_text.clone();
@@ -1677,7 +1971,7 @@ fn case_169(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_170(h: &H) -> Vec<J> {
+fn case_194(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let _roots = temp_root(&[v_err.clone()]);
     let a0 = v_err.clone();
@@ -1685,13 +1979,13 @@ fn case_170(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_171(h: &H) -> Vec<J> {
+fn case_195(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let rv = run_isolated(move |t: &Rc<Task>| { std_runtime_gosched(t); });
     vec![]
 }
 
-fn case_172(h: &H) -> Vec<J> {
+fn case_196(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -1699,7 +1993,7 @@ fn case_172(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_173(h: &H) -> Vec<J> {
+fn case_197(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -1707,7 +2001,7 @@ fn case_173(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_174(h: &H) -> Vec<J> {
+fn case_198(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -1717,7 +2011,7 @@ fn case_174(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_175(h: &H) -> Vec<J> {
+fn case_199(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -1727,7 +2021,7 @@ fn case_175(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_176(h: &H) -> Vec<J> {
+fn case_200(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -1735,7 +2029,7 @@ fn case_176(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_177(h: &H) -> Vec<J> {
+fn case_201(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -1743,7 +2037,7 @@ fn case_177(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_178(h: &H) -> Vec<J> {
+fn case_202(h: &H) -> Vec<J> {
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_d.clone()]);
     let a0 = v_d.clone();
@@ -1910,25 +2204,49 @@ pub static CASES: &[(&str, fn(&H) -> Vec<J>)] = &[
     ("core.string.to_bytes/empty", case_155),
     ("core.string.to_runes/mixed", case_156),
     ("core.task.spawn/parent_continues", case_157),
-    ("lib.task.all/empty", case_158),
-    ("std.context.background/root", case_159),
-    ("std.context.canceled/message", case_160),
-    ("std.context.deadline_exceeded/message", case_161),
-    ("std.context.done/background", case_162),
-    ("std.context.err/background", case_163),
-    ("std.context.with_cancel/child", case_164),
-    ("std.context.with_timeout/child", case_165),
-    ("std.errors.is/distinct", case_166),
-    ("std.errors.is/nils", case_167),
-    ("std.errors.is/same", case_168),
-    ("std.errors.new/message", case_169),
-    ("std.errors.unwrap/plain", case_170),
-    ("std.runtime.gosched/alone", case_171),
-    ("std.sync.mutex.lock/unlocked", case_172),
-    ("std.sync.mutex.unlock/lock_then_unlock", case_173),
-    ("std.sync.waitgroup.add/negative", case_174),
-    ("std.sync.waitgroup.add/positive", case_175),
-    ("std.sync.waitgroup.done/underflow", case_176),
-    ("std.sync.waitgroup.wait/zero_returns", case_177),
-    ("std.time.sleep/zero", case_178),
+    ("lib.crypto.aes256_gcm_decrypt/boundary_example", case_158),
+    ("lib.crypto.aes256_gcm_encrypt/boundary_example", case_159),
+    ("lib.crypto.close/boundary_example", case_160),
+    ("lib.crypto.ecdh/boundary_example", case_161),
+    ("lib.crypto.es256_sign/boundary_example", case_162),
+    ("lib.crypto.es256_verify/boundary_example", case_163),
+    ("lib.crypto.hkdf_sha256/boundary_example", case_164),
+    ("lib.crypto.hmac_sha256/boundary_example", case_165),
+    ("lib.crypto.hmac_sha256_verify/boundary_example", case_166),
+    ("lib.crypto.import_pem/boundary_example", case_167),
+    ("lib.crypto.private_pem/boundary_example", case_168),
+    ("lib.crypto.public_jwk/boundary_example", case_169),
+    ("lib.crypto.public_pem/boundary_example", case_170),
+    ("lib.crypto.random/boundary_example", case_171),
+    ("lib.crypto.rs256_sign/boundary_example", case_172),
+    ("lib.crypto.rs256_verify/boundary_example", case_173),
+    ("lib.crypto.rsa_oaep_decrypt/boundary_example", case_174),
+    ("lib.crypto.rsa_oaep_encrypt/boundary_example", case_175),
+    ("lib.crypto.sha256/boundary_example", case_176),
+    ("lib.encoding.base64_decode/boundary_example", case_177),
+    ("lib.encoding.base64_encode/boundary_example", case_178),
+    ("lib.encoding.base64_url_decode/boundary_example", case_179),
+    ("lib.encoding.base64_url_encode/boundary_example", case_180),
+    ("lib.http.do/boundary_example", case_181),
+    ("lib.task.all/empty", case_182),
+    ("std.context.background/root", case_183),
+    ("std.context.canceled/message", case_184),
+    ("std.context.deadline_exceeded/message", case_185),
+    ("std.context.done/background", case_186),
+    ("std.context.err/background", case_187),
+    ("std.context.with_cancel/child", case_188),
+    ("std.context.with_timeout/child", case_189),
+    ("std.errors.is/distinct", case_190),
+    ("std.errors.is/nils", case_191),
+    ("std.errors.is/same", case_192),
+    ("std.errors.new/message", case_193),
+    ("std.errors.unwrap/plain", case_194),
+    ("std.runtime.gosched/alone", case_195),
+    ("std.sync.mutex.lock/unlocked", case_196),
+    ("std.sync.mutex.unlock/lock_then_unlock", case_197),
+    ("std.sync.waitgroup.add/negative", case_198),
+    ("std.sync.waitgroup.add/positive", case_199),
+    ("std.sync.waitgroup.done/underflow", case_200),
+    ("std.sync.waitgroup.wait/zero_returns", case_201),
+    ("std.time.sleep/zero", case_202),
 ];

@@ -7,6 +7,8 @@ use std::collections::HashMap;
 
 pub enum Obj {
     Free,
+    /// Owner-associated native registry identity; never private key material.
+    NativeKey(u64,u64),
     /// Struct fields, array elements, slice backing arrays, and cells.
     Vals(Vec<V>),
     /// One byte per element, a traced leaf with no child handles.
@@ -324,7 +326,7 @@ pub fn collect() {
 
 pub(crate) fn trace_obj(o: &Obj, out: &mut Vec<V>, frames: &mut Vec<Rc<Frame>>) {
     match o {
-        Obj::Free | Obj::Bytes(_) => {}
+        Obj::Free | Obj::Bytes(_) | Obj::NativeKey(_,_) => {}
         Obj::Vals(v) => out.extend(v.iter().cloned()),
         Obj::Map(m) => {
             for e in m.entries.iter() {
