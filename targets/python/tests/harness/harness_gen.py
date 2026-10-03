@@ -1114,128 +1114,339 @@ def case_157(h):
 
 
 def case_158(h):
+    v_key = dec_slice(h.let("key"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_nonce = dec_slice(h.let("nonce"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_aad = dec_slice(h.let("aad"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_aes256gcm_decrypt(t, v_key, v_nonce, v_data, v_aad))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_159(h):
+    v_key = dec_slice(h.let("key"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_nonce = dec_slice(h.let("nonce"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_aad = dec_slice(h.let("aad"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_aes256gcm_encrypt(t, v_key, v_nonce, v_data, v_aad))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_160(h):
+    v_key = None
+    rv = harness_host(lambda t: rt.lib_crypto_close(t,v_key))
+    return []
+
+
+def case_161(h):
+    v_private_key = None
+    v_public_key = None
+    rv = harness_host(lambda t: rt.lib_crypto_ecdh(t, v_private_key, v_public_key))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_162(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_es256_sign(t, v_key, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_163(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_signature = dec_slice(h.let("signature"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_es256_verify(t, v_key, v_data, v_signature))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_bool(r0), enc_error(r1)]
+
+
+def case_164(h):
+    v_secret = dec_slice(h.let("secret"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_salt = dec_slice(h.let("salt"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_info = dec_slice(h.let("info"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_n = dec_int(h.let("n"), "i64")
+    rv = harness_host(lambda t: rt.lib_crypto_hkdf_sha256(t, v_secret, v_salt, v_info, v_n))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_165(h):
+    v_key = dec_slice(h.let("key"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_hmac_sha256(t, v_key, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_166(h):
+    v_key = dec_slice(h.let("key"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_mac = dec_slice(h.let("mac"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_hmac_sha256_verify(t, v_key, v_data, v_mac))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_bool(r0), enc_error(r1)]
+
+
+def case_167(h):
+    v_data = dec_string(h.let("data"))
+    rv = harness_host(lambda t: rt.lib_crypto_import_pem(t, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_key(r0), enc_error(r1)]
+
+
+def case_168(h):
+    v_key = None
+    rv = harness_host(lambda t: rt.lib_crypto_private_pem(t, v_key))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_string(r0), enc_error(r1)]
+
+
+def case_169(h):
+    v_key = None
+    rv = harness_host(lambda t: rt.lib_crypto_public_jwk(t, v_key))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_string(e)), enc_error(r1)]
+
+
+def case_170(h):
+    v_key = None
+    rv = harness_host(lambda t: rt.lib_crypto_public_pem(t, v_key))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_string(r0), enc_error(r1)]
+
+
+def case_171(h):
+    v_n = dec_int(h.let("n"), "i64")
+    rv = harness_host(lambda t: rt.lib_crypto_random(t, v_n))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_172(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_rs256_sign(t, v_key, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_173(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_signature = dec_slice(h.let("signature"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_rs256_verify(t, v_key, v_data, v_signature))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_bool(r0), enc_error(r1)]
+
+
+def case_174(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_rsaoaep_decrypt(t, v_key, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_175(h):
+    v_key = None
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_rsaoaep_encrypt(t, v_key, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_176(h):
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    rv = harness_host(lambda t: rt.lib_crypto_sha256(t, v_data))
+    r0 = rv[0]
+    r1 = rv[1]
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_177(h):
+    v_data = dec_string(h.let("data"))
+    r0, r1 = rt.lib_encoding_base64_decode(v_data)
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_178(h):
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    r0, r1 = rt.lib_encoding_base64_encode(v_data)
+    return [enc_string(r0), enc_error(r1)]
+
+
+def case_179(h):
+    v_data = dec_string(h.let("data"))
+    r0, r1 = rt.lib_encoding_base64_url_decode(v_data)
+    return [enc_slice(r0, lambda e: enc_int(e)), enc_error(r1)]
+
+
+def case_180(h):
+    v_data = dec_slice(h.let("data"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    r0, r1 = rt.lib_encoding_base64_url_encode(v_data)
+    return [enc_string(r0), enc_error(r1)]
+
+
+def case_181(h):
+    v_ctx = rt.std_context_background()
+    v_method = dec_string(h.let("method"))
+    v_url = dec_string(h.let("url"))
+    v_headers = dec_slice(h.let("headers"), lambda r: dec_string(r), lambda: b"", False)
+    v_body = dec_slice(h.let("body"), lambda r: dec_int(r, "u8"), lambda: 0, True)
+    v_max_response_bytes = dec_int(h.let("max_response_bytes"), "i64")
+    v_timeout_millis = dec_int(h.let("timeout_millis"), "i64")
+    rv = harness_host(lambda t: rt.lib_http_do(t,v_ctx,v_method,v_url,v_headers,v_body,v_max_response_bytes,v_timeout_millis))
+    r0 = rv[0]
+    r1 = rv[1]
+    r2 = rv[2]
+    r3 = rv[3]
+    return [enc_int(r0), enc_slice(r1, lambda e: enc_string(e)), enc_slice(r2, lambda e: enc_int(e)), enc_error(r3)]
+
+
+def case_182(h):
     v_fns = dec_slice(h.let("fns"), lambda r: None, lambda: None, False)
     rv = rt.run_isolated(lambda t: rt.lib_task_all(t, v_fns))
     return []
 
 
-def case_159(h):
+def case_183(h):
     r0 = rt.std_context_background()
     return [enc_zero(r0)]
 
 
-def case_160(h):
+def case_184(h):
     r0 = rt.std_context_canceled()
     return [enc_error(r0)]
 
 
-def case_161(h):
+def case_185(h):
     r0 = rt.std_context_deadline_exceeded()
     return [enc_error(r0)]
 
 
-def case_162(h):
+def case_186(h):
     v_ctx = rt.std_context_background()
     r0 = rt.std_context_context_done(v_ctx)
     return [enc_chan(r0, lambda e: enc_zero(e))]
 
 
-def case_163(h):
+def case_187(h):
     v_ctx = rt.std_context_background()
     r0 = rt.std_context_context_err(v_ctx)
     return [enc_error(r0)]
 
 
-def case_164(h):
+def case_188(h):
     v_parent = rt.std_context_background()
     r0, r1 = rt.std_context_with_cancel(v_parent)
     return [enc_zero(r0), enc_zero(r1)]
 
 
-def case_165(h):
+def case_189(h):
     v_parent = rt.std_context_background()
     v_d = dec_int(h.let("d"), "i64")
     r0, r1 = rt.std_context_with_timeout(v_parent, v_d)
     return [enc_zero(r0), enc_zero(r1)]
 
 
-def case_166(h):
+def case_190(h):
     v_err = dec_error(h.let("err"))
     v_target = dec_error(h.let("target"))
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_167(h):
+def case_191(h):
     v_err = dec_error(h.let("err"))
     v_target = dec_error(h.let("target"))
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_168(h):
+def case_192(h):
     v_err = dec_error(h.let("err"))
     v_target = v_err
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_169(h):
+def case_193(h):
     v_text = dec_string(h.let("text"))
     r0 = rt.std_errors_new(v_text)
     return [enc_error(r0)]
 
 
-def case_170(h):
+def case_194(h):
     v_err = dec_error(h.let("err"))
     r0 = rt.std_errors_unwrap(v_err)
     return [enc_error(r0)]
 
 
-def case_171(h):
+def case_195(h):
     rv = rt.run_isolated(lambda t: rt.std_runtime_gosched(t))
     return []
 
 
-def case_172(h):
+def case_196(h):
     v_m = rt.Mutex()
     rv = rt.run_isolated(lambda t: rt.std_sync_mutex_lock(t, v_m))
     return []
 
 
-def case_173(h):
+def case_197(h):
     v_m = rt.Mutex()
     rv = rt.run_isolated(lambda t: (rt.std_sync_mutex_lock(t, v_m), rt.std_sync_mutex_unlock(v_m)))
     return []
 
 
-def case_174(h):
+def case_198(h):
     v_wg = rt.WaitGroup()
     v_delta = dec_int(h.let("delta"), "i64")
     rt.std_sync_waitgroup_add(v_wg, v_delta)
     return []
 
 
-def case_175(h):
+def case_199(h):
     v_wg = rt.WaitGroup()
     v_delta = dec_int(h.let("delta"), "i64")
     rt.std_sync_waitgroup_add(v_wg, v_delta)
     return []
 
 
-def case_176(h):
+def case_200(h):
     v_wg = rt.WaitGroup()
     rt.std_sync_waitgroup_done(v_wg)
     return []
 
 
-def case_177(h):
+def case_201(h):
     v_wg = rt.WaitGroup()
     rv = rt.run_isolated(lambda t: rt.std_sync_waitgroup_wait(t, v_wg))
     return []
 
 
-def case_178(h):
+def case_202(h):
     v_d = dec_int(h.let("d"), "i64")
     rv = rt.run_isolated(lambda t: rt.std_time_sleep(t, v_d))
     return []
@@ -1400,25 +1611,49 @@ CASES = {
     "core.string.to_bytes/empty": case_155,
     "core.string.to_runes/mixed": case_156,
     "core.task.spawn/parent_continues": case_157,
-    "lib.task.all/empty": case_158,
-    "std.context.background/root": case_159,
-    "std.context.canceled/message": case_160,
-    "std.context.deadline_exceeded/message": case_161,
-    "std.context.done/background": case_162,
-    "std.context.err/background": case_163,
-    "std.context.with_cancel/child": case_164,
-    "std.context.with_timeout/child": case_165,
-    "std.errors.is/distinct": case_166,
-    "std.errors.is/nils": case_167,
-    "std.errors.is/same": case_168,
-    "std.errors.new/message": case_169,
-    "std.errors.unwrap/plain": case_170,
-    "std.runtime.gosched/alone": case_171,
-    "std.sync.mutex.lock/unlocked": case_172,
-    "std.sync.mutex.unlock/lock_then_unlock": case_173,
-    "std.sync.waitgroup.add/negative": case_174,
-    "std.sync.waitgroup.add/positive": case_175,
-    "std.sync.waitgroup.done/underflow": case_176,
-    "std.sync.waitgroup.wait/zero_returns": case_177,
-    "std.time.sleep/zero": case_178,
+    "lib.crypto.aes256_gcm_decrypt/boundary_example": case_158,
+    "lib.crypto.aes256_gcm_encrypt/boundary_example": case_159,
+    "lib.crypto.close/boundary_example": case_160,
+    "lib.crypto.ecdh/boundary_example": case_161,
+    "lib.crypto.es256_sign/boundary_example": case_162,
+    "lib.crypto.es256_verify/boundary_example": case_163,
+    "lib.crypto.hkdf_sha256/boundary_example": case_164,
+    "lib.crypto.hmac_sha256/boundary_example": case_165,
+    "lib.crypto.hmac_sha256_verify/boundary_example": case_166,
+    "lib.crypto.import_pem/boundary_example": case_167,
+    "lib.crypto.private_pem/boundary_example": case_168,
+    "lib.crypto.public_jwk/boundary_example": case_169,
+    "lib.crypto.public_pem/boundary_example": case_170,
+    "lib.crypto.random/boundary_example": case_171,
+    "lib.crypto.rs256_sign/boundary_example": case_172,
+    "lib.crypto.rs256_verify/boundary_example": case_173,
+    "lib.crypto.rsa_oaep_decrypt/boundary_example": case_174,
+    "lib.crypto.rsa_oaep_encrypt/boundary_example": case_175,
+    "lib.crypto.sha256/boundary_example": case_176,
+    "lib.encoding.base64_decode/boundary_example": case_177,
+    "lib.encoding.base64_encode/boundary_example": case_178,
+    "lib.encoding.base64_url_decode/boundary_example": case_179,
+    "lib.encoding.base64_url_encode/boundary_example": case_180,
+    "lib.http.do/boundary_example": case_181,
+    "lib.task.all/empty": case_182,
+    "std.context.background/root": case_183,
+    "std.context.canceled/message": case_184,
+    "std.context.deadline_exceeded/message": case_185,
+    "std.context.done/background": case_186,
+    "std.context.err/background": case_187,
+    "std.context.with_cancel/child": case_188,
+    "std.context.with_timeout/child": case_189,
+    "std.errors.is/distinct": case_190,
+    "std.errors.is/nils": case_191,
+    "std.errors.is/same": case_192,
+    "std.errors.new/message": case_193,
+    "std.errors.unwrap/plain": case_194,
+    "std.runtime.gosched/alone": case_195,
+    "std.sync.mutex.lock/unlocked": case_196,
+    "std.sync.mutex.unlock/lock_then_unlock": case_197,
+    "std.sync.waitgroup.add/negative": case_198,
+    "std.sync.waitgroup.add/positive": case_199,
+    "std.sync.waitgroup.done/underflow": case_200,
+    "std.sync.waitgroup.wait/zero_returns": case_201,
+    "std.time.sleep/zero": case_202,
 }

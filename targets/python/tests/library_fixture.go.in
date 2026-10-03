@@ -1,0 +1,22 @@
+package probe
+import("github.com/eugenioenko/goalchemy/lib/context";"github.com/eugenioenko/goalchemy/lib/callback";"github.com/eugenioenko/goalchemy/lib/crypto";"github.com/eugenioenko/goalchemy/lib/time")
+type Item struct{Name string;Data []byte}
+type Value struct{Data []byte;Nested [][]byte;Names []string;Count int64;Small int8;Empty []byte;Item Item}
+type Failure struct{Code string;Item Item;Items []Item}
+func(e *Failure)Error()string{return e.Code}
+var count int64=5
+var fixed=[3]byte{0,255,128}
+var failure=Failure{Code:"saved",Item:Item{Name:"old",Data:[]byte{9}},Items:[]Item{{Name:"nested",Data:[]byte{8}}}}
+func Fixed(ctx context.Context)([]byte,error){return fixed[:],nil}
+func ErrorGlobal(ctx context.Context)([]byte,error){return nil,&failure}
+func Echo(ctx context.Context,v Value)(Value,error){v.Count=count;count++;if len(v.Data)>0{v.Data[0]++};return v,nil}
+func Wide(ctx context.Context,v int64)(int64,error){return v,nil}
+func Owned(ctx context.Context,v Value)(Value,error){_,e:=callback.Request(ctx,"held",nil);return v,e}
+func FieldAlias(ctx context.Context,v Value)(Value,error){a:=&v.Item.Name;b:=&v.Item.Name;*a="alias";if a!=b{panic("noncanonical field")};_,e:=callback.Request(ctx,"held",nil);return v,e}
+func Provider(ctx context.Context,name string,input []byte)([]byte,error){return callback.Request(ctx,name,input)}
+func SourcePanic(ctx context.Context)([]byte,error){panic("secret source panic")}
+func KeySuccess(ctx context.Context)([]byte,error){key,e:=crypto.GenerateP256();if e!=nil{return nil,e};defer key.Close();return []byte{7},nil}
+func GoClose(ctx context.Context)([]byte,error){key,e:=crypto.GenerateP256();if e!=nil{return nil,e};go key.Close();time.Sleep(time.Millisecond);_,e=key.PublicPEM();if e==nil{return nil,&Failure{Code:"go close failed"}};return []byte{8},nil}
+func BoundClose(ctx context.Context)([]byte,error){generate:=crypto.GenerateP256;key,e:=generate();if e!=nil{return nil,e};public:=key.PublicPEM;_,e=public();if e!=nil{return nil,e};close:=key.Close;defer close();return []byte{9},nil}
+
+func Imported(ctx context.Context,pem string)([]byte,error){k,e:=crypto.ImportPEM(pem);if e!=nil{return nil,e};defer k.Close();pub,e:=k.PublicPEM();if e!=nil||len(pub)==0{return nil,e};sig,e:=crypto.ES256Sign(k,[]byte("omitted-Q"));if e!=nil{return nil,e};valid,e:=crypto.ES256Verify(k,[]byte("omitted-Q"),sig);if e!=nil{return nil,e};if !valid{return nil,&Failure{Code:"signature"}};secret,e:=crypto.ECDH(k,k);if e!=nil{return nil,e};if len(secret)!=32{return nil,&Failure{Code:"ecdh"}};return sig,nil}

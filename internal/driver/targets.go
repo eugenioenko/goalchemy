@@ -249,6 +249,9 @@ func init() {
 func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := py.Emit(res.IR, symbols(res, "python"))
 	if err != nil {
+		if _, ok := err.(*py.LibraryBoundaryError); ok {
+			return emitErr("GCE007", err.Error())
+		}
 		return emitErr("GCE004", err.Error())
 	}
 	refs, files, ds := link.Plan(res.Catalog, "python", o.Contracts)
@@ -287,6 +290,9 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 		"rt/types/__init__.py":   []byte(""),
 		"rt/runtime/__init__.py": []byte(""),
 		"README.md":              []byte(readme("python", "python3 main.py", "Requires Python 3.10 or later.")),
+	}
+	if res.IR.Library {
+		gen["__init__.py"] = []byte("from .main import *\n")
 	}
 	var names []string
 	for name, data := range gen {

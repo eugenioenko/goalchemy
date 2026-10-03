@@ -1,0 +1,18 @@
+package main
+
+import (
+ "bytes"
+ "fmt"
+ "os"
+ crypto "github.com/eugenioenko/goalchemy/lib/crypto"
+)
+func mustRead(name string)[]byte {b,e:=os.ReadFile(name);if e!=nil{panic(e)};return b}
+func main(){
+ k,e:=crypto.ImportPEM(string(mustRead("omitted.pem")));if e!=nil{panic(e)};defer k.Close()
+ peer,e:=crypto.ImportPEM(string(mustRead("peer.pem")));if e!=nil{panic(e)};defer peer.Close()
+ pub,e:=k.PublicPEM();if e!=nil{panic(e)};if !bytes.Equal([]byte(pub),mustRead("public.pem")){panic("public parity")}
+ verified,e:=crypto.ES256Verify(k,[]byte("omitted-Q"),mustRead("python.sig"));if e!=nil{panic(e)};if !verified{panic("Python signature")}
+ sig,e:=crypto.ES256Sign(k,[]byte("omitted-Q"));if e!=nil{panic(e)};if e=os.WriteFile("go.sig",sig,0600);e!=nil{panic(e)}
+ secret,e:=crypto.ECDH(k,peer);if e!=nil{panic(e)};if !bytes.Equal(secret,mustRead("secret")){panic("ECDH parity")}
+ fmt.Println("PASS native Go omitted-Q PKCS8/public/signatures/ECDH parity")
+}

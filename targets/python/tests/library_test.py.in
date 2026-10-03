@@ -1,0 +1,83 @@
+"""Independent consumer of actual compiler exports; no handwritten source runner."""
+import sys,pathlib,threading,time,asyncio,importlib,copy,base64
+sys.path.insert(0,sys.argv[1])
+p=importlib.import_module('probe');rt=p.main.rt
+checks=0
+
+def check(value,label):
+ global checks
+ assert value,label;checks+=1
+
+def result(op):return op.result(20)
+def error(op,kind):
+ try:result(op);raise AssertionError('unexpected result '+kind)
+ except rt.LibraryFailure as e:check(e.kind==kind,'category '+e.kind);return e
+v={'Data':bytearray([0,255,128]),'Nested':[bytearray([4,0,255])],'Names':[b'\xff\x00'],'Count':9223372036854775807,'Small':-128,'Empty':b'','Item':{'Name':b'\xff','Data':bytearray([7])}}
+a=result(p.Echo(v));check(a['Data']==b'\1\xff\x80','bytes');check(a['Count']==5,'initialization');check(result(p.Echo(v))['Count']==5,'fresh global');check(a['Nested']==[b'\4\0\xff'],'nested');check(a['Empty']==b'','empty');check(result(p.Echo({'Empty':None}))['Empty'] is None,'nil')
+for n in (-(1<<63),(1<<63)-1,1<<53,-(1<<53)):check(result(p.Wide(n))==n,'exact i64')
+for n in (-(1<<63)-1,1<<63,True,1.0):error(p.Wide(n),'invalid_argument')
+error(p.Echo({'Small':128}),'invalid_argument');error(p.Echo({'unknown':1}),'invalid_argument')
+check(result(p.Fixed())==b'\0\xff\x80','global array')
+e=error(p.ErrorGlobal(),'source');saved=copy.deepcopy(e.fields);check(e.fields['Item']['Data']==b'\t','owned error');result(p.Echo(v));check(e.fields==saved,'durable error')
+check(error(p.SourcePanic(),'source_panic').fields['Message']==b'panic: secret source panic\n','copied source panic');check(result(p.Fixed())==b'\0\xff\x80','panic recovery')
+check(result(p.KeySuccess())==b'\7','defer native close');check(result(p.GoClose())==b'\10','go native close');check(result(p.BoundClose())==b'\11','method values')
+omitted_der=bytes.fromhex('3041020100301306072a8648ce3d020106082a8648ce3d030107042730250201010420'+'00'*31+'01')
+omitted_pem=b'-----BEGIN PRIVATE KEY-----\n'+base64.encodebytes(omitted_der)+b'-----END PRIVATE KEY-----\n'
+check(len(result(p.Imported(omitted_pem)))==64,'actual generated omitted-Q import/public/sign/ECDH')
+started=threading.Event();stop=threading.Event();release=threading.Event();released=threading.Event();foreign=[]
+def provider(req):
+ try:rt.std_context_context_err(rt.std_context_background())
+ except rt.HostFault:foreign.append(True)
+ started.set();req.cancellation.wait(20);stop.set();release.wait(20);released.set();raise rt.ProviderRejected('stopped')
+# ProviderRejected belongs to native callback module, not default rt index export.
+rt.ProviderRejected=importlib.import_module('probe.rt.runtime.lib_callback_request').ProviderRejected
+held=p.Owned(v,{'callbacks':{'held':provider}});check(started.wait(10),'native callback entered');v['Data'][0]=99;v['Nested'][0][0]=99;v['Item']['Data'][0]=99
+queued=p.Fixed();check(queued.cancel(),'queued cancel request');error(queued,'canceled');check(not held.done(),'active still held');check(held.cancel(),'active cancel request');check(stop.wait(10),'provider stop');check(not held.done() and not released.is_set(),'resource ACK held');release.set();error(held,'source');check(released.is_set() and foreign==[True],'release and owner isolation');check(result(p.Fixed())==b'\0\xff\x80','cancel recovery')
+# Success snapshots predate provider/native submission.
+def success(req):return b'ok'
+owned=result(p.Owned(v,{'callbacks':{'held':success}}));check(owned['Data'][0]==99,'later input independent');check(result(p.FieldAlias(v,{'callbacks':{'held':success}}))['Item']['Name']==b'alias','field alias')
+check(result(p.Provider(b'provider',b'\0\xff',{'callbacks':{'provider':lambda r:r.payload}}))==b'\0\xff','provider bytes')
+error(p.Provider(b'missing',b''),'source')
+def bad(req):raise ValueError('unexpected adapter bug')
+error(p.Provider(b'bad',b'',{'callbacks':{'bad':bad}}),'host_fault');check(result(p.Fixed())==b'\0\xff\x80','fault recovery')
+# Owner-thread construction/submission fault releases reservation and queued roots.
+lib=importlib.import_module('probe.rt.types.library');original=lib.threading.Thread
+class Broken:
+ def __init__(self,*a,**k):raise RuntimeError('thread acquisition')
+lib.threading.Thread=Broken
+try:error(p.Fixed(),'host_fault')
+finally:lib.threading.Thread=original
+check(result(p.Fixed())==b'\0\xff\x80','thread recovery')
+crypto=importlib.import_module('probe.rt.runtime.lib_crypto_close');original_crypto=crypto.crypto_value
+def broken_crypto(*args):raise RuntimeError('native acquisition')
+crypto.crypto_value=broken_crypto
+try:error(p.KeySuccess(),'host_fault')
+finally:crypto.crypto_value=original_crypto
+check(result(p.KeySuccess())==b'\7','native acquisition recovery')
+
+async def async_cases():
+ check(await p.Fixed()==b'\0\xff\x80','await operation')
+ entered=threading.Event();in_finally=threading.Event();allow=threading.Event();done=threading.Event()
+ async def waiting(req):
+  entered.set()
+  try:await asyncio.sleep(30)
+  finally:
+   in_finally.set()
+   while not allow.is_set():await asyncio.sleep(.002)
+   done.set()
+ op=p.Provider(b'wait',b'',{'callbacks':{'wait':waiting}})
+ async def await_op():return await op
+ waiter=asyncio.create_task(await_op())
+ while not entered.is_set():await asyncio.sleep(.002)
+ waiter.cancel()
+ while not in_finally.is_set():await asyncio.sleep(.002)
+ check(not waiter.done() and not op.done(),'async cancellation awaits finally')
+ waiter.cancel();allow.set()
+ try:await waiter;raise AssertionError('await cancellation')
+ except asyncio.CancelledError:check(done.is_set() and op.done(),'async release before cancellation')
+ check(await p.Fixed()==b'\0\xff\x80','async cancellation recovery')
+asyncio.run(async_cases())
+check(not lib._queue,'queue retired')
+s=importlib.import_module('probe.rt.runtime.task_spawn')._sched[0]
+check(not s.active and not s.operations and not s.tasks and not s.contexts and not s.timers and not s.native_keys and not s.library_callbacks and s.library_poll is None,'source/native retirement')
+print('PASS actual Python generated library checks',checks)

@@ -36,6 +36,9 @@ func pyDecode(t *contracts.TypeExpr, raw string) string {
 	case "chan":
 		return fmt.Sprintf("dec_chan(%s, lambda r: %s, lambda: %s)", raw, pyDecode(t.Elem, "r"), pyZero(t.Elem))
 	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "None"
+		}
 		return "rt." + t.Elem.Name[strings.Index(t.Elem.Name, ".")+1:] + "()"
 	case "slice":
 		return fmt.Sprintf("dec_slice(%s, lambda r: %s, lambda: %s, %s)", raw, pyDecode(t.Elem, "r"), pyZero(t.Elem), pyBoolStorage(t.Elem))
@@ -61,6 +64,10 @@ func pyDecode(t *contracts.TypeExpr, raw string) string {
 
 func pyEncode(t *contracts.TypeExpr, v string) string {
 	switch t.Kind {
+	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return "enc_key(" + v + ")"
+		}
 	case "chan":
 		return fmt.Sprintf("enc_chan(%s, lambda e: %s)", v, pyEncode(t.Elem, "e"))
 	case "slice":
@@ -122,6 +129,11 @@ func pyHarness(cat *contracts.Catalog, t *contracts.Target) ([]byte, error) {
 			rs = append(rs, fmt.Sprintf("r%d", i))
 		}
 		switch {
+		case strings.HasPrefix(call, "host:"):
+			fmt.Fprintf(&b, "    rv = harness_host(lambda t: %s)\n", strings.TrimSpace(strings.TrimPrefix(call, "host:")))
+			for i := range ci.outs {
+				fmt.Fprintf(&b, "    r%d = rv[%d]\n", i, i)
+			}
 		case strings.HasPrefix(call, "await:"):
 			fmt.Fprintf(&b, "    rv = rt.run_isolated(lambda t: %s)\n", strings.TrimSpace(strings.TrimPrefix(call, "await:")))
 			for i := range ci.outs {

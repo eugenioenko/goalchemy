@@ -154,3 +154,15 @@ def new_spawn_check():
 
 def harness_select2(t, a, b, dflt):
     rt.select(t, [(a, False, None), (b, False, None)], dflt)
+
+
+def harness_host(fn):
+    from python.runtime.task_spawn import _drive, _AwaitFrame
+    rt.reserve()
+    try:
+        return _drive(lambda: _AwaitFrame(fn), real=True, library=True)
+    finally:
+        rt.unreserve()
+
+def enc_key(v):
+    return {"nil": True} if v is None else {"opaque": True}

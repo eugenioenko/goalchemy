@@ -24,7 +24,7 @@ harness:
   support: [tests/harness/harness.py, tests/harness/codec.py, rt_index.py]
   generated: tests/harness/harness_gen.py
   command: [python3, targets/python/tests/harness/harness.py]
-support_files: [types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py]
+support_files: [types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py, types/library.py]
 functions:
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.py, harness: "rt.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.py, harness: "rt.sub_{T.kind}({0}, {1})"}
@@ -93,3 +93,31 @@ functions:
   - {id: std.context.canceled, contract_version: 1.0.0, symbol: "rt.std_context_canceled", implementation: runtime/std_context_canceled.py, harness: "rt.std_context_canceled()", requires: [std.context.err]}
   - {id: std.context.deadline_exceeded, contract_version: 1.0.0, symbol: "rt.std_context_deadline_exceeded", implementation: runtime/std_context_deadline_exceeded.py, harness: "rt.std_context_deadline_exceeded()", requires: [std.context.err]}
   - {id: lib.task.all, contract_version: 1.0.0, symbol: "rt.lib_task_all", implementation: runtime/lib_task_all.py, harness: "await: rt.lib_task_all(t, {0})", requires: [core.task.spawn]}
+  - {id: lib.crypto.random, contract_version: 1.0.0, symbol: rt.lib_crypto_random, implementation: runtime/lib_crypto_random.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_random(t, {0})"}
+  - {id: lib.crypto.sha256, contract_version: 1.0.0, symbol: rt.lib_crypto_sha256, implementation: runtime/lib_crypto_sha256.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_sha256(t, {0})"}
+  - {id: lib.crypto.hmac_sha256, contract_version: 1.0.0, symbol: rt.lib_crypto_hmac_sha256, implementation: runtime/lib_crypto_hmac_sha256.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_hmac_sha256(t, {0}, {1})"}
+  - {id: lib.crypto.hmac_sha256_verify, contract_version: 1.0.0, symbol: rt.lib_crypto_hmac_sha256_verify, implementation: runtime/lib_crypto_hmac_sha256_verify.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_hmac_sha256_verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.hkdf_sha256, contract_version: 1.0.0, symbol: rt.lib_crypto_hkdf_sha256, implementation: runtime/lib_crypto_hkdf_sha256.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_hkdf_sha256(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.aes256_gcm_encrypt, contract_version: 1.0.0, symbol: rt.lib_crypto_aes256gcm_encrypt, implementation: runtime/lib_crypto_aes256gcm_encrypt.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_aes256gcm_encrypt(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.aes256_gcm_decrypt, contract_version: 1.0.0, symbol: rt.lib_crypto_aes256gcm_decrypt, implementation: runtime/lib_crypto_aes256gcm_decrypt.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_aes256gcm_decrypt(t, {0}, {1}, {2}, {3})"}
+  - {id: lib.crypto.generate_rsa2048, contract_version: 1.0.0, symbol: rt.lib_crypto_generate_rsa2048, implementation: runtime/lib_crypto_generate_rsa2048.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_generate_rsa2048(t)"}
+  - {id: lib.crypto.generate_p256, contract_version: 1.0.0, symbol: rt.lib_crypto_generate_p256, implementation: runtime/lib_crypto_generate_p256.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_generate_p256(t)"}
+  - {id: lib.crypto.import_pem, contract_version: 1.0.0, symbol: rt.lib_crypto_import_pem, implementation: runtime/lib_crypto_import_pem.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_import_pem(t, {0})"}
+  - {id: lib.crypto.public_pem, contract_version: 1.0.0, symbol: rt.lib_crypto_public_pem, implementation: runtime/lib_crypto_public_pem.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_public_pem(t, {0})"}
+  - {id: lib.crypto.private_pem, contract_version: 1.0.0, symbol: rt.lib_crypto_private_pem, implementation: runtime/lib_crypto_private_pem.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_private_pem(t, {0})"}
+  - {id: lib.crypto.public_jwk, contract_version: 1.0.0, symbol: rt.lib_crypto_public_jwk, implementation: runtime/lib_crypto_public_jwk.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_public_jwk(t, {0})"}
+  - {id: lib.crypto.ecdh, contract_version: 1.0.0, symbol: rt.lib_crypto_ecdh, implementation: runtime/lib_crypto_ecdh.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_ecdh(t, {0}, {1})"}
+  - {id: lib.crypto.rsa_oaep_encrypt, contract_version: 1.0.0, symbol: rt.lib_crypto_rsaoaep_encrypt, implementation: runtime/lib_crypto_rsaoaep_encrypt.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_rsaoaep_encrypt(t, {0}, {1})"}
+  - {id: lib.crypto.rsa_oaep_decrypt, contract_version: 1.0.0, symbol: rt.lib_crypto_rsaoaep_decrypt, implementation: runtime/lib_crypto_rsaoaep_decrypt.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_rsaoaep_decrypt(t, {0}, {1})"}
+  - {id: lib.crypto.rs256_sign, contract_version: 1.0.0, symbol: rt.lib_crypto_rs256_sign, implementation: runtime/lib_crypto_rs256_sign.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_rs256_sign(t, {0}, {1})"}
+  - {id: lib.crypto.rs256_verify, contract_version: 1.0.0, symbol: rt.lib_crypto_rs256_verify, implementation: runtime/lib_crypto_rs256_verify.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_rs256_verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.es256_sign, contract_version: 1.0.0, symbol: rt.lib_crypto_es256_sign, implementation: runtime/lib_crypto_es256_sign.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_es256_sign(t, {0}, {1})"}
+  - {id: lib.crypto.es256_verify, contract_version: 1.0.0, symbol: rt.lib_crypto_es256_verify, implementation: runtime/lib_crypto_es256_verify.py, requires: [lib.crypto.close], harness: "host: rt.lib_crypto_es256_verify(t, {0}, {1}, {2})"}
+  - {id: lib.crypto.close, contract_version: 1.0.0, symbol: rt.lib_crypto_close, implementation: runtime/lib_crypto_close.py, requires: [core.task.spawn, std.errors.new], harness: "host: rt.lib_crypto_close(t,{0})"}
+  - {id: lib.encoding.base64_encode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_encode, implementation: runtime/lib_encoding_base64_encode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_encode({0})"}
+  - {id: lib.encoding.base64_decode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_decode, implementation: runtime/lib_encoding_base64_decode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_decode({0})"}
+  - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_url_encode, implementation: runtime/lib_encoding_base64_url_encode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_url_encode({0})"}
+  - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_url_decode, implementation: runtime/lib_encoding_base64_url_decode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_url_decode({0})"}
+  - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.lib_clock_unix, implementation: runtime/lib_clock_unix.py, harness: "rt.lib_clock_unix()"}
+  - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.lib_http_do, implementation: runtime/lib_http_do.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
+  - {id: lib.callback.request, contract_version: 1.0.0, symbol: rt.lib_callback_request, implementation: runtime/lib_callback_request.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_callback_request(t,{0},{1},{2})"}

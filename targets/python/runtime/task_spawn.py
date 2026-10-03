@@ -94,6 +94,8 @@ class Scheduler:
         self.timers = []
         self.seq = 0
         self.harness = False
+        self.library_poll = None
+        self.library_results = False
 
     def choose(self, n):
         """xorshift32 choice source, identical on every target."""
@@ -158,6 +160,8 @@ class Scheduler:
 
     def next(self):
         while True:
+            if self.library_poll is not None:
+                self.library_poll()
             self.dispatch()
             if self.runq:
                 return self.runq.pop(0)
@@ -173,6 +177,8 @@ class Scheduler:
                     if self.timers:
                         delay = max(0, min(t[0] for t in self.timers) - self.now()) / 1e9
                         delay = min(delay, threading.TIMEOUT_MAX)
+                    if self.library_poll is not None:
+                        delay = 0.05 if delay is None else min(delay, 0.05)
                     self.mailbox.condition.wait(delay)
                 continue
             if self.harness:
@@ -225,6 +231,7 @@ class Scheduler:
         self.check()
         errors = []
         self.active = False
+        self.library_poll = None
         for op in list(self.operations.values()):
             try:
                 op.cancel()
@@ -319,7 +326,7 @@ class Scheduler:
         if parent is None:
             t.done = True
             self.tasks.discard(t)
-            t.rv = []
+            t.rv = f.results() if self.library_results and p is None else []
             t.cur_panic = t.resume_panic = t.defer_target = None
             if p is not None:
                 raise _FatalPanic(p)
@@ -626,8 +633,9 @@ def _install(main, harness):
     return s
 
 
-def _drive(factory, real=False, harness=False):
+def _drive(factory, real=False, harness=False, library=False, convert=lambda rv: rv):
     s = None
+    main = None
     failure = None
     result = None
     prior_guard = getattr(source_guard_state, "enabled", False)
@@ -640,6 +648,7 @@ def _drive(factory, real=False, harness=False):
         main = Task(0, None)
         s = Scheduler(main, real)
         s.harness = harness
+        s.library_results = library
         _sched[0] = s
         panic_state.get = lambda: s.cur
         # Construct emitted frames and source init on the owner, after reservation.
@@ -647,18 +656,30 @@ def _drive(factory, real=False, harness=False):
         s.ready(main)
         while not main.done:
             s.run(s.next())
-        result = main.rv
+        result = convert(main.rv)
+        main.rv = []
     except RecursionError:
         failure = SourceFatal(b"runtime: goroutine stack exceeds limit\nfatal error: stack overflow\n")
     except BaseException as e:
-        failure = e
+        if library and isinstance(e, _FatalPanic):
+            from ..types.library import LibraryFailure
+            failure = LibraryFailure("source_panic", {"Message": format_chain(e.p)})
+        elif library and isinstance(e, SourceFatal):
+            from ..types.library import LibraryFailure
+            failure = LibraryFailure("source_fatal", {"Message": bytes(e.report)})
+        else:
+            failure = e
     finally:
         try:
             if s is not None:
                 s.retire()
         except BaseException as e:
-            if failure is None:
+            if failure is None or library:
                 failure = e
+        if main is not None:
+            main.rv = []; main.frame = None
+            main.cur_panic = main.resume_panic = main.defer_target = None
+            main.owner = None
         from ..types.program import _main_state
         panic_state.get = lambda: _main_state
         source_guard_state.enabled = prior_guard
@@ -666,8 +687,12 @@ def _drive(factory, real=False, harness=False):
     if isinstance(failure, _FatalPanic):
         if harness:
             raise failure.p
+        if library:
+            raise GoPanic(failure.p.value)
         report_panic(failure.p)
     if isinstance(failure, SourceFatal):
+        if library:
+            raise failure
         write_stderr(failure.report)
         os._exit(2)
     if failure is not None:
@@ -758,3 +783,8 @@ def _sequential_end():
 from ..types import program as _program
 _program.sequential_start = _sequential_start
 _program.sequential_end = _sequential_end
+
+
+def await_native(fn):
+    """Wrap a suspending capability for defer/go first-class invocation."""
+    return lambda *args: _AwaitFrame(lambda t: fn(t, *args))
