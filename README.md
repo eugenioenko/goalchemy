@@ -160,7 +160,10 @@ The [`examples/`](examples) directory has complete programs with a `goalchemy.ya
 
 - [`bank`](examples/bank): typed errors, interfaces, and deferred audit logging
 - [`calc`](examples/calc): an integer expression parser and evaluator
+- [`fetch`](examples/fetch): downloads a CSV dataset over HTTPS and summarizes it
+- [`jwt`](examples/jwt): signs and verifies HS256 JSON Web Tokens
 - [`life`](examples/life): Conway's Game of Life on a toroidal board
+- [`pipeline`](examples/pipeline): workers, channels, `select`, and per-job deadlines on the cooperative scheduler
 - [`wordfreq`](examples/wordfreq): word counting and ranking
 
 ```sh
