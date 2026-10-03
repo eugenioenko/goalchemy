@@ -2,11 +2,11 @@
 target: go
 function: lib.crypto.hmac_sha256_verify
 contract_version: 1.0.0
-contract_hash: 122135f1d3cbde008e682a3dec389032d611d6bb8a476830b5c3c158a4f44b31
+contract_hash: 669ec9f8c5b240e60f5f4bf0dbc3914896c76f667d8699be035dd0c0a055dc95
 symbol: "rt.LibCryptoHMACSHA256Verify"
 implementation: runtime/lib_crypto_hmac_sha256_verify.go
 implementation_hash: a001444ff373577140f9164c5e836dae9997fc75f4a60b92c643840cbead41db
-summary: "crypto.HMACSHA256Verify: constant-time bounded HMAC verification."
+summary: "crypto.HMACSHA256Verify: constant-time check that mac is the HMAC-SHA256 of data under key."
 suspension: may
 determinism: deterministic
 signature:

@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.rs256_verify
 contract_version: 1.0.0
-contract_hash: c39407ef585b884af3efcca0aae71e551cdfa5dca80e76b30dc69413f3c03e2a
+contract_hash: 675b4a16697753f65efe2323ee2e046eb6eb7aadd3ee3d3fecba79f8dd902975
 symbol: "rt.lib_crypto_rs256_verify"
 implementation: runtime/lib_crypto_rs256_verify.py
 implementation_hash: 5645dea57892e0f55ff15b18a1e751df22d194bf4c44be4a641ee9bb555cc21e
-summary: "crypto.RS256Verify: native capability boundary."
+summary: "crypto.RS256Verify: whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data."
 suspension: may
 determinism: deterministic
 signature:

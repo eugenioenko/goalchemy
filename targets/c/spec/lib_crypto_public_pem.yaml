@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.public_pem
 contract_version: 1.0.0
-contract_hash: 94d52749b162c97933fd1792fd37ca17d9aea00c2c0bc081559fdd0186cbaf24
+contract_hash: 863640978b575652f11a39db3486ae62472c1bfe39173ba593056d00c3c5e479
 symbol: "gx_lib_crypto_public_pem"
 implementation: runtime/lib_crypto_public_pem.c
 implementation_hash: 8683f99efe998ed22048d101ed311767572f25e9d226983cfdc7c1c57a474882
-summary: "crypto.PublicPEM: native capability boundary."
+summary: "crypto.Key.PublicPEM: the key's public half as a PKIX (SPKI) PUBLIC KEY PEM block."
 suspension: may
 determinism: deterministic
 signature:

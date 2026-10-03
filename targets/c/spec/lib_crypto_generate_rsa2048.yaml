@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.generate_rsa2048
 contract_version: 1.0.0
-contract_hash: 5e65500811aabce3fc756b256e9618d7c016d654d4d9c5135b8737c3e98a8a88
+contract_hash: 8eee4bbf336bef0c6e853fd63519e973774223379e0b18beff9d9135a80ea665
 symbol: "gx_lib_crypto_generate_rsa2048"
 implementation: runtime/lib_crypto_generate_rsa2048.c
 implementation_hash: d7caa902b871c7d848a8a12dfb219a12fe20657f5dc7ec4f5bd0e50dc879998c
-summary: "crypto.GenerateRSA2048: native capability boundary."
+summary: "crypto.GenerateRSA2048: a new random RSA-2048 private key handle."
 suspension: may
 determinism: nondeterministic
 signature:

@@ -2,7 +2,7 @@
   "id": "lib.crypto.import_pem",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "crypto.ImportPEM: native capability boundary.",
+  "summary": "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.ImportPEM",
@@ -35,13 +35,13 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Input bytes <=64MiB. AES key=32, nonce=12, tag=16; plaintext/AAD<=64MiB, ciphertext<=64MiB+16. RSA-2048 OAEP plaintext<=214 and ciphertext=256 bytes. ES256 signature=64 bytes. HKDF output 0..8160. PEM<=64KiB.",
+    "bounds": "Input is at most 64KiB. Exactly one PEM block with no headers and no other content apart from surrounding whitespace. Accepted block types: PUBLIC KEY (SPKI), PRIVATE KEY (PKCS#8), RSA PUBLIC KEY and RSA PRIVATE KEY (PKCS#1), and CERTIFICATE, whose public key is used without any trust check. RSA keys must have a 2048-bit modulus and an odd exponent of at least 3; EC keys must be on P-256.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
     "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
-    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "errors": "Oversized input, malformed or multiple blocks, PEM headers, unsupported block types, encrypted keys, other key types or sizes, and inconsistent private keys return a nil key and an error.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
     "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
   },

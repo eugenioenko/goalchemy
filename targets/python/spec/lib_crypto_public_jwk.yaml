@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.public_jwk
 contract_version: 1.0.0
-contract_hash: 09f76317dd9d3461c7db76318f6f2773754f41d27eba882057a25f7053f8113f
+contract_hash: ab693a3189aff2a30d80c12184d190903956da3d570b43b828f60928adcdda34
 symbol: "rt.lib_crypto_public_jwk"
 implementation: runtime/lib_crypto_public_jwk.py
 implementation_hash: 2a694c4487b3b141acbd321df8e4ce34d6801acdcdf85eafba85cbf1b14814e5
-summary: "crypto.PublicJWK: native capability boundary."
+summary: "crypto.Key.PublicJWK: the key's public JWK members as [kty, crv, n, e, x, y], with no JSON encoding."
 suspension: may
 determinism: deterministic
 signature:

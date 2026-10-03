@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.aes256_gcm_decrypt
 contract_version: 1.0.0
-contract_hash: eb8b502f1795ea6f893d9aa56c5a92786c8f32d8c8bb8e5e14f9ab6b33429169
+contract_hash: b95e99b0358dde3495f44d2de82ebe3ccf42237a66068d22ee56eb5fe7fb2578
 symbol: "LibCryptoAes256GcmDecrypt.libCryptoAes256GcmDecrypt"
 implementation: runtime/LibCryptoAes256GcmDecrypt.java
 implementation_hash: f235eb9d02d724907e1551ebca77cf23cad9e6158e0b062ac09cd4c868698aaf
-summary: "crypto.AES256GCMDecrypt: native capability boundary."
+summary: "crypto.AES256GCMDecrypt: authenticated AES-256-GCM decryption of ciphertext followed by its 16-byte tag."
 suspension: may
 determinism: deterministic
 signature:

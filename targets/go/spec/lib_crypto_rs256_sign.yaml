@@ -2,11 +2,11 @@
 target: go
 function: lib.crypto.rs256_sign
 contract_version: 1.0.0
-contract_hash: 7fc8b02ae8a5809b92e1d53db3d9e00d19e03f18022e60354b95e624c77435c0
+contract_hash: 5a5d7b3f04ff4928aeba692e8cd516925735fec49d65450882e8413263ad5d05
 symbol: "rt.LibCryptoRS256Sign"
 implementation: runtime/lib_crypto_rs256_sign.go
 implementation_hash: 126d07e64de94ff5fe09cf1f35af56a5883c289dd5ce2a360e0df3256c88563e
-summary: "crypto.RS256Sign: native capability boundary."
+summary: "crypto.RS256Sign: an RSASSA-PKCS1-v1_5 SHA-256 (RS256) signature over data."
 suspension: may
 determinism: deterministic
 signature:

@@ -6,6 +6,7 @@ environment:
   runtime: Rust edition 2021; std-only virtual executables; pinned OpenSSL/reqwest/rustls/Tokio/base64 native capabilities
   minimum: "Rust 1.75 std-only; native package dependencies require Rust 1.88"
   build: "std-only run.sh uses rustc; native executables/libraries use Cargo and native C/CMake/Make/Perl prerequisites"
+  native: "Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: "V::Bool."}
   - {type: type.integer, contract_version: 1.0.0, representation: "V::Int holding an i64 normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/ints.rs)."}

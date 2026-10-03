@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.random
 contract_version: 1.0.0
-contract_hash: 0649ce849049a847f7b218a647d991cee6583449db50ca0200d5e8dde33ab220
+contract_hash: 9a09ad48c9ec06643ac586c314f285b0042ef13c12d43d5e42eff10c529809f0
 symbol: "gx_lib_crypto_random"
 implementation: runtime/lib_crypto_random.c
 implementation_hash: 26d0cffe89ca5deef00ae76b12c5031b759fadd1c893f3a46ee53dd2d025ca60
-summary: "crypto.Random: native capability boundary."
+summary: "crypto.Random: n bytes from the host cryptographically secure random generator."
 suspension: may
 determinism: nondeterministic
 signature:

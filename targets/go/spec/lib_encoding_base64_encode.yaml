@@ -2,11 +2,11 @@
 target: go
 function: lib.encoding.base64_encode
 contract_version: 1.0.0
-contract_hash: 2ccb5a899da30e24cddc06971b3fb3a317551ff934a05f95039d346df870220f
+contract_hash: 373cba03a06267841cf879f30b746d488075d75f133a7a5d584b65d4f46053ea
 symbol: "rt.LibEncodingBase64Encode"
 implementation: runtime/lib_encoding_base64_encode.go
 implementation_hash: 42796c9eca9e9c419b22272ca484cb4ba4a2dae143f02a83e346a811be05b39e
-summary: "encoding.Base64Encode: native capability boundary."
+summary: "encoding.Base64Encode: standard RFC 4648 base64 with padding."
 suspension: never
 determinism: deterministic
 signature:

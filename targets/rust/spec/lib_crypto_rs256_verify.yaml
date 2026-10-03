@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.rs256_verify
 contract_version: 1.0.0
-contract_hash: c39407ef585b884af3efcca0aae71e551cdfa5dca80e76b30dc69413f3c03e2a
+contract_hash: 675b4a16697753f65efe2323ee2e046eb6eb7aadd3ee3d3fecba79f8dd902975
 symbol: "lib_crypto_rs256_verify"
 implementation: runtime/lib_crypto_rs256_verify.rs
 implementation_hash: 54d823e82bc82a8366d89d74b7533bb18821a029c977b89f248d0e0bfe658b84
-summary: "crypto.RS256Verify: native capability boundary."
+summary: "crypto.RS256Verify: whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data."
 suspension: may
 determinism: deterministic
 signature:

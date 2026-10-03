@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.rsa_oaep_encrypt
 contract_version: 1.0.0
-contract_hash: 602ef9a51f25d027d1f4af94dbfa60ec31942d1daceed37ea45c20b8cb284e86
+contract_hash: 9d2d5612abf0d1fcc98ea8e45890603b42158ca38718400d0a231d5869c78b0f
 symbol: "LibCryptoRsaOaepEncrypt.libCryptoRsaOaepEncrypt"
 implementation: runtime/LibCryptoRsaOaepEncrypt.java
 implementation_hash: b26f3267bafd14bc857a91f0931d6488aa3ea0db0d2e7f0b210ed51533b4b428
-summary: "crypto.RSAOAEPEncrypt: native capability boundary."
+summary: "crypto.RSAOAEPEncrypt: RSA-2048 OAEP encryption with SHA-1, MGF1-SHA1 and an empty label."
 suspension: may
 determinism: nondeterministic
 signature:

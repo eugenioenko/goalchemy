@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.generate_p256
 contract_version: 1.0.0
-contract_hash: 7188685871426fe945290c0b7b591ff0a32de648f022661ceacb36de9d8b268b
+contract_hash: 3b0651ad5c93165df8d6b3f5ffbdd71aaac9d2f63b8c57c2caa0bed9bc54985d
 symbol: "gx_lib_crypto_generate_p256"
 implementation: runtime/lib_crypto_generate_p256.c
 implementation_hash: 066ce5bf95a3eda605c6ada1112a59aae02f3189dd3336f11c01f28d42b6c178
-summary: "crypto.GenerateP256: native capability boundary."
+summary: "crypto.GenerateP256: a new random NIST P-256 private key handle."
 suspension: may
 determinism: nondeterministic
 signature:

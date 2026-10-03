@@ -2,11 +2,11 @@
 target: go
 function: lib.crypto.import_pem
 contract_version: 1.0.0
-contract_hash: c448e1a20b5c137b477f03cce8b4e8c5ba6e24f4b9b751cb6689a461718c8751
+contract_hash: 658c60477bbc74a0798246a0525a226865e2031fe011d99ebc7d5549a7afb2ee
 symbol: "rt.LibCryptoImportPEM"
 implementation: runtime/lib_crypto_import_pem.go
 implementation_hash: 2ff44af2482b60c289e4aae4b413dc3c3dd71418a175ae50121ae6d7d191227f
-summary: "crypto.ImportPEM: native capability boundary."
+summary: "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key."
 suspension: may
 determinism: deterministic
 signature:

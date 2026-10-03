@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.close
 contract_version: 1.0.0
-contract_hash: eb7f49a5b0b9c1a98c83dbabc2ee7a4d0e6a25377d68fe3229466abe0006ed30
+contract_hash: 5245add9673fb3bc1e28db33f95cf162a2f0a1ad3f54eecb082b1bc5fb5ecaa4
 symbol: "gx_lib_crypto_close"
 implementation: runtime/lib_crypto_close.c
 implementation_hash: aaca57c03d61f4dfa44e17f18b685598c8a69d6018ae443bce499e86526f24a3
-summary: "crypto.Close: native capability boundary."
+summary: "crypto.Key.Close: release the key handle and invalidate every alias of it."
 suspension: may
 determinism: deterministic
 signature:

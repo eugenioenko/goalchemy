@@ -10,6 +10,7 @@ import "time"
 // Duration is a span of virtual time in nanoseconds.
 type Duration int64
 
+// Common durations.
 const (
 	Nanosecond  Duration = 1
 	Microsecond          = 1000 * Nanosecond

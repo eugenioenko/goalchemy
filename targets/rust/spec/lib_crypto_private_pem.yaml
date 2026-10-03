@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.private_pem
 contract_version: 1.0.0
-contract_hash: a0ee8cd7c04cb77c068fd3fdfbe0018652f2bdb1c64538f391fc6da873f6bbb8
+contract_hash: 19fc73bc3a7f4ce77e47a3ca60c71e31009fd91126cd0e4535fd4dea1b55034d
 symbol: "lib_crypto_private_pem"
 implementation: runtime/lib_crypto_private_pem.rs
 implementation_hash: c84ea3310bd17fe3f944ea3bbd00876dee72682c9ece9d4e3597cf4cbf28fb9d
-summary: "crypto.PrivatePEM: native capability boundary."
+summary: "crypto.Key.PrivatePEM: the private key as a PKCS#8 PRIVATE KEY PEM block."
 suspension: may
 determinism: deterministic
 signature:

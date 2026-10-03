@@ -2,11 +2,11 @@
 target: typescript
 function: lib.crypto.rsa_oaep_decrypt
 contract_version: 1.0.0
-contract_hash: 8ad7bec68c73852a6075c59b26580b7d82d2ce711c82dcc154f1af542fe80550
+contract_hash: 91538d14c7a276cd6c871681eec8099811807da26ddf424d1e0d0b4f86c9da95
 symbol: "rt.libCryptoRsaOaepDecrypt"
 implementation: runtime/lib_crypto_rsa_oaep_decrypt.ts
 implementation_hash: c9a0032151d3bfc9edff990f38d77d212329378c387d72622ee873d937822f9b
-summary: "crypto.RSAOAEPDecrypt: native capability boundary."
+summary: "crypto.RSAOAEPDecrypt: RSA-2048 OAEP decryption with SHA-1, MGF1-SHA1 and an empty label."
 suspension: may
 determinism: deterministic
 signature:

@@ -2,11 +2,11 @@
 target: typescript
 function: lib.crypto.es256_sign
 contract_version: 1.0.0
-contract_hash: 78225958cca7e706eb9a45ca4a8edb6b3a464623a25e68dd3a35d590be993a04
+contract_hash: d27f8bcbdea6486cf4a4b866b8d8e69f8f5f5c61e1db0963ea10567eea7493fc
 symbol: "rt.libCryptoEs256Sign"
 implementation: runtime/lib_crypto_es256_sign.ts
 implementation_hash: f918824e1d4aee05dd6850638314867aaf72a610497cad2a2e649b047f774092
-summary: "crypto.ES256Sign: native capability boundary."
+summary: "crypto.ES256Sign: an ECDSA P-256 SHA-256 (ES256) signature over data as raw 32-byte R followed by 32-byte S."
 suspension: may
 determinism: nondeterministic
 signature:

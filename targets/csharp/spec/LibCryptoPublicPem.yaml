@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.public_pem
 contract_version: 1.0.0
-contract_hash: 94d52749b162c97933fd1792fd37ca17d9aea00c2c0bc081559fdd0186cbaf24
+contract_hash: 863640978b575652f11a39db3486ae62472c1bfe39173ba593056d00c3c5e479
 symbol: "R.libCryptoPublicPem"
 implementation: runtime/LibCryptoPublicPem.cs
 implementation_hash: 38496b0425b05370b2d9ed37ce016365a32ea5e0100bb23574bb23cbe81258ab
-summary: "crypto.PublicPEM: native capability boundary."
+summary: "crypto.Key.PublicPEM: the key's public half as a PKIX (SPKI) PUBLIC KEY PEM block."
 suspension: may
 determinism: deterministic
 signature:

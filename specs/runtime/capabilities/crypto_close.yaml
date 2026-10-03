@@ -2,7 +2,7 @@
   "id": "lib.crypto.close",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "crypto.Close: native capability boundary.",
+  "summary": "crypto.Key.Close: release the key handle and invalidate every alias of it.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.(Key).Close",
@@ -21,7 +21,7 @@
   "behavior": {
     "zero": "A zero *crypto.Key is nil. Close accepts nil as a no-op and is idempotent.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Input bytes <=64MiB. AES key=32, nonce=12, tag=16; plaintext/AAD<=64MiB, ciphertext<=64MiB+16. RSA-2048 OAEP plaintext<=214 and ciphertext=256 bytes. ES256 signature=64 bytes. HKDF output 0..8160. PEM<=64KiB.",
+    "bounds": "Not applicable.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",

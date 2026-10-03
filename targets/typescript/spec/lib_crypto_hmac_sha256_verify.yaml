@@ -2,11 +2,11 @@
 target: typescript
 function: lib.crypto.hmac_sha256_verify
 contract_version: 1.0.0
-contract_hash: 122135f1d3cbde008e682a3dec389032d611d6bb8a476830b5c3c158a4f44b31
+contract_hash: 669ec9f8c5b240e60f5f4bf0dbc3914896c76f667d8699be035dd0c0a055dc95
 symbol: "rt.libCryptoHmacSha256Verify"
 implementation: runtime/lib_crypto_hmac_sha256_verify.ts
 implementation_hash: 313efe01c8c342713c1aa45d9af7bcbdc5c07e97c64d02751f2e01969f827b23
-summary: "crypto.HMACSHA256Verify: constant-time bounded HMAC verification."
+summary: "crypto.HMACSHA256Verify: constant-time check that mac is the HMAC-SHA256 of data under key."
 suspension: may
 determinism: deterministic
 signature:

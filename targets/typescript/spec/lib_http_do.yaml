@@ -2,11 +2,11 @@
 target: typescript
 function: lib.http.do
 contract_version: 1.0.0
-contract_hash: e123a0ace581fc98c411dc2d3722db3bf0495e2a1df08f5ef0678c108f01b2bb
+contract_hash: b1197e63d45cbc100a857c0d57e897fcf2f5e733267dcb41f815fccb43a231ea
 symbol: "rt.libHttpDo"
 implementation: runtime/lib_http_do.ts
 implementation_hash: 0d3aeade6033c614a8d580c46b47725f102b6e6c74628ae0f6f01d3a16ef47d8
-summary: "http.Do: native capability boundary."
+summary: "http.Do: one bounded HTTP GET or POST exchange that keeps TLS verification and does not follow redirects."
 suspension: may
 determinism: nondeterministic
 signature:

@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.hkdf_sha256
 contract_version: 1.0.0
-contract_hash: 2e0c67e843071f02d7428de8467ef98078d7f16dee6a8d085c851f58ab2d1827
+contract_hash: 95fe25b2c31ec44dbfa35d64e7a8e2146097f908290fe19c773d7c87cab175cf
 symbol: "LibCryptoHkdfSha256.libCryptoHkdfSha256"
 implementation: runtime/LibCryptoHkdfSha256.java
 implementation_hash: fa40434a1cd9e17641f277f75fa6a1c697fd393e6e06d0e51b217fe30220a095
-summary: "crypto.HKDFSHA256: native capability boundary."
+summary: "crypto.HKDFSHA256: n bytes of RFC 5869 HKDF-SHA256 (extract then expand) output from secret, salt and info."
 suspension: may
 determinism: deterministic
 signature:

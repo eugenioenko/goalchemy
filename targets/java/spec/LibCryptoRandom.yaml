@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.random
 contract_version: 1.0.0
-contract_hash: 0649ce849049a847f7b218a647d991cee6583449db50ca0200d5e8dde33ab220
+contract_hash: 9a09ad48c9ec06643ac586c314f285b0042ef13c12d43d5e42eff10c529809f0
 symbol: "LibCryptoRandom.libCryptoRandom"
 implementation: runtime/LibCryptoRandom.java
 implementation_hash: 872e413fa3320fd4f62bb087f0036c11cfaf47b17857a8921fb6e09002e39522
-summary: "crypto.Random: native capability boundary."
+summary: "crypto.Random: n bytes from the host cryptographically secure random generator."
 suspension: may
 determinism: nondeterministic
 signature:

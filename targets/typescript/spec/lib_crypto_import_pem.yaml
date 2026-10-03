@@ -2,11 +2,11 @@
 target: typescript
 function: lib.crypto.import_pem
 contract_version: 1.0.0
-contract_hash: c448e1a20b5c137b477f03cce8b4e8c5ba6e24f4b9b751cb6689a461718c8751
+contract_hash: 658c60477bbc74a0798246a0525a226865e2031fe011d99ebc7d5549a7afb2ee
 symbol: "rt.libCryptoImportPem"
 implementation: runtime/lib_crypto_import_pem.ts
 implementation_hash: 53f636895dde15a7e14ca562e44d805e84d16aa3c471061f1e50cd239a1004a8
-summary: "crypto.ImportPEM: native capability boundary."
+summary: "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key."
 suspension: may
 determinism: deterministic
 signature:

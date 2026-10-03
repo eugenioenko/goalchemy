@@ -2,11 +2,11 @@
 target: go
 function: lib.crypto.ecdh
 contract_version: 1.0.0
-contract_hash: abbdb2defe21bb9c5f945260cf5dfeb9b888bef6f8f6974510e78f4ab404f51b
+contract_hash: bfd2eb5b6c2601378712699923850afab0cd9b6c1477547849373d47bff83371
 symbol: "rt.LibCryptoECDH"
 implementation: runtime/lib_crypto_ecdh.go
 implementation_hash: 19aff6990e58d8a0e34c85c08a4378415a8f48abb6a5a354beccfb6665b7b8ae
-summary: "crypto.ECDH: native capability boundary."
+summary: "crypto.ECDH: the raw 32-byte P-256 ECDH shared secret (the x-coordinate), before any KDF."
 suspension: may
 determinism: deterministic
 signature:

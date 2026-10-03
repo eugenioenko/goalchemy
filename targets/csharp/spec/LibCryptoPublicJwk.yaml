@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.public_jwk
 contract_version: 1.0.0
-contract_hash: 09f76317dd9d3461c7db76318f6f2773754f41d27eba882057a25f7053f8113f
+contract_hash: ab693a3189aff2a30d80c12184d190903956da3d570b43b828f60928adcdda34
 symbol: "R.libCryptoPublicJwk"
 implementation: runtime/LibCryptoPublicJwk.cs
 implementation_hash: d4e78d3d0aeb56d47a8b63f090e3ed455e2798a0abc45de57e9f96688648d45b
-summary: "crypto.PublicJWK: native capability boundary."
+summary: "crypto.Key.PublicJWK: the key's public JWK members as [kty, crv, n, e, x, y], with no JSON encoding."
 suspension: may
 determinism: deterministic
 signature:

@@ -8,16 +8,20 @@ import (
 	"strings"
 )
 
+// MaxBytes is the largest decoded size the encoders and decoders accept (64MiB).
 const MaxBytes = 64 << 20
 
 var invalid = errors.New("encoding: invalid input or size")
 
+// Base64Encode returns standard RFC 4648 base64 with padding.
 func Base64Encode(data []byte) (string, error) {
 	if len(data) > MaxBytes {
 		return "", invalid
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
 }
+
+// Base64URLEncode returns RFC 4648 base64url without padding.
 func Base64URLEncode(data []byte) (string, error) {
 	if len(data) > MaxBytes {
 		return "", invalid
@@ -34,5 +38,9 @@ func decode(s string, e *base64.Encoding) ([]byte, error) {
 	}
 	return b, nil
 }
-func Base64Decode(s string) ([]byte, error)    { return decode(s, base64.StdEncoding) }
+
+// Base64Decode strictly decodes canonical padded standard base64.
+func Base64Decode(s string) ([]byte, error) { return decode(s, base64.StdEncoding) }
+
+// Base64URLDecode strictly decodes canonical unpadded base64url.
 func Base64URLDecode(s string) ([]byte, error) { return decode(s, base64.RawURLEncoding) }

@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.rsa_oaep_decrypt
 contract_version: 1.0.0
-contract_hash: 8ad7bec68c73852a6075c59b26580b7d82d2ce711c82dcc154f1af542fe80550
+contract_hash: 91538d14c7a276cd6c871681eec8099811807da26ddf424d1e0d0b4f86c9da95
 symbol: "gx_lib_crypto_rsa_oaep_decrypt"
 implementation: runtime/lib_crypto_rsa_oaep_decrypt.c
 implementation_hash: 55b42f7460a23a376207eae2b3b58c597f31ba2734107cd66be6f4619d439cc1
-summary: "crypto.RSAOAEPDecrypt: native capability boundary."
+summary: "crypto.RSAOAEPDecrypt: RSA-2048 OAEP decryption with SHA-1, MGF1-SHA1 and an empty label."
 suspension: may
 determinism: deterministic
 signature:

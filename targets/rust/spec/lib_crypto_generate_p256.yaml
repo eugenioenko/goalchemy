@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.generate_p256
 contract_version: 1.0.0
-contract_hash: 7188685871426fe945290c0b7b591ff0a32de648f022661ceacb36de9d8b268b
+contract_hash: 3b0651ad5c93165df8d6b3f5ffbdd71aaac9d2f63b8c57c2caa0bed9bc54985d
 symbol: "lib_crypto_generate_p256"
 implementation: runtime/lib_crypto_generate_p256.rs
 implementation_hash: ab01d13f8f76d66c744d8373f31d57acf59968a3e335d6281f5a3626a51d4e19
-summary: "crypto.GenerateP256: native capability boundary."
+summary: "crypto.GenerateP256: a new random NIST P-256 private key handle."
 suspension: may
 determinism: nondeterministic
 signature:

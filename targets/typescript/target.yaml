@@ -6,6 +6,7 @@ environment:
   runtime: Node.js executable with TypeScript type stripping; portable Promise cooperative entry for Node/browser
   minimum: Node.js 22.6 (ES2022)
   build: node main.ts
+  native: "No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP, in Node.js or browsers."
 representations:
   - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/chan_make.ts); null is the nil channel."}
   - {type: type.task, contract_version: 1.0.0, representation: "Resumable frame stacks dispatched FIFO by runtime/task_spawn.ts; synchronous executable/conformance entry uses virtual time, explicit Promise host entry uses owner-local real monotonic time, mailbox completions and cleanup acknowledgement. Global executable binding rejects overlapping entries; isolated library exports remain gated."}

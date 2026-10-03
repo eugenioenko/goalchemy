@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.sha256
 contract_version: 1.0.0
-contract_hash: 957a42fa8c1677774abab7c7c3d6b51ff0626352e993c56e0e9f3d9cab01e855
+contract_hash: 652fd1f25bfd6e6226b297f8e47ca4e3f89f3fb1d556538bf918868842bde549
 symbol: "R.libCryptoSha256"
 implementation: runtime/LibCryptoSha256.cs
 implementation_hash: 602163c8ae319996fed1743b0dbdf566b7405c15d657341cdb1ae65fa8e11854
-summary: "crypto.SHA256: native capability boundary."
+summary: "crypto.SHA256: the 32-byte SHA-256 digest of data."
 suspension: may
 determinism: deterministic
 signature:

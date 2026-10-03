@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.import_pem
 contract_version: 1.0.0
-contract_hash: c448e1a20b5c137b477f03cce8b4e8c5ba6e24f4b9b751cb6689a461718c8751
+contract_hash: 658c60477bbc74a0798246a0525a226865e2031fe011d99ebc7d5549a7afb2ee
 symbol: "LibCryptoImportPem.libCryptoImportPem"
 implementation: runtime/LibCryptoImportPem.java
 implementation_hash: 165e8958ec3de5be7da99439c7083439e6834fd79d7ea657bcf9d144cc6edff5
-summary: "crypto.ImportPEM: native capability boundary."
+summary: "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key."
 suspension: may
 determinism: deterministic
 signature:

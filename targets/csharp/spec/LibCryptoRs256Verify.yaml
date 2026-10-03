@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.rs256_verify
 contract_version: 1.0.0
-contract_hash: c39407ef585b884af3efcca0aae71e551cdfa5dca80e76b30dc69413f3c03e2a
+contract_hash: 675b4a16697753f65efe2323ee2e046eb6eb7aadd3ee3d3fecba79f8dd902975
 symbol: "R.libCryptoRs256Verify"
 implementation: runtime/LibCryptoRs256Verify.cs
 implementation_hash: 4ddb8a85b309444349375197293d835295d3bc3f7185e1e83801ecd68020febf
-summary: "crypto.RS256Verify: native capability boundary."
+summary: "crypto.RS256Verify: whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data."
 suspension: may
 determinism: deterministic
 signature:

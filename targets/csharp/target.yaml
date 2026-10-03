@@ -6,6 +6,7 @@ environment:
   runtime: .NET 8
   minimum: ".NET 8 SDK (C# 12)"
   build: "sh run.sh (csc from the .NET 8 SDK), or dotnet run with main.csproj"
+  native: ".NET 8 built-ins only: System.Security.Cryptography and HttpClient, with no NuGet dependencies."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: C# bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "C# long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.cs)."}

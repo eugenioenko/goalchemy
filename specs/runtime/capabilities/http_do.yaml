@@ -2,7 +2,7 @@
   "id": "lib.http.do",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "http.Do: native capability boundary.",
+  "summary": "http.Do: one bounded HTTP GET or POST exchange that keeps TLS verification and does not follow redirects.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/http.Do",

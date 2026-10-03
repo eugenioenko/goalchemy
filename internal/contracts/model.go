@@ -119,6 +119,7 @@ type Environment struct {
 	Runtime string `json:"runtime"`
 	Minimum string `json:"minimum"`
 	Build   string `json:"build,omitempty"`
+	Native  string `json:"native,omitempty"`
 }
 
 type Target struct {

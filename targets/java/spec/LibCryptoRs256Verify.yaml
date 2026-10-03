@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.rs256_verify
 contract_version: 1.0.0
-contract_hash: c39407ef585b884af3efcca0aae71e551cdfa5dca80e76b30dc69413f3c03e2a
+contract_hash: 675b4a16697753f65efe2323ee2e046eb6eb7aadd3ee3d3fecba79f8dd902975
 symbol: "LibCryptoRs256Verify.libCryptoRs256Verify"
 implementation: runtime/LibCryptoRs256Verify.java
 implementation_hash: 8383f701932743e4b4a4a82cef355d08bb821fef84627785be52d42c299e3693
-summary: "crypto.RS256Verify: native capability boundary."
+summary: "crypto.RS256Verify: whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data."
 suspension: may
 determinism: deterministic
 signature:

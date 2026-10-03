@@ -2,11 +2,11 @@
 target: csharp
 function: lib.clock.unix
 contract_version: 1.0.0
-contract_hash: 9674d757e040e194bc7f05571397131c7af34b4abbbc1d2d8c3fca55ad751d46
+contract_hash: 839a27c33b9e7abcdd5e85ec4a078ff668025ed54379c185517c8d6394dce859
 symbol: "R.libClockUnix"
 implementation: runtime/LibClockUnix.cs
 implementation_hash: 4a46058e043405d8c83513a7fb5ab7fd69ae86b6889ac21426ca907f1906f0f9
-summary: "clock.Unix: native capability boundary."
+summary: "clock.Unix: the host wall-clock time in UTC seconds since the Unix epoch."
 suspension: never
 determinism: nondeterministic
 signature:

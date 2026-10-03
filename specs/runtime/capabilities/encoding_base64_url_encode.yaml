@@ -2,7 +2,7 @@
   "id": "lib.encoding.base64_url_encode",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "encoding.Base64URLEncode: native capability boundary.",
+  "summary": "encoding.Base64URLEncode: RFC 4648 base64url without padding.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/encoding.Base64URLEncode",
@@ -30,13 +30,13 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Input bytes <=64MiB; encoded string length <=4*ceil(64MiB/3), decoded length <=64MiB. Strict canonical RFC4648; no whitespace, nonzero trailing bits, or padding in base64url.",
+    "bounds": "The data is at most 64MiB.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
     "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
-    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "errors": "Data over 64MiB returns an empty string and an error.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
     "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
   },

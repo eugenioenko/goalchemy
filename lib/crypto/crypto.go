@@ -24,7 +24,10 @@ import (
 	"sync"
 )
 
+// MaxBytes is the largest byte input most operations accept (64MiB).
 const MaxBytes = 64 << 20
+
+// MaxPEMBytes is the largest PEM input ImportPEM accepts (64KiB).
 const MaxPEMBytes = 64 << 10
 
 var invalid = errors.New("crypto: invalid input or key")
@@ -39,6 +42,7 @@ type Key struct {
 	value any
 }
 
+// Close releases the key and invalidates every alias of it; it accepts nil and is idempotent.
 func (k *Key) Close() {
 	if k != nil {
 		k.mu.Lock()
@@ -65,6 +69,8 @@ func bounded(xs ...[]byte) bool {
 	}
 	return true
 }
+
+// Random returns n bytes from the host cryptographically secure random generator.
 func Random(n int) ([]byte, error) {
 	if n < 0 || n > MaxBytes {
 		return nil, invalid
@@ -76,6 +82,8 @@ func Random(n int) ([]byte, error) {
 	}
 	return b, nil
 }
+
+// SHA256 returns the 32-byte SHA-256 digest of data.
 func SHA256(data []byte) ([]byte, error) {
 	if !bounded(data) {
 		return nil, invalid
@@ -83,6 +91,8 @@ func SHA256(data []byte) ([]byte, error) {
 	h := sha256.Sum256(data)
 	return h[:], nil
 }
+
+// HMACSHA256 returns the 32-byte HMAC-SHA256 of data under key.
 func HMACSHA256(key, data []byte) ([]byte, error) {
 	if !bounded(key, data) {
 		return nil, invalid
@@ -149,6 +159,8 @@ func AES256GCMEncrypt(key, nonce, data, aad []byte) ([]byte, error) {
 	}
 	return g.Seal(nil, nonce, data, aad), nil
 }
+
+// AES256GCMDecrypt authenticates and decrypts ciphertext followed by its 16-byte tag.
 func AES256GCMDecrypt(key, nonce, data, aad []byte) ([]byte, error) {
 	if len(data) > MaxBytes+16 {
 		return nil, invalid
@@ -166,6 +178,8 @@ func AES256GCMDecrypt(key, nonce, data, aad []byte) ([]byte, error) {
 	}
 	return out, nil
 }
+
+// GenerateRSA2048 returns a new random RSA-2048 private key.
 func GenerateRSA2048() (*Key, error) {
 	k, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -173,6 +187,8 @@ func GenerateRSA2048() (*Key, error) {
 	}
 	return &Key{value: k}, nil
 }
+
+// GenerateP256 returns a new random P-256 private key.
 func GenerateP256() (*Key, error) {
 	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -254,6 +270,8 @@ func ImportPEM(data string) (*Key, error) {
 	}
 	return &Key{value: v}, nil
 }
+
+// PublicPEM returns the public key as a PKIX (SPKI) PUBLIC KEY PEM block.
 func (k *Key) PublicPEM() (string, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -266,6 +284,8 @@ func (k *Key) PublicPEM() (string, error) {
 	}
 	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: b})), nil
 }
+
+// PrivatePEM returns the private key as a PKCS#8 PRIVATE KEY PEM block.
 func (k *Key) PrivatePEM() (string, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -301,7 +321,7 @@ func (k *Key) PublicJWK() ([]string, error) {
 	return nil, invalid
 }
 
-// RSAOAEP uses SHA-1 for both OAEP and MGF1, with an empty label.
+// RSAOAEPEncrypt encrypts with RSA-2048 OAEP using SHA-1, MGF1-SHA1 and an empty label.
 func RSAOAEPEncrypt(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -314,6 +334,8 @@ func RSAOAEPEncrypt(k *Key, data []byte) ([]byte, error) {
 	}
 	return rsa.EncryptOAEP(sha1.New(), rand.Reader, p, data, nil)
 }
+
+// RSAOAEPDecrypt decrypts RSA-2048 OAEP using SHA-1, MGF1-SHA1 and an empty label.
 func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -330,6 +352,8 @@ func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error) {
 	}
 	return out, nil
 }
+
+// RS256Sign returns an RSASSA-PKCS1-v1_5 SHA-256 signature over data.
 func RS256Sign(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -343,6 +367,8 @@ func RS256Sign(k *Key, data []byte) ([]byte, error) {
 	h := sha256.Sum256(data)
 	return rsa.SignPKCS1v15(rand.Reader, p, stdcrypto.SHA256, h[:])
 }
+
+// RS256Verify reports whether sig is a valid RS256 signature of data.
 func RS256Verify(k *Key, data, sig []byte) (bool, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -356,6 +382,8 @@ func RS256Verify(k *Key, data, sig []byte) (bool, error) {
 	h := sha256.Sum256(data)
 	return rsa.VerifyPKCS1v15(p, stdcrypto.SHA256, h[:], sig) == nil, nil
 }
+
+// ES256Sign returns an ECDSA P-256 SHA-256 signature over data as raw 32-byte R and S.
 func ES256Sign(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -376,6 +404,8 @@ func ES256Sign(k *Key, data []byte) ([]byte, error) {
 	s.FillBytes(out[32:])
 	return out, nil
 }
+
+// ES256Verify reports whether sig is a valid raw R||S ES256 signature of data.
 func ES256Verify(k *Key, data, sig []byte) (bool, error) {
 	v, done, err := k.read()
 	if err != nil {

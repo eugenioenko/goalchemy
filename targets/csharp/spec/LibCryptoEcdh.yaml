@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.ecdh
 contract_version: 1.0.0
-contract_hash: abbdb2defe21bb9c5f945260cf5dfeb9b888bef6f8f6974510e78f4ab404f51b
+contract_hash: bfd2eb5b6c2601378712699923850afab0cd9b6c1477547849373d47bff83371
 symbol: "R.libCryptoEcdh"
 implementation: runtime/LibCryptoEcdh.cs
 implementation_hash: 353492e89a77edccc7c4bb86d26ff692dd8cf6d4970d42a4870c30c3aa9d143a
-summary: "crypto.ECDH: native capability boundary."
+summary: "crypto.ECDH: the raw 32-byte P-256 ECDH shared secret (the x-coordinate), before any KDF."
 suspension: may
 determinism: deterministic
 signature:

@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.import_pem
 contract_version: 1.0.0
-contract_hash: c448e1a20b5c137b477f03cce8b4e8c5ba6e24f4b9b751cb6689a461718c8751
+contract_hash: 658c60477bbc74a0798246a0525a226865e2031fe011d99ebc7d5549a7afb2ee
 symbol: "lib_crypto_import_pem"
 implementation: runtime/lib_crypto_import_pem.rs
 implementation_hash: cfbf76b130dd92716eb508d8b29c02289a3149b5c7a27fdf666deacabf531f91
-summary: "crypto.ImportPEM: native capability boundary."
+summary: "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key."
 suspension: may
 determinism: deterministic
 signature:

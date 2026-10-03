@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.rs256_sign
 contract_version: 1.0.0
-contract_hash: 7fc8b02ae8a5809b92e1d53db3d9e00d19e03f18022e60354b95e624c77435c0
+contract_hash: 5a5d7b3f04ff4928aeba692e8cd516925735fec49d65450882e8413263ad5d05
 symbol: "LibCryptoRs256Sign.libCryptoRs256Sign"
 implementation: runtime/LibCryptoRs256Sign.java
 implementation_hash: 3e3541ce247a2d932d6aa9117d6bc2da83e64058e0418ba6452f2ff7cd29a508
-summary: "crypto.RS256Sign: native capability boundary."
+summary: "crypto.RS256Sign: an RSASSA-PKCS1-v1_5 SHA-256 (RS256) signature over data."
 suspension: may
 determinism: deterministic
 signature:
