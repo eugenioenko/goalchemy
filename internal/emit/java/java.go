@@ -90,7 +90,11 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		if !p.Entry.MaySuspend {
 			start = "TaskSpawn.sync(() -> { " + p.Entry.Sym + "(); return new Object[0]; })"
 		}
-		fmt.Fprintf(&out, "    public static void runHost() {\n        TaskSpawn.runMainHost(() -> %s);\n    }\n\n    public static void main(String[] args) {\n        TaskSpawn.runMain(%s);\n    }\n}\n", start, start)
+		run := "TaskSpawn.runMain(" + start + ");"
+		if ir.HostEntry(e.contracts) {
+			run = "runHost();\n        System.out.flush();\n        System.exit(0);"
+		}
+		fmt.Fprintf(&out, "    public static void runHost() {\n        TaskSpawn.runMainHost(() -> %s);\n    }\n\n    public static void main(String[] args) {\n        %s\n    }\n}\n", start, run)
 	} else {
 		fmt.Fprintf(&out, "    public static void main(String[] args) {\n        Program.main(() -> {\n            %s();\n", p.Init.Sym)
 		if p.Main != nil {

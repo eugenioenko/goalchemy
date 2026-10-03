@@ -1,0 +1,11 @@
+schema_version: 1
+packages: [.]
+gate: cooperative
+targets:
+  go: {out: ../../out/examples/jwt/go}
+  typescript: {out: ../../out/examples/jwt/typescript}
+  python: {out: ../../out/examples/jwt/python}
+  java: {out: ../../out/examples/jwt/java}
+  csharp: {out: ../../out/examples/jwt/csharp}
+  rust: {out: ../../out/examples/jwt/rust}
+  c: {out: ../../out/examples/jwt/c}

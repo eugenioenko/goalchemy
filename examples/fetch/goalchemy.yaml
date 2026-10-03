@@ -1,0 +1,11 @@
+schema_version: 1
+packages: [.]
+gate: cooperative
+targets:
+  go: {out: ../../out/examples/fetch/go}
+  typescript: {out: ../../out/examples/fetch/typescript}
+  python: {out: ../../out/examples/fetch/python}
+  java: {out: ../../out/examples/fetch/java}
+  csharp: {out: ../../out/examples/fetch/csharp}
+  rust: {out: ../../out/examples/fetch/rust}
+  c: {out: ../../out/examples/fetch/c}

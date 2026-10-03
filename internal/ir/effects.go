@@ -1,5 +1,7 @@
 package ir
 
+import "strings"
+
 // ComputeEffects determines which functions may suspend. Channel
 // operations, select, and suspending capability calls seed the analysis.
 // Calls through function values and interfaces are resolved conservatively
@@ -310,4 +312,16 @@ func forEachValue(in Instr, fn func(Value)) {
 			vals(c.Ch, c.V)
 		}
 	}
+}
+
+// HostEntry reports whether an executable linking contracts must start on
+// its target's host entry: host capabilities register native operations,
+// which the virtual-time entry rejects on most targets.
+func HostEntry(contracts map[string]bool) bool {
+	for c := range contracts {
+		if strings.HasPrefix(c, "lib.crypto.") || c == "lib.http.do" || c == "lib.callback.request" {
+			return true
+		}
+	}
+	return false
 }

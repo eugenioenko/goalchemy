@@ -88,7 +88,11 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		} else {
 			fmt.Fprintf(&out, "    sync_frame(func(-1, w_%s, Vec::new()), Vec::new(), 0)\n", p.Entry.Sym)
 		}
-		fmt.Fprintf(&out, "}\n\npub fn run_host() -> Result<(), HostError> {\n    run_main_host(%d, init_zero_globals, entry_frame)\n}\n\nfn main() {\n    run_main(%d, init_zero_globals, entry_frame)\n}\n", len(p.Globals), len(p.Globals))
+		run := fmt.Sprintf("run_main(%d, init_zero_globals, entry_frame)", len(p.Globals))
+		if ir.HostEntry(e.contracts) {
+			run = "report_host_result(run_host())"
+		}
+		fmt.Fprintf(&out, "}\n\npub fn run_host() -> Result<(), HostError> {\n    run_main_host(%d, init_zero_globals, entry_frame)\n}\n\nfn main() {\n    %s\n}\n", len(p.Globals), run)
 	} else {
 		fmt.Fprintf(&out, "fn entry() {\n    f_%s();\n", p.Init.Sym)
 		if p.Main != nil {

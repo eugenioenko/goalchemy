@@ -379,7 +379,7 @@ func (e *emitter) entry() {
 			start = "rt.Sync(func() []any { " + e.p.Entry.Sym + "(); return nil })"
 		}
 		run := "RunMain"
-		if e.contracts["lib.http.do"] {
+		if ir.HostEntry(e.contracts) {
 			run = "RunMainHost"
 		}
 		e.p_("func main() {\n\trt.%s(%s)\n}\n", run, start)
