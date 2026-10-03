@@ -20,6 +20,7 @@ func runCompile(ctx context.Context, args []string, stdout, stderr io.Writer) in
 	sf.register(fs)
 	target := fs.String("target", "go", "output target: "+targetNames()+", or ir")
 	out := fs.String("out", "", "output directory")
+	format := fs.Bool("fmt", false, "format generated sources with the target's formatter")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -40,9 +41,11 @@ func runCompile(ctx context.Context, args []string, stdout, stderr io.Writer) in
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	eds := emitTarget(*target, res, *out)
+	eds := emitTarget(*target, res, *out, *format)
 	if len(eds) > 0 {
 		_ = diagnostics.Write(stderr, eds, sf.json)
+	}
+	if diagnostics.HasErrors(eds) {
 		return 1
 	}
 	return 0
