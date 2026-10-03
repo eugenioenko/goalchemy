@@ -12,6 +12,19 @@ The source is plain Go: it builds, runs, and tests with the standard Go toolchai
 
 Shipping the same logic as an SDK in several languages usually means maintaining several hand-written ports that drift apart. Goalchemy keeps one typed source of truth and generates each port from it. The motivating workload is the [OpenTDF](https://github.com/opentdf/platform) SDK, whose encryption and decryption logic needs to behave identically across languages.
 
+## Scope
+
+Goalchemy is a framework for building one SDK that ships in several languages. You write the SDK's logic once, in a restricted subset of Go, and Goalchemy generates the Go, TypeScript, Python, Java, C#, Rust, and C packages from it with the same behavior.
+
+It is **not** a general-purpose transpiler. It won't convert arbitrary Go programs, and it doesn't try to reproduce the whole Go standard library on every target.
+
+The runtime library is deliberately small:
+
+- **Goalchemy provides** the language runtime, a set of pure-logic `std/` packages (strings, conversions, sorting, encodings), and a few host capabilities that most SDKs need (crypto, HTTP, clocks).
+- **Each SDK is designed to provide** everything specific to its domain, including its own capabilities: declared with Go signatures and contracts, implemented natively per target, and checked against the same contracts and tests as Goalchemy's own.
+
+If a feature is useful to only one SDK, it belongs in that SDK, not in Goalchemy.
+
 ## How it works
 
 1. **Load and validate.** Packages are loaded and type-checked with `go/packages` and `go/types`, then checked against the language gate. Unsupported constructs fail closed with a stable code, source span, and one-line remedy.
@@ -70,6 +83,25 @@ The Go standard library is replaced by packages that keep the standard names, so
 - [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `clock`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
 
 The [runtime library reference](docs/library.md) explains the split and documents every function.
+
+## Planned runtime additions
+
+These are the gaps most SDKs and programs hit today, in priority order. Each lands in `std/` when it is pure logic and in `lib/` when it needs the host.
+
+| Addition | Root | Notes |
+| --- | --- | --- |
+| `fmt`: `Sprint`, `Sprintf`, `Errorf` with `%w` | `std/` | String formatting and wrapped errors. |
+| `fmt`: `Print`, `Println` | `lib/` | Writes to stdout through a small host capability. |
+| `errors.As`, `errors.Join` | `std/` or `lib/` | Typed and joined errors for SDK error handling. |
+| `time.Now` with sub-second precision, RFC 3339 formatting and parsing | `lib/` and `std/` | `clock.Unix` only has whole seconds today. |
+| `os.Getenv` | `lib/` | Reports "not set" where the host has no environment, such as browsers. |
+| Logging hook | `lib/` | Lets an SDK emit log records that the host application routes to its own logger. |
+| `os.ReadFile`, `os.WriteFile` | `lib/` | Returns an error where the host has no file system, such as browsers. |
+| `os.Args`, `os.Exit`, stdin | `lib/` | For programs and examples; SDKs rarely need them. |
+| `net/url` | `std/` | URL parsing and query escaping. |
+| `encoding/json` | `std/` | Needs compiler-generated type descriptors because source reflection is excluded; a separate design project. |
+
+Domain formats such as ZIP archives for OpenTDF are candidates for the SDK that needs them rather than for Goalchemy, per the scope above.
 
 ## CLI
 
