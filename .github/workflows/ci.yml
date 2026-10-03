@@ -37,7 +37,7 @@ jobs:
           dotnet-version: '8.0.x'
       - uses: dtolnay/rust-toolchain@stable
       - name: Install native build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev perl
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev perl ripgrep
       - name: Cache pinned toolchain downloads
         uses: actions/cache@v5
         with:

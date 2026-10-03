@@ -9,7 +9,8 @@ sanitizer/corpus/memory matrices retain their existing short-mode behavior.
 
 `scripts/ci-bootstrap.sh` prepares the prerequisites rather than skipping
 checks. Native C needs a C compiler, pkg-config, Boehm GC, libcurl, OpenSSL and
-Perl development tools. CI installs those OS packages and Playwright's browser
+Perl development tools. Its fault-output assertions also require ripgrep. CI
+installs those OS packages and Playwright's browser
 OS dependencies. The existing hash-verified `toolchains.lock` fetcher provides
 repository-local .NET and LLVM/libtinfo for tests that require those paths.
 Java remains the workflow's Temurin 21 installation.
