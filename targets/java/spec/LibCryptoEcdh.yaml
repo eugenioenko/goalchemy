@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.ecdh
 contract_version: 1.0.0
-contract_hash: abbdb2defe21bb9c5f945260cf5dfeb9b888bef6f8f6974510e78f4ab404f51b
+contract_hash: bfd2eb5b6c2601378712699923850afab0cd9b6c1477547849373d47bff83371
 symbol: "LibCryptoEcdh.libCryptoEcdh"
 implementation: runtime/LibCryptoEcdh.java
 implementation_hash: dfab5f3c1a6435834528f2edf685aeaae9b8a803fba85f7dca74f0e62e9f93ae
-summary: "crypto.ECDH: native capability boundary."
+summary: "crypto.ECDH: the raw 32-byte P-256 ECDH shared secret (the x-coordinate), before any KDF."
 suspension: may
 determinism: deterministic
 signature:

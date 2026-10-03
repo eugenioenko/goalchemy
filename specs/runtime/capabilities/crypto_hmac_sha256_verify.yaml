@@ -2,7 +2,7 @@
   "id": "lib.crypto.hmac_sha256_verify",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "crypto.HMACSHA256Verify: constant-time bounded HMAC verification.",
+  "summary": "crypto.HMACSHA256Verify: constant-time check that mac is the HMAC-SHA256 of data under key.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.HMACSHA256Verify",

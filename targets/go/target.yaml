@@ -6,6 +6,7 @@ environment:
   runtime: Go 1.27.1 reference toolchain
   minimum: go1.25
   build: go build
+  native: "Go standard library only: crypto/* for crypto and net/http for HTTP."
 representations:
   - {type: type.channel, contract_version: 1.0.0, representation: "rt.Chan[T] (runtime/chan_make.go): a handle to shared channel state with FIFO wait queues; the zero handle is the nil channel."}
   - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.go): suspending functions compile to frame structs with a Step method; exactly one task runs at a time, dispatched FIFO."}

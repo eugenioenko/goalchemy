@@ -2,11 +2,11 @@
 target: typescript
 function: lib.crypto.aes256_gcm_encrypt
 contract_version: 1.0.0
-contract_hash: e135536b11e17e03bac076053233b2e20f72a966c039552cf416eb19a958febc
+contract_hash: 6411ca4792c243ece19e18504b63b9f67734b186dd123ab551baa23eddc6c8d7
 symbol: "rt.libCryptoAes256GcmEncrypt"
 implementation: runtime/lib_crypto_aes256_gcm_encrypt.ts
 implementation_hash: ae70fdcb8ed0149f2c9a1d120a40d68e178874698faf4b33b01bf70158ef2570
-summary: "crypto.AES256GCMEncrypt: native capability boundary."
+summary: "crypto.AES256GCMEncrypt: AES-256-GCM encryption returning ciphertext followed by the 16-byte tag, without the nonce."
 suspension: may
 determinism: deterministic
 signature:

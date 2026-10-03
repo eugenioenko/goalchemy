@@ -2,11 +2,11 @@
 target: go
 function: lib.encoding.base64_url_decode
 contract_version: 1.0.0
-contract_hash: 6354fbe059012a8c5e88ec0f03b423e85f11c38b580419871417975e88b7a1b9
+contract_hash: 84341fe6287ad8c892a5f2b2c1f15ee0d407fa42f86d06cc35579636c150abc0
 symbol: "rt.LibEncodingBase64URLDecode"
 implementation: runtime/lib_encoding_base64_url_decode.go
 implementation_hash: d34f6e58eb0a4bed3250e071a1d72de2042ab5ae5e3c7cb200216e6449621fef
-summary: "encoding.Base64URLDecode: native capability boundary."
+summary: "encoding.Base64URLDecode: strict decoding of canonical unpadded base64url."
 suspension: never
 determinism: deterministic
 signature:

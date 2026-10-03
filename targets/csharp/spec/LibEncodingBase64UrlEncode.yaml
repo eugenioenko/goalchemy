@@ -2,11 +2,11 @@
 target: csharp
 function: lib.encoding.base64_url_encode
 contract_version: 1.0.0
-contract_hash: 727e22d6dfa0a87387f9ba90b3a46621e09699b558601ce25d378b48cfac9d47
+contract_hash: 1ec0db8c4a9bedd02cf241c2c41b8b7c787682eff7d536ff655a2bce1f6b434b
 symbol: "R.libEncodingBase64UrlEncode"
 implementation: runtime/LibEncodingBase64UrlEncode.cs
 implementation_hash: edf92b62cff76c8f301a4fa1b4ae42120657f2daf14a952d9784f82ecb40668b
-summary: "encoding.Base64URLEncode: native capability boundary."
+summary: "encoding.Base64URLEncode: RFC 4648 base64url without padding."
 suspension: never
 determinism: deterministic
 signature:

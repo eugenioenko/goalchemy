@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.public_jwk
 contract_version: 1.0.0
-contract_hash: 09f76317dd9d3461c7db76318f6f2773754f41d27eba882057a25f7053f8113f
+contract_hash: ab693a3189aff2a30d80c12184d190903956da3d570b43b828f60928adcdda34
 symbol: "gx_lib_crypto_public_jwk"
 implementation: runtime/lib_crypto_public_jwk.c
 implementation_hash: 794ea7de5ec782feaa2a1526fbb3ecb712423667bfe42febf3f7803bfbdde8a3
-summary: "crypto.PublicJWK: native capability boundary."
+summary: "crypto.Key.PublicJWK: the key's public JWK members as [kty, crv, n, e, x, y], with no JSON encoding."
 suspension: may
 determinism: deterministic
 signature:

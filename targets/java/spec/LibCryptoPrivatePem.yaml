@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.private_pem
 contract_version: 1.0.0
-contract_hash: a0ee8cd7c04cb77c068fd3fdfbe0018652f2bdb1c64538f391fc6da873f6bbb8
+contract_hash: 19fc73bc3a7f4ce77e47a3ca60c71e31009fd91126cd0e4535fd4dea1b55034d
 symbol: "LibCryptoPrivatePem.libCryptoPrivatePem"
 implementation: runtime/LibCryptoPrivatePem.java
 implementation_hash: 1e335f87d3a441f32dbd063a1381e5040eb858e3d32e443ee6262a5f71f8295b
-summary: "crypto.PrivatePEM: native capability boundary."
+summary: "crypto.Key.PrivatePEM: the private key as a PKCS#8 PRIVATE KEY PEM block."
 suspension: may
 determinism: deterministic
 signature:

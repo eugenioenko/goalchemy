@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.aes256_gcm_encrypt
 contract_version: 1.0.0
-contract_hash: e135536b11e17e03bac076053233b2e20f72a966c039552cf416eb19a958febc
+contract_hash: 6411ca4792c243ece19e18504b63b9f67734b186dd123ab551baa23eddc6c8d7
 symbol: "lib_crypto_aes256_gcm_encrypt"
 implementation: runtime/lib_crypto_aes256_gcm_encrypt.rs
 implementation_hash: 90e7f5912a6c1fc0025c863703de9b871e7e48332fa846cbdbc8b851ae6ab0e1
-summary: "crypto.AES256GCMEncrypt: native capability boundary."
+summary: "crypto.AES256GCMEncrypt: AES-256-GCM encryption returning ciphertext followed by the 16-byte tag, without the nonce."
 suspension: may
 determinism: deterministic
 signature:

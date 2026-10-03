@@ -2,11 +2,11 @@
 target: csharp
 function: lib.callback.request
 contract_version: 1.0.0
-contract_hash: 6b7afc4b0aa02abaf7bf00e03771abaa4ee953abf58895ed64d51655023226db
+contract_hash: 996728bace6002f48ba36ee2e95191ee75b53ea76be0aaaab5d03acb08e06858
 symbol: "R.libCallbackRequest"
 implementation: runtime/LibCallbackRequest.cs
 implementation_hash: 6de6542a83b2285cb2f35ab5089aabb6d32b6a6a3e7d48a8dc903f990dd12c0d
-summary: "callback.Request: scoped asynchronous host callback with resource acknowledgment."
+summary: "callback.Request: send request bytes to the host callback registered under name and wait for its reply."
 suspension: may
 determinism: nondeterministic
 signature:

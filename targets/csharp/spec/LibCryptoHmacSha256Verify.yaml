@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.hmac_sha256_verify
 contract_version: 1.0.0
-contract_hash: 122135f1d3cbde008e682a3dec389032d611d6bb8a476830b5c3c158a4f44b31
+contract_hash: 669ec9f8c5b240e60f5f4bf0dbc3914896c76f667d8699be035dd0c0a055dc95
 symbol: "R.libCryptoHmacSha256Verify"
 implementation: runtime/LibCryptoHmacSha256Verify.cs
 implementation_hash: 520548025084f67e5c41225572393078a665b8a371f4267bc147fcacfc701470
-summary: "crypto.HMACSHA256Verify: constant-time bounded HMAC verification."
+summary: "crypto.HMACSHA256Verify: constant-time check that mac is the HMAC-SHA256 of data under key."
 suspension: may
 determinism: deterministic
 signature:

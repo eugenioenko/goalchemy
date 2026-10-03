@@ -2,11 +2,11 @@
 target: csharp
 function: lib.crypto.import_pem
 contract_version: 1.0.0
-contract_hash: c448e1a20b5c137b477f03cce8b4e8c5ba6e24f4b9b751cb6689a461718c8751
+contract_hash: 658c60477bbc74a0798246a0525a226865e2031fe011d99ebc7d5549a7afb2ee
 symbol: "R.libCryptoImportPem"
 implementation: runtime/LibCryptoImportPem.cs
 implementation_hash: 6150560fc7ea0dd40133303fbc426d6ba3d07e320fc5192d64c6b938afc1196d
-summary: "crypto.ImportPEM: native capability boundary."
+summary: "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key."
 suspension: may
 determinism: deterministic
 signature:

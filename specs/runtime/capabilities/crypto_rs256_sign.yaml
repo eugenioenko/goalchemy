@@ -2,7 +2,7 @@
   "id": "lib.crypto.rs256_sign",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "crypto.RS256Sign: native capability boundary.",
+  "summary": "crypto.RS256Sign: an RSASSA-PKCS1-v1_5 SHA-256 (RS256) signature over data.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.RS256Sign",
@@ -39,13 +39,13 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Input bytes <=64MiB. AES key=32, nonce=12, tag=16; plaintext/AAD<=64MiB, ciphertext<=64MiB+16. RSA-2048 OAEP plaintext<=214 and ciphertext=256 bytes. ES256 signature=64 bytes. HKDF output 0..8160. PEM<=64KiB.",
+    "bounds": "Requires an RSA-2048 private key. data is at most 64MiB; the signature is 256 bytes.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
     "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
-    "errors": "Invalid parameters/unsupported keys return an error and a zero result; cryptographic failures never expose partial plaintext. Correctly sized invalid signatures return false,nil.",
+    "errors": "A non-RSA or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
     "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
   },

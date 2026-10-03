@@ -2,7 +2,7 @@
   "id": "lib.callback.request",
   "schema_version": 1,
   "version": "1.0.0",
-  "summary": "callback.Request: scoped asynchronous host callback with resource acknowledgment.",
+  "summary": "callback.Request: send request bytes to the host callback registered under name and wait for its reply.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/callback.Request",
@@ -53,7 +53,7 @@
     "panics": "Unexpected native provider/bridge panic is a host fault outside source recover.",
     "observations": "A provider must settle after cancellation once resources are released. Earliest inherited deadline applies. Source frames are resumed only by their scheduler."
   },
-  "notes": "Only Go implements this capability. Native registries are context-scoped; generated library registries are scheduler-scoped. Completion acknowledges released resources. Cancellation requests stop and waits for terminal settlement. Duplicate/stale settlements cannot resume source.",
+  "notes": "Native registries are context-scoped; generated library registries are scheduler-scoped. Completion acknowledges released resources. Cancellation requests stop and waits for terminal settlement. Duplicate/stale settlements cannot resume source.",
   "cases": [],
   "native_tests": [
     "lib/callback/callback_test.go"

@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.sha256
 contract_version: 1.0.0
-contract_hash: 957a42fa8c1677774abab7c7c3d6b51ff0626352e993c56e0e9f3d9cab01e855
+contract_hash: 652fd1f25bfd6e6226b297f8e47ca4e3f89f3fb1d556538bf918868842bde549
 symbol: "lib_crypto_sha256"
 implementation: runtime/lib_crypto_sha256.rs
 implementation_hash: 76aaba74338ccd58b4bf5f92c89a06bab4e3de73e13f5f8864bf62eca2bff504
-summary: "crypto.SHA256: native capability boundary."
+summary: "crypto.SHA256: the 32-byte SHA-256 digest of data."
 suspension: may
 determinism: deterministic
 signature:

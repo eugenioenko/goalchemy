@@ -16,13 +16,16 @@ import (
 	"time"
 )
 
+// MaxBytes is the largest request or response body Do accepts (64MiB).
 const MaxBytes = 64 << 20
+
+// MaxHeaderBytes is the largest request or response header size Do accepts (64KiB).
 const MaxHeaderBytes = 64 << 10
 
 var invalid = errors.New("http: invalid request or limit")
 var tooLarge = errors.New("http: response body exceeds limit")
 
-// Do takes alternating header names/values. timeoutMillis uses real elapsed
+// Do performs one bounded HTTP GET or POST exchange. It takes alternating header names/values. timeoutMillis uses real elapsed
 // host time; it is required (1..300000). A parent deadline can shorten it.
 // Result headers preserve duplicate values, with names sorted, canonicalized.
 // Non-2xx/redirect statuses are ordinary results; transport/limit failures

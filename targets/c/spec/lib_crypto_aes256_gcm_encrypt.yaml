@@ -2,11 +2,11 @@
 target: c
 function: lib.crypto.aes256_gcm_encrypt
 contract_version: 1.0.0
-contract_hash: e135536b11e17e03bac076053233b2e20f72a966c039552cf416eb19a958febc
+contract_hash: 6411ca4792c243ece19e18504b63b9f67734b186dd123ab551baa23eddc6c8d7
 symbol: "gx_lib_crypto_aes256_gcm_encrypt"
 implementation: runtime/lib_crypto_aes256_gcm_encrypt.c
 implementation_hash: 5850c7ac4bf8cb100c1e4af7b5a393134fc0c24a6db8b395fe4888f4f3102777
-summary: "crypto.AES256GCMEncrypt: native capability boundary."
+summary: "crypto.AES256GCMEncrypt: AES-256-GCM encryption returning ciphertext followed by the 16-byte tag, without the nonce."
 suspension: may
 determinism: deterministic
 signature:

@@ -114,6 +114,13 @@ Capabilities come from Goalchemy's library, imported under `github.com/eugenioen
 | `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/task` | `All` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/crypto` | `Key`, SHA-256, HMAC-SHA256, HKDF-SHA256, AES-256-GCM, RSA-2048 OAEP, RS256, ES256, P-256 ECDH, key generation, PEM and JWK |
+| `github.com/eugenioenko/goalchemy/lib/encoding` | `Base64Encode`, `Base64Decode`, `Base64URLEncode`, `Base64URLDecode` |
+| `github.com/eugenioenko/goalchemy/lib/http` | `Do`, a bounded GET or POST exchange |
+| `github.com/eugenioenko/goalchemy/lib/clock` | `Unix`, host wall-clock seconds |
+| `github.com/eugenioenko/goalchemy/lib/callback` | `Request`, a bounded call to a host-registered callback |
+
+The [runtime library reference](library.md) documents every function: its Go signature, gate, bounds, error behavior, per-target availability and the native dependencies of each target. It is generated from the contracts with `make spec-generate`.
 
 Each package is ordinary Go that wraps the standard library, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` directly is rejected with a remedy naming its `github.com/eugenioenko/goalchemy/lib` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 

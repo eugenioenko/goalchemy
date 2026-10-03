@@ -2,11 +2,11 @@
 target: java
 function: lib.encoding.base64_url_encode
 contract_version: 1.0.0
-contract_hash: 727e22d6dfa0a87387f9ba90b3a46621e09699b558601ce25d378b48cfac9d47
+contract_hash: 1ec0db8c4a9bedd02cf241c2c41b8b7c787682eff7d536ff655a2bce1f6b434b
 symbol: "LibEncodingBase64UrlEncode.libEncodingBase64UrlEncode"
 implementation: runtime/LibEncodingBase64UrlEncode.java
 implementation_hash: eeeb697ca14c73fc0396a0da9bf58980cc5b6eb9cf6da09909135d3bc42be9c5
-summary: "encoding.Base64URLEncode: native capability boundary."
+summary: "encoding.Base64URLEncode: RFC 4648 base64url without padding."
 suspension: never
 determinism: deterministic
 signature:

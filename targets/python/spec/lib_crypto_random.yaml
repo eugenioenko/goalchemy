@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.random
 contract_version: 1.0.0
-contract_hash: 0649ce849049a847f7b218a647d991cee6583449db50ca0200d5e8dde33ab220
+contract_hash: 9a09ad48c9ec06643ac586c314f285b0042ef13c12d43d5e42eff10c529809f0
 symbol: "rt.lib_crypto_random"
 implementation: runtime/lib_crypto_random.py
 implementation_hash: 7d435b4b06b3e95d05c322c6451b2e9aa72d82e6755d99611cfad92e781d4932
-summary: "crypto.Random: native capability boundary."
+summary: "crypto.Random: n bytes from the host cryptographically secure random generator."
 suspension: may
 determinism: nondeterministic
 signature:

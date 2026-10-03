@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.rsa_oaep_decrypt
 contract_version: 1.0.0
-contract_hash: 8ad7bec68c73852a6075c59b26580b7d82d2ce711c82dcc154f1af542fe80550
+contract_hash: 91538d14c7a276cd6c871681eec8099811807da26ddf424d1e0d0b4f86c9da95
 symbol: "rt.lib_crypto_rsaoaep_decrypt"
 implementation: runtime/lib_crypto_rsaoaep_decrypt.py
 implementation_hash: e81fd0fd3ded816a3799b1958c73f63a5ac2cb500774f490aed5ed3fb9bf2e6e
-summary: "crypto.RSAOAEPDecrypt: native capability boundary."
+summary: "crypto.RSAOAEPDecrypt: RSA-2048 OAEP decryption with SHA-1, MGF1-SHA1 and an empty label."
 suspension: may
 determinism: deterministic
 signature:

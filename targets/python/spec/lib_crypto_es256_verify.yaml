@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.es256_verify
 contract_version: 1.0.0
-contract_hash: c18086c14484a76bc2608ebf94e5b722844a72038b94f8b9da20e4b88d5e86b0
+contract_hash: 991bc8fd976d6d121077fe54958ea7a6ab5dc83f9c166c187a1023cfba17ba0d
 symbol: "rt.lib_crypto_es256_verify"
 implementation: runtime/lib_crypto_es256_verify.py
 implementation_hash: 1dd5b9832e6339c6b869014ccf0429e862fe78d2386e97eb35b55e71a0e32953
-summary: "crypto.ES256Verify: native capability boundary."
+summary: "crypto.ES256Verify: whether signature is a valid ES256 raw R||S signature of data."
 suspension: may
 determinism: deterministic
 signature:

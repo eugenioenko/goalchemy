@@ -2,11 +2,11 @@
 target: c
 function: lib.clock.unix
 contract_version: 1.0.0
-contract_hash: 9674d757e040e194bc7f05571397131c7af34b4abbbc1d2d8c3fca55ad751d46
+contract_hash: 839a27c33b9e7abcdd5e85ec4a078ff668025ed54379c185517c8d6394dce859
 symbol: "gx_lib_clock_unix"
 implementation: runtime/lib_clock_unix.c
 implementation_hash: a3c11fca64737836a50197fc55a387fe51d52398f49337e7a22f943c95894674
-summary: "clock.Unix: native capability boundary."
+summary: "clock.Unix: the host wall-clock time in UTC seconds since the Unix epoch."
 suspension: never
 determinism: nondeterministic
 signature:

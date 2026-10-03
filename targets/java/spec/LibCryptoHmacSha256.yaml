@@ -2,11 +2,11 @@
 target: java
 function: lib.crypto.hmac_sha256
 contract_version: 1.0.0
-contract_hash: 2819864a7d5a79ff9d662e622a345da283717b5d7c8afa5c80e3ee4427d20868
+contract_hash: 2afe3fbd548af44d584818eb70e04339e9710892568ddf3514d2e9906a36e2d7
 symbol: "LibCryptoHmacSha256.libCryptoHmacSha256"
 implementation: runtime/LibCryptoHmacSha256.java
 implementation_hash: 049c7ffa036c0ce2812f64db8ddf303c48b73b5f34364af5bb670fa9bc809703
-summary: "crypto.HMACSHA256: native capability boundary."
+summary: "crypto.HMACSHA256: the 32-byte HMAC-SHA256 of data under key."
 suspension: may
 determinism: deterministic
 signature:

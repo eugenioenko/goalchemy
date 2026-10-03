@@ -2,11 +2,11 @@
 target: java
 function: lib.encoding.base64_url_decode
 contract_version: 1.0.0
-contract_hash: 6354fbe059012a8c5e88ec0f03b423e85f11c38b580419871417975e88b7a1b9
+contract_hash: 84341fe6287ad8c892a5f2b2c1f15ee0d407fa42f86d06cc35579636c150abc0
 symbol: "LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode"
 implementation: runtime/LibEncodingBase64UrlDecode.java
 implementation_hash: 4a0552ea4687df8c07f6e839af1772f45fdf6d84e2fe3a440a53cb8e5226da81
-summary: "encoding.Base64URLDecode: native capability boundary."
+summary: "encoding.Base64URLDecode: strict decoding of canonical unpadded base64url."
 suspension: never
 determinism: deterministic
 signature:

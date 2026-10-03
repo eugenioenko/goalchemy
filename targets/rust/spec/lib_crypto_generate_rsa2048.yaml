@@ -2,11 +2,11 @@
 target: rust
 function: lib.crypto.generate_rsa2048
 contract_version: 1.0.0
-contract_hash: 5e65500811aabce3fc756b256e9618d7c016d654d4d9c5135b8737c3e98a8a88
+contract_hash: 8eee4bbf336bef0c6e853fd63519e973774223379e0b18beff9d9135a80ea665
 symbol: "lib_crypto_generate_rsa2048"
 implementation: runtime/lib_crypto_generate_rsa2048.rs
 implementation_hash: 6dd6e12763f16da216d3ae9106d4ad8a5a74627fa1f5342d915d74fc19a1677c
-summary: "crypto.GenerateRSA2048: native capability boundary."
+summary: "crypto.GenerateRSA2048: a new random RSA-2048 private key handle."
 suspension: may
 determinism: nondeterministic
 signature:

@@ -2,11 +2,11 @@
 target: python
 function: lib.crypto.ecdh
 contract_version: 1.0.0
-contract_hash: abbdb2defe21bb9c5f945260cf5dfeb9b888bef6f8f6974510e78f4ab404f51b
+contract_hash: bfd2eb5b6c2601378712699923850afab0cd9b6c1477547849373d47bff83371
 symbol: "rt.lib_crypto_ecdh"
 implementation: runtime/lib_crypto_ecdh.py
 implementation_hash: 777bcf0752840a0e090f4e54cf87a4eb80487fe48483cac8383f03c269b224dc
-summary: "crypto.ECDH: native capability boundary."
+summary: "crypto.ECDH: the raw 32-byte P-256 ECDH shared secret (the x-coordinate), before any KDF."
 suspension: may
 determinism: deterministic
 signature:

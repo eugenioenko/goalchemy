@@ -2,11 +2,11 @@
 target: java
 function: lib.encoding.base64_decode
 contract_version: 1.0.0
-contract_hash: 1074d9d80a4683b0d8ba4e36d5bd1fb5959917bde4aa89911d162850099a3a55
+contract_hash: 04039fba3ae1fb33855078d9d48524710b8bea4224d1f90cc96e3fd9e2702aa6
 symbol: "LibEncodingBase64Decode.libEncodingBase64Decode"
 implementation: runtime/LibEncodingBase64Decode.java
 implementation_hash: 08ecc6afaee92b89b0fdd8a78049618e04ff6e24bc8f65f27c762f4d01436f51
-summary: "encoding.Base64Decode: native capability boundary."
+summary: "encoding.Base64Decode: strict decoding of canonical padded standard base64."
 suspension: never
 determinism: deterministic
 signature:
