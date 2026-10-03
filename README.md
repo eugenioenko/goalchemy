@@ -1,47 +1,148 @@
+<p align="center">
+  <img src="docs/goalchemy.png" alt="Goalchemy: one Go-compatible program compiled to Go, TypeScript, Python, Java, C#, Rust, and C" width="100%">
+</p>
+
 # Goalchemy
 
-Goalchemy compiles a [restricted, Go-compatible language](specs/language.md) to seven targets. Source programs are ordinary `.go` files that also run with Go.
+Goalchemy is a transpiler for a restricted, Go-compatible language. You write a program once as ordinary `.go` files, and Goalchemy lowers it to **Go, TypeScript, Python, Java, C#, Rust, and C** with the same observable behavior on every target.
 
-Install the compiler with Go 1.27.1:
+The source is plain Go: it builds, runs, and tests with the standard Go toolchain, and needs no new syntax or custom parser. Goalchemy accepts the subset of Go described in the [language specification](specs/language.md) and rejects everything else with a clear diagnostic.
+
+## Why
+
+Shipping the same logic as an SDK in several languages usually means maintaining several hand-written ports that drift apart. Goalchemy keeps one typed source of truth and generates each port from it. The motivating workload is the [OpenTDF](https://github.com/opentdf/platform) SDK, whose encryption and decryption logic needs to behave identically across languages.
+
+## How it works
+
+1. **Load and validate.** Packages are loaded and type-checked with `go/packages` and `go/types`, then checked against the language gate. Unsupported constructs fail closed with a stable code, source span, and one-line remedy.
+2. **Lower to a typed IR.** A project-owned intermediate representation makes evaluation order, value copies, aliasing, and runtime operations explicit, so emitters never decide semantics.
+3. **Emit and link.** Each target emitter writes source code plus only the runtime files the program needs. Every runtime function has one implementation file per target and a canonical YAML [contract](specs/runtime) that defines its behavior.
+4. **Verify.** Differential tests compare native Go, lowered Go, and every other target against the same fixtures and contract cases.
+
+Notable semantics that hold on every target:
+
+- `int` and `uint` are always 64-bit, with Go's wrapping and conversion rules.
+- Strings are immutable byte sequences; slices and maps keep Go's sharing and aliasing.
+- Structs and arrays are copied by value, even on hosts that share objects by default.
+- Errors are values; panics, `defer`, and `recover` follow Go's rules.
+- Concurrency (`go`, channels, `select`, `sync`, `context`) runs on a deterministic cooperative scheduler under the `cooperative` gate.
+
+## Install
+
+Goalchemy is built with the Go 1.27.1 reference toolchain:
 
 ```sh
 go install github.com/eugenioenko/goalchemy/cmd/goalchemy@latest
 ```
 
+Or from a checkout:
+
+```sh
+go build -o bin/goalchemy ./cmd/goalchemy
+```
+
 ## Quick start
 
-1. Create a Go module and `main.go`:
+```sh
+mkdir hello && cd hello
+go mod init example.com/hello
+go get github.com/eugenioenko/goalchemy@latest
+cat > main.go <<'GO'
+package main
 
-   ```sh
-   mkdir hello && cd hello
-   go mod init example.com/hello
-   cat > main.go <<'GO'
-   package main
+func main() {
+    println("Hello from Goalchemy")
+}
+GO
 
-   func main() {
-       println("Hello from Goalchemy")
-   }
-   GO
-   ```
+goalchemy check .
+goalchemy run -target python .
+goalchemy compile -target rust -out out/rust .
+```
 
-2. Compile and run it with Python:
+The `go get` makes Goalchemy's runtime declarations and [`lib/`](lib) packages resolvable from your module. Source modules must declare `go 1.25` or earlier. Programs print with Go's `print` and `println` builtins; the standard library is replaced by the packages under `lib/`, such as `lib/errors`, `lib/sync`, and `lib/context`, which keep the standard names so code still reads and runs as ordinary Go.
 
-   ```sh
-   goalchemy run -target python .
-   ```
+## CLI
 
-## Target prerequisites
-
-| Target | To run generated programs |
+| Command | Purpose |
 | --- | --- |
-| Go | Go 1.25 or later |
-| TypeScript | Node.js 22.6 or later |
-| Python | Python 3.10 or later |
-| Java | JDK 21 or later |
-| C# | .NET SDK 8 |
-| Rust | Stable Rust toolchain |
-| C | C17 compiler and bdwgc 8.x with threads |
+| `goalchemy check [packages]` | Load, type-check, and validate against the language gate. |
+| `goalchemy compile -target <name> -out <dir> [packages]` | Write a complete, runnable target directory. `-target ir` dumps the IR. |
+| `goalchemy run -target <name> [-keep] [packages]` | Compile to a temporary directory and run the program. |
+| `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
+| `goalchemy features` | Print supported language features per gate and target. |
+| `goalchemy spec validate` / `spec generate [-check]` | Validate the contract catalog and regenerate target specs. |
+| `goalchemy test` | Run runtime contract cases through each target's harness. |
+| `goalchemy version` | Print the compiler version. |
 
-The [usage guide](docs/usage.md) covers commands, project configuration, language gates, and output. See [follow-ups](docs/followups.md) for known limits and future work, and [hardening](docs/hardening.md) for test and toolchain setup.
+`check`, `compile`, and `run` share these flags:
 
-Goalchemy is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
+| Flag | Meaning |
+| --- | --- |
+| `-gate sequential\|cooperative` | Language gate; `cooperative` enables tasks, channels, and `select`. |
+| `-tags a,b` | Build tags used when loading packages. |
+| `-C <dir>` | Directory to load packages from. |
+| `-json` | Write diagnostics as JSON. |
+
+A project can list its targets in `goalchemy.yaml` and build them all at once:
+
+```yaml
+schema_version: 1
+packages: [.]
+gate: sequential
+targets:
+  go: {out: out/go}
+  typescript: {out: out/ts}
+  python: {out: out/py}
+  rust: {out: out/rs}
+```
+
+Non-`main` packages compile to value libraries for every target. See the [usage guide](docs/usage.md) for library boundaries and output layout.
+
+## Targets
+
+| Target | Output | To run generated programs |
+| --- | --- | --- |
+| Go | `main.go`, `go.mod` | Go 1.25 or later |
+| TypeScript | `main.ts` (ES2022) | Node.js 22.6 or later |
+| Python | `main.py` | Python 3.10 or later |
+| Java | `Main.java`, `run.sh` | JDK 21 or later |
+| C# | `Main.cs`, `main.csproj` | .NET SDK 8 |
+| Rust | `src/main.rs`, `Cargo.toml` | Stable Rust, edition 2021 |
+| C | `main.c`, `run.sh` | C17 compiler and bdwgc 8.x with threads |
+
+Each output directory also contains its runtime files, a `README.md`, a line map back to the Go source, and a `goalchemy.manifest.json` recording the compiler version, contracts, and files. Output is deterministic for the same inputs.
+
+## Examples
+
+The [`examples/`](examples) directory has complete programs with a `goalchemy.yaml` for all seven targets:
+
+- [`bank`](examples/bank): typed errors, interfaces, and deferred audit logging
+- [`calc`](examples/calc): an integer expression parser and evaluator
+- [`life`](examples/life): Conway's Game of Life on a toroidal board
+- [`wordfreq`](examples/wordfreq): word counting and ranking
+
+```sh
+goalchemy run -target python ./examples/calc
+cd examples/bank && goalchemy build
+```
+
+## Documentation
+
+| Topic | Reference |
+| --- | --- |
+| Commands, configuration, output, libraries | [Usage guide](docs/usage.md) |
+| Accepted language and semantics | [Language specification](specs/language.md) |
+| Diagnostic codes | [Diagnostics](specs/diagnostics.md) |
+| Supported feature matrix | [`specs/features.yaml`](specs/features.yaml) |
+| Runtime and type contracts | [`specs/runtime`](specs/runtime), [`specs/types`](specs/types) |
+| Host lifecycles per target | [Host operations](docs/host-operations.md) |
+| Testing, toolchains, reports | [Hardening](docs/hardening.md) |
+| Known limits and future work | [Follow-ups](docs/followups.md) |
+| Design and roadmap | [Implementation plan](plan.md) |
+
+Per-target details live in [`docs/`](docs): library boundaries, byte storage, and host operations for TypeScript, Python, Java, C#, Rust, and C.
+
+## License
+
+Goalchemy is licensed under [Apache-2.0](LICENSE).
