@@ -1,7 +1,11 @@
 // Package strconv converts between integers, Booleans, and their string forms.
 package strconv
 
-import "github.com/eugenioenko/goalchemy/lib/errors"
+import (
+	"github.com/eugenioenko/goalchemy/lib/errors"
+	"github.com/eugenioenko/goalchemy/std/unicode"
+	"github.com/eugenioenko/goalchemy/std/unicode/utf8"
+)
 
 // IntSize is the size in bits of an int or uint value.
 const IntSize = 64
@@ -260,7 +264,7 @@ func ParseInt(s string, base int, bitSize int) (int64, error) {
 		return int64(cutoff - 1), rangeError(fn, s0)
 	}
 	if neg && un > cutoff {
-		return -int64(cutoff - 1) - 1, rangeError(fn, s0)
+		return -int64(cutoff-1) - 1, rangeError(fn, s0)
 	}
 	n := int64(un)
 	if neg {
@@ -280,7 +284,7 @@ func quote(s string, ascii bool) string {
 	out := make([]byte, 0, len(s)+2)
 	out = append(out, '"')
 	for i := 0; i < len(s); {
-		r, size := decodeRune(s[i:])
+		r, size := utf8.DecodeRuneInString(s[i:])
 		if r == 0xFFFD && size == 1 {
 			out = append(out, '\\', 'x', digits[s[i]>>4], digits[s[i]&15])
 			i++
@@ -296,8 +300,8 @@ func appendEscapedRune(out []byte, r rune, ascii bool) []byte {
 	if r == '"' || r == '\\' {
 		return append(out, '\\', byte(r))
 	}
-	if ascii && r < 0x80 && isPrint(r) || !ascii && isPrint(r) {
-		return appendRune(out, r)
+	if ascii && r < 0x80 && unicode.IsPrint(r) || !ascii && unicode.IsPrint(r) {
+		return utf8.AppendRune(out, r)
 	}
 	switch r {
 	case '\a':
@@ -330,62 +334,4 @@ func appendEscapedRune(out []byte, r rune, ascii bool) []byte {
 		out = append(out, digits[r>>uint(s)&15])
 	}
 	return out
-}
-
-func isPrint(r rune) bool {
-	lo, hi := 0, len(printLo)
-	for lo < hi {
-		m := lo + (hi-lo)/2
-		if printHi[m] < r {
-			lo = m + 1
-		} else {
-			hi = m
-		}
-	}
-	return lo < len(printLo) && printLo[lo] <= r
-}
-
-func decodeRune(s string) (rune, int) {
-	c0 := s[0]
-	if c0 < 0x80 {
-		return rune(c0), 1
-	}
-	n := 0
-	var r rune
-	var lo rune
-	switch {
-	case c0&0xe0 == 0xc0:
-		n, r, lo = 2, rune(c0&0x1f), 0x80
-	case c0&0xf0 == 0xe0:
-		n, r, lo = 3, rune(c0&0x0f), 0x800
-	case c0&0xf8 == 0xf0:
-		n, r, lo = 4, rune(c0&0x07), 0x10000
-	default:
-		return 0xFFFD, 1
-	}
-	if len(s) < n {
-		return 0xFFFD, 1
-	}
-	for i := 1; i < n; i++ {
-		if s[i]&0xc0 != 0x80 {
-			return 0xFFFD, 1
-		}
-		r = r<<6 | rune(s[i]&0x3f)
-	}
-	if r < lo || r > 0x10ffff || 0xd800 <= r && r <= 0xdfff {
-		return 0xFFFD, 1
-	}
-	return r, n
-}
-
-func appendRune(out []byte, r rune) []byte {
-	switch {
-	case r < 0x80:
-		return append(out, byte(r))
-	case r < 0x800:
-		return append(out, byte(0xc0|r>>6), byte(0x80|r&0x3f))
-	case r < 0x10000:
-		return append(out, byte(0xe0|r>>12), byte(0x80|r>>6&0x3f), byte(0x80|r&0x3f))
-	}
-	return append(out, byte(0xf0|r>>18), byte(0x80|r>>12&0x3f), byte(0x80|r>>6&0x3f), byte(0x80|r&0x3f))
 }

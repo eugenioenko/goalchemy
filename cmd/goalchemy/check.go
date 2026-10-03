@@ -44,7 +44,7 @@ func loadChecked(ctx context.Context, sf *sourceFlags, patterns []string) (*fron
 		return nil, nil, cds
 	}
 	reg := catalog.NewRegistry(cat)
-	prog, ds := frontend.Load(ctx, frontend.Options{Dir: sf.dir, Patterns: patterns, Tags: sf.tagList(), External: reg.Package})
+	prog, ds := frontend.Load(ctx, frontend.Options{Dir: sf.dir, Patterns: patterns, Tags: sf.tagList(), External: reg.Package, SourceLib: catalog.IsStd})
 	gate := subset.Gate(sf.gate)
 	if gate != subset.Sequential && gate != subset.Cooperative {
 		ds = append(ds, diagnostics.Diagnostic{Code: "GCL006", Severity: diagnostics.Error,
