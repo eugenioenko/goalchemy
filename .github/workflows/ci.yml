@@ -21,6 +21,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            ci/browser-tooling/package-lock.json
+            targets/typescript/package-lock.json
       - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
@@ -32,9 +36,26 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install bdwgc
-        run: sudo apt-get update && sudo apt-get install -y libgc-dev
+      - name: Install native build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev perl ripgrep
+      - name: Cache pinned toolchain downloads
+        uses: actions/cache@v5
+        with:
+          path: .toolchains/downloads
+          key: ${{ runner.os }}-native-tools-${{ hashFiles('toolchains.lock') }}
+      - name: Cache locked Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
+      - name: Prepare pinned native and browser test dependencies
+        run: bash scripts/ci-bootstrap.sh --with-browser-deps
       - run: go vet ./...
       - run: go run ./cmd/goalchemy spec generate -check
-      # Short mode skips sanitizer because pinned LLVM is not installed in CI.
+      # Preserve the short suite, including native browser and focused C sanitizer tests.
       - run: go test -short -timeout 30m ./...
+      # No -short here: every canonical case must run through all seven host harnesses.
+      - name: All-seven runtime contract conformance
+        run: go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1

@@ -1,0 +1,5 @@
+# Python 3.10 on Linux x86_64; binary-only and hash-checked in ci-bootstrap.sh.
+cryptography==50.0.2 --hash=sha256:1981f1db4630889b9ef7803fadef12b056f428cb6b85c27ba57b774793b6093c
+cffi==2.1.1 --hash=sha256:194cffa889098ced9976c3fc6340305e43f6303657d298da55366907c05c22d6
+pycparser==3.0 --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
+typing-extensions==4.16.0 --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8

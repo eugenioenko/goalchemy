@@ -14,4 +14,5 @@ cp "$root"/tests/harness/*.rs "$out/"
   done
 } > "$out/rt/mod.rs"
 cp "$root/tests/harness/Cargo.toml" "$out/Cargo.toml"
-CARGO_TARGET_DIR="$root/../../out/rust-tdf-library/sdk/target" cargo run --offline --quiet --release --manifest-path "$out/Cargo.toml"
+cp "$root/tests/harness/Cargo.lock" "$out/Cargo.lock"
+CARGO_TARGET_DIR="$root/../../out/rust-tdf-library/sdk/target" cargo run --locked --offline --quiet --release --manifest-path "$out/Cargo.toml"
