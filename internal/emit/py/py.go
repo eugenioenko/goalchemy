@@ -90,7 +90,11 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		if !p.Entry.MaySuspend {
 			start = "rt.sync(lambda: (" + p.Entry.Sym + "(), [])[1])"
 		}
-		fmt.Fprintf(&out, "\ndef runHost():\n    return rt.run_main_host(lambda: %s)\n\nif __name__ == \"__main__\":\n    rt.run_main(%s)\n", start, start)
+		run := "rt.run_main(" + start + ")"
+		if ir.HostEntry(e.contracts) {
+			run = "runHost()"
+		}
+		fmt.Fprintf(&out, "\ndef runHost():\n    return rt.run_main_host(lambda: %s)\n\nif __name__ == \"__main__\":\n    %s\n", start, run)
 	} else {
 		fmt.Fprintf(&out, "\n\ndef _entry():\n    %s()\n", p.Init.Sym)
 		if p.Main != nil {

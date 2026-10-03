@@ -52,7 +52,7 @@ Each target directory contains the generated program, the runtime files it needs
 - **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored). Cooperative output also exposes `Main.runHost()` for an explicit serialized monotonic executable drive that returns after cleanup; see [its lifecycle and executable-global limits](java-host-operations.md).
 - **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
 - **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run std-only output with `sh run.sh` (plain `rustc`) or `cargo run --release`; native capability output builds with Cargo and maintained dependencies. The SDK package helper supplies its full dependency lock. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
-- **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. `CC` and `CFLAGS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
+- **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. Programs that use `lib/crypto` or `lib/http` also link OpenSSL (`-lssl -lcrypto`) and, for HTTP, libcurl through `pkg-config libcurl`. `CC`, `CFLAGS` and `LDLIBS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
 
 ### Libraries
 
@@ -145,8 +145,9 @@ With `-gate cooperative` (or `gate: cooperative` in `goalchemy.yaml`), programs 
 - Runnable tasks run in FIFO order. A task keeps control until it blocks, yields, returns, or panics.
 - `select` chooses among ready cases with a seeded xorshift32 source: `GOALCHEMY_SEED`, default 1.
 - The default entry uses a virtual clock for `time.Sleep` and context deadlines,
-  advancing only when every task is blocked. Generated Go programs using HTTP
-  select an explicit host entry with owner-local monotonic real time. TypeScript
+  advancing only when every task is blocked. Generated programs that use
+  `lib/crypto`, `lib/http` or `lib/callback` start on their target's host entry
+  instead, with owner-local monotonic real time. TypeScript
   cooperative output can select real time through portable `host.ts`/`runHost`;
   its module-global source state is not an isolated library instance. Java
   cooperative output exposes `Main.runHost()` with the same executable-global
@@ -173,8 +174,8 @@ Workers enqueue owned completions; the scheduler alone resumes source tasks,
 so concurrent source cancellation remains runnable during network and body
 reads. Context deadlines start at creation and an earlier parent deadline
 shortens the required real HTTP timeout. Entry return cancels and cleans pending
-background operations. Other targets still reject this capability until their
-adapters are implemented; exported asynchronous libraries remain gated. See
+background operations. Other targets run `lib/http.Do` through their own host
+adapters; exported asynchronous libraries remain gated. See
 [host lifecycle and target-port requirements](host-operations.md).
 
 `github.com/eugenioenko/goalchemy/lib/task` provides `task.All(fns ...func())`. It runs each function as a task, in argument order and one at a time, and returns when all have finished. With the Go toolchain the same package runs the functions as goroutines.

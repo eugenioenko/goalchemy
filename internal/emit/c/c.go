@@ -106,7 +106,11 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		} else {
 			fmt.Fprintf(&out, "    return gx_sync_frame(gx_func(-1, w_%s, 0, NULL), 0, NULL, 0);\n", p.Entry.Sym)
 		}
-		out.WriteString("}\n\nint goalchemy_run_host(void) {\n    return gx_run_main_host(init_zero_globals, entry_frame);\n}\n\nint main(void) {\n    gx_run_main(init_zero_globals, entry_frame);\n}\n")
+		run := "gx_run_main"
+		if ir.HostEntry(e.contracts) {
+			run = "gx_host_main"
+		}
+		out.WriteString("}\n\nint goalchemy_run_host(void) {\n    return gx_run_main_host(init_zero_globals, entry_frame);\n}\n\nint main(void) {\n    " + run + "(init_zero_globals, entry_frame);\n}\n")
 	} else {
 		fmt.Fprintf(&out, "static void entry(void) {\n    f_%s();\n", p.Init.Sym)
 		if p.Main != nil {

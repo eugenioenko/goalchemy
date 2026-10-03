@@ -48,8 +48,9 @@ their owner; executable fatal source panic cleanup runs before `os.Exit`.
 ## Clocks and contexts
 
 `RunMain` and conformance `Await` retain deterministic virtual time. Generated
-programs with HTTP in their emitted linked contract set select an explicit
-`RunMainHost` entry; this selection belongs to the emitted entry, never an
+programs with a crypto, HTTP or callback contract in their emitted linked
+contract set select their target's host entry (`RunMainHost` in Go, `runHost`
+elsewhere); this selection belongs to the emitted entry, never an
 environment variable or process-wide
 clock switch. Host mode uses a scheduler-local monotonic epoch. Sleep and context
 timeouts start when called, including source work before request submission.

@@ -19,6 +19,7 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/emit/py"
 	"github.com/eugenioenko/goalchemy/internal/emit/rust"
 	"github.com/eugenioenko/goalchemy/internal/emit/ts"
+	"github.com/eugenioenko/goalchemy/internal/ir"
 	"github.com/eugenioenko/goalchemy/internal/link"
 )
 
@@ -209,7 +210,15 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		gen["program.ts"] = []byte(strings.ReplaceAll(string(o.Source), "sourceMappingURL=main.ts.map", "sourceMappingURL=program.ts.map"))
 		gen["program.ts.map"] = smap
 		delete(gen, "main.ts.map")
-		gen["main.ts"] = []byte("// Node executable entry.\nimport \"./rt/types/node_host.ts\";\nimport { $run } from \"./program.ts\";\n$run();\n")
+		run := "import { $run } from \"./program.ts\";\n$run();\n"
+		used := map[string]bool{}
+		for _, c := range o.Contracts {
+			used[c] = true
+		}
+		if ir.HostEntry(used) {
+			run = "import { $runHost } from \"./program.ts\";\nawait $runHost();\n"
+		}
+		gen["main.ts"] = []byte("// Node executable entry.\nimport \"./rt/types/node_host.ts\";\n" + run)
 		gen["host.ts"] = []byte("// Portable Promise entry; executable globals are serialized, not library instances.\nexport { $runHost as runHost } from \"./program.ts\";\n")
 	}
 	var names []string
@@ -625,6 +634,22 @@ ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main main.c rt/
 exec ./main
 `
 
+func cNativeLibs(contracts []string) string {
+	var curl, crypto bool
+	for _, c := range contracts {
+		curl = curl || c == "lib.http.do"
+		crypto = crypto || strings.HasPrefix(c, "lib.crypto.")
+	}
+	libs := ""
+	if curl {
+		libs += " $(pkg-config --cflags --libs libcurl 2>/dev/null || echo -lcurl)"
+	}
+	if curl || crypto {
+		libs += " -lssl -lcrypto"
+	}
+	return libs
+}
+
 const cLibBuild = `#!/bin/sh
 # Builds libgoalchemy.a; link it with bdwgc (-lgc, or GOALCHEMY_BDWGC's
 # libgc.a) and -lpthread, and include goalchemy.h.
@@ -679,7 +704,7 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 		gen["build.sh"] = []byte(cLibBuild)
 		gen["README.md"] = []byte(readme("c", "sh build.sh", "Builds libgoalchemy.a; include goalchemy.h and link with bdwgc (-lgc) and -lpthread. Requires a C17 compiler and bdwgc 8.x with threads."))
 	} else {
-		gen["run.sh"] = []byte(cRun)
+		gen["run.sh"] = []byte(strings.Replace(cRun, "${LDLIBS:-}", "${LDLIBS:-}"+cNativeLibs(o.Contracts), 1))
 	}
 	var names []string
 	for name, data := range gen {
