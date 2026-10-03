@@ -2,7 +2,7 @@
 target: python
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
+contract_hash: 6dc4986aa541cd7964f3b08397dbea78bdc936fd3413b6e669d5e4c079526811
 symbol: "rt.lib_checksum_crc32_ieee"
 implementation: runtime/lib_checksum_crc32_ieee.py
 implementation_hash: ca2161f75777c356ec5d35163b024cb3d3be219c6dacf55a488b299f87507005

@@ -14,7 +14,7 @@ provides no cryptographic authentication.
 | C# | `System.IO.Hashing.Crc32.HashToUInt32(ReadOnlySpan<byte>)` | Official Microsoft NuGet package, pinned to 8.0.0 |
 | TypeScript browser or portable library entry | Slicing-by-8 IEEE implementation | No standard browser CRC API |
 | C | Slicing-by-8 IEEE implementation | No standard C CRC API |
-| Rust | Slicing-by-8 IEEE implementation | No standard Rust CRC API |
+| Rust | `crc32fast::hash` with runtime CPU detection | Cargo crate, pinned to 1.5.2 |
 
 Host APIs choose their own native implementation, vectorization, and hardware
 acceleration. Delegation permits host optimizations; Goalchemy does not guarantee
@@ -59,3 +59,19 @@ builds require the package even when an individual test exercises another
 capability. `scripts/ci-bootstrap.sh` prewarms the locked checksum project;
 `targets/csharp/tests/checksum-dependencies.sh` repeats locked restore and
 returns the package DLL used by direct compiler harnesses.
+
+## Rust dependency
+
+Generated native Cargo projects and the conformance harness pin
+[`crc32fast` 1.5.2](https://github.com/srijs/rust-crc32fast). Its default `std`
+feature remains enabled so it can detect CPU features and select an accelerated
+IEEE CRC32 implementation when supported. The runtime hashes the logical byte
+slice directly without copying or mutating its backing storage. Empty and nil
+slices return zero. The harness lockfile records the crate checksum and CI
+prefetches and builds that locked graph before running contracts.
+
+Native Cargo output includes this direct dependency; programs that use only
+subset logic keep their existing standard-library `rustc` path. Structural
+standard-library-only byte and scheduler probes omit production checksum,
+crypto, encoding, HTTP, and callback modules; CRC behavior is checked separately
+through the Cargo harness and generated executable/library consumers.

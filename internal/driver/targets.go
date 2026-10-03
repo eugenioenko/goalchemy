@@ -744,6 +744,7 @@ openssl = { version = "=0.10.81", features = ["vendored"], optional = true }
 reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "gzip"], optional = true }
 tokio = { version = "=1.53.1", features = ["rt", "time", "sync", "macros"], optional = true }
 base64 = { version = "=0.22.1", optional = true }
+crc32fast = "=1.5.2"
 [[bin]]
 name = "main"
 path = "src/main.rs"

@@ -2,7 +2,7 @@
 target: go
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
+contract_hash: 6dc4986aa541cd7964f3b08397dbea78bdc936fd3413b6e669d5e4c079526811
 symbol: "rt.LibChecksumCRC32IEEE"
 implementation: runtime/lib_checksum_crc32_ieee.go
 implementation_hash: ce803a29136cb6abf4b91d2db5dee686eb3e374ed21d04a26f6b84c18b2f6e58

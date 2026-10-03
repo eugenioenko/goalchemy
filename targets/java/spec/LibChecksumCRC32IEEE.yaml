@@ -2,7 +2,7 @@
 target: java
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
+contract_hash: 6dc4986aa541cd7964f3b08397dbea78bdc936fd3413b6e669d5e4c079526811
 symbol: "LibChecksumCRC32IEEE.libChecksumCRC32IEEE"
 implementation: runtime/LibChecksumCRC32IEEE.java
 implementation_hash: 4d8cf328f525e05c29f634b0741a2ae1952cc41810604aa76e57af93071d8f7a
