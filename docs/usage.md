@@ -102,12 +102,26 @@ Programs write output with Go's `print` and `println` builtins, which go to stan
 - `unsafe`, cgo, `goto`, and range over functions
 - pointers to slice or array elements, including pointer-receiver calls on elements
 - concurrency under the default sequential gate (compile with `-gate cooperative`)
-- imports other than module source and `github.com/eugenioenko/goalchemy/lib/...` packages, including the standard library
+- imports other than module source and `github.com/eugenioenko/goalchemy/std/...` or `.../lib/...` packages, including the standard library
 
-Capabilities come from Goalchemy's library, imported under `github.com/eugenioenko/goalchemy/lib/`. The packages keep the standard names, so code reads as ordinary Go:
+Goalchemy replaces the standard library with packages from two roots. Both keep the standard names, so code reads as ordinary Go:
+
+- **`github.com/eugenioenko/goalchemy/std/...`** holds pure-logic packages written once in the Goalchemy subset. The compiler translates them with your program, so they behave identically on every target and need no native dependencies.
+- **`github.com/eugenioenko/goalchemy/lib/...`** holds capability packages that reach the host. Each has a native implementation per target, checked against a contract, and some need native dependencies.
+
+The split, and the core runtime layer behind both, is explained in [the runtime library reference](library.md#three-layers).
 
 | Import | Provides |
 | --- | --- |
+| `github.com/eugenioenko/goalchemy/std/strings` | `Builder`, `Split`, `Join`, `Fields`, `Index`, `Contains`, `Trim*`, `Cut`, `Replace`, `NewReplacer`, `ToLower`/`ToUpper`, `EqualFold`, and more |
+| `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`, `Quote`, `NumError` |
+| `github.com/eugenioenko/goalchemy/std/bytes` | `Buffer`, `Equal`, `Compare`, `Index`, `Split`, `Fields`, `TrimSpace`, and more |
+| `github.com/eugenioenko/goalchemy/std/sort` | `Sort`, `Stable`, `Ints`, `Strings`, `Search`, `Reverse` over `Len`/`Less`/`Swap` |
+| `github.com/eugenioenko/goalchemy/std/unicode` | `IsLetter`, `IsDigit`, `IsSpace`, `IsUpper`, `IsPrint`, `ToLower`, `ToUpper`, `SimpleFold`, and more |
+| `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
+| `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
+| `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
+
 | `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
@@ -120,9 +134,9 @@ Capabilities come from Goalchemy's library, imported under `github.com/eugenioen
 | `github.com/eugenioenko/goalchemy/lib/clock` | `Unix`, host wall-clock seconds |
 | `github.com/eugenioenko/goalchemy/lib/callback` | `Request`, a bounded call to a host-registered callback |
 
-The [runtime library reference](library.md) documents every function: its Go signature, gate, bounds, error behavior, per-target availability and the native dependencies of each target. It is generated from the contracts with `make spec-generate`.
+The [runtime library reference](library.md) documents every function. For `lib/` it lists the gate, bounds, error behavior, per-target availability and native dependencies. It is generated from the `std/` and `lib/` sources and the contracts with `make spec-generate`.
 
-Each package is ordinary Go that wraps the standard library, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` directly is rejected with a remedy naming its `github.com/eugenioenko/goalchemy/lib` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
+Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` or `"strings"` directly is rejected with a remedy naming its `std/` or `lib/` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 
 ## Cooperative execution
 

@@ -133,7 +133,8 @@ func (c *checker) file(f *ast.File) {
 // replacement maps standard packages to the Goalchemy root that replaces them.
 var replacement = map[string]string{
 	"sync": "lib", "errors": "lib", "context": "lib", "time": "lib", "runtime": "lib",
-	"strconv": "std",
+	"strconv": "std", "strings": "std", "bytes": "std", "sort": "std", "unicode": "std",
+	"unicode/utf8": "std", "encoding/hex": "std", "encoding/binary": "std",
 }
 
 func (c *checker) decl(d ast.Decl) {
