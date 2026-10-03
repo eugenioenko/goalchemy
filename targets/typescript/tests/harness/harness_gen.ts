@@ -954,6 +954,31 @@ export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {
     const r0: any = rv[0];
     return [encBool(r0)];
   },
+  "lib.checksum.crc32_ieee/all_bytes": (h: H) => {
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const r0 = rt.libChecksumCRC32IEEE(v_data);
+    return [encInt(r0)];
+  },
+  "lib.checksum.crc32_ieee/binary": (h: H) => {
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const r0 = rt.libChecksumCRC32IEEE(v_data);
+    return [encInt(r0)];
+  },
+  "lib.checksum.crc32_ieee/check": (h: H) => {
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const r0 = rt.libChecksumCRC32IEEE(v_data);
+    return [encInt(r0)];
+  },
+  "lib.checksum.crc32_ieee/empty": (h: H) => {
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const r0 = rt.libChecksumCRC32IEEE(v_data);
+    return [encInt(r0)];
+  },
+  "lib.checksum.crc32_ieee/nil": (h: H) => {
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const r0 = rt.libChecksumCRC32IEEE(v_data);
+    return [encInt(r0)];
+  },
   "lib.crypto.aes256_gcm_decrypt/boundary_example": async (h: H) => {
     const v_key = decSlice(h.let("key"), (r: any) => (decInt(r, "u8") as number), true);
     const v_nonce = decSlice(h.let("nonce"), (r: any) => (decInt(r, "u8") as number), true);

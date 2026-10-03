@@ -35,7 +35,14 @@ func TestCSharpNativeCrypto(t *testing.T) {
 	for _, p := range paths {
 		project.WriteString(`<Compile Include="` + p + `" />`)
 	}
-	project.WriteString(`</ItemGroup></Project>`)
+	project.WriteString(`</ItemGroup><PropertyGroup><RestoreLockedMode>true</RestoreLockedMode></PropertyGroup><ItemGroup><PackageReference Include="System.IO.Hashing" Version="[8.0.0]" /></ItemGroup></Project>`)
+	lock, e := os.ReadFile(filepath.Join(root, "targets/csharp/packages.lock.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(filepath.Join(out, "packages.lock.json"), lock, 0600); e != nil {
+		t.Fatal(e)
+	}
 	file := filepath.Join(out, "test.csproj")
 	if e := os.WriteFile(file, []byte(project.String()), 0600); e != nil {
 		t.Fatal(e)

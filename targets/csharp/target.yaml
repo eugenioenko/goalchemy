@@ -6,7 +6,7 @@ environment:
   runtime: .NET 8
   minimum: ".NET 8 SDK (C# 12)"
   build: "sh run.sh (csc from the .NET 8 SDK), or dotnet run with main.csproj"
-  native: ".NET 8 built-ins only: System.Security.Cryptography and HttpClient, with no NuGet dependencies."
+  native: ".NET 8 built-ins for crypto (System.Security.Cryptography) and HTTP (HttpClient); IEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package with a content-hash lock, not the shared runtime. Host runtime controls acceleration."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: C# bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "C# long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.cs)."}
@@ -123,3 +123,5 @@ functions:
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: R.libClockUnix, implementation: runtime/LibClockUnix.cs, harness: "R.libClockUnix()"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: R.libCallbackRequest, implementation: runtime/LibCallbackRequest.cs, requires: [std.context.err], harness: "host: R.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: R.libHttpDo, implementation: runtime/LibHttpDo.cs, requires: [std.context.err], harness: "host: R.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
+
+  - {id: lib.checksum.crc32_ieee, contract_version: 1.0.0, symbol: R.libChecksumCRC32IEEE, implementation: runtime/LibChecksumCRC32IEEE.cs, harness: "R.libChecksumCRC32IEEE({0})"}

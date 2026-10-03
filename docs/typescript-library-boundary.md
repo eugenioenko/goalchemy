@@ -3,13 +3,16 @@
 The cooperative TypeScript target emits importable ESM value libraries from Go
 packages without `main`. Exported functions return Promises; source execution,
 initialization, suspension, cancellation and cleanup use the generated runtime.
-The output bundles the reachable runtime, emits declarations, and has no native
-Node imports or production package dependencies. Other unsupported target
+The output bundles the reachable runtime, emits declarations, and has no production
+package dependencies. Its separate Node entry uses the standard `node:zlib.crc32`
+API; the portable browser entry has no Node imports. Other unsupported target
 library and capability gates remain in force.
 
 Compile with `goalchemy compile -gate cooperative -target typescript -out DIR
-./package`, then run `tsc -p DIR`. Import `DIR/dist/main.js` or install the emitted
-package locally. Compilation needs TypeScript with
+./package`, then run `tsc -p DIR`. Install and import the emitted package to select
+its Node or browser entry automatically. Node callers can also import
+`DIR/dist/node.js` directly. Direct `DIR/dist/main.js` imports select the portable
+entry and CRC fallback even in Node. Compilation needs TypeScript with
 `rewriteRelativeImportExtensions` (verified with 6.0.3). Node requires 22.6 or
 later with WebCrypto, fetch and AbortSignal; current evidence uses Node24.15.0
 and Chromium147.0.7727.15. Browser applications bundle the ESM entry normally.

@@ -11,6 +11,9 @@ out=out/csharp-byte-bench
 mkdir -p "$out"
 refs=""
 for f in "$ref"/*.dll; do refs="$refs -r:$f"; done
+hashing=$(sh targets/csharp/tests/checksum-dependencies.sh)
+refs="$refs -r:$hashing"
+cp "$hashing" "$out/System.IO.Hashing.dll"
 "$dotnet" "$droot/sdk/$sdk/Roslyn/bincore/csc.dll" -nologo -noconfig -nostdlib -langversion:12 -nullable:disable -optimize+ \
     -out:"$out/bench.dll" $refs targets/csharp/types/*.cs targets/csharp/runtime/*.cs \
     targets/csharp/tests/ByteStorageBench.cs

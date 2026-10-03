@@ -6,7 +6,7 @@ environment:
   runtime: Rust edition 2021; std-only virtual executables; pinned OpenSSL/reqwest/rustls/Tokio/base64 native capabilities
   minimum: "Rust 1.75 std-only; native package dependencies require Rust 1.88"
   build: "std-only run.sh uses rustc; native executables/libraries use Cargo and native C/CMake/Make/Perl prerequisites"
-  native: "Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64."
+  native: "Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: "V::Bool."}
   - {type: type.integer, contract_version: 1.0.0, representation: "V::Int holding an i64 normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/ints.rs)."}
@@ -122,3 +122,5 @@ functions:
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: lib_clock_unix, implementation: runtime/lib_clock_unix.rs, harness: "lib_clock_unix()"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: lib_http_do, implementation: runtime/lib_http_do.rs, requires: [lib.crypto.close, std.context.err], harness: "host: lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: lib_callback_request, implementation: runtime/lib_callback_request.rs, requires: [lib.crypto.close, std.context.err], harness: "host: lib_callback_request(t,{0},{1},{2})"}
+
+  - {id: lib.checksum.crc32_ieee, contract_version: 1.0.0, symbol: lib_checksum_crc32_ieee, implementation: runtime/lib_checksum_crc32_ieee.rs, harness: "lib_checksum_crc32_ieee({0})"}

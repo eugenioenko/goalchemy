@@ -6,7 +6,7 @@ environment:
   runtime: CPython
   minimum: "Python 3.10 (the release baseline for now; it can be raised later)"
   build: python3 main.py
-  native: "The maintained cryptography package for crypto; HTTP uses the standard library (http.client)."
+  native: "The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: Python bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Python int normalized to the Go width and signedness after every operation (types/integer.py)."}
@@ -122,3 +122,5 @@ functions:
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.lib_clock_unix, implementation: runtime/lib_clock_unix.py, harness: "rt.lib_clock_unix()"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.lib_http_do, implementation: runtime/lib_http_do.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: rt.lib_callback_request, implementation: runtime/lib_callback_request.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_callback_request(t,{0},{1},{2})"}
+
+  - {id: lib.checksum.crc32_ieee, contract_version: 1.0.0, symbol: rt.lib_checksum_crc32_ieee, implementation: runtime/lib_checksum_crc32_ieee.py, harness: "rt.lib_checksum_crc32_ieee({0})"}

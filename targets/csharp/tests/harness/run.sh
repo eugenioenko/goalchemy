@@ -13,6 +13,9 @@ out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 refs=""
 for f in "$ref"/*.dll; do refs="$refs -r:$f"; done
+hashing=$(sh "$root/tests/checksum-dependencies.sh")
+refs="$refs -r:$hashing"
+cp "$hashing" "$out/System.IO.Hashing.dll"
 "$dotnet" "$droot/sdk/$sdk/Roslyn/bincore/csc.dll" -nologo -noconfig -nostdlib -nowarn:CS0162,CS0164,CS0168,CS0219,CS8981 \
   -langversion:12 -nullable:disable -out:"$out/harness.dll" $refs \
   "$root"/types/*.cs "$root"/runtime/*.cs "$root"/tests/harness/*.cs >&2

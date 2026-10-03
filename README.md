@@ -80,9 +80,11 @@ The `go get` makes Goalchemy's packages resolvable from your module. Source modu
 The Go standard library is replaced by packages that keep the standard names, so code still reads and runs as ordinary Go:
 
 - [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
-- [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `clock`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
+- [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `checksum`, `clock`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
 
 The [runtime library reference](docs/library.md) explains the split and documents every function.
+The [IEEE CRC32 host mappings](docs/checksum.md) distinguish standard APIs,
+the official Microsoft package, and portable fallbacks.
 
 ## Planned runtime additions
 

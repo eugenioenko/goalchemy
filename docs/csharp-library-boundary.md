@@ -90,3 +90,12 @@ key alias races, HTTP wire/resource ordering, weak source collection and native
 launch rejection. Existing C# host, byte and target-scoped language/conformance
 checks preserve executable behavior. This boundary does not complete Python,
 Rust, C or the seven-target SDK delivery goal.
+
+## IEEE CRC32 package dependency
+
+Libraries that link `lib/checksum.CRC32IEEE` add the official Microsoft
+`System.IO.Hashing` 8.0.0 NuGet package with an exact version and content-hash
+lock. Reference the generated `main.csproj` to inherit the package transitively.
+Assembly-only consumers must reference that package and deploy its DLL alongside
+`lib/main.dll`. Crypto and HTTP retain their .NET built-in mappings. See
+[the host mappings and acceleration limits](checksum.md).

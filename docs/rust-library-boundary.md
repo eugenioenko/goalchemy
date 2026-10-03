@@ -41,6 +41,10 @@ Rust panic=unwind and the bounded generated-source stack checks are prerequisite
 native stack exhaustion, abort/OOM and catastrophic native failures are outside
 managed cleanup guarantees.
 
+IEEE CRC32 uses pinned `crc32fast` 1.5.2 with runtime CPU detection enabled.
+The adapter hashes native byte-slice views without copying or mutating input.
+See [CRC32 host mappings](checksum.md).
+
 Production crypto uses pinned vendored OpenSSL through maintained openssl APIs.
 Opaque registry IDs are tagged with the source owner; aliases share Close state.
 Crypto runs synchronously on the owner and releases native snapshots before the

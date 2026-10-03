@@ -56,6 +56,15 @@ func TestCSharpHostOperations(t *testing.T) {
 	args = append(args, filepath.Join(root, "targets/csharp/tests/HostOperationsTest.cs"))
 	ctx, stop := context.WithTimeout(context.Background(), 120*time.Second)
 	defer stop()
+	hashing := csharpChecksumDLL(t, ctx)
+	args = append(args, "-r:"+hashing)
+	dll, err := os.ReadFile(hashing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(out, "System.IO.Hashing.dll"), dll, 0600); err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.CommandContext(ctx, filepath.Join(droot, "dotnet"), args...)
 	cmd.Env = env
 	if result, err := cmd.CombinedOutput(); err != nil {
