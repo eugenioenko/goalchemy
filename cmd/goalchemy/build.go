@@ -20,6 +20,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	fs.SetOutput(stderr)
 	cfgPath := fs.String("config", project.FileName, "project configuration file")
 	asJSON := fs.Bool("json", false, "write diagnostics as JSON")
+	format := fs.Bool("fmt", false, "format generated sources with each target's formatter")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -39,8 +40,11 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		if eds := driver.Emit(t, res, out); len(eds) > 0 {
+		eds := emitTarget(t, res, out, *format)
+		if len(eds) > 0 {
 			_ = diagnostics.Write(stderr, eds, *asJSON)
+		}
+		if diagnostics.HasErrors(eds) {
 			return 1
 		}
 		fmt.Fprintf(stdout, "%s: wrote %s\n", t, out)

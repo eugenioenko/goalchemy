@@ -15,8 +15,8 @@ The repository's `go.mod` selects the Go 1.27.1 reference toolchain. Source prog
 | Command | Purpose |
 | --- | --- |
 | `goalchemy check [-gate g] [-tags t] [-json] [packages]` | Load, type-check, and validate against the language gate. |
-| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|c\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
-| `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
+| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|c\|ir> -out <dir> [-fmt] [packages]` | Write a complete, runnable target directory. |
+| `goalchemy build [-config goalchemy.yaml] [-fmt]` | Compile every target listed in a project configuration. |
 | `goalchemy run -target <name> [packages]` | Compile to a temporary directory and run the program. |
 | `goalchemy features` | Print supported features and targets. |
 | `goalchemy spec validate` / `spec generate [-check]` / `test` | Maintain and verify the runtime contract catalog. |
@@ -45,6 +45,8 @@ The file uses the same restricted YAML as the contract catalog: no anchors, alia
 ## Output
 
 Each target directory contains the generated program, the runtime files it needs (one file per runtime function, plus shared representation files), a `README.md`, and `goalchemy.manifest.json`. The manifest records the source profile, compiler version, contract IDs, versions, and hashes, and every runtime and generated file. Output is deterministic for the same inputs.
+
+`-fmt` runs the target's conventional formatter over the output directory: `gofmt`, `prettier`, `ruff` (or `black`), `google-java-format`, `csharpier`, `rustfmt`, or `clang-format` (also found in `.toolchains/llvm-*`). A missing formatter is a `GCE008` warning and leaves the output unformatted. Formatting moves lines, so the `.lines` tables and TypeScript source maps are removed from formatted output, and determinism then also depends on the formatter version.
 
 - **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
 - **TypeScript**: sequential output has `main.ts` and `main.ts.map`; cooperative output adds portable `program.ts`, `program.ts.map`, and `host.ts`, with `main.ts` as its Node wrapper. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
