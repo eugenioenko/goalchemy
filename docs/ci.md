@@ -28,6 +28,9 @@ The Rust harness copies `Cargo.lock` into its temporary build and runs with
 `--locked --offline`. Bootstrap first fetches that locked native dependency
 graph, so a clean runner does not depend on a developer's Cargo cache. Cached
 downloads are optional; their lock/checksum checks still run.
+Bootstrap also builds the actual harness with empty input before timed contract
+checks and parallel tests begin. This keeps a cold vendored OpenSSL build out
+of the CRC harness's startup deadline without changing cases or timeouts.
 
 C# checksum builds use Microsoft's `System.IO.Hashing` 8.0.0 NuGet package.
 Bootstrap restores `targets/csharp/checksum.csproj` against its version and
