@@ -5,6 +5,7 @@ gcdir=${GOALCHEMY_BDWGC:-$repo/.toolchains/bdwgc}
 if [ -f "$gcdir/lib/libgc.a" ]; then set -- -I"$gcdir/include" "$gcdir/lib/libgc.a"
 elif pkg-config --exists bdw-gc 2>/dev/null; then set -- $(pkg-config --cflags --libs bdw-gc)
 else set -- -lgc; fi
+. "$repo/targets/c/tests/native-deps.sh"
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 # Constructor-failure injection is confined to this copied runtime source.
@@ -19,7 +20,7 @@ types=""
 for source in "$repo"/targets/c/types/*.c; do
  if [ "$(basename "$source")" != sched.c ]; then types="$types $source"; fi
 done
-${CC:-cc} -std=gnu17 ${CFLAGS:--O1 -g} -w -I"$repo/targets/c/types" \
+${CC:-cc} -std=gnu17 ${CFLAGS:--O1 -g} -w $GX_NATIVE_CFLAGS -I"$repo/targets/c/types" \
  "$repo/targets/c/tests/host_operations_test.c" "$out/sched.c" $types \
- "$repo"/targets/c/runtime/*.c "$@" -lpthread -o "$out/test"
+ "$repo"/targets/c/runtime/*.c "$@" $GX_NATIVE_LIBS -lpthread -o "$out/test"
 "$out/test"

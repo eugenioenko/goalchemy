@@ -56,7 +56,7 @@ Each target directory contains the generated program, the runtime files it needs
 
 ### Libraries
 
-Non-`main` packages can emit value libraries for Go, TypeScript, Java, C#, Python and Rust:
+Non-`main` packages can emit value libraries for Go, TypeScript, Java, C#, Python, Rust and C:
 
 - [Go libraries](go-library-boundary.md) expose copied values and cancellable, serialized calls.
 - [TypeScript libraries](typescript-library-boundary.md) emit portable JavaScript and declarations for Node and browsers.
@@ -72,7 +72,18 @@ with serialized source owners and cleanup-before-publication. Native crypto/HTTP
 use maintained locked crates; see [Rust TDF3 delivery](../../sdk/docs/generated-rust-library.md).
 Unsupported public value shapes on supported value-library targets fail with `GCE007`.
 
-Compiling a package other than `main` for the C target produces `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected.
+C aggregate or suspending exports emit `goalchemy.h`, `main.c`, `rt/` and
+`build.sh`, producing `libgoalchemy.a`. The owned `gxc_value` API recursively
+copies inputs and detaches outputs/errors, preserving explicit byte lengths and
+exact integer bits. Calls serialize on a registered source owner with fresh
+initialization; consumers need no collector initialization. Native callbacks
+use owned data and cancellation signals; completion waits for actual cleanup
+and owner joins. Production capabilities require threaded Boehm, OpenSSL 3 and
+libcurl. The adjacent [C TDF3 delivery](../../sdk/docs/generated-c-library.md)
+documents typed headers, submit/drive/wake/cancel/take/destroy, buffer releases,
+limits and native consumer evidence.
+
+For sequential scalar/string exports, compiling a package other than `main` for the C target produces `goalchemy.h`, `main.c`, `rt/`, and `build.sh`, which builds `libgoalchemy.a`. The host calls `goalchemy_init()` once, then the exported functions of the root package. Each export is `int pkg_Name(params..., results*...)`: it returns 0 on success and 1 after an unrecovered panic, whose report `goalchemy_panic_message()` returns. Integers cross as `int64_t` (`uint64_t` for `uint64` and `uint`), Booleans as `bool`, and strings as a pointer and a length. Exported functions must not suspend, and other parameter types are rejected.
 
 When the working directory or a parent has a `.toolchains` directory holding `jdk-*` or `dotnet`, `goalchemy run` and the test suites use those toolchains.
 On Linux x64, `scripts/fetch-toolchains.sh` installs the versions and verified

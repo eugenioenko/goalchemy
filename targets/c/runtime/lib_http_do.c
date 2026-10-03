@@ -1,0 +1,137 @@
+/* libcurl worker owns all requests/transport/body data. ACK follows resource release. */
+#include "native.h"
+#include <curl/curl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <strings.h>
+#include <limits.h>
+typedef struct http_work {
+ gx_HostToken token;pthread_t thread;bool started;atomic_bool canceled;
+ char *method,*url;struct curl_slist *headers;uint8_t *input;size_t input_len,max;
+ int64_t timeout_ms;uint8_t *body,*header_data;size_t body_len,header_len;
+ const char *error;uint64_t status;CURL *easy;size_t response_start;bool automatic_gzip,decoded;
+} http_work;
+static pthread_once_t curl_once=PTHREAD_ONCE_INIT;
+static CURLcode curl_init_status;
+static void initialize_curl(void) {curl_init_status=curl_global_init(CURL_GLOBAL_DEFAULT);}
+static void http_zero(gx_Task *t,gx_V err) {gx_V out[4]={gx_int(0),gx_nil_slice(),gx_nil_byte_slice(),err};gx_set_rv(t,4,out);}
+static void *native_alloc(size_t n) {return malloc(n?n:1);}
+static char *text_snapshot(gx_V v) {char *p=native_alloc((size_t)v.l+1);if(!p)return NULL;if(v.l)memcpy(p,gx_sbytes(v),v.l);p[v.l]=0;return p;}
+static size_t body_write(char *data,size_t a,size_t b,void *arg) {
+ http_work *w=arg;if(a&&b>SIZE_MAX/a){w->error="http: response body exceeds limit";return 0;}size_t n=a*b;
+ if(n>w->max-w->body_len){w->error="http: response body exceeds limit";return 0;}
+ uint8_t *p=realloc(w->body,w->body_len+n+1);if(!p){w->error="host_fault: HTTP body allocation";return 0;}w->body=p;memcpy(p+w->body_len,data,n);w->body_len+=n;return n;
+}
+static size_t header_write(char *data,size_t a,size_t b,void *arg) {
+ http_work *w=arg;if(a&&b>SIZE_MAX/a)return 0;size_t n=a*b;
+ if(n>65536-w->header_len){w->error="http: response headers exceed limit";return 0;}
+ uint8_t *p=realloc(w->header_data,w->header_len+n+1);if(!p){w->error="host_fault: HTTP header allocation";return 0;}w->header_data=p;
+ if(n>=5&&!memcmp(data,"HTTP/",5)){w->response_start=w->header_len;w->decoded=false;}
+ memcpy(p+w->header_len,data,n);w->header_len+=n;
+ if((n==2&&data[0]=='\r'&&data[1]=='\n')||(n==1&&data[0]=='\n')){
+  /* libcurl builds its encoding stack before the header callback. Select
+   * decoding before any body callback, matching Go's gzip-only automatic
+   * mode; explicit Accept-Encoding and Range leave the wire body intact. */
+  bool gzip=false;size_t start=w->response_start;
+  for(size_t i=start;i<w->header_len;i++)if(p[i]=='\n'){
+   size_t end=i;if(end>start&&p[end-1]=='\r')end--;
+   if(end-start>=17&&!strncasecmp((const char *)p+start,"Content-Encoding:",17)){
+    size_t v=start+17;while(v<end&&(p[v]==' '||p[v]=='\t'))v++;while(end>v&&(p[end-1]==' '||p[end-1]=='\t'))end--;
+    gzip=end-v==4&&!strncasecmp((const char *)p+v,"gzip",4);break;
+   }start=i+1;
+  }
+  w->decoded=w->automatic_gzip&&gzip;
+  if(curl_easy_setopt(w->easy,CURLOPT_HTTP_CONTENT_DECODING,w->decoded?1L:0L)!=CURLE_OK){w->error="host_fault: HTTP decoding option";return 0;}
+ }
+ return n;
+}
+static int progress(void *arg,curl_off_t a,curl_off_t b,curl_off_t c,curl_off_t d) {(void)a;(void)b;(void)c;(void)d;return atomic_load(&((http_work *)arg)->canceled)?1:0;}
+static void write64(uint8_t *p,uint64_t n) {for(int i=0;i<8;i++){p[i]=(uint8_t)n;n>>=8;}}
+static uint64_t read64(const uint8_t *p) {uint64_t n=0;for(int i=7;i>=0;i--)n=n*256+p[i];return n;}
+static void *http_thread(void *arg) {
+ http_work *w=arg;CURL *easy=NULL;CURLM *multi=NULL;CURLcode code=CURLE_OK;bool acquisition=false;
+ pthread_once(&curl_once,initialize_curl);
+ if(curl_init_status!=CURLE_OK){w->error="host_fault: libcurl initialization";goto release;}
+ easy=curl_easy_init();w->easy=easy;multi=curl_multi_init();if(!easy||!multi){w->error="host_fault: libcurl acquisition";goto release;}
+ #define SET(option,value) do{if(curl_easy_setopt(easy,option,value)!=CURLE_OK){w->error="host_fault: libcurl option";goto release;}}while(0)
+ SET(CURLOPT_URL,w->url);SET(CURLOPT_CUSTOMREQUEST,w->method);SET(CURLOPT_HTTPHEADER,w->headers);
+ SET(CURLOPT_HTTP_CONTENT_DECODING,0L);if(w->automatic_gzip)SET(CURLOPT_ACCEPT_ENCODING,"gzip");
+ SET(CURLOPT_FOLLOWLOCATION,0L);SET(CURLOPT_SSL_VERIFYPEER,1L);SET(CURLOPT_SSL_VERIFYHOST,2L);SET(CURLOPT_NOSIGNAL,1L);
+ SET(CURLOPT_PROTOCOLS,CURLPROTO_HTTP|CURLPROTO_HTTPS);SET(CURLOPT_REDIR_PROTOCOLS,CURLPROTO_HTTP|CURLPROTO_HTTPS);
+ SET(CURLOPT_TIMEOUT_MS,(long)w->timeout_ms);SET(CURLOPT_CONNECTTIMEOUT_MS,(long)w->timeout_ms);SET(CURLOPT_FORBID_REUSE,1L);
+ SET(CURLOPT_WRITEFUNCTION,body_write);SET(CURLOPT_WRITEDATA,w);SET(CURLOPT_HEADERFUNCTION,header_write);SET(CURLOPT_HEADERDATA,w);
+ SET(CURLOPT_NOPROGRESS,0L);SET(CURLOPT_XFERINFOFUNCTION,progress);SET(CURLOPT_XFERINFODATA,w);
+ if(!strcmp(w->method,"POST")){SET(CURLOPT_POSTFIELDS,w->input);SET(CURLOPT_POSTFIELDSIZE_LARGE,(curl_off_t)w->input_len);}
+ if(curl_multi_add_handle(multi,easy)!=CURLM_OK){w->error="host_fault: libcurl submission";goto release;}acquisition=true;
+ int running=0;
+ do{
+  if(atomic_load(&w->canceled)){code=CURLE_ABORTED_BY_CALLBACK;break;}
+  if(curl_multi_perform(multi,&running)!=CURLM_OK){w->error="host_fault: libcurl dispatch";break;}
+  if(running&&curl_multi_poll(multi,NULL,0,10,NULL)!=CURLM_OK){w->error="host_fault: libcurl poll";break;}
+ }while(running);
+ if(code==CURLE_OK&&!w->error){int pending;CURLMsg *msg;bool found=false;while((msg=curl_multi_info_read(multi,&pending)))if(msg->msg==CURLMSG_DONE){code=msg->data.result;found=true;}if(!found)w->error="host_fault: libcurl missing terminal result";}
+ if(code!=CURLE_OK&&!w->error)w->error=code==CURLE_OUT_OF_MEMORY?"host_fault: HTTP transport allocation":code==CURLE_ABORTED_BY_CALLBACK?"http: canceled":"http: transport failure";
+ long status=0;if(!w->error&&curl_easy_getinfo(easy,CURLINFO_RESPONSE_CODE,&status)!=CURLE_OK)w->error="host_fault: HTTP response status";w->status=(uint64_t)status;
+release:
+ if(acquisition)curl_multi_remove_handle(multi,easy);if(easy)curl_easy_cleanup(easy);if(multi)curl_multi_cleanup(multi);
+ curl_slist_free_all(w->headers);w->headers=NULL;free(w->method);w->method=NULL;free(w->url);w->url=NULL;free(w->input);w->input=NULL;
+ size_t errlen=w->error?strlen(w->error):0;
+ size_t n=40+w->header_len+w->body_len+errlen;uint8_t *wire=malloc(n);
+ if(wire){write64(wire,w->status);write64(wire+8,w->header_len);write64(wire+16,w->body_len);write64(wire+24,errlen);write64(wire+32,w->decoded?1:0);if(w->header_len)memcpy(wire+40,w->header_data,w->header_len);if(w->body_len)memcpy(wire+40+w->header_len,w->body,w->body_len);if(errlen)memcpy(wire+40+w->header_len+w->body_len,w->error,errlen);}
+ free(w->header_data);w->header_data=NULL;free(w->body);w->body=NULL;
+ const char *fault=!wire?"HTTP publication allocation":w->error&&!strncmp(w->error,"host_fault:",11)?w->error:NULL;
+ /* publish snapshots wire; all actual native transport/input/body acquisitions
+  * are released before ACK, registration holder remains until joined cleanup. */
+ if(!gx_host_publish(w->token,wire,wire?n:0,fault))gx_host_publish_fault(w->token,"HTTP native publication failure");free(wire);gx_host_ack(w->token);gx_host_token_release(w->token);return NULL;
+ #undef SET
+}
+static const char *http_cancel(void *arg){atomic_store(&((http_work *)arg)->canceled,true);return NULL;}
+static const char *http_cleanup(void *arg){http_work *w=arg;if(w->started&&pthread_join(w->thread,NULL))return "cannot join HTTP worker";free(w->method);free(w->url);free(w->input);curl_slist_free_all(w->headers);free(w->body);free(w->header_data);free(w);return NULL;}
+typedef struct http_pair {gx_V name,value;size_t order;} http_pair;
+static int header_compare(const void *a,const void *b){const http_pair *x=a,*y=b;size_t n=x->name.l<y->name.l?x->name.l:y->name.l;int c=memcmp(gx_sbytes(x->name),gx_sbytes(y->name),n);if(c)return c;if(x->name.l!=y->name.l)return x->name.l<y->name.l?-1:1;return x->order<y->order?-1:x->order>y->order;}
+static const char *http_decode(gx_Task *t,const uint8_t *wire,size_t n,gx_V canceled,gx_V roots) {
+ (void)roots;if(!gx_is_nil(canceled)){http_zero(t,canceled);return NULL;}
+ if(n<40)return "HTTP wire length";uint64_t status=read64(wire),h=read64(wire+8),b=read64(wire+16),e=read64(wire+24),decoded=read64(wire+32);
+ if(h>65536||b>GX_NATIVE_MAX||e>65536||h+b+e!=n-40||status>999||decoded>1)return "HTTP wire bounds";
+ if(e){http_zero(t,gx_std_errors_new(gx_str((const char *)wire+40+h+b,(size_t)e)));return NULL;}
+ const uint8_t *headers=wire+40;gx_V *values=gx_alloc_vals(32768);uint32_t count=0;size_t start=0;
+ for(size_t i=0;i<h;i++)if(headers[i]=='\n'){
+  size_t end=i;if(end>start&&headers[end-1]=='\r')end--;const uint8_t *colon=memchr(headers+start,':',end-start);
+  if(colon){if(count>=32766)return "HTTP header count";size_t k=(size_t)(colon-headers);size_t at=k+1;while(at<end&&(headers[at]==' '||headers[at]=='\t'))at++;uint8_t *name=gx_alloc_bytes(k-start);bool first=true;for(size_t j=start;j<k;j++){name[j-start]=(uint8_t)(first?toupper(headers[j]):tolower(headers[j]));first=headers[j]=='-';}values[count++]=gx_str((const char *)name,k-start);values[count++]=gx_str((const char *)headers+at,end-at);
+  }else if(end-start>=5&&!memcmp(headers+start,"HTTP/",5))count=0;
+  start=i+1;
+ }
+ http_pair *pairs=GC_MALLOC((count/2?count/2:1)*sizeof(*pairs));if(!pairs)gx_host_fault("HTTP header sorting allocation");size_t pair_count=0;
+ for(size_t i=0;i<count;i+=2){gx_V name=values[i];if(decoded&&((name.l==16&&!memcmp(gx_sbytes(name),"Content-Encoding",16))||(name.l==14&&!memcmp(gx_sbytes(name),"Content-Length",14))))continue;pairs[pair_count++]=(http_pair){name,values[i+1],i};}
+ qsort(pairs,pair_count,sizeof(*pairs),header_compare);count=0;for(size_t i=0;i<pair_count;i++){values[count++]=pairs[i].name;values[count++]=pairs[i].value;}
+ uint8_t *body=gx_alloc_bytes((size_t)b);if(b)memcpy(body,wire+40+h,(size_t)b);
+ gx_V out[4]={gx_int((int64_t)status),gx_slice(values,count,count),gx_byte_slice(body,(uint32_t)b,(uint32_t)b),gx_nil()};gx_set_rv(t,4,out);return NULL;
+}
+static bool header_name(gx_V v){if(!v.l)return false;for(size_t i=0;i<v.l;i++){unsigned char c=gx_sbytes(v)[i];if(!c||!(((c>='0'&&c<='9')||(c>='A'&&c<='Z')||(c>='a'&&c<='z'))||strchr("!#$%&'*+-.^_`|~",c)))return false;}return true;}
+static bool valid_url(gx_V v) {
+ if(v.t!=GX_STR||!v.l||v.l>8192)return false;for(size_t i=0;i<v.l;i++){uint8_t c=gx_sbytes(v)[i];if(c<=32||c==127||c=='\\'||c==0)return false;if(i+2<v.l&&c==0xef&&gx_sbytes(v)[i+1]==0xbb&&gx_sbytes(v)[i+2]==0xbf)return false;}
+ char *url=text_snapshot(v);if(!url)gx_host_fault("HTTP URL allocation");CURLU *u=curl_url();if(!u){free(url);gx_host_fault("HTTP URL parser allocation");}bool ok=u&&curl_url_set(u,CURLUPART_URL,url,0)==CURLUE_OK;char *scheme=NULL,*host=NULL,*user=NULL,*password=NULL,*fragment=NULL,*port=NULL;
+ if(ok){ok=curl_url_get(u,CURLUPART_SCHEME,&scheme,0)==CURLUE_OK&&(!strcmp(scheme,"http")||!strcmp(scheme,"https"))&&curl_url_get(u,CURLUPART_HOST,&host,0)==CURLUE_OK&&*host;
+ if(curl_url_get(u,CURLUPART_USER,&user,0)==CURLUE_OK||curl_url_get(u,CURLUPART_PASSWORD,&password,0)==CURLUE_OK||curl_url_get(u,CURLUPART_FRAGMENT,&fragment,0)==CURLUE_OK)ok=false;
+ if(curl_url_get(u,CURLUPART_PORT,&port,0)==CURLUE_OK&&!strcmp(port,"0"))ok=false;}
+ curl_free(scheme);curl_free(host);curl_free(user);curl_free(password);curl_free(fragment);curl_free(port);if(u)curl_url_cleanup(u);free(url);return ok;
+}
+void gx_lib_http_do(gx_Task *t,gx_V ctx,gx_V method,gx_V url,gx_V headers,gx_V input,gx_V max,gx_V timeout) {
+ gx_V invalid=gx_std_errors_new(gx_cstr("http: invalid request or limit"));
+ if(gx_is_nil(ctx)){http_zero(t,invalid);return;}gx_HostBoundary boundary=gx_host_boundary(ctx,gx_i(timeout)>0&&gx_i(timeout)<=300000?gx_i(timeout)*1000000:0);
+ gx_V error=gx_std_context_context_err(ctx);if(!gx_is_nil(error)){http_zero(t,error);return;}
+ bool get=method.t==GX_STR&&method.l==3&&!memcmp(gx_sbytes(method),"GET",3),post=method.t==GX_STR&&method.l==4&&!memcmp(gx_sbytes(method),"POST",4);
+ if((!get&&!post)||!valid_url(url)||input.t!=GX_SLICE||!gx_byte_backing(input)||input.l>GX_NATIVE_MAX||get&&input.l||gx_i(max)<0||gx_i(max)>GX_NATIVE_MAX||gx_i(timeout)<1||gx_i(timeout)>300000||headers.t!=GX_SLICE||headers.l%2||headers.l>32768){http_zero(t,invalid);return;}
+ size_t total=0;for(uint32_t i=0;i<headers.l;i+=2){gx_V n=gx_vals(headers)[i],v=gx_vals(headers)[i+1];total+=(size_t)n.l+v.l+4;if(total>65536||!header_name(n)){http_zero(t,invalid);return;}for(size_t j=0;j<v.l;j++){uint8_t c=gx_sbytes(v)[j];if(c==127||c<32&&c!=9){http_zero(t,invalid);return;}}char *name=text_snapshot(n);if(!name)gx_host_fault("HTTP validation allocation");const char *forbidden[]={"host","content-length","transfer-encoding","connection","proxy-authorization","proxy-connection","upgrade","trailer","te"};bool bad=false;for(size_t j=0;j<sizeof forbidden/sizeof *forbidden;j++)if(!strcasecmp(name,forbidden[j]))bad=true;free(name);if(bad){http_zero(t,invalid);return;}}
+ http_work *w=calloc(1,sizeof(*w));if(!w)gx_host_fault("HTTP work allocation");atomic_init(&w->canceled,false);
+ bool encoding_seen=false,range_seen=false;w->automatic_gzip=true;for(uint32_t i=0;i<headers.l;i+=2){gx_V name=gx_vals(headers)[i],value=gx_vals(headers)[i+1];if(name.l==15&&!strncasecmp((const char *)gx_sbytes(name),"Accept-Encoding",15)&&!encoding_seen){encoding_seen=true;if(value.l)w->automatic_gzip=false;}if(name.l==5&&!strncasecmp((const char *)gx_sbytes(name),"Range",5)&&!range_seen){range_seen=true;if(value.l)w->automatic_gzip=false;}}
+ w->method=text_snapshot(method);w->url=text_snapshot(url);w->input=native_alloc(input.l);if(!w->method||!w->url||!w->input){http_cleanup(w);gx_host_fault("HTTP snapshot allocation");}if(input.l)memcpy(w->input,gx_bytes(input),input.l);w->input_len=input.l;w->max=(size_t)gx_i(max);
+ int64_t remain=boundary.deadline-gx_now();w->timeout_ms=remain>0?(remain+999999)/1000000:1;
+ for(uint32_t i=0;i<headers.l;i+=2){gx_V n=gx_vals(headers)[i],v=gx_vals(headers)[i+1];if(w->automatic_gzip&&n.l==15&&!strncasecmp((const char *)gx_sbytes(n),"Accept-Encoding",15))continue;char *line=native_alloc((size_t)n.l+v.l+3);if(!line){http_cleanup(w);gx_host_fault("HTTP header snapshot allocation");}memcpy(line,gx_sbytes(n),n.l);if(v.l){line[n.l]=':';line[n.l+1]=' ';memcpy(line+n.l+2,gx_sbytes(v),v.l);line[n.l+v.l+2]=0;}else{line[n.l]=';';line[n.l+1]=0;}struct curl_slist *next=curl_slist_append(w->headers,line);free(line);if(!next){http_cleanup(w);gx_host_fault("HTTP header allocation");}w->headers=next;}
+ w->token=gx_host_register(t,boundary,ctx,http_decode,http_cancel,http_cleanup,w);
+ gx_host_token_retain(w->token);
+ if(!gx_host_should_submit(w->token)){free(w->method);w->method=NULL;free(w->url);w->url=NULL;free(w->input);w->input=NULL;curl_slist_free_all(w->headers);w->headers=NULL;gx_host_publish(w->token,NULL,0,NULL);gx_host_ack(w->token);gx_host_token_release(w->token);return;}
+ if(pthread_create(&w->thread,NULL,http_thread,w)){free(w->method);w->method=NULL;free(w->url);w->url=NULL;free(w->input);w->input=NULL;curl_slist_free_all(w->headers);w->headers=NULL;gx_host_publish(w->token,NULL,0,"HTTP worker submission");gx_host_ack(w->token);gx_host_token_release(w->token);return;}
+ w->started=true;
+}

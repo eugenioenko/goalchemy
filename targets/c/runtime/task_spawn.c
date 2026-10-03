@@ -3,6 +3,7 @@
  * runnable tasks are dispatched in FIFO order. Pause primitives either
  * complete immediately, leaving their results in the task's rv, or block
  * the task until another task or a timer readies it. */
+#define GC_NO_THREAD_REDIRECTS
 #include "gx.h"
 
 #include <stdio.h>
@@ -489,7 +490,8 @@ void gx_reset_scheduler(void) {
 typedef struct gx_HostLive {
     uint64_t operation;
     int task;
-    bool ack, published;
+    bool ack, published, inline_fault;
+    char emergency_fault[128];
     uint8_t *bytes;
     size_t length;
     char *fault;
@@ -515,10 +517,12 @@ struct gx_HostPending {
     gx_HostPending *next;
 };
 static uint64_t host_generation;
+static pthread_mutex_t library_wake_mutex=PTHREAD_MUTEX_INITIALIZER;
+static gx_HostToken library_wake_token;
 
 static void host_free_live(gx_HostLive *live) {
     free(live->bytes);
-    free(live->fault);
+    if(!live->inline_fault) free(live->fault);
     free(live);
 }
 static gx_HostLive *host_find(gx_HostToken t) {
@@ -587,6 +591,13 @@ bool gx_host_publish(gx_HostToken t, const void *bytes, size_t length, const cha
     }
     return accepted;
 }
+bool gx_host_publish_fault(gx_HostToken t,const char *fault) {
+ gx_Mailbox *b=t.mailbox;if(!b||!fault)return false;
+ pthread_mutex_lock(&b->mutex);gx_HostLive *l=host_find(t);bool accepted=l&&!l->published;
+ if(accepted){size_t n=strnlen(fault,sizeof(l->emergency_fault)-1);memcpy(l->emergency_fault,fault,n);l->emergency_fault[n]=0;l->fault=l->emergency_fault;l->inline_fault=true;l->published=true;
+  if(b->tail)b->tail->published_next=l;else b->head=l;b->tail=l;b->version++;pthread_cond_broadcast(&b->wake);}
+ pthread_mutex_unlock(&b->mutex);return accepted;
+}
 bool gx_host_ack(gx_HostToken t) {
     gx_Mailbox *b = t.mailbox;
     if (!b)
@@ -601,6 +612,11 @@ bool gx_host_ack(gx_HostToken t) {
     }
     pthread_mutex_unlock(&b->mutex);
     return accepted;
+}
+void gx_library_wake(void) {
+ pthread_mutex_lock(&library_wake_mutex);gx_Mailbox *b=library_wake_token.mailbox;
+ if(b){pthread_mutex_lock(&b->mutex);if(!b->closed&&b->generation==library_wake_token.generation){b->version++;pthread_cond_broadcast(&b->wake);}pthread_mutex_unlock(&b->mutex);}
+ pthread_mutex_unlock(&library_wake_mutex);
 }
 size_t gx_host_live_count(gx_HostToken t) {
     if (!t.mailbox)
@@ -652,6 +668,7 @@ gx_HostToken gx_host_register(gx_Task *task, gx_HostBoundary boundary, gx_V root
         gx_host_fault("foreign host context");
     if (s->operation == UINT64_MAX) gx_host_fault("operation identity exhausted");
     gx_HostPending *p = GC_MALLOC(sizeof(*p));
+    if(!p){host_cleanup_action(s,cleanup,native);gx_host_fault("collector registration allocation");}
     p->task = task;
     p->boundary = boundary;
     p->roots = roots;
@@ -661,8 +678,10 @@ gx_HostToken gx_host_register(gx_Task *task, gx_HostBoundary boundary, gx_V root
     p->native = native;
     p->token = (gx_HostToken){s->mailbox, s->generation, ++s->operation, task->id};
     gx_HostLive *l = calloc(1, sizeof(*l));
-    if (!l)
+    if (!l) {
+        host_cleanup_action(s,cleanup,native);
         gx_host_fault("cannot allocate native registration");
+    }
     l->operation = p->token.operation;
     l->task = task->id;
     p->next = s->pending;
@@ -755,6 +774,7 @@ static void host_remove_pending(gx_HostPending *p) {
 void gx_host_poll(void) {
     gx_Sched *s = gx_sched;
     gx_owner_check(s);
+    if (s->library_poll && !s->retiring) s->library_poll();
     gx_host_context_changed();
     gx_HostLive *l;
     while ((l = host_take(false))) {
@@ -798,6 +818,10 @@ void gx_host_wait(int64_t deadline, bool timed) {
     gx_Sched *s = gx_sched;
     gx_Mailbox *b = s->mailbox;
     if (!gx_owner_current(s)) gx_host_fault("foreign mailbox driver wait");
+    if (s->library_poll && !s->retiring) {
+        int64_t cap = gx_deadline(gx_now(), 10000000);
+        if (!timed || deadline > cap) { deadline = cap; timed = true; }
+    }
     pthread_mutex_lock(&b->mutex);
     uint64_t version = b->version;
     /* Check the predicate under the same mutex as publication/ACK. */
@@ -1027,12 +1051,19 @@ typedef struct gx_HostEntry {
     void (*init)(void);
     gx_V (*entry)(void);
     int status;
+    bool library;
+    void (*finish)(gx_Task *);
+    void (*poll)(void);
+    uint8_t **report;
+    size_t *length;
 } gx_HostEntry;
 static void *host_entry_thread(void *arg) {
     gx_HostEntry *entry = arg;
+    if(entry->library){gx_retire(gx_sched);gx_sched=NULL;gx_handler=NULL;gx_thrown=NULL;gx_source_depth=0;}
     gx_Sched *s = gx_new_sched(gx_new_task(0, NULL), false);
     gx_sched = s;
     s->host = true;
+    s->library_poll = entry->poll;
     s->retire = retire_owner;
     jmp_buf escape;
     s->escape = &escape;
@@ -1065,6 +1096,7 @@ static void *host_entry_thread(void *arg) {
         b->generation = ++host_generation;
         s->generation = b->generation;
         s->mailbox = b;
+        if(entry->library){pthread_mutex_lock(&library_wake_mutex);library_wake_token=(gx_HostToken){.mailbox=b,.generation=b->generation};gx_host_token_retain(library_wake_token);pthread_mutex_unlock(&library_wake_mutex);}
         gx_Handler h;
         if (GX_TRY(h))
             gx_report_panic(gx_thrown);
@@ -1075,6 +1107,7 @@ static void *host_entry_thread(void *arg) {
         gx_ready(main);
         while (!main->done)
             run(next());
+        if (entry->finish) entry->finish(main);
     }
     gx_handler = NULL;
     gx_source_depth = 0;
@@ -1117,6 +1150,21 @@ static void *host_entry_thread(void *arg) {
     gx_handler = NULL;
     gx_thrown = NULL;
     gx_source_depth = 0;
+    if (s->native_cleanup) s->native_cleanup();
+    if (entry->library) {
+        const uint8_t *bytes = panic_report.b;
+        size_t n = panic_report.n;
+        if (s->fault) { entry->status = 3; bytes = (const uint8_t *)s->fault; n = strlen(s->fault); }
+        else if (s->fatal) { entry->status = 4; bytes = (const uint8_t *)s->fatal; n = strlen(s->fatal); }
+        else if (bytes) entry->status = 2;
+        if (n) {
+            *entry->report = malloc(n);
+            if (!*entry->report) { entry->status = 3; *entry->length = 0; }
+            else { memcpy(*entry->report, bytes, n); *entry->length = n; }
+        }
+        gx_sched=NULL;
+        return NULL;
+    }
     if (panic_report.b) {
         gx_stderr(panic_report.b, panic_report.n);
         s->panic = NULL;
@@ -1161,3 +1209,36 @@ int gx_run_main_host(void (*init)(void), gx_V (*entry)(void)) {
     return rc ? 3 : args.status;
 }
 _Noreturn void gx_host_main(void (*init)(void), gx_V (*entry)(void)) { exit(gx_run_main_host(init, entry)); }
+
+/* The primordial registration belongs to this SDK-owned owner, not a foreign
+ * invoking thread. Boehm8.2.8 explicitly allows its one-time unregister. */
+static void *library_initial_owner(void *arg) {
+    gx_HostEntry *entry=arg;
+    struct GC_stack_base base;
+    if(GC_is_init_called() || GC_get_stack_base(&base)!=GC_SUCCESS){entry->status=3;return NULL;}
+    GC_set_stackbottom(NULL,&base); /* documented pre-init primordial stack */
+    GC_INIT();
+    GC_allow_register_threads();
+    void *result=host_entry_thread(arg);
+    if(GC_unregister_my_thread()!=GC_SUCCESS)abort();
+    return result;
+}
+int gx_run_library_host(void (*init)(void), gx_V (*entry)(void),
+    void (*finish)(gx_Task *), void (*poll)(void), uint8_t **report, size_t *length) {
+    if (!gx_entry_reserve()) return 1;
+    bool initial=!GC_is_init_called();
+    gx_HostEntry args = {.init=init, .entry=entry, .library=true, .finish=finish,
+        .poll=poll, .report=report, .length=length};
+    pthread_attr_t attr;
+    int rc = pthread_attr_init(&attr);
+    bool ready = !rc;
+    if (!rc) rc = pthread_attr_setstacksize(&attr, (size_t)8 << 20);
+    pthread_t thread;
+    if (!rc) rc = initial?pthread_create(&thread,&attr,library_initial_owner,&args):GC_pthread_create(&thread,&attr,host_entry_thread,&args);
+    if (ready) pthread_attr_destroy(&attr);
+    if (!rc && (initial?pthread_join(thread,NULL):GC_pthread_join(thread,NULL))) abort();
+    pthread_mutex_lock(&library_wake_mutex);gx_HostToken wake=library_wake_token;library_wake_token=(gx_HostToken){0};pthread_mutex_unlock(&library_wake_mutex);
+    gx_host_token_release(wake);
+    gx_entry_release();
+    return rc ? 3 : args.status;
+}

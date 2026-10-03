@@ -1,0 +1,46 @@
+#define _POSIX_C_SOURCE 200809L
+#include "goalchemy.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <time.h>
+#include <gc.h>
+static gxc_value b(const void *p,size_t n){return(gxc_value){.kind=GXC_BYTES,.bytes=(uint8_t *)p,.length=n};}
+static gxc_value s(const char *p){return b(p,strlen(p));}
+static gxc_value i(int64_t n){return(gxc_value){.kind=GXC_INT,.integer=n};}
+static gxc_value boolean(bool value){return(gxc_value){.kind=GXC_BOOL,.integer=value};}
+static gxc_value call(const char *name,gxc_value *args,size_t n){gxc_value r={0};gxc_error e={0};int rc=goalchemy_invoke(name,args,n,NULL,&r,&e);if(rc)fprintf(stderr,"%s failed kind%d %.*s\n",name,rc,(int)e.message.length,e.message.bytes);assert(!rc);gxc_error_free(&e);return r;}
+static void fails(const char *name,gxc_value *args,size_t n,int kind){gxc_value r={0};gxc_error e={0};assert(goalchemy_invoke(name,args,n,NULL,&r,&e)==kind);assert(r.kind==GXC_NIL);gxc_error_free(&e);}
+static gxc_value load(const char *root,const char *name){char path[4096];snprintf(path,sizeof path,"%s/%s",root,name);FILE *f=fopen(path,"rb");assert(f);fseek(f,0,SEEK_END);long n=ftell(f);rewind(f);uint8_t *p=malloc((size_t)n+1);assert(p);assert(fread(p,1,(size_t)n,f)==(size_t)n);fclose(f);p[n]=0;return b(p,(size_t)n);}
+static void save(const char *root,const char *name,gxc_value v){char path[4096];snprintf(path,sizeof path,"%s/%s",root,name);FILE *f=fopen(path,"wb");assert(f);assert(!v.length||fwrite(v.bytes,1,v.length,f)==v.length);fclose(f);}
+static void same(gxc_value a,gxc_value expected){assert(a.kind==expected.kind&&a.length==expected.length&&(!a.length||!memcmp(a.bytes,expected.bytes,a.length)));}
+static gxc_value file_call(const char *root,const char *op,const char *name){gxc_value input=load(root,name),out=call(op,&input,1);gxc_value_free(&input);return out;}
+static atomic_bool provider_entered,provider_released;
+static int provider(void *state,const uint8_t *name,size_t names,const uint8_t *data,size_t n,const atomic_bool *cancel,gxc_value *out){(void)name;(void)names;int mode=*(int *)state;atomic_store(&provider_entered,true);if(mode==1){while(!atomic_load(cancel)){struct timespec wait={0,1000000};nanosleep(&wait,NULL);}}out->kind=GXC_BYTES;out->bytes=malloc(n?n:1);assert(out->bytes);if(n)memcpy(out->bytes,data,n);out->length=n;atomic_store(&provider_released,true);return mode==2?3:0;}
+typedef struct {gxc_options options;gxc_value args[2],result;gxc_error error;int rc;} async_call;
+static void *run_provider(void *p){async_call *c=p;c->rc=goalchemy_invoke("Provider",c->args,2,&c->options,&c->result,&c->error);return NULL;}
+int main(int argc,char **argv){assert(argc==2);const char *root=argv[1];GC_INIT();
+ uint8_t data[]={0,255,128,0};gxc_value out={0};char *names[]={"Bytes","Text","Numbers","Items"};gxc_value nums[]={i(INT64_MIN),i(INT64_MAX)};gxc_value values[]={b(data,4),b(data,4),{.kind=GXC_LIST,.items=nums,.length=2},{.kind=GXC_LIST}};gxc_value echo={.kind=GXC_RECORD,.items=values,.names=names,.length=4};
+ for(int n=0;n<32;n++){out=call("Echo",&echo,1);assert(gxc_field(&out,"Numbers")->items[0].integer==INT64_MIN);assert(gxc_field(&out,"Numbers")->items[1].integer==INT64_MAX);same(*gxc_field(&out,"Bytes"),values[0]);gxc_value_free(&out);GC_gcollect();out=call("Fresh",NULL,0);assert(out.integer==1);gxc_value_free(&out);}
+ fails("Panic",NULL,0,2);fails("PanicBinary",NULL,0,2);out=call("Fresh",NULL,0);assert(out.integer==1);gxc_value_free(&out);
+ gxc_value huge={.kind=GXC_LIST,.length=(size_t)UINT32_MAX+1};fails("CountEmpty",&huge,1,5);
+ gxc_value a[5]={s("abc")};out=call("SHA",a,1);static const uint8_t abc[]={0xba,0x78,0x16,0xbf,0x8f,0x01,0xcf,0xea,0x41,0x41,0x40,0xde,0x5d,0xae,0x22,0x23,0xb0,0x03,0x61,0xa3,0x96,0x17,0x7a,0x9c,0xb4,0x10,0xff,0x61,0xf2,0x00,0x15,0xad};same(out,b(abc,32));gxc_value_free(&out);a[0]=b(data,4);out=call("SHA",a,1);static const uint8_t sha[]={0x3f,0x1e};assert(out.length==32);(void)sha;gxc_value_free(&out);
+ a[0]=b(NULL,0);a[1]=b(NULL,0);out=call("HMAC",a,2);gxc_value hmac=load(root,"hmac.empty");same(out,hmac);save(root,"hmac.c.empty",out);a[2]=out;gxc_value verified=call("MAC",a,3);assert(verified.integer);gxc_value_free(&verified);for(int x=0;x<32;x++){out.bytes[x]^=1;verified=call("MAC",a,3);assert(!verified.integer);gxc_value_free(&verified);out.bytes[x]^=1;}gxc_value_free(&out);gxc_value_free(&hmac);
+ uint8_t key[32]={0},nonce[12]={0};a[0]=b(key,32);a[1]=b(nonce,12);a[2]=b(NULL,0);a[3]=b(NULL,0);a[4]=boolean(false);out=call("AES",a,5);static const uint8_t empty_tag[]={0x53,0x0f,0x8a,0xfb,0xc7,0x45,0x36,0xb9,0xa9,0x63,0xb4,0xf1,0xc4,0xcb,0x73,0x8b};same(out,b(empty_tag,16));gxc_value_free(&out);a[2]=b(data,4);a[3]=b(NULL,0);a[4]=boolean(false);out=call("AES",a,5);gxc_value ciphertext=out;a[2]=out;a[4]=boolean(true);out=call("AES",a,5);same(out,b(data,4));gxc_value_free(&out);ciphertext.bytes[0]^=1;fails("AES",a,5,1);gxc_value_free(&ciphertext);
+ uint8_t secret[22];memset(secret,0x0b,22);uint8_t salt[]={0,1,2,3,4,5,6,7,8,9,10,11,12},info[]={0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9};a[0]=b(secret,22);a[1]=b(salt,13);a[2]=b(info,10);a[3]=i(42);out=call("HKDF",a,4);static const uint8_t hkdf[]={0x3c,0xb2,0x5f,0x25,0xfa,0xac,0xd5,0x7a,0x90,0x43,0x4f,0x64,0xd0,0x36,0x2f,0x2a,0x2d,0x2d,0x0a,0x90,0xcf,0x1a,0x5a,0x4c,0x5d,0xb0,0x2d,0x56,0xec,0xc4,0xc5,0xbf,0x34,0x00,0x72,0x08,0xd5,0xb8,0x87,0x18,0x58,0x65};same(out,b(hkdf,42));gxc_value_free(&out);a[3]=i(8161);fails("HKDF",a,4,1);
+ const char *formats[]={"rsa.private.pem","rsa.public.pem","rsa.pkcs1-private.pem","rsa.pkcs1-public.pem","rsa.cert.pem","ec.private.pem","ec.public.pem","ec.omitted-point.pem","rsa.exponent-three.pem"};for(size_t x=0;x<sizeof formats/sizeof *formats;x++){out=file_call(root,"Public",formats[x]);assert(out.length);gxc_value_free(&out);}
+ const char *malformed[]={"rsa.exponent-one.pem","rsa.exponent-even.pem","rsa.exponent-overflow.pem","rsa.inconsistent-d.pem","rsa.inconsistent-prime.pem","ec.inconsistent-point.pem","ec.zero-scalar.pem"};for(size_t x=0;x<sizeof malformed/sizeof *malformed;x++){gxc_value pem=load(root,malformed[x]);out=call("InvalidImportHasNilKey",&pem,1);assert(out.integer);gxc_value_free(&out);fails("Public",&pem,1,1);gxc_value_free(&pem);}
+ gxc_value msg=load(root,"message"),rsa_priv=load(root,"rsa.private.pem"),rsa_pub=load(root,"rsa.public.pem"),ec_priv=load(root,"ec.private.pem"),ec_pub=load(root,"ec.public.pem");
+ for(int ec=0;ec<2;ec++){a[0]=s(ec?"EC":"RSA");a[1]=ec?ec_priv:rsa_priv;a[2]=msg;out=call("Sign",a,3);save(root,ec?"ec.c.sig":"rsa.c.sig",out);a[1]=ec?ec_pub:rsa_pub;a[3]=out;verified=call("Verify",a,4);assert(verified.integer);gxc_value_free(&verified);out.bytes[0]^=1;verified=call("Verify",a,4);assert(!verified.integer);gxc_value_free(&verified);gxc_value_free(&out);a[3]=load(root,ec?"ec.go.sig":"rsa.go.sig");verified=call("Verify",a,4);assert(verified.integer);gxc_value_free(&verified);gxc_value_free(&a[3]);}
+ a[0]=rsa_pub;a[1]=msg;a[2]=boolean(false);out=call("OAEP",a,3);save(root,"rsa.c.oaep",out);a[0]=rsa_priv;a[1]=out;a[2]=boolean(true);gxc_value plain=call("OAEP",a,3);same(plain,msg);gxc_value_free(&plain);gxc_value_free(&out);a[1]=load(root,"rsa.go.oaep");out=call("OAEP",a,3);same(out,msg);gxc_value_free(&out);gxc_value_free(&a[1]);
+ a[0]=ec_priv;a[1]=load(root,"peer.public.pem");out=call("ECDH",a,2);gxc_value expected=load(root,"ec.go.ecdh");same(out,expected);gxc_value_free(&expected);gxc_value_free(&out);gxc_value_free(&a[1]);
+ out=call("AliasClose",NULL,0);assert(out.integer);gxc_value_free(&out);out=call("InvalidImportIsNil",NULL,0);assert(out.integer);gxc_value_free(&out);
+ a[0]=b(data,4);a[1]=s("");a[2]=boolean(false);a[3]=boolean(false);out=call("Encoding",a,4);assert(out.items[1].length==8);gxc_value encoded=out;a[1]=encoded.items[1];a[3]=boolean(true);out=call("Encoding",a,4);same(out.items[0],b(data,4));gxc_value_free(&out);gxc_value_free(&encoded);a[1]=s("Zh==");fails("Encoding",a,4,1);a[1]=s(" AA==");fails("Encoding",a,4,1);
+ atomic_bool cancel;atomic_init(&cancel,false);int mode=0;async_call ac={.options={.canceled=&cancel,.provider=provider,.provider_state=&mode},.args={s("test"),b(data,4)}};run_provider(&ac);assert(!ac.rc&&atomic_load(&provider_released));same(ac.result,b(data,4));gxc_value_free(&ac.result);gxc_error_free(&ac.error);
+ mode=1;atomic_store(&provider_entered,false);atomic_store(&provider_released,false);pthread_t thread;assert(!pthread_create(&thread,NULL,run_provider,&ac));while(!atomic_load(&provider_entered)){struct timespec pause={0,1000000};nanosleep(&pause,NULL);}atomic_store(&cancel,true);assert(!pthread_join(thread,NULL));assert(ac.rc==1&&atomic_load(&provider_released));gxc_error_free(&ac.error);
+ mode=2;atomic_store(&cancel,false);run_provider(&ac);assert(ac.rc==3&&atomic_load(&provider_released));gxc_error_free(&ac.error);out=call("Fresh",NULL,0);assert(out.integer==1);gxc_value_free(&out);
+ gxc_value_free(&msg);gxc_value_free(&rsa_priv);gxc_value_free(&rsa_pub);gxc_value_free(&ec_priv);gxc_value_free(&ec_pub);
+ puts("PASS owned native crypto vectors, Go interoperability, PEM validations, key alias/cleanup, forced GC, callback cancellation/release/fault and source recovery");return 0;
+}

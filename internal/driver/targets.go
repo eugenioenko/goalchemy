@@ -621,7 +621,7 @@ elif pkg-config --exists bdw-gc 2>/dev/null; then
 else
   gc=-lgc
 fi
-${CC:-cc} -std=c17 ${CFLAGS:--O2} -w -Irt/types -o main main.c rt/types/*.c rt/runtime/*.c $gc -lpthread >&2
+${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main main.c rt/types/*.c rt/runtime/*.c $gc ${LDLIBS:-} -lpthread >&2
 exec ./main
 `
 
@@ -634,10 +634,19 @@ inc=""
 if [ -n "$GOALCHEMY_BDWGC" ]; then inc="-I$GOALCHEMY_BDWGC/include"
 elif pkg-config --exists bdw-gc 2>/dev/null; then inc=$(pkg-config --cflags bdw-gc); fi
 mkdir -p obj
+objects=""
 for f in main.c rt/types/*.c rt/runtime/*.c; do
-  ${CC:-cc} -std=c17 ${CFLAGS:--O2} -w -Irt/types $inc -c "$f" -o "obj/$(echo "$f" | tr / _).o"
+  object="obj/$(echo "$f" | tr / _).o"
+  ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -Irt/types $inc -c "$f" -o "$object"
+  objects="$objects $object"
 done
-ar rcs libgoalchemy.a obj/*.o
+rm -f libgoalchemy.a
+${AR:-ar} rcs libgoalchemy.a $objects
+if [ -f tdf3.c ]; then
+ ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -I. -c tdf3.c -o obj/tdf3.o
+ cp libgoalchemy.a libtdf3.a
+ ${AR:-ar} rcs libtdf3.a obj/tdf3.o
+fi
 `
 
 func emitC(res *Result, out string) []diagnostics.Diagnostic {
@@ -660,6 +669,13 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 	}
 	if o.Header != nil {
 		gen["goalchemy.h"] = o.Header
+		for _, name := range []string{"library.h"} {
+			data, err := os.ReadFile(filepath.Join(out, "rt", "types", name))
+			if err != nil {
+				return emitErr("GCE005", err.Error())
+			}
+			gen[name] = data
+		}
 		gen["build.sh"] = []byte(cLibBuild)
 		gen["README.md"] = []byte(readme("c", "sh build.sh", "Builds libgoalchemy.a; include goalchemy.h and link with bdwgc (-lgc) and -lpthread. Requires a C17 compiler and bdwgc 8.x with threads."))
 	} else {

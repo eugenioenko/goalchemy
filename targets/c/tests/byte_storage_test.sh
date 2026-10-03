@@ -11,12 +11,13 @@ elif pkg-config --exists bdw-gc 2>/dev/null; then
 else
   set -- -lgc
 fi
+. "$repo/targets/c/tests/native-deps.sh"
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
-${CC:-cc} -std=gnu17 ${CFLAGS:--O1} -w -DGX_BYTE_STANDALONE \
+${CC:-cc} -std=gnu17 ${CFLAGS:--O1} -w $GX_NATIVE_CFLAGS -DGX_BYTE_STANDALONE \
   -I"$repo/targets/c/types" \
   "$repo/targets/c/tests/byte_storage_test.c" "$repo"/targets/c/types/*.c \
-  "$repo"/targets/c/runtime/*.c "$@" -lpthread -o "$out/test"
+  "$repo"/targets/c/runtime/*.c "$@" $GX_NATIVE_LIBS -lpthread -o "$out/test"
 "$out/test"
 for mode in 0 1 2 3 4 5 6 7 8; do "$out/test" gc "$mode"; done
 for mode in fault-make fault-growth fault-generic-access; do

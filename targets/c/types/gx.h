@@ -327,6 +327,8 @@ struct gx_Sched {
     const char *fatal, *fault;
     gx_Panic *panic;
     void (*retire)(gx_Sched *s);
+    void (*library_poll)(void);
+    void (*native_cleanup)(void);
 };
 extern gx_Sched *gx_sched;
 gx_Frame *gx_new_frame(int nl, gx_Step step, gx_Results results);
@@ -404,6 +406,35 @@ gx_V gx_new_mutex(void);
 gx_V gx_new_waitgroup(void);
 gx_V gx_opaque_clone(gx_V x);
 void gx_opaque_set(gx_V d, gx_V s);
+
+void gx_lib_crypto_random(gx_Task *t,gx_V a0);
+void gx_lib_crypto_sha256(gx_Task *t,gx_V a0);
+void gx_lib_crypto_hmac_sha256(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_hmac_sha256_verify(gx_Task *t,gx_V a0,gx_V a1,gx_V a2);
+void gx_lib_crypto_hkdf_sha256(gx_Task *t,gx_V a0,gx_V a1,gx_V a2,gx_V a3);
+void gx_lib_crypto_aes256_gcm_encrypt(gx_Task *t,gx_V a0,gx_V a1,gx_V a2,gx_V a3);
+void gx_lib_crypto_aes256_gcm_decrypt(gx_Task *t,gx_V a0,gx_V a1,gx_V a2,gx_V a3);
+void gx_lib_crypto_generate_rsa2048(gx_Task *t);
+void gx_lib_crypto_generate_p256(gx_Task *t);
+void gx_lib_crypto_import_pem(gx_Task *t,gx_V a0);
+void gx_lib_crypto_public_pem(gx_Task *t,gx_V a0);
+void gx_lib_crypto_private_pem(gx_Task *t,gx_V a0);
+void gx_lib_crypto_public_jwk(gx_Task *t,gx_V a0);
+void gx_lib_crypto_ecdh(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_rsa_oaep_encrypt(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_rsa_oaep_decrypt(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_rs256_sign(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_rs256_verify(gx_Task *t,gx_V a0,gx_V a1,gx_V a2);
+void gx_lib_crypto_es256_sign(gx_Task *t,gx_V a0,gx_V a1);
+void gx_lib_crypto_es256_verify(gx_Task *t,gx_V a0,gx_V a1,gx_V a2);
+void gx_lib_crypto_close(gx_Task *t,gx_V key);
+gx_V gx_lib_encoding_base64_encode(gx_V v);
+gx_V gx_lib_encoding_base64_decode(gx_V v);
+gx_V gx_lib_encoding_base64_url_encode(gx_V v);
+gx_V gx_lib_encoding_base64_url_decode(gx_V v);
+gx_V gx_lib_clock_unix(void);
+void gx_lib_http_do(gx_Task *,gx_V,gx_V,gx_V,gx_V,gx_V,gx_V,gx_V);
+void gx_lib_callback_request(gx_Task *,gx_V,gx_V,gx_V);
 
 /* Contract functions: one implementation file each. */
 #define GX_INT_OPS(op)                                                                              \
@@ -497,6 +528,9 @@ void gx_spawn_call(gx_V f, int n, const gx_V *args);
  * Source fatal/panic terminates the executable with exit2 after cleanup.
  * This is an executable runtime entry, not a library/SDK ABI. */
 int gx_run_main_host(void (*init)(void), gx_V (*entry)(void));
+/* Owned native library reports; finish runs on the collector owner before retirement. */
+int gx_run_library_host(void (*init)(void), gx_V (*entry)(void),
+    void (*finish)(gx_Task *), void (*poll)(void), uint8_t **report, size_t *length);
 _Noreturn void gx_host_main(void (*init)(void), gx_V (*entry)(void));
 _Noreturn void gx_run_main(void (*init)(void), gx_V (*entry)(void));
 void gx_yield_task(gx_Task *t);
@@ -561,7 +595,10 @@ void gx_host_token_retain(gx_HostToken token);
 void gx_host_token_release(gx_HostToken token);
 /* Publication copies bytes/fault into malloc ownership. Never a source descriptor. */
 bool gx_host_publish(gx_HostToken token, const void *bytes, size_t length, const char *fault);
+/* Allocation-free terminal fault fallback uses registration-owned bounded bytes. */
+bool gx_host_publish_fault(gx_HostToken token,const char *fault);
 bool gx_host_ack(gx_HostToken token);
+void gx_library_wake(void);
 void gx_host_poll(void);
 void gx_host_wait(int64_t deadline, bool timed);
 void gx_host_context_changed(void);

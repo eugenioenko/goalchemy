@@ -48,6 +48,8 @@ func (c *cCodec) dec(t *contracts.TypeExpr) string {
 		return c.fn("dec:"+t.String(), "static gx_V %s(J *r) { return dec_map(r, "+k+", "+v+"); }\n")
 	case "pointer":
 		switch t.Elem.Name {
+		case "crypto.Key":
+			return "dec_nil"
 		case "sync.WaitGroup":
 			return c.fn("dec:wg", "static gx_V %s(J *r) { return gx_new_waitgroup(); }\n")
 		case "sync.Mutex":
@@ -73,6 +75,10 @@ func (c *cCodec) dec(t *contracts.TypeExpr) string {
 // enc returns an EncFn for t.
 func (c *cCodec) enc(t *contracts.TypeExpr) string {
 	switch t.Kind {
+	case "pointer":
+		if t.Elem.Name == "crypto.Key" {
+			return c.fn("enc:key", "static J *%s(gx_V v) { J *r=j_new(J_OBJ);j_set(r,gx_is_nil(v)?\"nil\":\"opaque\",j_bool(true));return r; }\n")
+		}
 	case "chan":
 		el := c.enc(t.Elem)
 		return c.fn("enc:"+t.String(), "static J *%s(gx_V v) { return enc_chan(v, "+el+"); }\n")
