@@ -55,6 +55,33 @@ try:error(p.KeySuccess(),'host_fault')
 finally:crypto.crypto_value=original_crypto
 check(result(p.KeySuccess())==b'\7','native acquisition recovery')
 
+# Generated entry points snapshot views synchronously, including calls queued
+# behind another operation. Source mutation must never reach caller backing.
+for shape in ('typed','multidimensional','strided'):
+ entered=threading.Event();release=threading.Event()
+ def held_view(req):entered.set();release.wait(20);return b'ok'
+ blocker=p.Provider(b'hold',b'',{'callbacks':{'hold':held_view}})
+ check(entered.wait(10),'queue blocker entered')
+ backing=bytearray(b'\1\2\3\4') if shape!='strided' else bytearray(b'\1x\2x\3x\4x')
+ view=memoryview(backing)
+ view=view.cast('I') if shape=='typed' else view.cast('B',shape=[2,2]) if shape=='multidimensional' else view[::2]
+ queued=p.Echo({'Data':view,'Nested':[view]})
+ backing[:]=b'Z'*len(backing);release.set();result(blocker)
+ saved=result(queued)
+ check(saved['Data']==b'\2\2\3\4' and saved['Nested']==[b'\1\2\3\4'],'queued '+shape+' snapshot')
+ check(backing==b'Z'*len(backing),'source mutation owns '+shape+' input')
+ view.release()
+ error(p.Echo({'Data':view}),'invalid_argument')
+check(not lib._queue,'view operations retired')
+old_limit=lib.LIMIT;lib.LIMIT=4
+try:
+ for view in (memoryview(bytes(8)).cast('I'),memoryview(bytes(8)).cast('B',shape=[2,4])):
+  op=p.Echo({'Data':view})
+  check(op.done() and not lib._queue,'nbytes rejected before source thread')
+  error(op,'invalid_argument')
+finally:lib.LIMIT=old_limit
+immutable=b'\0\xffbounded';check(lib.library_snapshot_bytes(immutable) is immutable,'immutable snapshot retained')
+
 async def async_cases():
  check(await p.Fixed()==b'\0\xff\x80','await operation')
  entered=threading.Event();in_finally=threading.Event();allow=threading.Event();done=threading.Event()

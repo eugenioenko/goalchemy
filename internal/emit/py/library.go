@@ -102,6 +102,9 @@ func (e *emitter) library() (string, error) {
 				expr = "v.a[v.o:v.o+v.l]"
 			}
 			if byteElem(u.Elem) {
+				if u.Kind == ir.KSlice {
+					expr = "memoryview(v.a)[v.o:v.o+v.l]"
+				}
 				fmt.Fprintf(&b, "    return bytes(%s)\n", expr)
 			} else {
 				fmt.Fprintf(&b, "    return [_output_%d(x) for x in %s]\n", u.Elem.U().ID, expr)

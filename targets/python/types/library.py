@@ -27,15 +27,27 @@ def library_string(v):
     if type(v) is not bytes or len(v) > LIMIT: raise LibraryFailure('invalid_argument')
     return v
 
-def library_bytes(v):
-    if v is None: return None
+def library_byte_size(v):
     if type(v) not in (bytes, bytearray, memoryview): raise LibraryFailure('invalid_argument')
     try:
         size = v.nbytes if type(v) is memoryview else len(v)
         if size > LIMIT: raise LibraryFailure('invalid_argument')
-        return bytearray(v)
+        return size
     except (ValueError, TypeError):
         raise LibraryFailure('invalid_argument') from None
+
+def library_snapshot_bytes(v):
+    """Bounded immutable submission snapshot; immutable bytes need no copy."""
+    if v is None: return None
+    library_byte_size(v)
+    try: return v if type(v) is bytes else bytes(v)
+    except (ValueError, TypeError): raise LibraryFailure('invalid_argument') from None
+
+def library_bytes(v):
+    if v is None: return None
+    library_byte_size(v)
+    try: return bytearray(v)
+    except (ValueError, TypeError): raise LibraryFailure('invalid_argument') from None
 
 def library_list(v):
     if type(v) not in (list, tuple) or len(v) > LIMIT: raise LibraryFailure('invalid_argument')
@@ -103,7 +115,7 @@ def library_submit(factory, output, reset, inputs, options=None):
     from ..runtime.std_context_with_cancel import std_context_with_cancel
     op=LibraryOperation()
     try:
-        owned=snapshot(inputs)
+        owned=snapshot(inputs, library=True)
         if options is None: options={}
         if type(options) is not dict or any(k not in ('callbacks',) for k in options): raise LibraryFailure('invalid_argument')
         raw_callbacks=options.get('callbacks', {})

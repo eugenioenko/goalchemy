@@ -1,4 +1,4 @@
-"""core.slice.copy: copy(dst, src) through a temporary for overlap safety."""
+"""core.slice.copy: retain a temporary for aliased byte backing only."""
 
 
 def copy(dst, src, clone=None):
@@ -6,7 +6,8 @@ def copy(dst, src, clone=None):
     if n == 0:
         return 0
     if dst.b:
-        memoryview(dst.a)[dst.o:dst.o + n] = src.a[src.o:src.o + n]
+        source = src.a[src.o:src.o + n] if dst.a is src.a else memoryview(src.a)[src.o:src.o + n]
+        memoryview(dst.a)[dst.o:dst.o + n] = source
         return n
     tmp = src.a[src.o:src.o + n]
     for i in range(n):

@@ -84,6 +84,20 @@ for dest, src in ((0, 1), (1, 0)):
     oracle = bytearray((1, 2, 3, 4, 5, 6))
     oracle[dest + 2:dest + 5] = bytes((1, 2, 3, 4, 5, 6))[src:src + 3]
     assert b.a == oracle
+
+# Distinct buffers retain byte offsets and owned target storage. Mutating the
+# destination afterwards cannot change the source of either copy or append.
+source = native(rt.to_bytes(b"x\0\xff\x80y"))
+destination = native(rt.make_slice(3, 8, lambda: 0, True))
+assert rt.copy(destination, rt.reslice(source, 1, 4)) == 3
+assert rt.from_bytes(destination) == b"\0\xff\x80"
+combined = native(rt.append_slice(destination, rt.reslice(source, 1, 4)))
+assert combined.a is destination.a and rt.from_bytes(combined) == b"\0\xff\x80\0\xff\x80"
+rt.sset(combined, 0, 9)
+assert rt.from_bytes(source) == b"x\0\xff\x80y"
+saved = rt.from_bytes(rt.reslice(combined, 1, 4))
+rt.sset(combined, 1, 8)
+assert saved == b"\xff\x80\0"
 rt.clear_slice(rt.reslice(s, 1, 4), lambda: 99)
 assert a == bytearray((2, 0, 0, 0, 4, 5)) and len(a) == 6
 
