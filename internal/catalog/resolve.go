@@ -23,6 +23,14 @@ var stdPackages = map[string]bool{"errors": true, "sync": true, "runtime": true,
 // packages, whose Go source doubles as their declarations.
 const LibModule = "github.com/eugenioenko/goalchemy/lib/"
 
+// StdModule is the import path prefix of Goalchemy's standard packages. They
+// are written in the Goalchemy subset and compiled with the program like
+// module source instead of binding to native capability contracts.
+const StdModule = "github.com/eugenioenko/goalchemy/std/"
+
+// IsStd reports whether path is a standard package compiled as source.
+func IsStd(path string) bool { return strings.HasPrefix(path, StdModule) }
+
 // DeclarationModule is the module path under which specs/declarations lives.
 const DeclarationModule = "github.com/eugenioenko/goalchemy/specs/declarations/"
 
