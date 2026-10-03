@@ -34,7 +34,7 @@ func Build(ctx context.Context, opts Options) (*Result, []diagnostics.Diagnostic
 		return nil, ds
 	}
 	reg := catalog.NewRegistry(cat)
-	prog, ds := frontend.Load(ctx, frontend.Options{Dir: opts.Dir, Patterns: opts.Patterns, Tags: opts.Tags, External: reg.Package})
+	prog, ds := frontend.Load(ctx, frontend.Options{Dir: opts.Dir, Patterns: opts.Patterns, Tags: opts.Tags, External: reg.Package, SourceLib: catalog.IsStd})
 	res := &Result{Catalog: cat, Registry: reg, Program: prog}
 	if opts.Gate == "" {
 		opts.Gate = subset.Sequential

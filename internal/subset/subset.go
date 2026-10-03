@@ -115,10 +115,10 @@ func (c *checker) file(f *ast.File) {
 		case path == "unsafe":
 			c.report(imp, "GCS002", "import unsafe", "package unsafe is rejected", "Remove unsafe operations.")
 		case c.prog.IsSource(path), c.opts.ExternalPackage(path):
-		case libReplacement[path]:
+		case replacement[path] != "":
 			c.report(imp, "GCS002", "import "+path,
-				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/lib", path),
-				fmt.Sprintf("Import \"github.com/eugenioenko/goalchemy/lib/%s\" instead; it provides the supported subset with the same names.", path))
+				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/%s", path, replacement[path]),
+				fmt.Sprintf("Import \"github.com/eugenioenko/goalchemy/%s/%s\" instead; it provides the supported subset with the same names.", replacement[path], path))
 		default:
 			c.report(imp, "GCS002", "import "+path,
 				fmt.Sprintf("import %q is neither included source nor a github.com/eugenioenko/goalchemy/lib package", path),
@@ -130,8 +130,12 @@ func (c *checker) file(f *ast.File) {
 	}
 }
 
-// libReplacement lists standard packages that github.com/eugenioenko/goalchemy/lib replaces.
-var libReplacement = map[string]bool{"sync": true, "errors": true, "context": true, "time": true, "runtime": true}
+// replacement maps standard packages to the Goalchemy root that replaces them.
+var replacement = map[string]string{
+	"sync": "lib", "errors": "lib", "context": "lib", "time": "lib", "runtime": "lib",
+	"strconv": "std", "strings": "std", "bytes": "std", "sort": "std", "unicode": "std",
+	"unicode/utf8": "std", "encoding/hex": "std", "encoding/binary": "std",
+}
 
 func (c *checker) decl(d ast.Decl) {
 	switch d := d.(type) {

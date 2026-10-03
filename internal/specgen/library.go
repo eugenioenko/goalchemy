@@ -23,6 +23,8 @@ const LibraryDoc = "docs/library.md"
 
 const libModule = "github.com/eugenioenko/goalchemy/lib/"
 
+const stdModule = "github.com/eugenioenko/goalchemy/std/"
+
 type libEntry struct {
 	name   string
 	member string
@@ -74,12 +76,39 @@ func libraryDoc(cat *contracts.Catalog) ([]byte, error) {
 	}
 	sort.Strings(targets)
 
+	std, err := loadStdPackages(cat.FS)
+	if err != nil {
+		return nil, err
+	}
+
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "<!-- %s -->\n\n", Marker)
 	b.WriteString("# Runtime library reference\n\n")
-	b.WriteString("Goalchemy programs get their capabilities from the packages under `" + strings.TrimSuffix(libModule, "/") + "`. ")
-	b.WriteString("Each package is ordinary Go, so a program also builds and runs with the Go toolchain; the compiler maps every call to the target runtime implementation of its contract.\n\n")
-	b.WriteString("This file is generated from the contracts in `specs/runtime` and the target mappings in `targets/*/target.yaml`. Edit those and run `make spec-generate`.\n\n")
+	b.WriteString("Goalchemy programs import ordinary Go packages from two roots: `" + strings.TrimSuffix(stdModule, "/") + "` and `" + strings.TrimSuffix(libModule, "/") + "`. ")
+	b.WriteString("Both keep the Go standard library's package names, so programs also build and run with the Go toolchain.\n\n")
+	b.WriteString("This file is generated from the Go sources under `std/` and `lib/`, the contracts in `specs/runtime`, and the target mappings in `targets/*/target.yaml`. Edit those and run `make spec-generate`.\n\n")
+	b.WriteString("## Three layers\n\n")
+	b.WriteString("| Layer | Location | Implemented | Use it for |\n| --- | --- | --- | --- |\n")
+	b.WriteString("| Standard packages | `std/` | Once, in the Goalchemy subset. The compiler translates them with the program, like user code. | Pure logic over strings, bytes, and integers: parsing, formatting, sorting, encodings. |\n")
+	b.WriteString("| Capability packages | `lib/` | A thin Go wrapper for the Go toolchain, plus a hand-written native implementation per target, each checked against a contract. | Anything that reaches the host: crypto, HTTP, clocks, scheduling, callbacks. |\n")
+	b.WriteString("| Core runtime | `targets/*/runtime` | Hand-written per target and checked against contracts in `specs/runtime/core`. | Never imported. The compiler emits these operations for language features such as `append`, maps, and `println`. |\n\n")
+	b.WriteString("Why two importable roots:\n\n")
+	b.WriteString("- A `std/` package behaves identically on every target and needs no native dependencies, because each target runs the same translated source. Go unit tests compare each package with the real standard library, and the language suite compares every target with native Go.\n")
+	b.WriteString("- A `lib/` package talks to the host, so it needs one native implementation per target. Availability and native dependencies can differ by target, and some calls may suspend the calling task.\n")
+	b.WriteString("- Writing pure logic once avoids seven hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.\n\n")
+	b.WriteString("## Packages\n\n| Package | Import path | Summary |\n| --- | --- | --- |\n")
+	for _, sp := range std {
+		fmt.Fprintf(&b, "| [%s](#%s) | `%s%s` | %s |\n", sp.path, anchor(sp.path), stdModule, sp.path, cell(sp.synopsis))
+	}
+	for _, n := range names {
+		fmt.Fprintf(&b, "| [%s](#%s) | `%s%s` | %s |\n", "lib/"+n, n, libModule, n, cell(pkgs[n].synopsis))
+	}
+	b.WriteString("\n# Standard packages\n\n")
+	b.WriteString("Every `std/` package is available on every target with no native dependencies. Documented differences from the Go standard library are noted in each package summary.\n")
+	for _, sp := range std {
+		writeStdPackage(&b, sp)
+	}
+	b.WriteString("\n# Capability packages\n\n")
 	b.WriteString("Every entry lists:\n\n")
 	b.WriteString("- **Gate**: `sequential` means the function never suspends, so it suits sequential programs and synchronous exports. `cooperative` means the contract lets the call suspend the calling task (a scheduler pause point); write such code for the cooperative execution model, where other tasks run while it waits.\n")
 	b.WriteString("- **Bounds** and **Errors**: the limits checked before work starts and what is returned when they or the operation fail.\n")
@@ -93,10 +122,6 @@ func libraryDoc(cat *contracts.Catalog) ([]byte, error) {
 			native = "None declared."
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", n, t.Status, cell(t.Environment.Minimum), cell(native))
-	}
-	b.WriteString("\n## Packages\n\n| Package | Import path | Summary |\n| --- | --- | --- |\n")
-	for _, n := range names {
-		fmt.Fprintf(&b, "| [%s](#%s) | `%s%s` | %s |\n", n, n, libModule, n, cell(pkgs[n].synopsis))
 	}
 	for _, n := range names {
 		p := pkgs[n]

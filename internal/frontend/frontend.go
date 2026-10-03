@@ -30,6 +30,9 @@ type Options struct {
 	// External reports whether an import path is a declared external capability
 	// package rather than included source.
 	External func(path string) bool
+	// SourceLib reports whether an import path outside the main module is
+	// library source compiled with the program.
+	SourceLib func(path string) bool
 }
 
 type Program struct {
@@ -95,6 +98,10 @@ func Load(ctx context.Context, opts Options) (*Program, []diagnostics.Diagnostic
 	if external == nil {
 		external = func(string) bool { return false }
 	}
+	sourceLib := opts.SourceLib
+	if sourceLib == nil {
+		sourceLib = func(string) bool { return false }
+	}
 	seen := map[string]bool{}
 	var visit func(p *packages.Package)
 	visit = func(p *packages.Package) {
@@ -102,7 +109,7 @@ func Load(ctx context.Context, opts Options) (*Program, []diagnostics.Diagnostic
 			return
 		}
 		seen[p.PkgPath] = true
-		if external(p.PkgPath) || !isSource(p) {
+		if external(p.PkgPath) || !(isSource(p) || sourceLib(p.PkgPath)) {
 			prog.External = append(prog.External, p)
 			return
 		}

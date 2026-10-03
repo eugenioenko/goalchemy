@@ -4,5 +4,5 @@ package goalchemy
 
 import "embed"
 
-//go:embed specs targets lib
+//go:embed specs targets lib std
 var Assets embed.FS

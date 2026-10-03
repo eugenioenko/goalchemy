@@ -60,7 +60,16 @@ goalchemy run -target python .
 goalchemy compile -target rust -out out/rust .
 ```
 
-The `go get` makes Goalchemy's runtime declarations and [`lib/`](lib) packages resolvable from your module. Source modules must declare `go 1.25` or earlier. Programs print with Go's `print` and `println` builtins; the standard library is replaced by the packages under `lib/`, such as `lib/errors`, `lib/sync`, and `lib/context`, which keep the standard names so code still reads and runs as ordinary Go.
+The `go get` makes Goalchemy's packages resolvable from your module. Source modules must declare `go 1.25` or earlier. Programs print with Go's `print` and `println` builtins.
+
+## Runtime library
+
+The Go standard library is replaced by packages that keep the standard names, so code still reads and runs as ordinary Go:
+
+- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
+- [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `clock`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
+
+The [runtime library reference](docs/library.md) explains the split and documents every function.
 
 ## CLI
 
@@ -132,6 +141,7 @@ cd examples/bank && goalchemy build
 | Topic | Reference |
 | --- | --- |
 | Commands, configuration, output, libraries | [Usage guide](docs/usage.md) |
+| Runtime library: `std/` and `lib/` packages | [Library reference](docs/library.md) |
 | Accepted language and semantics | [Language specification](specs/language.md) |
 | Diagnostic codes | [Diagnostics](specs/diagnostics.md) |
 | Supported feature matrix | [`specs/features.yaml`](specs/features.yaml) |

@@ -2,9 +2,1639 @@
 
 # Runtime library reference
 
-Goalchemy programs get their capabilities from the packages under `github.com/eugenioenko/goalchemy/lib`. Each package is ordinary Go, so a program also builds and runs with the Go toolchain; the compiler maps every call to the target runtime implementation of its contract.
+Goalchemy programs import ordinary Go packages from two roots: `github.com/eugenioenko/goalchemy/std` and `github.com/eugenioenko/goalchemy/lib`. Both keep the Go standard library's package names, so programs also build and run with the Go toolchain.
 
-This file is generated from the contracts in `specs/runtime` and the target mappings in `targets/*/target.yaml`. Edit those and run `make spec-generate`.
+This file is generated from the Go sources under `std/` and `lib/`, the contracts in `specs/runtime`, and the target mappings in `targets/*/target.yaml`. Edit those and run `make spec-generate`.
+
+## Three layers
+
+| Layer | Location | Implemented | Use it for |
+| --- | --- | --- | --- |
+| Standard packages | `std/` | Once, in the Goalchemy subset. The compiler translates them with the program, like user code. | Pure logic over strings, bytes, and integers: parsing, formatting, sorting, encodings. |
+| Capability packages | `lib/` | A thin Go wrapper for the Go toolchain, plus a hand-written native implementation per target, each checked against a contract. | Anything that reaches the host: crypto, HTTP, clocks, scheduling, callbacks. |
+| Core runtime | `targets/*/runtime` | Hand-written per target and checked against contracts in `specs/runtime/core`. | Never imported. The compiler emits these operations for language features such as `append`, maps, and `println`. |
+
+Why two importable roots:
+
+- A `std/` package behaves identically on every target and needs no native dependencies, because each target runs the same translated source. Go unit tests compare each package with the real standard library, and the language suite compares every target with native Go.
+- A `lib/` package talks to the host, so it needs one native implementation per target. Availability and native dependencies can differ by target, and some calls may suspend the calling task.
+- Writing pure logic once avoids seven hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.
+
+## Packages
+
+| Package | Import path | Summary |
+| --- | --- | --- |
+| [bytes](#stdbytes) | `github.com/eugenioenko/goalchemy/std/bytes` | Package bytes manipulates byte slices. |
+| [encoding/binary](#stdencodingbinary) | `github.com/eugenioenko/goalchemy/std/encoding/binary` | Package binary translates between unsigned integers and byte sequences, and encodes varints. |
+| [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
+| [sort](#stdsort) | `github.com/eugenioenko/goalchemy/std/sort` | Package sort sorts collections through the Len, Less, and Swap methods. |
+| [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms. |
+| [strings](#stdstrings) | `github.com/eugenioenko/goalchemy/std/strings` | Package strings manipulates UTF-8 encoded strings. |
+| [unicode](#stdunicode) | `github.com/eugenioenko/goalchemy/std/unicode` | Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain. |
+| [unicode/utf8](#stdunicodeutf8) | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | Package utf8 encodes and decodes UTF-8 text. |
+| [lib/callback](#callback) | `github.com/eugenioenko/goalchemy/lib/callback` | Package callback declares a bounded asynchronous host callback capability. |
+| [lib/clock](#clock) | `github.com/eugenioenko/goalchemy/lib/clock` | Package clock provides wall time, independent of Goalchemy virtual time. |
+| [lib/context](#context) | `github.com/eugenioenko/goalchemy/lib/context` | Package context provides Goalchemy's cancellation contexts; deadlines use the virtual clock. |
+| [lib/crypto](#crypto) | `github.com/eugenioenko/goalchemy/lib/crypto` | Package crypto provides bounded native cryptographic capabilities. |
+| [lib/encoding](#encoding) | `github.com/eugenioenko/goalchemy/lib/encoding` | Package encoding provides canonical RFC 4648 base64 encodings. |
+| [lib/errors](#errors) | `github.com/eugenioenko/goalchemy/lib/errors` | Package errors provides Goalchemy's error values. |
+| [lib/http](#http) | `github.com/eugenioenko/goalchemy/lib/http` | Package http provides bounded HTTP exchanges, retaining TLS verification and returning redirect responses without following them. |
+| [lib/runtime](#runtime) | `github.com/eugenioenko/goalchemy/lib/runtime` | Package runtime provides Goalchemy's scheduler controls. |
+| [lib/sync](#sync) | `github.com/eugenioenko/goalchemy/lib/sync` | Package sync provides Goalchemy's synchronization primitives. |
+| [lib/task](#task) | `github.com/eugenioenko/goalchemy/lib/task` | Package task provides structured waiting for Goalchemy programs. |
+| [lib/time](#time) | `github.com/eugenioenko/goalchemy/lib/time` | Package time provides Goalchemy's virtual clock: Sleep advances it deterministically. |
+
+# Standard packages
+
+Every `std/` package is available on every target with no native dependencies. Documented differences from the Go standard library are noted in each package summary.
+
+## std/bytes
+
+```go
+import "github.com/eugenioenko/goalchemy/std/bytes"
+```
+
+Package bytes manipulates byte slices. Functions that return parts of their input return subslices that share its storage, as in Go.
+
+```go
+var ErrTooLarge = errors.New("bytes.Buffer: too large")
+```
+
+ErrTooLarge is returned when a Buffer cannot grow.
+
+### Clone
+
+```go
+func Clone(b []byte) []byte
+```
+
+Clone returns a copy of b, or nil if b is nil.
+
+### Compare
+
+```go
+func Compare(a, b []byte) int
+```
+
+Compare returns 0 if a == b, -1 if a < b, and +1 if a > b.
+
+### Contains
+
+```go
+func Contains(b, sub []byte) bool
+```
+
+Contains reports whether sub is within b.
+
+### ContainsRune
+
+```go
+func ContainsRune(b []byte, r rune) bool
+```
+
+ContainsRune reports whether r is within b.
+
+### Count
+
+```go
+func Count(s, sep []byte) int
+```
+
+Count counts the non-overlapping instances of sep in s.
+
+### Equal
+
+```go
+func Equal(a, b []byte) bool
+```
+
+Equal reports whether a and b have the same bytes; nil equals empty.
+
+### EqualFold
+
+```go
+func EqualFold(s, t []byte) bool
+```
+
+EqualFold reports whether s and t are equal under simple Unicode case folding.
+
+### Fields
+
+```go
+func Fields(s []byte) [][]byte
+```
+
+Fields splits s around runs of white space into subslices of s.
+
+### HasPrefix
+
+```go
+func HasPrefix(s, prefix []byte) bool
+```
+
+HasPrefix reports whether s begins with prefix.
+
+### HasSuffix
+
+```go
+func HasSuffix(s, suffix []byte) bool
+```
+
+HasSuffix reports whether s ends with suffix.
+
+### Index
+
+```go
+func Index(s, sep []byte) int
+```
+
+Index returns the index of the first instance of sep in s, or -1.
+
+### IndexByte
+
+```go
+func IndexByte(b []byte, c byte) int
+```
+
+IndexByte returns the index of the first instance of c in b, or -1.
+
+### IndexRune
+
+```go
+func IndexRune(s []byte, r rune) int
+```
+
+IndexRune returns the index of the first instance of r in s, or -1.
+
+### Join
+
+```go
+func Join(s [][]byte, sep []byte) []byte
+```
+
+Join concatenates s with sep between elements into a new slice.
+
+### LastIndex
+
+```go
+func LastIndex(s, sep []byte) int
+```
+
+LastIndex returns the index of the last instance of sep in s, or -1.
+
+### Repeat
+
+```go
+func Repeat(b []byte, count int) []byte
+```
+
+Repeat returns count copies of b. It panics if count is negative.
+
+### Split
+
+```go
+func Split(s, sep []byte) [][]byte
+```
+
+Split slices s into all subslices separated by sep.
+
+### SplitN
+
+```go
+func SplitN(s, sep []byte, n int) [][]byte
+```
+
+SplitN slices s into at most n subslices separated by sep; n < 0 means all.
+
+### ToLower
+
+```go
+func ToLower(s []byte) []byte
+```
+
+ToLower returns a copy of s with every rune mapped to lower case.
+
+### ToUpper
+
+```go
+func ToUpper(s []byte) []byte
+```
+
+ToUpper returns a copy of s with every rune mapped to upper case.
+
+### TrimPrefix
+
+```go
+func TrimPrefix(s, prefix []byte) []byte
+```
+
+TrimPrefix returns s without prefix if present.
+
+### TrimSpace
+
+```go
+func TrimSpace(s []byte) []byte
+```
+
+TrimSpace returns the subslice of s without leading and trailing white space.
+
+### TrimSuffix
+
+```go
+func TrimSuffix(s, suffix []byte) []byte
+```
+
+TrimSuffix returns s without suffix if present.
+
+### type Buffer
+
+```go
+type Buffer struct {
+}
+```
+
+Buffer is a growable byte buffer. The zero value is an empty buffer.
+
+### NewBuffer
+
+```go
+func NewBuffer(buf []byte) *Buffer
+```
+
+NewBuffer returns a Buffer whose initial contents are buf.
+
+### NewBufferString
+
+```go
+func NewBufferString(s string) *Buffer
+```
+
+NewBufferString returns a Buffer whose initial contents are s.
+
+### Buffer.Bytes
+
+```go
+func (b *Buffer) Bytes() []byte
+```
+
+Bytes returns the unread portion of the buffer, sharing its storage.
+
+### Buffer.Grow
+
+```go
+func (b *Buffer) Grow(n int)
+```
+
+Grow ensures space for another n bytes. It panics if n is negative.
+
+### Buffer.Len
+
+```go
+func (b *Buffer) Len() int
+```
+
+Len returns the number of unread bytes.
+
+### Buffer.Next
+
+```go
+func (b *Buffer) Next(n int) []byte
+```
+
+Next returns the next n unread bytes, or all of them if fewer remain, and advances past them.
+
+### Buffer.ReadByte
+
+```go
+func (b *Buffer) ReadByte() (byte, error)
+```
+
+ReadByte returns the next byte, or an error when the buffer is empty.
+
+### Buffer.Reset
+
+```go
+func (b *Buffer) Reset()
+```
+
+Reset empties the buffer.
+
+### Buffer.String
+
+```go
+func (b *Buffer) String() string
+```
+
+String returns the unread portion of the buffer as a string.
+
+### Buffer.Truncate
+
+```go
+func (b *Buffer) Truncate(n int)
+```
+
+Truncate keeps the first n unread bytes. It panics if n is out of range.
+
+### Buffer.Write
+
+```go
+func (b *Buffer) Write(p []byte) (int, error)
+```
+
+Write appends p and always returns len(p), nil.
+
+### Buffer.WriteByte
+
+```go
+func (b *Buffer) WriteByte(c byte) error
+```
+
+WriteByte appends c and always returns nil.
+
+### Buffer.WriteRune
+
+```go
+func (b *Buffer) WriteRune(r rune) (int, error)
+```
+
+WriteRune appends the UTF-8 encoding of r and returns its length.
+
+### Buffer.WriteString
+
+```go
+func (b *Buffer) WriteString(s string) (int, error)
+```
+
+WriteString appends s and always returns len(s), nil.
+
+
+## std/encoding/binary
+
+```go
+import "github.com/eugenioenko/goalchemy/std/encoding/binary"
+```
+
+Package binary translates between unsigned integers and byte sequences, and encodes varints.
+
+```go
+const (
+	MaxVarintLen16 = 3
+	MaxVarintLen32 = 5
+	MaxVarintLen64 = 10
+)
+```
+
+Maximum encoded lengths of varints.
+
+```go
+var BigEndian bigEndian
+```
+
+BigEndian is the big-endian ByteOrder and AppendByteOrder.
+
+```go
+var LittleEndian littleEndian
+```
+
+LittleEndian is the little-endian ByteOrder and AppendByteOrder.
+
+### AppendUvarint
+
+```go
+func AppendUvarint(buf []byte, x uint64) []byte
+```
+
+AppendUvarint appends the varint encoding of x to buf.
+
+### AppendVarint
+
+```go
+func AppendVarint(buf []byte, x int64) []byte
+```
+
+AppendVarint appends the zig-zag varint encoding of x to buf.
+
+### PutUvarint
+
+```go
+func PutUvarint(buf []byte, x uint64) int
+```
+
+PutUvarint encodes x into buf, which must be large enough, and returns the number of bytes written.
+
+### PutVarint
+
+```go
+func PutVarint(buf []byte, x int64) int
+```
+
+PutVarint encodes x with zig-zag varint encoding into buf.
+
+### Uvarint
+
+```go
+func Uvarint(buf []byte) (uint64, int)
+```
+
+Uvarint decodes a varint from buf and returns the value and the number of bytes read. n == 0 means buf is too short; n < 0 means the value overflows 64 bits and -n bytes were read.
+
+### Varint
+
+```go
+func Varint(buf []byte) (int64, int)
+```
+
+Varint decodes a zig-zag varint from buf like Uvarint.
+
+### type AppendByteOrder
+
+```go
+type AppendByteOrder interface {
+	AppendUint16([]byte, uint16) []byte
+	AppendUint32([]byte, uint32) []byte
+	AppendUint64([]byte, uint64) []byte
+	String() string
+}
+```
+
+AppendByteOrder appends unsigned integers in a byte order.
+
+### type ByteOrder
+
+```go
+type ByteOrder interface {
+	Uint16([]byte) uint16
+	Uint32([]byte) uint32
+	Uint64([]byte) uint64
+	PutUint16([]byte, uint16)
+	PutUint32([]byte, uint32)
+	PutUint64([]byte, uint64)
+	String() string
+}
+```
+
+ByteOrder reads and writes unsigned integers in a byte order.
+
+
+## std/encoding/hex
+
+```go
+import "github.com/eugenioenko/goalchemy/std/encoding/hex"
+```
+
+Package hex encodes and decodes hexadecimal strings.
+
+```go
+var ErrLength = errors.New("encoding/hex: odd length hex string")
+```
+
+ErrLength reports an odd-length input to Decode.
+
+### AppendDecode
+
+```go
+func AppendDecode(dst, src []byte) ([]byte, error)
+```
+
+AppendDecode appends the decoding of src to dst. On error it returns the bytes decoded before the error.
+
+### AppendEncode
+
+```go
+func AppendEncode(dst, src []byte) []byte
+```
+
+AppendEncode appends the hexadecimal encoding of src to dst.
+
+### Decode
+
+```go
+func Decode(dst, src []byte) (int, error)
+```
+
+Decode decodes src into dst and returns the number of bytes written. It accepts upper and lower case digits.
+
+### DecodeString
+
+```go
+func DecodeString(s string) ([]byte, error)
+```
+
+DecodeString returns the bytes represented by the hexadecimal string s.
+
+### DecodedLen
+
+```go
+func DecodedLen(x int) int
+```
+
+DecodedLen returns the length of a decoding of x source bytes.
+
+### Encode
+
+```go
+func Encode(dst, src []byte) int
+```
+
+Encode writes the lowercase hexadecimal encoding of src into dst and returns EncodedLen(len(src)).
+
+### EncodeToString
+
+```go
+func EncodeToString(src []byte) string
+```
+
+EncodeToString returns the lowercase hexadecimal encoding of src.
+
+### EncodedLen
+
+```go
+func EncodedLen(n int) int
+```
+
+EncodedLen returns the length of an encoding of n source bytes.
+
+### type InvalidByteError
+
+```go
+type InvalidByteError byte
+```
+
+InvalidByteError reports a byte that is not a hexadecimal digit.
+
+### InvalidByteError.Error
+
+```go
+func (e InvalidByteError) Error() string
+```
+
+
+## std/sort
+
+```go
+import "github.com/eugenioenko/goalchemy/std/sort"
+```
+
+Package sort sorts collections through the Len, Less, and Swap methods. Sort is stable here; Go only guarantees that Stable is.
+
+### Ints
+
+```go
+func Ints(x []int)
+```
+
+Ints sorts x in increasing order.
+
+### IntsAreSorted
+
+```go
+func IntsAreSorted(x []int) bool
+```
+
+IntsAreSorted reports whether x is sorted in increasing order.
+
+### IsSorted
+
+```go
+func IsSorted(data Interface) bool
+```
+
+IsSorted reports whether data is sorted.
+
+### Search
+
+```go
+func Search(n int, f func(int) bool) int
+```
+
+Search returns the smallest index i in [0, n) for which f(i) is true, assuming f is false then true over the range, or n if there is none.
+
+### SearchInts
+
+```go
+func SearchInts(a []int, x int) int
+```
+
+SearchInts returns the index at which x is or would be inserted in the sorted slice a.
+
+### SearchStrings
+
+```go
+func SearchStrings(a []string, x string) int
+```
+
+SearchStrings returns the index at which x is or would be inserted in the sorted slice a.
+
+### Sort
+
+```go
+func Sort(data Interface)
+```
+
+Sort sorts data in ascending order as determined by Less.
+
+### Stable
+
+```go
+func Stable(data Interface)
+```
+
+Stable sorts data keeping the original order of equal elements.
+
+### Strings
+
+```go
+func Strings(x []string)
+```
+
+Strings sorts x in increasing byte order.
+
+### StringsAreSorted
+
+```go
+func StringsAreSorted(x []string) bool
+```
+
+StringsAreSorted reports whether x is sorted in increasing order.
+
+### type IntSlice
+
+```go
+type IntSlice []int
+```
+
+IntSlice attaches the methods of Interface to []int.
+
+### IntSlice.Len
+
+```go
+func (x IntSlice) Len() int
+```
+
+### IntSlice.Less
+
+```go
+func (x IntSlice) Less(i, j int) bool
+```
+
+### IntSlice.Swap
+
+```go
+func (x IntSlice) Swap(i, j int)
+```
+
+### type Interface
+
+```go
+type Interface interface {
+	Len() int
+	Less(i, j int) bool
+	Swap(i, j int)
+}
+```
+
+Interface is a collection that can be sorted by index.
+
+### Reverse
+
+```go
+func Reverse(data Interface) Interface
+```
+
+Reverse returns data with the opposite order.
+
+### type StringSlice
+
+```go
+type StringSlice []string
+```
+
+StringSlice attaches the methods of Interface to []string.
+
+### StringSlice.Len
+
+```go
+func (x StringSlice) Len() int
+```
+
+### StringSlice.Less
+
+```go
+func (x StringSlice) Less(i, j int) bool
+```
+
+### StringSlice.Swap
+
+```go
+func (x StringSlice) Swap(i, j int)
+```
+
+
+## std/strconv
+
+```go
+import "github.com/eugenioenko/goalchemy/std/strconv"
+```
+
+Package strconv converts between integers, Booleans, and their string forms.
+
+```go
+const IntSize = 64
+```
+
+IntSize is the size in bits of an int or uint value.
+
+```go
+var ErrRange = errors.New("value out of range")
+```
+
+ErrRange indicates that a value is out of range for the target type.
+
+```go
+var ErrSyntax = errors.New("invalid syntax")
+```
+
+ErrSyntax indicates that a value does not have the right syntax for the target type.
+
+### AppendInt
+
+```go
+func AppendInt(dst []byte, i int64, base int) []byte
+```
+
+AppendInt appends the string form of i in the given base to dst.
+
+### AppendUint
+
+```go
+func AppendUint(dst []byte, u uint64, base int) []byte
+```
+
+AppendUint appends the string form of u in the given base to dst.
+
+### Atoi
+
+```go
+func Atoi(s string) (int, error)
+```
+
+Atoi parses a decimal int, accepting an optional sign.
+
+### FormatBool
+
+```go
+func FormatBool(b bool) string
+```
+
+FormatBool returns "true" or "false".
+
+### FormatInt
+
+```go
+func FormatInt(i int64, base int) string
+```
+
+FormatInt returns i in the given base, 2 to 36, using lowercase letters.
+
+### FormatUint
+
+```go
+func FormatUint(u uint64, base int) string
+```
+
+FormatUint returns u in the given base, 2 to 36, using lowercase letters.
+
+### Itoa
+
+```go
+func Itoa(i int) string
+```
+
+Itoa returns the decimal form of i.
+
+### ParseBool
+
+```go
+func ParseBool(str string) (bool, error)
+```
+
+ParseBool accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, and False.
+
+### ParseInt
+
+```go
+func ParseInt(s string, base int, bitSize int) (int64, error)
+```
+
+ParseInt parses a signed integer like ParseUint and checks that it fits in bitSize bits (0 means 64).
+
+### ParseUint
+
+```go
+func ParseUint(s string, base int, bitSize int) (uint64, error)
+```
+
+ParseUint parses s in the given base (0 or 2 to 36) and checks that the result fits in bitSize bits (0 means 64). Base 0 accepts 0b, 0o, 0, and 0x prefixes and underscores between digits.
+
+### Quote
+
+```go
+func Quote(s string) string
+```
+
+Quote returns s as a double-quoted Go string literal, escaping non-printable runes and invalid UTF-8 bytes.
+
+### QuoteToASCII
+
+```go
+func QuoteToASCII(s string) string
+```
+
+QuoteToASCII is like Quote but escapes every non-ASCII rune.
+
+### type NumError
+
+```go
+type NumError struct {
+	Func string
+	Num  string
+	Err  error
+}
+```
+
+NumError records a failed conversion.
+
+### NumError.Error
+
+```go
+func (e *NumError) Error() string
+```
+
+### NumError.Unwrap
+
+```go
+func (e *NumError) Unwrap() error
+```
+
+
+## std/strings
+
+```go
+import "github.com/eugenioenko/goalchemy/std/strings"
+```
+
+Package strings manipulates UTF-8 encoded strings.
+
+### Compare
+
+```go
+func Compare(a, b string) int
+```
+
+Compare returns 0 if a == b, -1 if a < b, and +1 if a > b.
+
+### Contains
+
+```go
+func Contains(s, substr string) bool
+```
+
+Contains reports whether substr is within s.
+
+### ContainsAny
+
+```go
+func ContainsAny(s, chars string) bool
+```
+
+ContainsAny reports whether any rune of chars is within s.
+
+### ContainsFunc
+
+```go
+func ContainsFunc(s string, f func(rune) bool) bool
+```
+
+ContainsFunc reports whether any rune of s satisfies f.
+
+### ContainsRune
+
+```go
+func ContainsRune(s string, r rune) bool
+```
+
+ContainsRune reports whether r is within s.
+
+### Count
+
+```go
+func Count(s, substr string) int
+```
+
+Count counts the non-overlapping instances of substr in s. An empty substr counts as one more than the number of runes in s.
+
+### Cut
+
+```go
+func Cut(s, sep string) (before, after string, found bool)
+```
+
+Cut slices s around the first instance of sep.
+
+### CutPrefix
+
+```go
+func CutPrefix(s, prefix string) (after string, found bool)
+```
+
+CutPrefix returns s without prefix and whether it was present.
+
+### CutSuffix
+
+```go
+func CutSuffix(s, suffix string) (before string, found bool)
+```
+
+CutSuffix returns s without suffix and whether it was present.
+
+### EqualFold
+
+```go
+func EqualFold(s, t string) bool
+```
+
+EqualFold reports whether s and t are equal under simple Unicode case folding.
+
+### Fields
+
+```go
+func Fields(s string) []string
+```
+
+Fields splits s around runs of white space.
+
+### FieldsFunc
+
+```go
+func FieldsFunc(s string, f func(rune) bool) []string
+```
+
+FieldsFunc splits s around runs of runes satisfying f.
+
+### HasPrefix
+
+```go
+func HasPrefix(s, prefix string) bool
+```
+
+HasPrefix reports whether s begins with prefix.
+
+### HasSuffix
+
+```go
+func HasSuffix(s, suffix string) bool
+```
+
+HasSuffix reports whether s ends with suffix.
+
+### Index
+
+```go
+func Index(s, substr string) int
+```
+
+Index returns the index of the first instance of substr in s, or -1.
+
+### IndexAny
+
+```go
+func IndexAny(s, chars string) int
+```
+
+IndexAny returns the index of the first rune of s that is in chars, or -1.
+
+### IndexByte
+
+```go
+func IndexByte(s string, c byte) int
+```
+
+IndexByte returns the index of the first instance of c in s, or -1.
+
+### IndexFunc
+
+```go
+func IndexFunc(s string, f func(rune) bool) int
+```
+
+IndexFunc returns the index of the first rune satisfying f, or -1.
+
+### IndexRune
+
+```go
+func IndexRune(s string, r rune) int
+```
+
+IndexRune returns the index of the first instance of r in s, or -1. For utf8.RuneError it matches the first invalid byte or encoded U+FFFD.
+
+### Join
+
+```go
+func Join(elems []string, sep string) string
+```
+
+Join concatenates elems with sep between them.
+
+### LastIndex
+
+```go
+func LastIndex(s, substr string) int
+```
+
+LastIndex returns the index of the last instance of substr in s, or -1.
+
+### LastIndexAny
+
+```go
+func LastIndexAny(s, chars string) int
+```
+
+LastIndexAny returns the index of the last rune of s that is in chars, or -1.
+
+### LastIndexByte
+
+```go
+func LastIndexByte(s string, c byte) int
+```
+
+LastIndexByte returns the index of the last instance of c in s, or -1.
+
+### LastIndexFunc
+
+```go
+func LastIndexFunc(s string, f func(rune) bool) int
+```
+
+LastIndexFunc returns the index of the last rune satisfying f, or -1.
+
+### Map
+
+```go
+func Map(mapping func(rune) rune, s string) string
+```
+
+Map returns s with every rune mapped by mapping; runes mapped to a negative value are dropped. Invalid UTF-8 bytes are mapped as RuneError.
+
+### Repeat
+
+```go
+func Repeat(s string, count int) string
+```
+
+Repeat returns count copies of s. It panics if count is negative.
+
+### Replace
+
+```go
+func Replace(s, old, new string, n int) string
+```
+
+Replace returns s with the first n non-overlapping instances of old replaced by new; n < 0 replaces all. An empty old matches before every rune and at the end.
+
+### ReplaceAll
+
+```go
+func ReplaceAll(s, old, new string) string
+```
+
+ReplaceAll replaces every non-overlapping instance of old with new.
+
+### Split
+
+```go
+func Split(s, sep string) []string
+```
+
+Split slices s into all substrings separated by sep.
+
+### SplitAfter
+
+```go
+func SplitAfter(s, sep string) []string
+```
+
+SplitAfter slices s after each instance of sep.
+
+### SplitAfterN
+
+```go
+func SplitAfterN(s, sep string, n int) []string
+```
+
+SplitAfterN slices s after each instance of sep into at most n substrings.
+
+### SplitN
+
+```go
+func SplitN(s, sep string, n int) []string
+```
+
+SplitN slices s into at most n substrings separated by sep; n < 0 means all.
+
+### ToLower
+
+```go
+func ToLower(s string) string
+```
+
+ToLower maps every rune of s to lower case.
+
+### ToTitle
+
+```go
+func ToTitle(s string) string
+```
+
+ToTitle maps every rune of s to title case.
+
+### ToUpper
+
+```go
+func ToUpper(s string) string
+```
+
+ToUpper maps every rune of s to upper case.
+
+### ToValidUTF8
+
+```go
+func ToValidUTF8(s, replacement string) string
+```
+
+ToValidUTF8 replaces each run of invalid UTF-8 bytes with replacement.
+
+### Trim
+
+```go
+func Trim(s, cutset string) string
+```
+
+Trim removes leading and trailing runes contained in cutset.
+
+### TrimFunc
+
+```go
+func TrimFunc(s string, f func(rune) bool) string
+```
+
+TrimFunc removes leading and trailing runes satisfying f.
+
+### TrimLeft
+
+```go
+func TrimLeft(s, cutset string) string
+```
+
+TrimLeft removes leading runes contained in cutset.
+
+### TrimLeftFunc
+
+```go
+func TrimLeftFunc(s string, f func(rune) bool) string
+```
+
+TrimLeftFunc removes leading runes satisfying f.
+
+### TrimPrefix
+
+```go
+func TrimPrefix(s, prefix string) string
+```
+
+TrimPrefix removes prefix from s if present.
+
+### TrimRight
+
+```go
+func TrimRight(s, cutset string) string
+```
+
+TrimRight removes trailing runes contained in cutset.
+
+### TrimRightFunc
+
+```go
+func TrimRightFunc(s string, f func(rune) bool) string
+```
+
+TrimRightFunc removes trailing runes satisfying f.
+
+### TrimSpace
+
+```go
+func TrimSpace(s string) string
+```
+
+TrimSpace removes leading and trailing white space.
+
+### TrimSuffix
+
+```go
+func TrimSuffix(s, suffix string) string
+```
+
+TrimSuffix removes suffix from s if present.
+
+### type Builder
+
+```go
+type Builder struct {
+}
+```
+
+Builder builds a string with appends.
+
+### Builder.Cap
+
+```go
+func (b *Builder) Cap() int
+```
+
+Cap returns the capacity of the builder's buffer.
+
+### Builder.Grow
+
+```go
+func (b *Builder) Grow(n int)
+```
+
+Grow ensures space for another n bytes.
+
+### Builder.Len
+
+```go
+func (b *Builder) Len() int
+```
+
+Len returns the number of accumulated bytes.
+
+### Builder.Reset
+
+```go
+func (b *Builder) Reset()
+```
+
+Reset empties the builder.
+
+### Builder.String
+
+```go
+func (b *Builder) String() string
+```
+
+String returns the accumulated string.
+
+### Builder.Write
+
+```go
+func (b *Builder) Write(p []byte) (int, error)
+```
+
+Write appends p and always returns len(p), nil.
+
+### Builder.WriteByte
+
+```go
+func (b *Builder) WriteByte(c byte) error
+```
+
+WriteByte appends c and always returns nil.
+
+### Builder.WriteRune
+
+```go
+func (b *Builder) WriteRune(r rune) (int, error)
+```
+
+WriteRune appends the UTF-8 encoding of r and returns its length.
+
+### Builder.WriteString
+
+```go
+func (b *Builder) WriteString(s string) (int, error)
+```
+
+WriteString appends s and always returns len(s), nil.
+
+### type Replacer
+
+```go
+type Replacer struct {
+}
+```
+
+Replacer replaces a list of strings with replacements.
+
+### NewReplacer
+
+```go
+func NewReplacer(oldnew ...string) *Replacer
+```
+
+NewReplacer returns a Replacer from old, new string pairs. Replacements happen in target string order without overlapping; at the same position, earlier pairs win. It panics on an odd argument count.
+
+### Replacer.Replace
+
+```go
+func (r *Replacer) Replace(s string) string
+```
+
+Replace returns s with all replacements performed.
+
+
+## std/unicode
+
+```go
+import "github.com/eugenioenko/goalchemy/std/unicode"
+```
+
+Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain.
+
+```go
+const (
+	MaxRune         = '\U0010FFFF'
+	ReplacementChar = '�'
+	MaxASCII        = '\u007F'
+	MaxLatin1       = 'ÿ'
+)
+```
+
+```go
+const Version = "17.0.0"
+```
+
+Version is the Unicode edition the tables are derived from.
+
+### IsControl
+
+```go
+func IsControl(r rune) bool
+```
+
+IsControl reports whether r is a control character.
+
+### IsDigit
+
+```go
+func IsDigit(r rune) bool
+```
+
+IsDigit reports whether r is a decimal digit (category Nd).
+
+### IsGraphic
+
+```go
+func IsGraphic(r rune) bool
+```
+
+IsGraphic reports whether r is a graphic character, including Unicode spaces.
+
+### IsLetter
+
+```go
+func IsLetter(r rune) bool
+```
+
+IsLetter reports whether r is a letter (category L).
+
+### IsLower
+
+```go
+func IsLower(r rune) bool
+```
+
+IsLower reports whether r is a lower case letter.
+
+### IsMark
+
+```go
+func IsMark(r rune) bool
+```
+
+IsMark reports whether r is a mark (category M).
+
+### IsNumber
+
+```go
+func IsNumber(r rune) bool
+```
+
+IsNumber reports whether r is a number (category N).
+
+### IsPrint
+
+```go
+func IsPrint(r rune) bool
+```
+
+IsPrint reports whether r is printable as defined by Go: letters, marks, numbers, punctuation, symbols, and the ASCII space.
+
+### IsPunct
+
+```go
+func IsPunct(r rune) bool
+```
+
+IsPunct reports whether r is punctuation (category P).
+
+### IsSpace
+
+```go
+func IsSpace(r rune) bool
+```
+
+IsSpace reports whether r is a white space character as defined by Go.
+
+### IsSymbol
+
+```go
+func IsSymbol(r rune) bool
+```
+
+IsSymbol reports whether r is a symbol (category S).
+
+### IsTitle
+
+```go
+func IsTitle(r rune) bool
+```
+
+IsTitle reports whether r is a title case letter.
+
+### IsUpper
+
+```go
+func IsUpper(r rune) bool
+```
+
+IsUpper reports whether r is an upper case letter.
+
+### SimpleFold
+
+```go
+func SimpleFold(r rune) rune
+```
+
+SimpleFold iterates over the runes equivalent to r under Unicode simple case folding, returning the smallest equivalent rune greater than r, or the smallest equivalent rune if none is greater.
+
+### ToLower
+
+```go
+func ToLower(r rune) rune
+```
+
+ToLower maps r to lower case.
+
+### ToTitle
+
+```go
+func ToTitle(r rune) rune
+```
+
+ToTitle maps r to title case.
+
+### ToUpper
+
+```go
+func ToUpper(r rune) rune
+```
+
+ToUpper maps r to upper case.
+
+
+## std/unicode/utf8
+
+```go
+import "github.com/eugenioenko/goalchemy/std/unicode/utf8"
+```
+
+Package utf8 encodes and decodes UTF-8 text.
+
+```go
+const (
+	RuneError = '�'
+	RuneSelf  = 0x80
+	MaxRune   = '\U0010FFFF'
+	UTFMax    = 4
+)
+```
+
+### AppendRune
+
+```go
+func AppendRune(p []byte, r rune) []byte
+```
+
+AppendRune appends the UTF-8 encoding of r to p. Invalid runes encode as RuneError.
+
+### DecodeLastRune
+
+```go
+func DecodeLastRune(p []byte) (rune, int)
+```
+
+DecodeLastRune unpacks the last UTF-8 encoding in p.
+
+### DecodeLastRuneInString
+
+```go
+func DecodeLastRuneInString(s string) (rune, int)
+```
+
+DecodeLastRuneInString is like DecodeLastRune but its input is a string.
+
+### DecodeRune
+
+```go
+func DecodeRune(p []byte) (rune, int)
+```
+
+DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes. It returns (RuneError, 0) for empty input and (RuneError, 1) for an invalid encoding.
+
+### DecodeRuneInString
+
+```go
+func DecodeRuneInString(s string) (rune, int)
+```
+
+DecodeRuneInString is like DecodeRune but its input is a string.
+
+### EncodeRune
+
+```go
+func EncodeRune(p []byte, r rune) int
+```
+
+EncodeRune writes the UTF-8 encoding of r into p, which must be large enough, and returns the number of bytes written.
+
+### RuneCount
+
+```go
+func RuneCount(p []byte) int
+```
+
+RuneCount returns the number of runes in p, counting each invalid byte as one rune.
+
+### RuneCountInString
+
+```go
+func RuneCountInString(s string) int
+```
+
+RuneCountInString is like RuneCount but its input is a string.
+
+### RuneLen
+
+```go
+func RuneLen(r rune) int
+```
+
+RuneLen returns the number of bytes needed to encode r, or -1 if r is not a valid Unicode scalar value.
+
+### RuneStart
+
+```go
+func RuneStart(b byte) bool
+```
+
+RuneStart reports whether b could be the first byte of an encoded rune.
+
+### Valid
+
+```go
+func Valid(p []byte) bool
+```
+
+Valid reports whether p consists entirely of valid UTF-8 encodings.
+
+### ValidRune
+
+```go
+func ValidRune(r rune) bool
+```
+
+ValidRune reports whether r can be legally encoded as UTF-8.
+
+### ValidString
+
+```go
+func ValidString(s string) bool
+```
+
+ValidString reports whether s consists entirely of valid UTF-8 encodings.
+
+
+# Capability packages
 
 Every entry lists:
 
@@ -23,22 +1653,6 @@ Every entry lists:
 | python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client). |
 | rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. |
 | typescript | experimental | Node.js 22.6 (ES2022) | No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP, in Node.js or browsers. |
-
-## Packages
-
-| Package | Import path | Summary |
-| --- | --- | --- |
-| [callback](#callback) | `github.com/eugenioenko/goalchemy/lib/callback` | Package callback declares a bounded asynchronous host callback capability. |
-| [clock](#clock) | `github.com/eugenioenko/goalchemy/lib/clock` | Package clock provides wall time, independent of Goalchemy virtual time. |
-| [context](#context) | `github.com/eugenioenko/goalchemy/lib/context` | Package context provides Goalchemy's cancellation contexts; deadlines use the virtual clock. |
-| [crypto](#crypto) | `github.com/eugenioenko/goalchemy/lib/crypto` | Package crypto provides bounded native cryptographic capabilities. |
-| [encoding](#encoding) | `github.com/eugenioenko/goalchemy/lib/encoding` | Package encoding provides canonical RFC 4648 base64 encodings. |
-| [errors](#errors) | `github.com/eugenioenko/goalchemy/lib/errors` | Package errors provides Goalchemy's error values. |
-| [http](#http) | `github.com/eugenioenko/goalchemy/lib/http` | Package http provides bounded HTTP exchanges, retaining TLS verification and returning redirect responses without following them. |
-| [runtime](#runtime) | `github.com/eugenioenko/goalchemy/lib/runtime` | Package runtime provides Goalchemy's scheduler controls. |
-| [sync](#sync) | `github.com/eugenioenko/goalchemy/lib/sync` | Package sync provides Goalchemy's synchronization primitives. |
-| [task](#task) | `github.com/eugenioenko/goalchemy/lib/task` | Package task provides structured waiting for Goalchemy programs. |
-| [time](#time) | `github.com/eugenioenko/goalchemy/lib/time` | Package time provides Goalchemy's virtual clock: Sleep advances it deterministically. |
 
 ## callback
 
