@@ -1,4 +1,5 @@
 // Node executable adapter. This module is excluded from portable runtime indexes.
+import "./node_checksum.ts";
 import { writeSync } from "node:fs";
 import { installRuntimeHost, portableHost } from "./host.ts";
 const n = Number(process.env.GOALCHEMY_SEED ?? "1");

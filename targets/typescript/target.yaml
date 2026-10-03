@@ -6,7 +6,7 @@ environment:
   runtime: Node.js executable with TypeScript type stripping; portable Promise cooperative entry for Node/browser
   minimum: Node.js 22.6 (ES2022)
   build: node main.ts
-  native: "No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP, in Node.js or browsers."
+  native: "No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP in Node.js or browsers; IEEE CRC32 uses node:zlib.crc32 in Node executable/package entries and a slicing-by-8 fallback in browsers and the portable main entry. Host runtime controls acceleration."
 representations:
   - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/chan_make.ts); null is the nil channel."}
   - {type: type.task, contract_version: 1.0.0, representation: "Resumable frame stacks dispatched FIFO by runtime/task_spawn.ts; synchronous executable/conformance entry uses virtual time, explicit Promise host entry uses owner-local real monotonic time, mailbox completions and cleanup acknowledgement. Global executable binding rejects overlapping entries; isolated library exports remain gated."}
@@ -25,7 +25,7 @@ harness:
   support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
   generated: tests/harness/harness_gen.ts
   command: [node, targets/typescript/tests/harness/harness.ts]
-support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, runtime/std_errors_new.ts]
+support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, runtime/std_errors_new.ts]
 functions:
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.ts, harness: "rt.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.ts, harness: "rt.sub_{T.kind}({0}, {1})"}

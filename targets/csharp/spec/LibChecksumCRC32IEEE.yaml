@@ -2,10 +2,10 @@
 target: csharp
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: 6bf45fffb6b2f607d126ed98c0c05444b40b788e2eafc7c29eb65a563dacc8c0
+contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
 symbol: "R.libChecksumCRC32IEEE"
 implementation: runtime/LibChecksumCRC32IEEE.cs
-implementation_hash: dd7ed38479e4a6858bbefb9f98970bb3810ffabf266e84ba0dc960197528d2f1
+implementation_hash: 905b6270dbea894da70c2b98e222b23067f8ffb05b8618a201c6323107173cc0
 summary: "checksum.CRC32IEEE: IEEE CRC-32 checksum over a byte slice, as used by ZIP."
 suspension: never
 determinism: deterministic

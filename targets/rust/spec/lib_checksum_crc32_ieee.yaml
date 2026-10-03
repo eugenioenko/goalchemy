@@ -2,7 +2,7 @@
 target: rust
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: 6bf45fffb6b2f607d126ed98c0c05444b40b788e2eafc7c29eb65a563dacc8c0
+contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
 symbol: "lib_checksum_crc32_ieee"
 implementation: runtime/lib_checksum_crc32_ieee.rs
 implementation_hash: 2f86f214926b7e50a3d75ec814aa17aac21abc41b215d64f65c1be6129ef0f72

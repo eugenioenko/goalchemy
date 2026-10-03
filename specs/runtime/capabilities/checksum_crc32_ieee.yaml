@@ -36,7 +36,7 @@
     "panics": "No deliberate panic for valid slices; host failures remain host failures.",
     "observations": "Matches Go hash/crc32.ChecksumIEEE. This is a checksum, not a cryptographic integrity primitive."
   },
-  "notes": "Native standard-library CRC in Go, Java, and Python; native slicing-by-8 implementations in TypeScript (including browsers), C#, Rust, and C. No extra host packages or Node-only imports.",
+  "notes": "Standard-library IEEE CRC APIs in Go (hash/crc32), Java (java.util.zip.CRC32), Python (zlib.crc32), and TypeScript Node executable/conformance/Node library entries (node:zlib.crc32). C# uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package, separate from the shared .NET runtime. Browsers, portable TypeScript main entries, C, and Rust retain slicing-by-8 fallbacks because their standard environments provide no CRC API. Host APIs control acceleration; no hardware execution is guaranteed.",
   "cases": [
     {
       "name": "nil",

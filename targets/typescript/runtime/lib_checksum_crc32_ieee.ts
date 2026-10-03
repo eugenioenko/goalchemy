@@ -1,6 +1,7 @@
 import type { Slice } from "../types/slice.ts";
+import { nativeCRC32IEEE } from "../types/host.ts";
 
-// Slicing-by-8 IEEE tables shared by Node and browser calls. No host-specific imports.
+// Portable slicing-by-8 fallback for browsers, which have no standard CRC API.
 const tables = new Uint32Array(8 * 256);
 for (let i = 0; i < 256; i++) {
   let c = i;
@@ -16,6 +17,13 @@ for (let row = 1; row < 8; row++) {
 
 /** IEEE CRC-32, preserving Go uint32's unsigned number representation. */
 export function libChecksumCRC32IEEE(data: Slice<number>): number {
+  if (nativeCRC32IEEE) {
+    const backing = data.a;
+    const bytes = backing instanceof Uint8Array
+      ? backing.subarray(data.o, data.o + data.l)
+      : Uint8Array.from({ length: data.l }, (_, i) => backing![data.o + i]);
+    return nativeCRC32IEEE(bytes) >>> 0;
+  }
   let crc = 0xffffffff;
   const bytes = data.a;
   let i = data.o;

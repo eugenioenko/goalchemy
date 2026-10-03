@@ -61,7 +61,7 @@ Non-`main` packages can emit value libraries for Go, TypeScript, Java, C#, Pytho
 - [Go libraries](go-library-boundary.md) expose copied values and cancellable, serialized calls.
 - [TypeScript libraries](typescript-library-boundary.md) emit portable JavaScript and declarations for Node and browsers.
 - [Java libraries](java-library-boundary.md) emit `Generated.java`, `build.sh` and a named-package JAR with byte arrays, typed values and cancellable asynchronous operations. Production crypto requires the pinned BC 1.86 dependency alongside JDK 21.
-- [C# libraries](csharp-library-boundary.md) emit .NET 8 class libraries with owned values and cancellable asynchronous operations. Crypto and HTTP use .NET built-ins without NuGet dependencies.
+- [C# libraries](csharp-library-boundary.md) emit .NET 8 class libraries with owned values and cancellable asynchronous operations. Crypto and HTTP use .NET built-ins; IEEE CRC32 adds the official Microsoft `System.IO.Hashing` 8.0.0 NuGet package.
 
 Python libraries emit an importable generated module with owned byte/value
 boundaries and cancellable sync/async operations. Production crypto uses

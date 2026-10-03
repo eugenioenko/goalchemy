@@ -6,7 +6,7 @@ environment:
   runtime: OpenJDK
   minimum: "Java 21"
   build: "javac -d classes $(find . -name '*.java') && java -Xss512m -cp classes Main"
-  native: "JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http."
+  native: "JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: Java boolean.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Java long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.java)."}

@@ -2,10 +2,10 @@
 target: typescript
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: 6bf45fffb6b2f607d126ed98c0c05444b40b788e2eafc7c29eb65a563dacc8c0
+contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
 symbol: "rt.libChecksumCRC32IEEE"
 implementation: runtime/lib_checksum_crc32_ieee.ts
-implementation_hash: f86e89c3131a3c886733bc1838b8b11be2f467996248b4478aa86d911a9533cc
+implementation_hash: 703f1c52679d266412cab9813b6ebe5933f31226b00981866509ff259405a3e3
 summary: "checksum.CRC32IEEE: IEEE CRC-32 checksum over a byte slice, as used by ZIP."
 suspension: never
 determinism: deterministic

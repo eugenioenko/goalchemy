@@ -2,7 +2,7 @@
 target: c
 function: lib.checksum.crc32_ieee
 contract_version: 1.0.0
-contract_hash: 6bf45fffb6b2f607d126ed98c0c05444b40b788e2eafc7c29eb65a563dacc8c0
+contract_hash: a50909f3b1d44a612fb34fb0998c6b09050dd46460ca8c68fa7cab22571f960f
 symbol: "gx_lib_checksum_crc32_ieee"
 implementation: runtime/lib_checksum_crc32_ieee.c
 implementation_hash: 235cc73f01824e3331d63ac8a330d3bc19a0383f9af1dcf3b3abc85f48364c06

@@ -6,7 +6,7 @@ environment:
   runtime: C17 with the Boehm-Demers-Weiser collector (bdwgc 8.2)
   minimum: "A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads"
   build: "sh run.sh (cc -std=c17 with -lgc -lpthread)"
-  native: "OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads."
+  native: "OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: "gx_V tagged GX_BOOL."}
   - {type: type.integer, contract_version: 1.0.0, representation: "gx_V holding an int64_t normalized to the Go width after every operation; arithmetic wraps through uint64_t, so no signed overflow occurs; unsigned 64-bit values keep their bits (types/gx.h)."}

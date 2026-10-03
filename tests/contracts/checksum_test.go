@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -59,4 +60,15 @@ func TestTypeScriptChecksumPrimitive(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("CRC primitive: %v\n%s", err, out)
 	}
+}
+
+func csharpChecksumDLL(t *testing.T, ctx context.Context) string {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, "sh", filepath.Join(root, "targets/csharp/tests/checksum-dependencies.sh"))
+	cmd.Env = driver.ToolEnv()
+	data, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("locked C# checksum dependency: %v", err)
+	}
+	return strings.TrimSpace(string(data))
 }

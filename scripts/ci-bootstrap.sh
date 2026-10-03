@@ -43,6 +43,7 @@ JS
 # The Rust harness is intentionally offline. Fetch its exact locked native graph first.
 cargo fetch --locked --manifest-path targets/rust/tests/harness/Cargo.toml --target x86_64-unknown-linux-gnu
 bash targets/java/tests/crypto-dependencies.sh
+sh targets/csharp/tests/checksum-dependencies.sh
 
 mkdir -p out/ci
 # The environment is also usable by local checks; no machine profiles are changed.

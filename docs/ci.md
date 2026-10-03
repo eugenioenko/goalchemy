@@ -29,6 +29,12 @@ The Rust harness copies `Cargo.lock` into its temporary build and runs with
 graph, so a clean runner does not depend on a developer's Cargo cache. Cached
 downloads are optional; their lock/checksum checks still run.
 
+C# checksum builds use Microsoft's `System.IO.Hashing` 8.0.0 NuGet package.
+Bootstrap restores `targets/csharp/checksum.csproj` against its version and
+content-hash lock before the full-runtime harness and tests run. A NuGet cache
+is optional; locked restore fetches the package on a clean runner. Generated
+C# projects add the same locked dependency only when IEEE CRC32 is linked.
+
 The frontend reference Go toolchain is read from its source constant and
 prewarmed, alongside Go 1.25.14 used by the native HTTP probe. That probe builds
 with the race detector before running the binary, keeping build/download

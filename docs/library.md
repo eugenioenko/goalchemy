@@ -33,7 +33,7 @@ Why two importable roots:
 | [unicode](#stdunicode) | `github.com/eugenioenko/goalchemy/std/unicode` | Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain. |
 | [unicode/utf8](#stdunicodeutf8) | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | Package utf8 encodes and decodes UTF-8 text. |
 | [lib/callback](#callback) | `github.com/eugenioenko/goalchemy/lib/callback` | Package callback declares a bounded asynchronous host callback capability. |
-| [lib/checksum](#checksum) | `github.com/eugenioenko/goalchemy/lib/checksum` | Package checksum provides native, non-cryptographic checksums. |
+| [lib/checksum](#checksum) | `github.com/eugenioenko/goalchemy/lib/checksum` | Package checksum provides non-cryptographic checksums backed by host APIs where available. |
 | [lib/clock](#clock) | `github.com/eugenioenko/goalchemy/lib/clock` | Package clock provides wall time, independent of Goalchemy virtual time. |
 | [lib/context](#context) | `github.com/eugenioenko/goalchemy/lib/context` | Package context provides Goalchemy's cancellation contexts; deadlines use the virtual clock. |
 | [lib/crypto](#crypto) | `github.com/eugenioenko/goalchemy/lib/crypto` | Package crypto provides bounded native cryptographic capabilities. |
@@ -1647,13 +1647,13 @@ Every entry lists:
 
 | Target | Status | Minimum | Native dependencies |
 | --- | --- | --- | --- |
-| c | experimental | A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads | OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. |
-| csharp | experimental | .NET 8 SDK (C# 12) | .NET 8 built-ins only: System.Security.Cryptography and HttpClient, with no NuGet dependencies. |
-| go | experimental | go1.25 | Go standard library only: crypto/* for crypto and net/http for HTTP. |
-| java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http. |
-| python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client). |
-| rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. |
-| typescript | experimental | Node.js 22.6 (ES2022) | No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP, in Node.js or browsers. |
+| c | experimental | A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads | OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API. |
+| csharp | experimental | .NET 8 SDK (C# 12) | .NET 8 built-ins for crypto (System.Security.Cryptography) and HTTP (HttpClient); IEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package with a content-hash lock, not the shared runtime. Host runtime controls acceleration. |
+| go | experimental | go1.25 | Go standard library only: crypto/* for crypto, net/http for HTTP, and hash/crc32.ChecksumIEEE for IEEE CRC32; host runtime controls acceleration. |
+| java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |
+| python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration. |
+| rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses a slicing-by-8 fallback because the Rust standard library provides no CRC API. |
+| typescript | experimental | Node.js 22.6 (ES2022) | No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP in Node.js or browsers; IEEE CRC32 uses node:zlib.crc32 in Node executable/package entries and a slicing-by-8 fallback in browsers and the portable main entry. Host runtime controls acceleration. |
 
 ## callback
 
@@ -1687,7 +1687,7 @@ Send request bytes to the host callback registered under name and wait for its r
 import "github.com/eugenioenko/goalchemy/lib/checksum"
 ```
 
-Package checksum provides native, non-cryptographic checksums.
+Package checksum provides non-cryptographic checksums backed by host APIs where available.
 
 | Function | c | csharp | go | java | python | rust | typescript |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |

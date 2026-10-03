@@ -1,4 +1,4 @@
-// Package checksum provides native, non-cryptographic checksums.
+// Package checksum provides non-cryptographic checksums backed by host APIs where available.
 package checksum
 
 import "hash/crc32"

@@ -21,6 +21,12 @@ export const portableHost: RuntimeHost = {
 };
 export let runtimeHost = portableHost;
 export function installRuntimeHost(host: RuntimeHost): void { runtimeHost = host; }
+// Standard-library checksum adapter, independent of executable output and
+// per-call library hosts. Portable/browser entries leave this uninstalled.
+export let nativeCRC32IEEE: ((bytes: Uint8Array) => number) | undefined;
+export function installCRC32IEEE(checksum: (bytes: Uint8Array) => number): void {
+  nativeCRC32IEEE = checksum;
+}
 export function binaryBytes(s: string): Uint8Array {
   return Uint8Array.from(s, c => c.charCodeAt(0) & 255);
 }

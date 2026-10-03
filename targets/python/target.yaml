@@ -6,7 +6,7 @@ environment:
   runtime: CPython
   minimum: "Python 3.10 (the release baseline for now; it can be raised later)"
   build: python3 main.py
-  native: "The maintained cryptography package for crypto; HTTP uses the standard library (http.client)."
+  native: "The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration."
 representations:
   - {type: type.boolean, contract_version: 1.0.0, representation: Python bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Python int normalized to the Go width and signedness after every operation (types/integer.py)."}
