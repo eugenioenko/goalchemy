@@ -1,0 +1,11 @@
+{
+  "name": "goalchemy-ci-browser-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned test/build tooling, outside the production TypeScript graph",
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "playwright": "1.58.2",
+    "typescript": "6.0.3"
+  }
+}

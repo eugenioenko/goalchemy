@@ -41,9 +41,19 @@ func emittedHTTP(t *testing.T, source string) string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "run", "-race", ".")
-	cmd.Dir = out
-	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=go1.25.14", "GOFLAGS=")
+	// Toolchain downloads and compiler diagnostics are not source observations.
+	// Execute the race-enabled binary separately, keeping its output assertion exact.
+	binary := filepath.Join(out, "host-probe")
+	build := exec.CommandContext(ctx, "go", "build", "-race", "-o", binary, ".")
+	build.Dir = out
+	build.Env = append(os.Environ(), "GOTOOLCHAIN=go1.25.14", "GOFLAGS=")
+	if diagnostics, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("emitted HTTP build failed: %v\n%s", err, diagnostics)
+	} else if len(diagnostics) != 0 {
+		t.Logf("emitted HTTP build diagnostics:\n%s", diagnostics)
+	}
+	cmd := exec.CommandContext(ctx, binary)
+	cmd.Dir, cmd.Env = out, build.Env
 	result, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("actual emitted HTTP failed: %v\n%s", err, result)
