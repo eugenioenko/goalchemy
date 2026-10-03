@@ -1268,6 +1268,36 @@ var cases = map[string]func(h *H) []any{
 		r0 := rt.As[bool](rv[0])
 		return []any{EncBool(r0)}
 	},
+	"lib.checksum.crc32_ieee/all_bytes": func(h *H) []any {
+		v_data := DecSlice(h.Let("data"), func(r json.RawMessage) byte { return DecInt[byte](r) })
+		_ = v_data
+		r0 := rt.LibChecksumCRC32IEEE(v_data)
+		return []any{EncInt(r0)}
+	},
+	"lib.checksum.crc32_ieee/binary": func(h *H) []any {
+		v_data := DecSlice(h.Let("data"), func(r json.RawMessage) byte { return DecInt[byte](r) })
+		_ = v_data
+		r0 := rt.LibChecksumCRC32IEEE(v_data)
+		return []any{EncInt(r0)}
+	},
+	"lib.checksum.crc32_ieee/check": func(h *H) []any {
+		v_data := DecSlice(h.Let("data"), func(r json.RawMessage) byte { return DecInt[byte](r) })
+		_ = v_data
+		r0 := rt.LibChecksumCRC32IEEE(v_data)
+		return []any{EncInt(r0)}
+	},
+	"lib.checksum.crc32_ieee/empty": func(h *H) []any {
+		v_data := DecSlice(h.Let("data"), func(r json.RawMessage) byte { return DecInt[byte](r) })
+		_ = v_data
+		r0 := rt.LibChecksumCRC32IEEE(v_data)
+		return []any{EncInt(r0)}
+	},
+	"lib.checksum.crc32_ieee/nil": func(h *H) []any {
+		v_data := DecSlice(h.Let("data"), func(r json.RawMessage) byte { return DecInt[byte](r) })
+		_ = v_data
+		r0 := rt.LibChecksumCRC32IEEE(v_data)
+		return []any{EncInt(r0)}
+	},
 	"lib.http.do/boundary_example": func(h *H) []any {
 		v_ctx := rt.StdContextBackground()
 		_ = v_ctx

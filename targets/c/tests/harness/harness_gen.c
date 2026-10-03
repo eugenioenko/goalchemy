@@ -1716,131 +1716,83 @@ static J *case_157(H *h) {
     return out;
 }
 
-static void prim_158(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_aes256_gcm_decrypt(t, a[0], a[1], a[2], a[3]);
-}
-
 static J *case_158(H *h) {
-    gx_V v_key = codec_17(h_let(h, "key"));
-    gx_V v_nonce = codec_17(h_let(h, "nonce"));
     gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V v_aad = codec_17(h_let(h, "aad"));
-    gx_V a[] = {v_key, v_nonce, v_data, v_aad};
-    gx_V rv[8];
-    gx_run_isolated(prim_158, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
+    gx_V a[] = {v_data};
+    gx_V r0 = gx_lib_checksum_crc32_ieee(a[0]);
     J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
+    j_push(out, enc_int_s(r0));
     return out;
-}
-
-static void prim_159(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_aes256_gcm_encrypt(t, a[0], a[1], a[2], a[3]);
 }
 
 static J *case_159(H *h) {
-    gx_V v_key = codec_17(h_let(h, "key"));
-    gx_V v_nonce = codec_17(h_let(h, "nonce"));
     gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V v_aad = codec_17(h_let(h, "aad"));
-    gx_V a[] = {v_key, v_nonce, v_data, v_aad};
-    gx_V rv[8];
-    gx_run_isolated(prim_159, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
+    gx_V a[] = {v_data};
+    gx_V r0 = gx_lib_checksum_crc32_ieee(a[0]);
     J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
+    j_push(out, enc_int_s(r0));
     return out;
-}
-
-static void prim_160(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_close(t,a[0]);
 }
 
 static J *case_160(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
-    gx_V a[] = {v_key};
-    gx_V rv[8];
-    gx_run_isolated(prim_160, a, rv);
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_data};
+    gx_V r0 = gx_lib_checksum_crc32_ieee(a[0]);
     J *out = j_new(J_ARR);
+    j_push(out, enc_int_s(r0));
     return out;
-}
-
-static void prim_161(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_ecdh(t, a[0], a[1]);
 }
 
 static J *case_161(H *h) {
-    gx_V v_private_key = dec_nil(h_let(h, "private_key"));
-    gx_V v_public_key = dec_nil(h_let(h, "public_key"));
-    gx_V a[] = {v_private_key, v_public_key};
-    gx_V rv[8];
-    gx_run_isolated(prim_161, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_data};
+    gx_V r0 = gx_lib_checksum_crc32_ieee(a[0]);
     J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
+    j_push(out, enc_int_s(r0));
     return out;
 }
 
-static void prim_162(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_es256_sign(t, a[0], a[1]);
-}
-
 static J *case_162(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
     gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_key, v_data};
-    gx_V rv[8];
-    gx_run_isolated(prim_162, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
+    gx_V a[] = {v_data};
+    gx_V r0 = gx_lib_checksum_crc32_ieee(a[0]);
     J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
+    j_push(out, enc_int_s(r0));
     return out;
 }
 
 static void prim_163(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_lib_crypto_es256_verify(t, a[0], a[1], a[2]);
+    gx_lib_crypto_aes256_gcm_decrypt(t, a[0], a[1], a[2], a[3]);
 }
 
 static J *case_163(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_key = codec_17(h_let(h, "key"));
+    gx_V v_nonce = codec_17(h_let(h, "nonce"));
     gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V v_signature = codec_17(h_let(h, "signature"));
-    gx_V a[] = {v_key, v_data, v_signature};
+    gx_V v_aad = codec_17(h_let(h, "aad"));
+    gx_V a[] = {v_key, v_nonce, v_data, v_aad};
     gx_V rv[8];
     gx_run_isolated(prim_163, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
-    j_push(out, enc_bool(r0));
+    j_push(out, codec_18(r0));
     j_push(out, enc_error(r1));
     return out;
 }
 
 static void prim_164(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_lib_crypto_hkdf_sha256(t, a[0], a[1], a[2], a[3]);
+    gx_lib_crypto_aes256_gcm_encrypt(t, a[0], a[1], a[2], a[3]);
 }
 
 static J *case_164(H *h) {
-    gx_V v_secret = codec_17(h_let(h, "secret"));
-    gx_V v_salt = codec_17(h_let(h, "salt"));
-    gx_V v_info = codec_17(h_let(h, "info"));
-    gx_V v_n = dec_int(h_let(h, "n"));
-    gx_V a[] = {v_secret, v_salt, v_info, v_n};
+    gx_V v_key = codec_17(h_let(h, "key"));
+    gx_V v_nonce = codec_17(h_let(h, "nonce"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V v_aad = codec_17(h_let(h, "aad"));
+    gx_V a[] = {v_key, v_nonce, v_data, v_aad};
     gx_V rv[8];
     gx_run_isolated(prim_164, a, rv);
     gx_V r0 = rv[0];
@@ -1853,15 +1805,29 @@ static J *case_164(H *h) {
 
 static void prim_165(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_lib_crypto_hmac_sha256(t, a[0], a[1]);
+    gx_lib_crypto_close(t,a[0]);
 }
 
 static J *case_165(H *h) {
-    gx_V v_key = codec_17(h_let(h, "key"));
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_key, v_data};
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V a[] = {v_key};
     gx_V rv[8];
     gx_run_isolated(prim_165, a, rv);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static void prim_166(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_ecdh(t, a[0], a[1]);
+}
+
+static J *case_166(H *h) {
+    gx_V v_private_key = dec_nil(h_let(h, "private_key"));
+    gx_V v_public_key = dec_nil(h_let(h, "public_key"));
+    gx_V a[] = {v_private_key, v_public_key};
+    gx_V rv[8];
+    gx_run_isolated(prim_166, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1870,18 +1836,37 @@ static J *case_165(H *h) {
     return out;
 }
 
-static void prim_166(gx_Task *t, void *arg) {
+static void prim_167(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_lib_crypto_hmac_sha256_verify(t, a[0], a[1], a[2]);
+    gx_lib_crypto_es256_sign(t, a[0], a[1]);
 }
 
-static J *case_166(H *h) {
-    gx_V v_key = codec_17(h_let(h, "key"));
+static J *case_167(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
     gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V v_mac = codec_17(h_let(h, "mac"));
-    gx_V a[] = {v_key, v_data, v_mac};
+    gx_V a[] = {v_key, v_data};
     gx_V rv[8];
-    gx_run_isolated(prim_166, a, rv);
+    gx_run_isolated(prim_167, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_168(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_es256_verify(t, a[0], a[1], a[2]);
+}
+
+static J *case_168(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V v_signature = codec_17(h_let(h, "signature"));
+    gx_V a[] = {v_key, v_data, v_signature};
+    gx_V rv[8];
+    gx_run_isolated(prim_168, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1890,16 +1875,76 @@ static J *case_166(H *h) {
     return out;
 }
 
-static void prim_167(gx_Task *t, void *arg) {
+static void prim_169(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_hkdf_sha256(t, a[0], a[1], a[2], a[3]);
+}
+
+static J *case_169(H *h) {
+    gx_V v_secret = codec_17(h_let(h, "secret"));
+    gx_V v_salt = codec_17(h_let(h, "salt"));
+    gx_V v_info = codec_17(h_let(h, "info"));
+    gx_V v_n = dec_int(h_let(h, "n"));
+    gx_V a[] = {v_secret, v_salt, v_info, v_n};
+    gx_V rv[8];
+    gx_run_isolated(prim_169, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_170(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_hmac_sha256(t, a[0], a[1]);
+}
+
+static J *case_170(H *h) {
+    gx_V v_key = codec_17(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_key, v_data};
+    gx_V rv[8];
+    gx_run_isolated(prim_170, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_171(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_hmac_sha256_verify(t, a[0], a[1], a[2]);
+}
+
+static J *case_171(H *h) {
+    gx_V v_key = codec_17(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V v_mac = codec_17(h_let(h, "mac"));
+    gx_V a[] = {v_key, v_data, v_mac};
+    gx_V rv[8];
+    gx_run_isolated(prim_171, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_172(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_crypto_import_pem(t, a[0]);
 }
 
-static J *case_167(H *h) {
+static J *case_172(H *h) {
     gx_V v_data = dec_string(h_let(h, "data"));
     gx_V a[] = {v_data};
     gx_V rv[8];
-    gx_run_isolated(prim_167, a, rv);
+    gx_run_isolated(prim_172, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1908,16 +1953,16 @@ static J *case_167(H *h) {
     return out;
 }
 
-static void prim_168(gx_Task *t, void *arg) {
+static void prim_173(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_crypto_private_pem(t, a[0]);
 }
 
-static J *case_168(H *h) {
+static J *case_173(H *h) {
     gx_V v_key = dec_nil(h_let(h, "key"));
     gx_V a[] = {v_key};
     gx_V rv[8];
-    gx_run_isolated(prim_168, a, rv);
+    gx_run_isolated(prim_173, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1926,16 +1971,16 @@ static J *case_168(H *h) {
     return out;
 }
 
-static void prim_169(gx_Task *t, void *arg) {
+static void prim_174(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_crypto_public_jwk(t, a[0]);
 }
 
-static J *case_169(H *h) {
+static J *case_174(H *h) {
     gx_V v_key = dec_nil(h_let(h, "key"));
     gx_V a[] = {v_key};
     gx_V rv[8];
-    gx_run_isolated(prim_169, a, rv);
+    gx_run_isolated(prim_174, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1944,16 +1989,16 @@ static J *case_169(H *h) {
     return out;
 }
 
-static void prim_170(gx_Task *t, void *arg) {
+static void prim_175(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_crypto_public_pem(t, a[0]);
 }
 
-static J *case_170(H *h) {
+static J *case_175(H *h) {
     gx_V v_key = dec_nil(h_let(h, "key"));
     gx_V a[] = {v_key};
     gx_V rv[8];
-    gx_run_isolated(prim_170, a, rv);
+    gx_run_isolated(prim_175, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     J *out = j_new(J_ARR);
@@ -1962,109 +2007,14 @@ static J *case_170(H *h) {
     return out;
 }
 
-static void prim_171(gx_Task *t, void *arg) {
+static void prim_176(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_crypto_random(t, a[0]);
 }
 
-static J *case_171(H *h) {
+static J *case_176(H *h) {
     gx_V v_n = dec_int(h_let(h, "n"));
     gx_V a[] = {v_n};
-    gx_V rv[8];
-    gx_run_isolated(prim_171, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
-    J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
-    return out;
-}
-
-static void prim_172(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_rs256_sign(t, a[0], a[1]);
-}
-
-static J *case_172(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_key, v_data};
-    gx_V rv[8];
-    gx_run_isolated(prim_172, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
-    J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
-    return out;
-}
-
-static void prim_173(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_rs256_verify(t, a[0], a[1], a[2]);
-}
-
-static J *case_173(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V v_signature = codec_17(h_let(h, "signature"));
-    gx_V a[] = {v_key, v_data, v_signature};
-    gx_V rv[8];
-    gx_run_isolated(prim_173, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
-    J *out = j_new(J_ARR);
-    j_push(out, enc_bool(r0));
-    j_push(out, enc_error(r1));
-    return out;
-}
-
-static void prim_174(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_rsa_oaep_decrypt(t, a[0], a[1]);
-}
-
-static J *case_174(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_key, v_data};
-    gx_V rv[8];
-    gx_run_isolated(prim_174, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
-    J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
-    return out;
-}
-
-static void prim_175(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_rsa_oaep_encrypt(t, a[0], a[1]);
-}
-
-static J *case_175(H *h) {
-    gx_V v_key = dec_nil(h_let(h, "key"));
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_key, v_data};
-    gx_V rv[8];
-    gx_run_isolated(prim_175, a, rv);
-    gx_V r0 = rv[0];
-    gx_V r1 = rv[1];
-    J *out = j_new(J_ARR);
-    j_push(out, codec_18(r0));
-    j_push(out, enc_error(r1));
-    return out;
-}
-
-static void prim_176(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_crypto_sha256(t, a[0]);
-}
-
-static J *case_176(H *h) {
-    gx_V v_data = codec_17(h_let(h, "data"));
-    gx_V a[] = {v_data};
     gx_V rv[8];
     gx_run_isolated(prim_176, a, rv);
     gx_V r0 = rv[0];
@@ -2075,7 +2025,102 @@ static J *case_176(H *h) {
     return out;
 }
 
+static void prim_177(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_rs256_sign(t, a[0], a[1]);
+}
+
 static J *case_177(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_key, v_data};
+    gx_V rv[8];
+    gx_run_isolated(prim_177, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_178(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_rs256_verify(t, a[0], a[1], a[2]);
+}
+
+static J *case_178(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V v_signature = codec_17(h_let(h, "signature"));
+    gx_V a[] = {v_key, v_data, v_signature};
+    gx_V rv[8];
+    gx_run_isolated(prim_178, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_179(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_rsa_oaep_decrypt(t, a[0], a[1]);
+}
+
+static J *case_179(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_key, v_data};
+    gx_V rv[8];
+    gx_run_isolated(prim_179, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_180(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_rsa_oaep_encrypt(t, a[0], a[1]);
+}
+
+static J *case_180(H *h) {
+    gx_V v_key = dec_nil(h_let(h, "key"));
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_key, v_data};
+    gx_V rv[8];
+    gx_run_isolated(prim_180, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static void prim_181(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_crypto_sha256(t, a[0]);
+}
+
+static J *case_181(H *h) {
+    gx_V v_data = codec_17(h_let(h, "data"));
+    gx_V a[] = {v_data};
+    gx_V rv[8];
+    gx_run_isolated(prim_181, a, rv);
+    gx_V r0 = rv[0];
+    gx_V r1 = rv[1];
+    J *out = j_new(J_ARR);
+    j_push(out, codec_18(r0));
+    j_push(out, enc_error(r1));
+    return out;
+}
+
+static J *case_182(H *h) {
     gx_V v_data = dec_string(h_let(h, "data"));
     gx_V a[] = {v_data};
     gx_V rt = gx_lib_encoding_base64_decode(a[0]);
@@ -2087,7 +2132,7 @@ static J *case_177(H *h) {
     return out;
 }
 
-static J *case_178(H *h) {
+static J *case_183(H *h) {
     gx_V v_data = codec_17(h_let(h, "data"));
     gx_V a[] = {v_data};
     gx_V rt = gx_lib_encoding_base64_encode(a[0]);
@@ -2099,7 +2144,7 @@ static J *case_178(H *h) {
     return out;
 }
 
-static J *case_179(H *h) {
+static J *case_184(H *h) {
     gx_V v_data = dec_string(h_let(h, "data"));
     gx_V a[] = {v_data};
     gx_V rt = gx_lib_encoding_base64_url_decode(a[0]);
@@ -2111,7 +2156,7 @@ static J *case_179(H *h) {
     return out;
 }
 
-static J *case_180(H *h) {
+static J *case_185(H *h) {
     gx_V v_data = codec_17(h_let(h, "data"));
     gx_V a[] = {v_data};
     gx_V rt = gx_lib_encoding_base64_url_encode(a[0]);
@@ -2123,12 +2168,12 @@ static J *case_180(H *h) {
     return out;
 }
 
-static void prim_181(gx_Task *t, void *arg) {
+static void prim_186(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_http_do(t,a[0],a[1],a[2],a[3],a[4],a[5],a[6]);
 }
 
-static J *case_181(H *h) {
+static J *case_186(H *h) {
     gx_V v_ctx = codec_20(h_let(h, "ctx"));
     gx_V v_method = dec_string(h_let(h, "method"));
     gx_V v_url = dec_string(h_let(h, "url"));
@@ -2138,7 +2183,7 @@ static J *case_181(H *h) {
     gx_V v_timeout_millis = dec_int(h_let(h, "timeout_millis"));
     gx_V a[] = {v_ctx, v_method, v_url, v_headers, v_body, v_max_response_bytes, v_timeout_millis};
     gx_V rv[8];
-    gx_run_isolated(prim_181, a, rv);
+    gx_run_isolated(prim_186, a, rv);
     gx_V r0 = rv[0];
     gx_V r1 = rv[1];
     gx_V r2 = rv[2];
@@ -2151,21 +2196,21 @@ static J *case_181(H *h) {
     return out;
 }
 
-static void prim_182(gx_Task *t, void *arg) {
+static void prim_187(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_lib_task_all(t, a[0]);
 }
 
-static J *case_182(H *h) {
+static J *case_187(H *h) {
     gx_V v_fns = codec_21(h_let(h, "fns"));
     gx_V a[] = {v_fns};
     gx_V rv[8];
-    gx_run_isolated(prim_182, a, rv);
+    gx_run_isolated(prim_187, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
-static J *case_183(H *h) {
+static J *case_188(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_background();
     J *out = j_new(J_ARR);
@@ -2173,7 +2218,7 @@ static J *case_183(H *h) {
     return out;
 }
 
-static J *case_184(H *h) {
+static J *case_189(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_canceled();
     J *out = j_new(J_ARR);
@@ -2181,7 +2226,7 @@ static J *case_184(H *h) {
     return out;
 }
 
-static J *case_185(H *h) {
+static J *case_190(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_deadline_exceeded();
     J *out = j_new(J_ARR);
@@ -2189,7 +2234,7 @@ static J *case_185(H *h) {
     return out;
 }
 
-static J *case_186(H *h) {
+static J *case_191(H *h) {
     gx_V v_ctx = codec_20(h_let(h, "ctx"));
     gx_V a[] = {v_ctx};
     gx_V r0 = gx_std_context_context_done(a[0]);
@@ -2198,7 +2243,7 @@ static J *case_186(H *h) {
     return out;
 }
 
-static J *case_187(H *h) {
+static J *case_192(H *h) {
     gx_V v_ctx = codec_20(h_let(h, "ctx"));
     gx_V a[] = {v_ctx};
     gx_V r0 = gx_std_context_context_err(a[0]);
@@ -2207,7 +2252,7 @@ static J *case_187(H *h) {
     return out;
 }
 
-static J *case_188(H *h) {
+static J *case_193(H *h) {
     gx_V v_parent = codec_20(h_let(h, "parent"));
     gx_V a[] = {v_parent};
     gx_V rt = gx_std_context_with_cancel(a[0]);
@@ -2219,7 +2264,7 @@ static J *case_188(H *h) {
     return out;
 }
 
-static J *case_189(H *h) {
+static J *case_194(H *h) {
     gx_V v_parent = codec_20(h_let(h, "parent"));
     gx_V v_d = dec_int(h_let(h, "d"));
     gx_V a[] = {v_parent, v_d};
@@ -2232,7 +2277,7 @@ static J *case_189(H *h) {
     return out;
 }
 
-static J *case_190(H *h) {
+static J *case_195(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = dec_error(h_let(h, "target"));
     gx_V a[] = {v_err, v_target};
@@ -2242,7 +2287,7 @@ static J *case_190(H *h) {
     return out;
 }
 
-static J *case_191(H *h) {
+static J *case_196(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = dec_error(h_let(h, "target"));
     gx_V a[] = {v_err, v_target};
@@ -2252,7 +2297,7 @@ static J *case_191(H *h) {
     return out;
 }
 
-static J *case_192(H *h) {
+static J *case_197(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = v_err;
     gx_V a[] = {v_err, v_target};
@@ -2262,7 +2307,7 @@ static J *case_192(H *h) {
     return out;
 }
 
-static J *case_193(H *h) {
+static J *case_198(H *h) {
     gx_V v_text = dec_string(h_let(h, "text"));
     gx_V a[] = {v_text};
     gx_V r0 = gx_std_errors_new(a[0]);
@@ -2271,7 +2316,7 @@ static J *case_193(H *h) {
     return out;
 }
 
-static J *case_194(H *h) {
+static J *case_199(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V a[] = {v_err};
     gx_V r0 = gx_std_errors_unwrap(a[0]);
@@ -2280,81 +2325,27 @@ static J *case_194(H *h) {
     return out;
 }
 
-static void prim_195(gx_Task *t, void *arg) {
+static void prim_200(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_runtime_gosched(t);
 }
 
-static J *case_195(H *h) {
+static J *case_200(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V rv[8];
-    gx_run_isolated(prim_195, a, rv);
-    J *out = j_new(J_ARR);
-    return out;
-}
-
-static void prim_196(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_std_sync_mutex_lock(t, a[0]);
-}
-
-static J *case_196(H *h) {
-    gx_V v_m = codec_23(h_let(h, "m"));
-    gx_V a[] = {v_m};
-    gx_V rv[8];
-    gx_run_isolated(prim_196, a, rv);
-    J *out = j_new(J_ARR);
-    return out;
-}
-
-static void prim_197(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_std_sync_mutex_lock(t, a[0]); gx_std_sync_mutex_unlock(a[0]);
-}
-
-static J *case_197(H *h) {
-    gx_V v_m = codec_23(h_let(h, "m"));
-    gx_V a[] = {v_m};
-    gx_V rv[8];
-    gx_run_isolated(prim_197, a, rv);
-    J *out = j_new(J_ARR);
-    return out;
-}
-
-static J *case_198(H *h) {
-    gx_V v_wg = codec_24(h_let(h, "wg"));
-    gx_V v_delta = dec_int(h_let(h, "delta"));
-    gx_V a[] = {v_wg, v_delta};
-    gx_std_sync_waitgroup_add(a[0], a[1]);
-    J *out = j_new(J_ARR);
-    return out;
-}
-
-static J *case_199(H *h) {
-    gx_V v_wg = codec_24(h_let(h, "wg"));
-    gx_V v_delta = dec_int(h_let(h, "delta"));
-    gx_V a[] = {v_wg, v_delta};
-    gx_std_sync_waitgroup_add(a[0], a[1]);
-    J *out = j_new(J_ARR);
-    return out;
-}
-
-static J *case_200(H *h) {
-    gx_V v_wg = codec_24(h_let(h, "wg"));
-    gx_V a[] = {v_wg};
-    gx_std_sync_waitgroup_done(a[0]);
+    gx_run_isolated(prim_200, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
 static void prim_201(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_std_sync_waitgroup_wait(t, a[0]);
+    gx_std_sync_mutex_lock(t, a[0]);
 }
 
 static J *case_201(H *h) {
-    gx_V v_wg = codec_24(h_let(h, "wg"));
-    gx_V a[] = {v_wg};
+    gx_V v_m = codec_23(h_let(h, "m"));
+    gx_V a[] = {v_m};
     gx_V rv[8];
     gx_run_isolated(prim_201, a, rv);
     J *out = j_new(J_ARR);
@@ -2363,14 +2354,68 @@ static J *case_201(H *h) {
 
 static void prim_202(gx_Task *t, void *arg) {
     gx_V *a = arg;
-    gx_std_time_sleep(t, a[0]);
+    gx_std_sync_mutex_lock(t, a[0]); gx_std_sync_mutex_unlock(a[0]);
 }
 
 static J *case_202(H *h) {
+    gx_V v_m = codec_23(h_let(h, "m"));
+    gx_V a[] = {v_m};
+    gx_V rv[8];
+    gx_run_isolated(prim_202, a, rv);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static J *case_203(H *h) {
+    gx_V v_wg = codec_24(h_let(h, "wg"));
+    gx_V v_delta = dec_int(h_let(h, "delta"));
+    gx_V a[] = {v_wg, v_delta};
+    gx_std_sync_waitgroup_add(a[0], a[1]);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static J *case_204(H *h) {
+    gx_V v_wg = codec_24(h_let(h, "wg"));
+    gx_V v_delta = dec_int(h_let(h, "delta"));
+    gx_V a[] = {v_wg, v_delta};
+    gx_std_sync_waitgroup_add(a[0], a[1]);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static J *case_205(H *h) {
+    gx_V v_wg = codec_24(h_let(h, "wg"));
+    gx_V a[] = {v_wg};
+    gx_std_sync_waitgroup_done(a[0]);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static void prim_206(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_std_sync_waitgroup_wait(t, a[0]);
+}
+
+static J *case_206(H *h) {
+    gx_V v_wg = codec_24(h_let(h, "wg"));
+    gx_V a[] = {v_wg};
+    gx_V rv[8];
+    gx_run_isolated(prim_206, a, rv);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static void prim_207(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_std_time_sleep(t, a[0]);
+}
+
+static J *case_207(H *h) {
     gx_V v_d = dec_int(h_let(h, "d"));
     gx_V a[] = {v_d};
     gx_V rv[8];
-    gx_run_isolated(prim_202, a, rv);
+    gx_run_isolated(prim_207, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
@@ -2534,51 +2579,56 @@ const Case CASES[] = {
     {"core.string.to_bytes/empty", case_155},
     {"core.string.to_runes/mixed", case_156},
     {"core.task.spawn/parent_continues", case_157},
-    {"lib.crypto.aes256_gcm_decrypt/boundary_example", case_158},
-    {"lib.crypto.aes256_gcm_encrypt/boundary_example", case_159},
-    {"lib.crypto.close/boundary_example", case_160},
-    {"lib.crypto.ecdh/boundary_example", case_161},
-    {"lib.crypto.es256_sign/boundary_example", case_162},
-    {"lib.crypto.es256_verify/boundary_example", case_163},
-    {"lib.crypto.hkdf_sha256/boundary_example", case_164},
-    {"lib.crypto.hmac_sha256/boundary_example", case_165},
-    {"lib.crypto.hmac_sha256_verify/boundary_example", case_166},
-    {"lib.crypto.import_pem/boundary_example", case_167},
-    {"lib.crypto.private_pem/boundary_example", case_168},
-    {"lib.crypto.public_jwk/boundary_example", case_169},
-    {"lib.crypto.public_pem/boundary_example", case_170},
-    {"lib.crypto.random/boundary_example", case_171},
-    {"lib.crypto.rs256_sign/boundary_example", case_172},
-    {"lib.crypto.rs256_verify/boundary_example", case_173},
-    {"lib.crypto.rsa_oaep_decrypt/boundary_example", case_174},
-    {"lib.crypto.rsa_oaep_encrypt/boundary_example", case_175},
-    {"lib.crypto.sha256/boundary_example", case_176},
-    {"lib.encoding.base64_decode/boundary_example", case_177},
-    {"lib.encoding.base64_encode/boundary_example", case_178},
-    {"lib.encoding.base64_url_decode/boundary_example", case_179},
-    {"lib.encoding.base64_url_encode/boundary_example", case_180},
-    {"lib.http.do/boundary_example", case_181},
-    {"lib.task.all/empty", case_182},
-    {"std.context.background/root", case_183},
-    {"std.context.canceled/message", case_184},
-    {"std.context.deadline_exceeded/message", case_185},
-    {"std.context.done/background", case_186},
-    {"std.context.err/background", case_187},
-    {"std.context.with_cancel/child", case_188},
-    {"std.context.with_timeout/child", case_189},
-    {"std.errors.is/distinct", case_190},
-    {"std.errors.is/nils", case_191},
-    {"std.errors.is/same", case_192},
-    {"std.errors.new/message", case_193},
-    {"std.errors.unwrap/plain", case_194},
-    {"std.runtime.gosched/alone", case_195},
-    {"std.sync.mutex.lock/unlocked", case_196},
-    {"std.sync.mutex.unlock/lock_then_unlock", case_197},
-    {"std.sync.waitgroup.add/negative", case_198},
-    {"std.sync.waitgroup.add/positive", case_199},
-    {"std.sync.waitgroup.done/underflow", case_200},
-    {"std.sync.waitgroup.wait/zero_returns", case_201},
-    {"std.time.sleep/zero", case_202},
+    {"lib.checksum.crc32_ieee/all_bytes", case_158},
+    {"lib.checksum.crc32_ieee/binary", case_159},
+    {"lib.checksum.crc32_ieee/check", case_160},
+    {"lib.checksum.crc32_ieee/empty", case_161},
+    {"lib.checksum.crc32_ieee/nil", case_162},
+    {"lib.crypto.aes256_gcm_decrypt/boundary_example", case_163},
+    {"lib.crypto.aes256_gcm_encrypt/boundary_example", case_164},
+    {"lib.crypto.close/boundary_example", case_165},
+    {"lib.crypto.ecdh/boundary_example", case_166},
+    {"lib.crypto.es256_sign/boundary_example", case_167},
+    {"lib.crypto.es256_verify/boundary_example", case_168},
+    {"lib.crypto.hkdf_sha256/boundary_example", case_169},
+    {"lib.crypto.hmac_sha256/boundary_example", case_170},
+    {"lib.crypto.hmac_sha256_verify/boundary_example", case_171},
+    {"lib.crypto.import_pem/boundary_example", case_172},
+    {"lib.crypto.private_pem/boundary_example", case_173},
+    {"lib.crypto.public_jwk/boundary_example", case_174},
+    {"lib.crypto.public_pem/boundary_example", case_175},
+    {"lib.crypto.random/boundary_example", case_176},
+    {"lib.crypto.rs256_sign/boundary_example", case_177},
+    {"lib.crypto.rs256_verify/boundary_example", case_178},
+    {"lib.crypto.rsa_oaep_decrypt/boundary_example", case_179},
+    {"lib.crypto.rsa_oaep_encrypt/boundary_example", case_180},
+    {"lib.crypto.sha256/boundary_example", case_181},
+    {"lib.encoding.base64_decode/boundary_example", case_182},
+    {"lib.encoding.base64_encode/boundary_example", case_183},
+    {"lib.encoding.base64_url_decode/boundary_example", case_184},
+    {"lib.encoding.base64_url_encode/boundary_example", case_185},
+    {"lib.http.do/boundary_example", case_186},
+    {"lib.task.all/empty", case_187},
+    {"std.context.background/root", case_188},
+    {"std.context.canceled/message", case_189},
+    {"std.context.deadline_exceeded/message", case_190},
+    {"std.context.done/background", case_191},
+    {"std.context.err/background", case_192},
+    {"std.context.with_cancel/child", case_193},
+    {"std.context.with_timeout/child", case_194},
+    {"std.errors.is/distinct", case_195},
+    {"std.errors.is/nils", case_196},
+    {"std.errors.is/same", case_197},
+    {"std.errors.new/message", case_198},
+    {"std.errors.unwrap/plain", case_199},
+    {"std.runtime.gosched/alone", case_200},
+    {"std.sync.mutex.lock/unlocked", case_201},
+    {"std.sync.mutex.unlock/lock_then_unlock", case_202},
+    {"std.sync.waitgroup.add/negative", case_203},
+    {"std.sync.waitgroup.add/positive", case_204},
+    {"std.sync.waitgroup.done/underflow", case_205},
+    {"std.sync.waitgroup.wait/zero_returns", case_206},
+    {"std.time.sleep/zero", case_207},
 };
 
-const size_t NCASES = 203;
+const size_t NCASES = 208;

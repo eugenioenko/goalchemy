@@ -102,3 +102,4 @@ export * from "../../runtime/lib_encoding_base64_encode.ts";
 export * from "../../runtime/lib_encoding_base64_url_decode.ts";
 export * from "../../runtime/lib_encoding_base64_url_encode.ts";
 export * from "../../runtime/lib_http_do.ts";
+export * from "../../runtime/lib_checksum_crc32_ieee.ts";

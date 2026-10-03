@@ -33,6 +33,7 @@ Why two importable roots:
 | [unicode](#stdunicode) | `github.com/eugenioenko/goalchemy/std/unicode` | Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain. |
 | [unicode/utf8](#stdunicodeutf8) | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | Package utf8 encodes and decodes UTF-8 text. |
 | [lib/callback](#callback) | `github.com/eugenioenko/goalchemy/lib/callback` | Package callback declares a bounded asynchronous host callback capability. |
+| [lib/checksum](#checksum) | `github.com/eugenioenko/goalchemy/lib/checksum` | Package checksum provides native, non-cryptographic checksums. |
 | [lib/clock](#clock) | `github.com/eugenioenko/goalchemy/lib/clock` | Package clock provides wall time, independent of Goalchemy virtual time. |
 | [lib/context](#context) | `github.com/eugenioenko/goalchemy/lib/context` | Package context provides Goalchemy's cancellation contexts; deadlines use the virtual clock. |
 | [lib/crypto](#crypto) | `github.com/eugenioenko/goalchemy/lib/crypto` | Package crypto provides bounded native cryptographic capabilities. |
@@ -1679,6 +1680,32 @@ Send request bytes to the host callback registered under name and wait for its r
 - **Bounds**: Name length 1..128 bytes; requests and replies <=1MiB.
 - **Errors**: Provider rejection, canceled/deadline context and bounds return nil reply/error.
 - **Contract**: `lib.callback.request` 1.0.0
+
+## checksum
+
+```go
+import "github.com/eugenioenko/goalchemy/lib/checksum"
+```
+
+Package checksum provides native, non-cryptographic checksums.
+
+| Function | c | csharp | go | java | python | rust | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `CRC32IEEE` | yes | yes | yes | yes | yes | yes | yes |
+
+### CRC32IEEE
+
+```go
+func CRC32IEEE(data []byte) uint32
+```
+
+IEEE CRC-32 checksum over a byte slice, as used by ZIP.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: deterministic
+- **Bounds**: All bytes in the logical slice are consumed; bytes outside its length are ignored. No capability-specific size limit.
+- **Errors**: No error result.
+- **Contract**: `lib.checksum.crc32_ieee` 1.0.0
 
 ## clock
 

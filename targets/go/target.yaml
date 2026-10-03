@@ -123,3 +123,5 @@ functions:
   - {id: lib.crypto.hmac_sha256_verify, contract_version: 1.0.0, symbol: rt.LibCryptoHMACSHA256Verify, implementation: runtime/lib_crypto_hmac_sha256_verify.go, requires: [lib.crypto.close]}
 
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: "rt.LibCallbackRequest", implementation: runtime/lib_callback_request.go, requires: [std.context.err], harness: "unsupported"}
+
+  - {id: lib.checksum.crc32_ieee, contract_version: 1.0.0, symbol: rt.LibChecksumCRC32IEEE, implementation: runtime/lib_checksum_crc32_ieee.go, harness: "rt.LibChecksumCRC32IEEE({0})"}

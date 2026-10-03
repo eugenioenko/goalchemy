@@ -112,6 +112,9 @@ void gx_key_open(gx_Buf *out);
 void gx_key_close(gx_Buf *out);
 void gx_byte_array_key(gx_V a, size_t n, gx_Buf *out);
 
+/* Native non-cryptographic checksum capability. */
+gx_V gx_lib_checksum_crc32_ieee(gx_V data);
+
 /* Functions, dynamic types, and interfaces. */
 typedef gx_V (*gx_Code)(gx_V *env, gx_V *args, int n);
 typedef struct gx_Func {
