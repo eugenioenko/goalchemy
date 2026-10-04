@@ -413,8 +413,11 @@ def fault_text(value):
         return "unprintable native fault (" + type(value).__name__ + ")"
 
 
-def snapshot(value, seen=None):
+def snapshot(value, seen=None, library=False):
     kind = type(value)
+    if library and kind in (bytes, bytearray, memoryview):
+        from ..types.library import library_snapshot_bytes
+        return library_snapshot_bytes(value)
     if kind in (type(None), bool, int, float, str, bytes):
         return value
     if kind is bytearray:
@@ -429,8 +432,8 @@ def snapshot(value, seen=None):
         if kind is dict:
             if any(type(k) is not str for k in value):
                 raise HostFault("wire dictionary keys must be exact strings")
-            return {k: snapshot(v, seen) for k, v in value.items()}
-        values = [snapshot(v, seen) for v in value]
+            return {k: snapshot(v, seen, library) for k, v in value.items()}
+        values = [snapshot(v, seen, library) for v in value]
         return tuple(values) if kind is tuple else values
     finally:
         seen.remove(id(value))

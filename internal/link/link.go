@@ -18,7 +18,7 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/frontend"
 )
 
-const CompilerVersion = "0.2.0"
+const CompilerVersion = "0.2.1"
 
 type Manifest struct {
 	Compiler       string            `json:"compiler"`

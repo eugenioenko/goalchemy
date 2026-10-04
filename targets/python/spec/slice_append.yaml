@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
 symbol: "rt.append_slice"
 implementation: runtime/slice_append.py
-implementation_hash: a458914192140b8ed3a760202db9101a9220d06e35ac1672e41cbc2d06967e94
+implementation_hash: bab4b59aadca1077090c472928a7c7c2625f3e503dd7557a9f3cc2926853c67a
 summary: "append(s, vs...)."
 suspension: never
 determinism: deterministic

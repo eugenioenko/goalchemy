@@ -43,7 +43,10 @@ def append_slice(s, t, clone=None):
     if t.l == 0:
         return s
     if s.b:
-        return _append_bytes(s, t.a[t.o:t.o + t.l])
+        # A same-backing source may overlap the append destination. Preserve
+        # its pre-write snapshot; distinct backing can be read through a view.
+        source = t.a[t.o:t.o + t.l] if s.a is t.a else memoryview(t.a)[t.o:t.o + t.l]
+        return _append_bytes(s, source)
     vs = [(clone(v) if clone else v) for v in t.a[t.o:t.o + t.l]]
     return _append_values(s, vs, clone)
 

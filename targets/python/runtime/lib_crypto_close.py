@@ -40,7 +40,7 @@ def key(v):
 
 def byte_input(v,limit=MAX):
     if type(v) is not Slice or v.l>limit: raise Reject('crypto: invalid input or key')
-    return b'' if v.a is None else bytes(v.a[v.o:v.o+v.l])
+    return b'' if v.a is None else bytes(memoryview(v.a)[v.o:v.o+v.l])
 
 def slice_bytes(v):
     a=bytearray(v);return Slice(a,0,len(a),len(a),True)

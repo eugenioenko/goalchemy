@@ -23,6 +23,10 @@ def invalid(op,*args):
 b=native.slice_bytes
 
 def vectors():
+ backing=b(b'XabcY');view=rt.reslice(backing,1,4)
+ saved=native.byte_input(view);rt.sset(backing,1,ord('z'))
+ check(saved==b'abc' and native.byte_input(view)==b'zbc','native bytes snapshot respects offset and owns input')
+ check(native.byte_input(rt.BYTE_NIL)==b'','native nil byte input')
  check(data(ok('sha256',b(b'abc'))).hex()=='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad','SHA256')
  mac=ok('hmac_sha256',b(b'\x0b'*20),b(b'Hi There'));check(data(mac).hex()=='b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7','RFC4231')
  check(ok('hmac_sha256_verify',b(b'\x0b'*20),b(b'Hi There'),mac),'HMAC verify');check(not ok('hmac_sha256_verify',b(b'\x0b'*20),b(b'bad'),mac),'HMAC mismatch');invalid('hmac_sha256_verify',b(b''),b(b''),b(b''))
