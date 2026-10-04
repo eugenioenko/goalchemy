@@ -4,4 +4,3 @@ def float_neg_f32(a):
 
 def float_neg_f64(a):
     return round_float(-a, 64)
-

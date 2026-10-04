@@ -121,7 +121,10 @@ integer-valued float constant verifier regression. The emitted `floats` and
 including aliases, default constants, closures, deferred captures, variadic
 results, direct integer rounding, explicit conversion barriers, overflow and
 underflow, NaN map keys, aggregate/interface equality, append-growth zeros,
-source channels and width-aware printing. These fixtures have passed locally.
+source channels and width-aware printing. Separate single-panic fixtures check
+builtin and named float values at both widths; recovered values retain their
+dynamic float types. Native Go library consumers also check typed errors with
+float fields and independent slice ownership.
 
 An independent native-Go conversion probe confirmed that
 `int64(4611686293305294849)` rounds directly to binary32 bits `5e800001`,

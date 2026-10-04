@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: ae01335f28955b1428874661f6de296980d2f19bcd18715c896fd5646dc8a906
 symbol: "rt.float_sub_<k>"
 implementation: runtime/float_sub.py
-implementation_hash: a7264b55703ed7c35975a2ee91ec97378a67ff5dab7b51d90cb497cf87e85665
+implementation_hash: e9ee41855139a06ea0d41ec5fce6a4d678b4d6e0b85e881471b02f487e64febc
 summary: "IEEE floating-point sub, rounded to the operand width."
 suspension: never
 determinism: deterministic

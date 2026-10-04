@@ -28,6 +28,11 @@ func floatCaptures() {
 	println(closure())
 }
 
+func recoveredFloat(value any) (result any) {
+	defer func() { result = recover() }()
+	panic(value)
+}
+
 func main() {
 	var z float64
 	var small float32
@@ -196,4 +201,11 @@ func main() {
 	spread32, spread64 := sumFloats([]float32{0.5, 1.5}...)
 	println(sum32, sum64, spread32, spread64)
 	floatCaptures()
+
+	recovered32 := recoveredFloat(F32(1.25))
+	recovered64 := recoveredFloat(float64(1.25))
+	println(recovered32.(F32), recovered64.(float64), recovered32 != recovered64)
+	recoveredNaN := recoveredFloat(n32).(float32)
+	recoveredZero := recoveredFloat(nz).(float64)
+	println(recoveredNaN != n32, 1/recoveredZero == -inf)
 }

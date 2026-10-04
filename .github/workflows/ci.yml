@@ -62,8 +62,9 @@ jobs:
         env:
           FIXTURE: floats
         run: |
-          test -f tests/language/testdata/floats/main.go
-          test -f tests/language/testdata/co_floats/main.go
+          for fixture in floats co_floats floats_panic32 floats_panic64 floats_panic_named32 floats_panic_named64; do
+            test -f "tests/language/testdata/$fixture/main.go"
+          done
           go test -v -timeout 15m ./tests/language -run '^TestFixtures$' -count=1
       # No -short here: every canonical case must run through all seven host harnesses.
       - name: All-seven runtime contract conformance

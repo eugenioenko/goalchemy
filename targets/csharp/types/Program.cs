@@ -178,6 +178,11 @@ public static class Program
         if (v.t.Methods.TryGetValue("String", out var str)) return indented((string)str.Call(v.v));
         bool builtin = !v.t.Name.Contains('.');
         if (v.t.Basic == "string") return builtin ? indented((string)v.v) : v.t.Name + "(\"" + indented((string)v.v) + "\")";
+        if (v.t.Basic == "float32" || v.t.Basic == "float64")
+        {
+            string s = Floats.print(v.v is float f ? (double)f : (double)v.v, v.t.Basic == "float32" ? 32 : 64);
+            return builtin ? s : v.t.Name + "(" + s + ")";
+        }
         if (v.t.Basic == "bool" || v.t.Basic == "int" || v.t.Basic == "uint")
         {
             string s = v.v is bool b ? (b ? "true" : "false") : v.t.Basic == "uint" ? ((ulong)(long)v.v).ToString() : v.v.ToString();

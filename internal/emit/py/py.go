@@ -426,6 +426,8 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			basic = `"bool"`
 		case ir.KString:
 			basic = `"string"`
+		case ir.KFloat:
+			basic = strconv.Quote(u.Basic)
 		}
 		eq := "lambda a, b: " + e.eqExpr(t, "a", "b")
 		key := "lambda a: " + e.keyExpr(t, "a")

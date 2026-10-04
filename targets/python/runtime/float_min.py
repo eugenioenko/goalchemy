@@ -4,4 +4,3 @@ def float_min_f32(a, b):
 
 def float_min_f64(a, b):
     return round_float(float_min(a,b), 64)
-

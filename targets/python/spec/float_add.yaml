@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 2a61aa904d22aefd5aaa1b385a66424d4e736f8eef1aa46afacad34516b0a104
 symbol: "rt.float_add_<k>"
 implementation: runtime/float_add.py
-implementation_hash: 0626b2613fa59ae0f139cd13f11fc01e8e2b2b773315cb53dc27bd914bafea0b
+implementation_hash: 8932cc7e068e26e59d229ef66cbe7c2bbc11f4dbbc01b0dd1ad69df075d52a03
 summary: "IEEE floating-point add, rounded to the operand width."
 suspension: never
 determinism: deterministic

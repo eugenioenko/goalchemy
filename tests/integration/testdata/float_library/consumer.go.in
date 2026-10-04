@@ -56,4 +56,15 @@ func TestFloatLibrary(t *testing.T) {
 	if err != nil || empty.Values == nil || empty.Nested == nil {
 		t.Fatal("empty float slices", err)
 	}
+	_, err = g.Fail(ctx)
+	failure, ok := err.(*g.FloatError)
+	if !ok || failure.Small != 1.25 || failure.Wide != -2.5 || failure.Values[0] != 3.75 || failure.Error() != "float error" {
+		t.Fatal("typed error containing floats", err)
+	}
+	failure.Values[0] = 99
+	_, err = g.Fail(ctx)
+	againFailure, ok := err.(*g.FloatError)
+	if !ok || againFailure.Values[0] != 3.75 || failure.Values[0] != 99 {
+		t.Fatal("float error result ownership", err)
+	}
 }

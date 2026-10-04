@@ -665,7 +665,11 @@ elif pkg-config --exists bdw-gc 2>/dev/null; then
 else
   gc=-lgc
 fi
-${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main main.c rt/types/*.c rt/runtime/*.c $gc ${LDLIBS:-} -lpthread >&2
+set -- main.c rt/types/*.c
+for source in rt/runtime/*.c; do
+  if [ -f "$source" ]; then set -- "$@" "$source"; fi
+done
+${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main "$@" $gc ${LDLIBS:-} -lpthread >&2
 exec ./main
 `
 
@@ -695,7 +699,11 @@ if [ -n "$GOALCHEMY_BDWGC" ]; then inc="-I$GOALCHEMY_BDWGC/include"
 elif pkg-config --exists bdw-gc 2>/dev/null; then inc=$(pkg-config --cflags bdw-gc); fi
 mkdir -p obj
 objects=""
-for f in main.c rt/types/*.c rt/runtime/*.c; do
+set -- main.c rt/types/*.c
+for source in rt/runtime/*.c; do
+  if [ -f "$source" ]; then set -- "$@" "$source"; fi
+done
+for f do
   object="obj/$(echo "$f" | tr / _).o"
   ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -Irt/types $inc -c "$f" -o "$object"
   objects="$objects $object"

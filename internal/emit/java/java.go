@@ -576,6 +576,8 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			basic = `"bool"`
 		case ir.KString:
 			basic = `"string"`
+		case ir.KFloat:
+			basic = strconv.Quote(u.Basic)
 		}
 		eq := "(a, b) -> " + e.eqExpr(t, e.cast(t, "a"), e.cast(t, "b"))
 		key := "a -> " + e.keyExpr(t, e.cast(t, "a"))

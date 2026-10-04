@@ -86,6 +86,8 @@ pub fn format_panic_value(v: &V) -> Vec<u8> {
         "bool" => wrap(if x.b() { b"true".to_vec() } else { b"false".to_vec() }, false),
         "int" => wrap(x.i().to_string().into_bytes(), false),
         "uint" => wrap((x.i() as u64).to_string().into_bytes(), false),
+        "float32" => wrap(float_print(x.f(), 32).into_bytes(), false),
+        "float64" => wrap(float_print(x.f(), 64).into_bytes(), false),
         _ => format!("({}) 0xc000000000", t.name).into_bytes(),
     }
 }

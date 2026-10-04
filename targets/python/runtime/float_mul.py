@@ -4,4 +4,3 @@ def float_mul_f32(a, b):
 
 def float_mul_f64(a, b):
     return round_float(a * b, 64)
-

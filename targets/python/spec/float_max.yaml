@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: c9135cfbcc196809592f2a3886297462e642206ea3997154c56df3c15433a79d
 symbol: "rt.float_max_<k>"
 implementation: runtime/float_max.py
-implementation_hash: 9844ef099fc980c67869d1586d1b01fde242a14a220f1bdf410a3afa8c8999d1
+implementation_hash: a4c880dc8fd0f750f01cc91b90e1fe64097a335d25391baeda5f9b2224237710
 summary: "IEEE floating-point max, rounded to the operand width."
 suspension: never
 determinism: deterministic

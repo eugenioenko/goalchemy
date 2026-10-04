@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 735b7b93c450036b4dfa7c95dabaafb807c70d0b948ab76bc24853bd4020a460
 symbol: "rt.float_neg_<k>"
 implementation: runtime/float_neg.py
-implementation_hash: bed2ee22acc16c4ece56fba75552ef22190d1188c4025d50d0028532b7dba552
+implementation_hash: 71c8ed15694d722aa454eeddc9bc835438f4947d848376d0f314ec4110d2cb97
 summary: "IEEE floating-point neg, rounded to the operand width."
 suspension: never
 determinism: deterministic

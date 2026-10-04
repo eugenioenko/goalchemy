@@ -440,6 +440,8 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			basic = "bool"
 		case ir.KString:
 			basic = "string"
+		case ir.KFloat:
+			basic = u.Basic
 		}
 		eq := e.eqExpr(t, "(*a)", "(*b)")
 		key := e.keyExpr(t, "(*a)")

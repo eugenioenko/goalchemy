@@ -4,4 +4,3 @@ def float_max_f32(a, b):
 
 def float_max_f64(a, b):
     return round_float(float_max(a,b), 64)
-

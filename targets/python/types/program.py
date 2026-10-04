@@ -8,6 +8,7 @@ import threading
 from .iface import Box, box, type_desc
 from .panic import GoPanic, TYPE_ASSERTION_ERROR, nil_deref
 from .print import write_stderr
+from .float import float_print
 
 
 class HostFault(Exception):
@@ -169,6 +170,9 @@ def format_panic_value(v):
         return _indented(v.v) if builtin else name + b'("' + _indented(v.v) + b'")'
     if v.t.basic == "bool":
         s = b"true" if v.v else b"false"
+        return s if builtin else name + b"(" + s + b")"
+    if v.t.basic in ("float32", "float64"):
+        s = float_print(v.v, 32 if v.t.basic == "float32" else 64)
         return s if builtin else name + b"(" + s + b")"
     if v.t.basic == "int":
         s = str(v.v).encode()
