@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/naming"
 )
 
 type Output struct {
@@ -28,6 +29,7 @@ type Output struct {
 
 type emitter struct {
 	p         *ir.Program
+	names     *naming.Names
 	symbols   map[string]string
 	contracts map[string]bool
 	tds       map[*ir.Type]bool
@@ -36,16 +38,12 @@ type emitter struct {
 	protos    bytes.Buffer
 	seenHelp  map[*ir.Type]bool
 	externs   map[string]*ir.Extern
-	globals   map[*ir.Global]int
 	strs      int
 }
 
 func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
-	e := &emitter{p: p, symbols: symbols, contracts: map[string]bool{}, tds: map[*ir.Type]bool{},
-		seenHelp: map[*ir.Type]bool{}, externs: map[string]*ir.Extern{}, globals: map[*ir.Global]int{}}
-	for i, g := range p.Globals {
-		e.globals[g] = i
-	}
+	e := &emitter{p: p, names: naming.New(p), symbols: symbols, contracts: map[string]bool{}, tds: map[*ir.Type]bool{},
+		seenHelp: map[*ir.Type]bool{}, externs: map[string]*ir.Extern{}}
 	for _, t := range p.Types.All {
 		if t.Boxed {
 			e.tds[t] = true
@@ -60,12 +58,12 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 	e.typeDescs(&tds)
 	var gi bytes.Buffer
 	gi.WriteString("static void init_zero_globals(void) {\n")
-	for i, g := range p.Globals {
+	for _, g := range p.Globals {
 		z := e.zero(g.Type)
 		if g.AddrTaken && !g.Type.IsAggregate() {
 			z = "gx_cellv(" + z + ")"
 		}
-		fmt.Fprintf(&gi, "    g%d = %s;\n", i, z)
+		fmt.Fprintf(&gi, "    %s = %s;\n", e.names.Symbol(g.Sym), z)
 	}
 	gi.WriteString("}\n\n")
 	var ext bytes.Buffer
@@ -85,8 +83,8 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 	if p.Library {
 		out.WriteString("#include \"library.h\"\n")
 	}
-	for i := range p.Globals {
-		fmt.Fprintf(&out, "static gx_V g%d;\n", i)
+	for _, g := range p.Globals {
+		fmt.Fprintf(&out, "static gx_V %s;\n", e.names.Symbol(g.Sym))
 	}
 	out.WriteString("\n")
 	out.Write(e.protos.Bytes())
@@ -102,9 +100,9 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		e.use("core.task.spawn")
 		out.WriteString("static gx_V entry_frame(void) {\n")
 		if p.Entry.MaySuspend {
-			fmt.Fprintf(&out, "    return f_%s();\n", p.Entry.Sym)
+			fmt.Fprintf(&out, "    return f_%s();\n", e.names.Symbol(p.Entry.Sym))
 		} else {
-			fmt.Fprintf(&out, "    return gx_sync_frame(gx_func(-1, w_%s, 0, NULL), 0, NULL, 0);\n", p.Entry.Sym)
+			fmt.Fprintf(&out, "    return gx_sync_frame(gx_func(-1, w_%s, 0, NULL), 0, NULL, 0);\n", e.names.Symbol(p.Entry.Sym))
 		}
 		run := "gx_run_main"
 		if ir.HostEntry(e.contracts) {
@@ -112,9 +110,9 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		}
 		out.WriteString("}\n\nint goalchemy_run_host(void) {\n    return gx_run_main_host(init_zero_globals, entry_frame);\n}\n\nint main(void) {\n    " + run + "(init_zero_globals, entry_frame);\n}\n")
 	} else {
-		fmt.Fprintf(&out, "static void entry(void) {\n    f_%s();\n", p.Init.Sym)
+		fmt.Fprintf(&out, "static void entry(void) {\n    f_%s();\n", e.names.Symbol(p.Init.Sym))
 		if p.Main != nil {
-			fmt.Fprintf(&out, "    f_%s();\n", p.Main.Sym)
+			fmt.Fprintf(&out, "    f_%s();\n", e.names.Symbol(p.Main.Sym))
 		}
 		out.WriteString("}\n\nint main(void) {\n    gx_program_main(init_zero_globals, entry);\n}\n")
 	}
@@ -177,7 +175,7 @@ func (e *emitter) library(out *bytes.Buffer) ([]byte, error) {
 	h.WriteString("/* The report of the last panic; copy it before calling the library again. */\nconst char *goalchemy_panic_message(void);\n\n")
 	h.WriteString("/* Strings are byte arrays with explicit lengths; returned strings point\n * into collected memory and stay valid while referenced from the stack. */\n")
 	out.WriteString("static const char *gx_last_panic = \"\";\n\nconst char *goalchemy_panic_message(void) { return gx_last_panic; }\n\n")
-	fmt.Fprintf(out, "int goalchemy_init(void) {\n    GC_INIT();\n    init_zero_globals();\n    gx_Handler h;\n    if (GX_TRY(h)) {\n        gx_last_panic = gx_panic_text(gx_thrown);\n        return 1;\n    }\n    f_%s();\n    GX_END(h);\n    return 0;\n}\n\n", e.p.Init.Sym)
+	fmt.Fprintf(out, "int goalchemy_init(void) {\n    GC_INIT();\n    init_zero_globals();\n    gx_Handler h;\n    if (GX_TRY(h)) {\n        gx_last_panic = gx_panic_text(gx_thrown);\n        return 1;\n    }\n    f_%s();\n    GX_END(h);\n    return 0;\n}\n\n", e.names.Symbol(e.p.Init.Sym))
 	for _, f := range e.p.Exports {
 		if f.MaySuspend {
 			return nil, fmt.Errorf("exported function %s may suspend; library exports must be sequential", f.Name)
@@ -219,7 +217,7 @@ func (e *emitter) library(out *bytes.Buffer) ([]byte, error) {
 			proto = fmt.Sprintf("int %s(void)", name)
 		}
 		fmt.Fprintf(&h, "%s;\n", proto)
-		fmt.Fprintf(out, "%s {\n    gx_Handler h;\n    if (GX_TRY(h)) {\n        gx_last_panic = gx_panic_text(gx_thrown);\n        return 1;\n    }\n    gx_V r = f_%s(%s);\n    GX_END(h);\n", proto, f.Sym, strings.Join(args, ", "))
+		fmt.Fprintf(out, "%s {\n    gx_Handler h;\n    if (GX_TRY(h)) {\n        gx_last_panic = gx_panic_text(gx_thrown);\n        return 1;\n    }\n    gx_V r = f_%s(%s);\n    GX_END(h);\n", proto, e.names.Symbol(f.Sym), strings.Join(args, ", "))
 		for _, st := range stores {
 			fmt.Fprintf(out, "    %s\n", st)
 		}
@@ -300,12 +298,12 @@ func (e *emitter) needHelpers(t *ir.Type) {
 		return
 	}
 	e.seenHelp[u] = true
-	id := u.ID
-	e.proto("static gx_V z_%d(void)", id)
-	e.proto("static gx_V c_%d(gx_V x)", id)
-	e.proto("static void set_%d(gx_V d, gx_V s)", id)
-	e.proto("static bool eq_%d(gx_V a, gx_V b)", id)
-	e.proto("static void k_%d(gx_V a, gx_Buf *out)", id)
+	id := e.names.Type(u, "")
+	e.proto("static gx_V z_%s(void)", id)
+	e.proto("static gx_V c_%s(gx_V x)", id)
+	e.proto("static void set_%s(gx_V d, gx_V s)", id)
+	e.proto("static bool eq_%s(gx_V a, gx_V b)", id)
+	e.proto("static void k_%s(gx_V a, gx_Buf *out)", id)
 	e.helperQ = append(e.helperQ, u)
 }
 
@@ -323,19 +321,19 @@ func (e *emitter) flushHelpers() {
 }
 
 func (e *emitter) structHelpers(t *ir.Type) {
-	id, n := t.ID, len(t.Fields)
+	id, n := e.names.Type(t, ""), len(t.Fields)
 	var b strings.Builder
-	fmt.Fprintf(&b, "static gx_V z_%d(void) {\n    gx_V *v = gx_alloc_vals(%d);\n", id, n)
+	fmt.Fprintf(&b, "static gx_V z_%s(void) {\n    gx_V *v = gx_alloc_vals(%d);\n", id, n)
 	for k, f := range t.Fields {
 		fmt.Fprintf(&b, "    v[%d] = %s;\n", k, e.zero(f.Type))
 	}
 	b.WriteString("    return gx_obj(v);\n}\n\n")
-	fmt.Fprintf(&b, "static gx_V c_%d(gx_V x) {\n    gx_V *s = gx_vals(x), *v = gx_alloc_vals(%d);\n", id, n)
+	fmt.Fprintf(&b, "static gx_V c_%s(gx_V x) {\n    gx_V *s = gx_vals(x), *v = gx_alloc_vals(%d);\n", id, n)
 	for k, f := range t.Fields {
 		fmt.Fprintf(&b, "    v[%d] = %s;\n", k, e.cloneExpr(f.Type, fmt.Sprintf("s[%d]", k)))
 	}
 	b.WriteString("    return gx_obj(v);\n}\n\n")
-	fmt.Fprintf(&b, "static void set_%d(gx_V d, gx_V s) {\n", id)
+	fmt.Fprintf(&b, "static void set_%s(gx_V d, gx_V s) {\n", id)
 	for k, f := range t.Fields {
 		if f.Type.IsAggregate() {
 			fmt.Fprintf(&b, "    %s;\n", e.setStmt(f.Type, fmt.Sprintf("gx_vals(d)[%d]", k), fmt.Sprintf("gx_vals(s)[%d]", k)))
@@ -344,7 +342,7 @@ func (e *emitter) structHelpers(t *ir.Type) {
 		}
 	}
 	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "static bool eq_%d(gx_V a, gx_V b) {\n    return true", id)
+	fmt.Fprintf(&b, "static bool eq_%s(gx_V a, gx_V b) {\n    return true", id)
 	for k, f := range t.Fields {
 		if f.Name == "_" {
 			continue
@@ -352,7 +350,7 @@ func (e *emitter) structHelpers(t *ir.Type) {
 		fmt.Fprintf(&b, " && %s", e.eqExpr(f.Type, fmt.Sprintf("gx_vals(a)[%d]", k), fmt.Sprintf("gx_vals(b)[%d]", k)))
 	}
 	b.WriteString(";\n}\n\n")
-	fmt.Fprintf(&b, "static void k_%d(gx_V a, gx_Buf *out) {\n    gx_key_open(out);\n", id)
+	fmt.Fprintf(&b, "static void k_%s(gx_V a, gx_Buf *out) {\n    gx_key_open(out);\n", id)
 	for k, f := range t.Fields {
 		if f.Name == "_" {
 			continue
@@ -364,26 +362,26 @@ func (e *emitter) structHelpers(t *ir.Type) {
 }
 
 func (e *emitter) arrayHelpers(t *ir.Type) {
-	id, el, n := t.ID, t.Elem, t.Len
+	id, el, n := e.names.Type(t, ""), t.Elem, t.Len
 	var b strings.Builder
 	if el.U().Kind == ir.KInt && el.U().Int == ir.U8 {
-		fmt.Fprintf(&b, "static gx_V z_%d(void) { return gx_byte_array(%d); }\n", id, n)
-		fmt.Fprintf(&b, "static gx_V c_%d(gx_V x) { return gx_byte_array_clone(x, %d); }\n", id, n)
-		fmt.Fprintf(&b, "static void set_%d(gx_V d, gx_V s) { gx_byte_array_set(d, s, %d); }\n", id, n)
-		fmt.Fprintf(&b, "static bool eq_%d(gx_V a, gx_V b) { return gx_byte_array_eq(a, b, %d); }\n", id, n)
-		fmt.Fprintf(&b, "static void k_%d(gx_V a, gx_Buf *out) { gx_byte_array_key(a, %d, out); }\n\n", id, n)
+		fmt.Fprintf(&b, "static gx_V z_%s(void) { return gx_byte_array(%d); }\n", id, n)
+		fmt.Fprintf(&b, "static gx_V c_%s(gx_V x) { return gx_byte_array_clone(x, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static void set_%s(gx_V d, gx_V s) { gx_byte_array_set(d, s, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static bool eq_%s(gx_V a, gx_V b) { return gx_byte_array_eq(a, b, %d); }\n", id, n)
+		fmt.Fprintf(&b, "static void k_%s(gx_V a, gx_Buf *out) { gx_byte_array_key(a, %d, out); }\n\n", id, n)
 		e.helperOut.WriteString(b.String())
 		return
 	}
-	fmt.Fprintf(&b, "static gx_V z_%d(void) {\n    gx_V *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.zero(el))
-	fmt.Fprintf(&b, "static gx_V c_%d(gx_V x) {\n    gx_V *s = gx_vals(x), *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.cloneExpr(el, "s[i]"))
+	fmt.Fprintf(&b, "static gx_V z_%s(void) {\n    gx_V *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.zero(el))
+	fmt.Fprintf(&b, "static gx_V c_%s(gx_V x) {\n    gx_V *s = gx_vals(x), *v = gx_alloc_vals(%d);\n    for (int i = 0; i < %d; i++) v[i] = %s;\n    return gx_obj(v);\n}\n\n", id, n, n, e.cloneExpr(el, "s[i]"))
 	if el.IsAggregate() {
-		fmt.Fprintf(&b, "static void set_%d(gx_V d, gx_V s) {\n    for (int i = 0; i < %d; i++) %s;\n}\n\n", id, n, e.setStmt(el, "gx_vals(d)[i]", "gx_vals(s)[i]"))
+		fmt.Fprintf(&b, "static void set_%s(gx_V d, gx_V s) {\n    for (int i = 0; i < %d; i++) %s;\n}\n\n", id, n, e.setStmt(el, "gx_vals(d)[i]", "gx_vals(s)[i]"))
 	} else {
-		fmt.Fprintf(&b, "static void set_%d(gx_V d, gx_V s) {\n    memcpy(gx_vals(d), gx_vals(s), %d * sizeof(gx_V));\n}\n\n", id, n)
+		fmt.Fprintf(&b, "static void set_%s(gx_V d, gx_V s) {\n    memcpy(gx_vals(d), gx_vals(s), %d * sizeof(gx_V));\n}\n\n", id, n)
 	}
-	fmt.Fprintf(&b, "static bool eq_%d(gx_V a, gx_V b) {\n    for (int i = 0; i < %d; i++)\n        if (!(%s)) return false;\n    return true;\n}\n\n", id, n, e.eqExpr(el, "gx_vals(a)[i]", "gx_vals(b)[i]"))
-	fmt.Fprintf(&b, "static void k_%d(gx_V a, gx_Buf *out) {\n    gx_key_open(out);\n    for (int i = 0; i < %d; i++) %s;\n    gx_key_close(out);\n}\n\n", id, n, e.keyStmt(el, "gx_vals(a)[i]", "out"))
+	fmt.Fprintf(&b, "static bool eq_%s(gx_V a, gx_V b) {\n    for (int i = 0; i < %d; i++)\n        if (!(%s)) return false;\n    return true;\n}\n\n", id, n, e.eqExpr(el, "gx_vals(a)[i]", "gx_vals(b)[i]"))
+	fmt.Fprintf(&b, "static void k_%s(gx_V a, gx_Buf *out) {\n    gx_key_open(out);\n    for (int i = 0; i < %d; i++) %s;\n    gx_key_close(out);\n}\n\n", id, n, e.keyStmt(el, "gx_vals(a)[i]", "out"))
 	e.helperOut.WriteString(b.String())
 }
 
@@ -406,7 +404,7 @@ func (e *emitter) zero(t *ir.Type) string {
 		return "gx_nil_slice()"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("z_%d()", u.ID)
+		return fmt.Sprintf("z_%s()", e.names.Type(u, ""))
 	case ir.KOpaque:
 		e.use(opaqueContracts[u.Name])
 		if !u.OpaqueRef {
@@ -440,7 +438,7 @@ func (e *emitter) zeroFn(t *ir.Type) string {
 		return "gx_zero_slice"
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("z_%d", u.ID)
+		return fmt.Sprintf("z_%s", e.names.Type(u, ""))
 	case ir.KOpaque:
 		if !u.OpaqueRef {
 			e.use(opaqueContracts[u.Name])
@@ -458,7 +456,7 @@ func (e *emitter) cloneExpr(t *ir.Type, x string) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("c_%d(%s)", u.ID, x)
+		return fmt.Sprintf("c_%s(%s)", e.names.Type(u, ""), x)
 	case ir.KOpaque:
 		if !u.OpaqueRef {
 			return "gx_opaque_clone(" + x + ")"
@@ -472,7 +470,7 @@ func (e *emitter) cloneFn(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("c_%d", u.ID)
+		return fmt.Sprintf("c_%s", e.names.Type(u, ""))
 	case ir.KOpaque:
 		if !u.OpaqueRef {
 			return "gx_opaque_clone"
@@ -486,7 +484,7 @@ func (e *emitter) setStmt(t *ir.Type, dst, src string) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("set_%d(%s, %s)", u.ID, dst, src)
+		return fmt.Sprintf("set_%s(%s, %s)", e.names.Type(u, ""), dst, src)
 	case ir.KOpaque:
 		return fmt.Sprintf("gx_opaque_set(%s, %s)", dst, src)
 	}
@@ -499,7 +497,7 @@ func (e *emitter) eqExpr(t *ir.Type, a, b string) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("eq_%d(%s, %s)", u.ID, a, b)
+		return fmt.Sprintf("eq_%s(%s, %s)", e.names.Type(u, ""), a, b)
 	case ir.KInterface:
 		return fmt.Sprintf("gx_ifeq(%s, %s)", a, b)
 	case ir.KSlice, ir.KMap, ir.KFunc:
@@ -514,7 +512,7 @@ func (e *emitter) keyStmt(t *ir.Type, x, out string) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("k_%d(%s, %s)", u.ID, x, out)
+		return fmt.Sprintf("k_%s(%s, %s)", e.names.Type(u, ""), x, out)
 	case ir.KInterface:
 		return fmt.Sprintf("gx_ikey(%s, %s)", x, out)
 	case ir.KSlice, ir.KMap, ir.KFunc:
@@ -528,7 +526,7 @@ func (e *emitter) keyFn(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KStruct, ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("k_%d", u.ID)
+		return fmt.Sprintf("k_%s", e.names.Type(u, ""))
 	case ir.KInterface:
 		return "gx_ikey"
 	}
@@ -541,10 +539,9 @@ func (e *emitter) td(t *ir.Type) string {
 		return "&GX_STRING_TYPE"
 	}
 	if !e.tds[t] {
-		t.Boxed = true
 		e.tds[t] = true
 	}
-	return fmt.Sprintf("&TD_%d", t.ID)
+	return "&" + e.names.Type(t, "td_")
 }
 
 func (e *emitter) typeDescs(b *bytes.Buffer) {
@@ -558,7 +555,7 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 		if t.Kind == ir.KString {
 			continue
 		}
-		id := t.ID
+		id := e.names.Type(t, "")
 		name := ir.TypeString(t)
 		u := t.U()
 		basic := ""
@@ -581,11 +578,11 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			eq = fmt.Sprintf("return gx_eq_uncomparable(%s);", cString(name))
 			key = fmt.Sprintf("gx_key_unhashable(%s);", cString(name))
 		}
-		e.proto("static const gx_TypeDesc TD_%d", id)
-		fmt.Fprintf(&defs, "static bool tdeq_%d(gx_V a, gx_V b) {\n    %s\n}\n\nstatic void tdkey_%d(gx_V a, gx_Buf *out) {\n    %s\n}\n\n", id, eq, id, key)
+		e.proto("static const gx_TypeDesc td_%s", id)
+		fmt.Fprintf(&defs, "static bool tdeq_%s(gx_V a, gx_V b) {\n    %s\n}\n\nstatic void tdkey_%s(gx_V a, gx_Buf *out) {\n    %s\n}\n\n", id, eq, id, key)
 		var ms []string
 		for k, m := range t.MethodSet {
-			wn := fmt.Sprintf("mw_%d_%d", id, k)
+			wn := fmt.Sprintf("mw_%s_%d", id, k)
 			var as []string
 			for j := range m.Func.Params {
 				a := fmt.Sprintf("a[%d]", j)
@@ -594,22 +591,22 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 				}
 				as = append(as, a)
 			}
-			body := fmt.Sprintf("f_%s(%s)", m.Func.Sym, strings.Join(as, ", "))
+			body := fmt.Sprintf("f_%s(%s)", e.names.Symbol(m.Func.Sym), strings.Join(as, ", "))
 			if e.p.SuspMethods[m.ID] && !m.Func.MaySuspend {
 				e.use("core.task.spawn")
 				v, n := vec(as)
-				body = fmt.Sprintf("gx_sync_frame(gx_func(%d, w_%s, 0, NULL), %d, %s, %d)", m.Func.ID, m.Func.Sym, n, v, len(m.Func.Results))
+				body = fmt.Sprintf("gx_sync_frame(gx_func(%d, w_%s, 0, NULL), %d, %s, %d)", m.Func.ID, e.names.Symbol(m.Func.Sym), n, v, len(m.Func.Results))
 			}
 			fmt.Fprintf(&defs, "static gx_V %s(gx_V *e, gx_V *a, int n) {\n    return %s;\n}\n\n", wn, body)
 			ms = append(ms, fmt.Sprintf("{%s, %d, %s}", cString(m.ID), m.Func.ID, wn))
 		}
 		methods := "NULL"
 		if len(ms) > 0 {
-			fmt.Fprintf(&defs, "static const gx_Method TDM_%d[] = {%s};\n\n", id, strings.Join(ms, ", "))
-			methods = fmt.Sprintf("TDM_%d", id)
+			fmt.Fprintf(&defs, "static const gx_Method TDM_%s[] = {%s};\n\n", id, strings.Join(ms, ", "))
+			methods = fmt.Sprintf("TDM_%s", id)
 		}
-		fmt.Fprintf(&defs, "static const gx_TypeDesc TD_%d = {%d, %s, %s, tdeq_%d, tdkey_%d, %s, %d, %s, %v};\n\n",
-			id, id, cString(name), cString(u.Kind.String()), id, id, methods, len(ms), cString(basic), t.Comparable())
+		fmt.Fprintf(&defs, "static const gx_TypeDesc td_%s = {%d, %s, %s, tdeq_%s, tdkey_%s, %s, %d, %s, %v};\n\n",
+			id, t.ID, cString(name), cString(u.Kind.String()), id, id, methods, len(ms), cString(basic), t.Comparable())
 	}
 	b.Write(defs.Bytes())
 	e.flushHelpers()
@@ -624,8 +621,8 @@ func (e *emitter) wrapper(f *ir.Func) string {
 	for j := range f.Params {
 		as = append(as, fmt.Sprintf("a[%d]", j))
 	}
-	e.proto("static gx_V w_%s(gx_V *e, gx_V *a, int n)", f.Sym)
-	return fmt.Sprintf("static gx_V w_%s(gx_V *e, gx_V *a, int n) {\n    return f_%s(%s);\n}\n\n", f.Sym, f.Sym, strings.Join(as, ", "))
+	e.proto("static gx_V w_%s(gx_V *e, gx_V *a, int n)", e.names.Symbol(f.Sym))
+	return fmt.Sprintf("static gx_V w_%s(gx_V *e, gx_V *a, int n) {\n    return f_%s(%s);\n}\n\n", e.names.Symbol(f.Sym), e.names.Symbol(f.Sym), strings.Join(as, ", "))
 }
 
 func (e *emitter) externSym(contract string) string {
@@ -702,9 +699,9 @@ func cell(l *ir.Local) bool { return l.Boxed && !l.Type.IsAggregate() }
 
 func (fe *fnEmitter) raw(l *ir.Local) string {
 	if fe.frame {
-		return fmt.Sprintf("l[%d]", fe.slots[l])
+		return "l[" + fe.e.names.Local(l, "_") + "]"
 	}
-	return fmt.Sprintf("l%d", fe.slots[l])
+	return fe.e.names.Local(l, "_")
 }
 
 func (fe *fnEmitter) val(v ir.Value) string {
@@ -717,7 +714,7 @@ func (fe *fnEmitter) val(v ir.Value) string {
 	case *ir.Const:
 		return fe.e.constant(v)
 	case *ir.FuncRef:
-		f := fmt.Sprintf("gx_func(%d, w_%s, 0, NULL)", v.Func.ID, v.Func.Sym)
+		f := fmt.Sprintf("gx_func(%d, w_%s, 0, NULL)", v.Func.ID, fe.e.names.Symbol(v.Func.Sym))
 		if fe.e.susp(v.Type) && !v.Func.MaySuspend {
 			return fe.e.adapt(f, len(v.Func.Results))
 		}
@@ -801,7 +798,7 @@ func rootType(p *ir.Place) *ir.Type {
 func scalarGlobal(g *ir.Global) bool { return g.AddrTaken && !g.Type.IsAggregate() }
 
 func (fe *fnEmitter) global(g *ir.Global) string {
-	return fmt.Sprintf("g%d", fe.e.globals[g])
+	return fe.e.names.Symbol(g.Sym)
 }
 
 func (fe *fnEmitter) rootExpr(p *ir.Place) string {
@@ -925,6 +922,12 @@ func (fe *fnEmitter) addrOf(p *ir.Place) string {
 	return fmt.Sprintf("gx_fptr(%s, %d)", base, last.Field)
 }
 
+func (fe *fnEmitter) slotDecls() {
+	for _, l := range fe.f.Locals {
+		fe.w("enum { %s = %d };", fe.e.names.Local(l, "_"), fe.slots[l])
+	}
+}
+
 func (fe *fnEmitter) allLocals() {
 	fe.slots = map[*ir.Local]int{}
 	for i, l := range fe.f.Locals {
@@ -932,13 +935,13 @@ func (fe *fnEmitter) allLocals() {
 	}
 }
 
-func params(n int) string {
-	if n == 0 {
+func (e *emitter) params(locals []*ir.Local) string {
+	if len(locals) == 0 {
 		return "void"
 	}
 	var ps []string
-	for i := 0; i < n; i++ {
-		ps = append(ps, fmt.Sprintf("gx_V a%d", i))
+	for _, l := range locals {
+		ps = append(ps, "gx_V arg_"+e.names.Local(l, "_"))
 	}
 	return strings.Join(ps, ", ")
 }
@@ -960,18 +963,18 @@ func (e *emitter) function(f *ir.Func) string {
 		}
 	}
 	ps := append(append([]*ir.Local(nil), f.Env...), f.Params...)
-	e.proto("static gx_V f_%s(%s)", f.Sym, params(len(ps)))
-	fmt.Fprintf(&fe.b, "static gx_V f_%s(%s) {\n", f.Sym, params(len(ps)))
+	e.proto("static gx_V f_%s(%s)", e.names.Symbol(f.Sym), e.params(ps))
+	fmt.Fprintf(&fe.b, "static gx_V f_%s(%s) {\n", e.names.Symbol(f.Sym), e.params(ps))
 	fe.w("gx_source_enter();")
 	qual := ""
 	if fe.defers {
 		qual = "volatile "
 	}
-	for i := range f.Locals {
-		fe.w("%sgx_V l%d = {0};", qual, i)
+	for _, l := range f.Locals {
+		fe.w("%sgx_V %s = {0};", qual, fe.raw(l))
 	}
-	for i, p := range ps {
-		fe.w("l%d = a%d;", fe.slots[p], i)
+	for _, p := range ps {
+		fe.w("%s = arg_%s;", fe.raw(p), e.names.Local(p, "_"))
 	}
 	if fe.defers {
 		fe.w("gx_Deferred *volatile dl = NULL;")
@@ -1085,13 +1088,15 @@ func (e *emitter) frameFunction(f *ir.Func) string {
 	for i, b := range f.Blocks {
 		fe.order[b] = i
 	}
-	e.proto("static void st_%s(gx_Task *t, gx_Frame *fr)", f.Sym)
-	e.proto("static int rs_%s(gx_Frame *fr, gx_V *out)", f.Sym)
-	fmt.Fprintf(&fe.b, "static void st_%s(gx_Task *t, gx_Frame *fr) {\n", f.Sym)
+	e.proto("static void st_%s(gx_Task *t, gx_Frame *fr)", e.names.Symbol(f.Sym))
+	e.proto("static int rs_%s(gx_Frame *fr, gx_V *out)", e.names.Symbol(f.Sym))
+	fmt.Fprintf(&fe.b, "static void st_%s(gx_Task *t, gx_Frame *fr) {\n", e.names.Symbol(f.Sym))
+	fe.slotDecls()
 	fe.w("gx_V *l = fr->l;")
 	fe.body()
 	fe.b.WriteString("}\n\n")
-	fmt.Fprintf(&fe.b, "static int rs_%s(gx_Frame *fr, gx_V *out) {\n", f.Sym)
+	fmt.Fprintf(&fe.b, "static int rs_%s(gx_Frame *fr, gx_V *out) {\n", e.names.Symbol(f.Sym))
+	fe.slotDecls()
 	fe.w("gx_V *l = fr->l;")
 	for k, r := range f.Results {
 		v := fe.val(r)
@@ -1103,11 +1108,12 @@ func (e *emitter) frameFunction(f *ir.Func) string {
 	fe.w("return %d;", len(f.Results))
 	fe.b.WriteString("}\n\n")
 	ps := append(append([]*ir.Local(nil), f.Env...), f.Params...)
-	e.proto("static gx_V f_%s(%s)", f.Sym, params(len(ps)))
-	fmt.Fprintf(&fe.b, "static gx_V f_%s(%s) {\n", f.Sym, params(len(ps)))
-	fe.w("gx_Frame *fr = gx_new_frame(%d, st_%s, rs_%s);", len(f.Locals), f.Sym, f.Sym)
-	for i, p := range ps {
-		fe.w("fr->l[%d] = a%d;", fe.slots[p], i)
+	e.proto("static gx_V f_%s(%s)", e.names.Symbol(f.Sym), e.params(ps))
+	fmt.Fprintf(&fe.b, "static gx_V f_%s(%s) {\n", e.names.Symbol(f.Sym), e.params(ps))
+	fe.slotDecls()
+	fe.w("gx_Frame *fr = gx_new_frame(%d, st_%s, rs_%s);", len(f.Locals), e.names.Symbol(f.Sym), e.names.Symbol(f.Sym))
+	for _, p := range ps {
+		fe.w("fr->l[%s] = arg_%s;", e.names.Local(p, "_"), e.names.Local(p, "_"))
 	}
 	fe.w("return gx_vframe(fr);")
 	fe.b.WriteString("}\n\n")
@@ -1217,7 +1223,7 @@ func (fe *fnEmitter) callExpr(c *ir.Call) string {
 	as := fe.args(c)
 	switch c.Kind {
 	case ir.CallStatic:
-		return fmt.Sprintf("f_%s(%s)", c.Func.Sym, strings.Join(as, ", "))
+		return fmt.Sprintf("f_%s(%s)", fe.e.names.Symbol(c.Func.Sym), strings.Join(as, ", "))
 	case ir.CallValue:
 		v, n := vec(as)
 		return fmt.Sprintf("gx_callv(%s, %d, %s)", fe.val(c.Fn), n, v)
@@ -1235,7 +1241,7 @@ func (fe *fnEmitter) callExpr(c *ir.Call) string {
 func (fe *fnEmitter) fnValue(c *ir.Call) (string, string) {
 	switch c.Kind {
 	case ir.CallStatic:
-		return fmt.Sprintf("gx_func(%d, w_%s, 0, NULL)", c.Func.ID, c.Func.Sym), strconv.Itoa(c.Func.ID)
+		return fmt.Sprintf("gx_func(%d, w_%s, 0, NULL)", c.Func.ID, fe.e.names.Symbol(c.Func.Sym)), strconv.Itoa(c.Func.ID)
 	case ir.CallValue:
 		f := fe.val(c.Fn)
 		return f, "gx_fid_of(" + f + ")"
@@ -1353,13 +1359,13 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 			env = append(env, fe.raw(l))
 		}
 		ev, n := vec(env)
-		v := fmt.Sprintf("gx_func(%d, w_%s, %d, %s)", i.Func.ID, i.Func.Sym, n, ev)
+		v := fmt.Sprintf("gx_func(%d, w_%s, %d, %s)", i.Func.ID, fe.e.names.Symbol(i.Func.Sym), n, ev)
 		if e.susp(i.Dst.Type) && !i.Func.MaySuspend {
 			v = e.adapt(v, len(i.Func.Results))
 		}
 		w("%s;", fe.set(i.Dst, v))
 	case *ir.MakeBound:
-		v := fmt.Sprintf("gx_bound(%d, gx_func(%d, w_%s, 0, NULL), %s)", i.Func.ID, i.Func.ID, i.Func.Sym, fe.val(i.Recv))
+		v := fmt.Sprintf("gx_bound(%d, gx_func(%d, w_%s, 0, NULL), %s)", i.Func.ID, i.Func.ID, fe.e.names.Symbol(i.Func.Sym), fe.val(i.Recv))
 		if e.susp(i.Dst.Type) && !i.Func.MaySuspend {
 			v = e.adapt(v, len(i.Func.Results))
 		}

@@ -26,7 +26,19 @@ func Targets() []string {
 	return out
 }
 
-func Emit(name string, res *Result, out string) (ds []diagnostics.Diagnostic) {
+// EmitOptions controls the presentation of generated private identifiers.
+type EmitOptions struct {
+	CompactNames bool
+}
+
+// Emit writes a target with readable private identifiers.
+func Emit(name string, res *Result, out string) []diagnostics.Diagnostic {
+	return EmitWithOptions(name, res, out, EmitOptions{})
+}
+
+// EmitWithOptions selects private naming for this emission alone. Copying the
+// program header keeps repeated and concurrent emissions independent.
+func EmitWithOptions(name string, res *Result, out string, opts EmitOptions) (ds []diagnostics.Diagnostic) {
 	defer func() {
 		if r := recover(); r != nil {
 			ds = []diagnostics.Diagnostic{{Code: "GCE004", Severity: diagnostics.Error, Feature: "emission",
@@ -34,6 +46,13 @@ func Emit(name string, res *Result, out string) (ds []diagnostics.Diagnostic) {
 				Remedy:  "This is a compiler defect; please report it with the source program."}}
 		}
 	}()
+	if res != nil && res.IR != nil {
+		result := *res
+		program := *res.IR
+		program.CompactNames = opts.CompactNames
+		result.IR = &program
+		res = &result
+	}
 	e, ok := emitters[name]
 	if !ok {
 		return []diagnostics.Diagnostic{{Code: "GCE001", Severity: diagnostics.Error, Feature: "target",

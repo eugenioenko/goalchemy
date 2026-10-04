@@ -139,12 +139,17 @@ func Compile(fixtureDir, target, out string) []diagnostics.Diagnostic {
 
 // CompileGate compiles with an explicit language gate.
 func CompileGate(fixtureDir, target, out, gate string) []diagnostics.Diagnostic {
+	return CompileGateOptions(fixtureDir, target, out, gate, driver.EmitOptions{})
+}
+
+// CompileGateOptions compiles with explicit emission options.
+func CompileGateOptions(fixtureDir, target, out, gate string, opts driver.EmitOptions) []diagnostics.Diagnostic {
 	abs, _ := filepath.Abs(fixtureDir)
 	res, ds := driver.Build(context.Background(), driver.Options{Dir: abs, Gate: subset.Gate(gate)})
 	if diagnostics.HasErrors(ds) {
 		return ds
 	}
-	return driver.Emit(target, res, out)
+	return driver.EmitWithOptions(target, res, out, opts)
 }
 
 // Runner knows how to build and run a compiled target directory.
@@ -266,10 +271,15 @@ func ParseObservation(s string) Observation {
 
 // RunFixture runs one fixture through targets and reports mismatches.
 func RunFixture(t *testing.T, f Fixture, targets []string) {
+	RunFixtureOptions(t, f, targets, driver.EmitOptions{})
+}
+
+// RunFixtureOptions compares a selected emission mode with the native oracle.
+func RunFixtureOptions(t *testing.T, f Fixture, targets []string, opts driver.EmitOptions) {
 	t.Helper()
 	work := t.TempDir()
 	if len(f.Reject) > 0 {
-		ds := CompileGate(f.Dir, targets[0], filepath.Join(work, targets[0]), f.Gate)
+		ds := CompileGateOptions(f.Dir, targets[0], filepath.Join(work, targets[0]), f.Gate, opts)
 		got := map[string]bool{}
 		for _, d := range ds {
 			got[d.Code] = true
@@ -294,7 +304,7 @@ func RunFixture(t *testing.T, f Fixture, targets []string) {
 	var first *Observation
 	for _, target := range targets {
 		out := filepath.Join(work, target)
-		if ds := CompileGate(f.Dir, EmitTarget(target), out, f.Gate); len(ds) > 0 {
+		if ds := CompileGateOptions(f.Dir, EmitTarget(target), out, f.Gate, opts); len(ds) > 0 {
 			for _, d := range ds {
 				t.Errorf("%s: %s", target, d)
 			}

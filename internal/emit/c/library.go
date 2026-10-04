@@ -79,9 +79,9 @@ static void gxc_poll(void) {
 			return
 		}
 		seen[u] = true
-		e.proto("static gx_V gxc_in_%d(const gxc_value *v)", u.ID)
-		e.proto("static gxc_value gxc_out_%d(gx_V v)", u.ID)
-		e.proto("static gxc_value gxc_out_body_%d(gx_V v)", u.ID)
+		e.proto("static gx_V gxc_in_%s(const gxc_value *v)", e.names.Type(u, ""))
+		e.proto("static gxc_value gxc_out_%s(gx_V v)", e.names.Type(u, ""))
+		e.proto("static gxc_value gxc_out_body_%s(gx_V v)", e.names.Type(u, ""))
 		switch u.Kind {
 		case ir.KStruct:
 			for _, f := range u.Fields {
@@ -90,7 +90,7 @@ static void gxc_poll(void) {
 		case ir.KArray, ir.KSlice:
 			convert(u.Elem)
 		}
-		fmt.Fprintf(out, "static gx_V gxc_in_%d(const gxc_value *v) {\n", u.ID)
+		fmt.Fprintf(out, "static gx_V gxc_in_%s(const gxc_value *v) {\n", e.names.Type(u, ""))
 		fmt.Fprintf(out, " if(v->kind==GXC_NIL) return %s;\n", e.zero(t))
 		switch u.Kind {
 		case ir.KFloat:
@@ -109,7 +109,7 @@ static void gxc_poll(void) {
 			out.WriteString(" if(v->kind!=GXC_RECORD) gxc_invalid();\n")
 			fmt.Fprintf(out, " gx_V r=gx_new_vals(%d,NULL);\n", len(u.Fields))
 			for i, f := range u.Fields {
-				fmt.Fprintf(out, " gx_fset(r,%d,gxc_in_%d(gxc_field(v,%q)));\n", i, f.Type.U().ID, f.Name)
+				fmt.Fprintf(out, " gx_fset(r,%d,gxc_in_%s(gxc_field(v,%q)));\n", i, e.names.Type(f.Type.U(), ""), f.Name)
 			}
 			out.WriteString(" return r;\n")
 		case ir.KArray, ir.KSlice:
@@ -125,7 +125,7 @@ static void gxc_poll(void) {
 				}
 			} else {
 				out.WriteString(" if(v->kind!=GXC_LIST) gxc_invalid(); gx_V *a=gx_alloc_vals(v->length);\n")
-				fmt.Fprintf(out, " for(size_t i=0;i<v->length;i++) a[i]=gxc_in_%d(&v->items[i]);\n", u.Elem.U().ID)
+				fmt.Fprintf(out, " for(size_t i=0;i<v->length;i++) a[i]=gxc_in_%s(&v->items[i]);\n", e.names.Type(u.Elem.U(), ""))
 				if u.Kind == ir.KArray {
 					out.WriteString(" return gx_obj(a);\n")
 				} else {
@@ -134,7 +134,7 @@ static void gxc_poll(void) {
 			}
 		}
 		out.WriteString("}\n")
-		fmt.Fprintf(out, "static gxc_value gxc_out_%d(gx_V v) {if(gxc_output_depth>=64 || ++gxc_output_nodes>1000000)gx_host_fault(\"native result tree budget\");gxc_output_depth++;gxc_value r=gxc_out_body_%d(v);gxc_output_depth--;return r;}\nstatic gxc_value gxc_out_body_%d(gx_V v) {\n", u.ID, u.ID, u.ID)
+		fmt.Fprintf(out, "static gxc_value gxc_out_%s(gx_V v) {if(gxc_output_depth>=64 || ++gxc_output_nodes>1000000)gx_host_fault(\"native result tree budget\");gxc_output_depth++;gxc_value r=gxc_out_body_%s(v);gxc_output_depth--;return r;}\nstatic gxc_value gxc_out_body_%s(gx_V v) {\n", e.names.Type(u, ""), e.names.Type(u, ""), e.names.Type(u, ""))
 		switch u.Kind {
 		case ir.KFloat:
 			out.WriteString(" return (gxc_value){.kind=GXC_FLOAT,.floating=gx_f(v)};\n")
@@ -147,7 +147,7 @@ static void gxc_poll(void) {
 		case ir.KStruct:
 			fmt.Fprintf(out, " gxc_value r=gxc_list_out(GXC_RECORD,%d);\n", len(u.Fields))
 			for i, f := range u.Fields {
-				fmt.Fprintf(out, " gxc_name(&r,%d,%q); r.items[%d]=gxc_out_%d(gx_fld(v,%d));\n", i, f.Name, i, f.Type.U().ID, i)
+				fmt.Fprintf(out, " gxc_name(&r,%d,%q); r.items[%d]=gxc_out_%s(gx_fld(v,%d));\n", i, f.Name, i, e.names.Type(f.Type.U(), ""), i)
 			}
 			out.WriteString(" return r;\n")
 		case ir.KArray, ir.KSlice:
@@ -158,7 +158,7 @@ static void gxc_poll(void) {
 			if nativeBytes(u.Elem) {
 				fmt.Fprintf(out, " return gxc_bytes_out(gx_bytes(v),%s);\n", n)
 			} else {
-				fmt.Fprintf(out, " gxc_value r=gxc_list_out(GXC_LIST,%s); for(size_t i=0;i<r.length;i++) r.items[i]=gxc_out_%d(gx_vals(v)[i]); return r;\n", n, u.Elem.U().ID)
+				fmt.Fprintf(out, " gxc_value r=gxc_list_out(GXC_LIST,%s); for(size_t i=0;i<r.length;i++) r.items[i]=gxc_out_%s(gx_vals(v)[i]); return r;\n", n, e.names.Type(u.Elem.U(), ""))
 			}
 		}
 		out.WriteString("}\n")
@@ -193,10 +193,10 @@ static void gxc_poll(void) {
 	sort.Slice(errors, func(i, j int) bool { return errors[i].ID < errors[j].ID })
 	out.WriteString("static void gxc_source_error(gx_V v) {\n gxc_failure->kind=1; gx_Buf b={0}; gx_format_panic_value(v,&b); gxc_failure->message=gxc_bytes_out(b.b,b.n);\n")
 	for _, t := range errors {
-		fmt.Fprintf(out, " if(gx_is_type(v,&TD_%d)) { gxc_failure->fields=gxc_out_%d(gx_unboxed(v)); return; }\n", t.ID, t.Elem.U().ID)
+		fmt.Fprintf(out, " if(gx_is_type(v,&td_%s)) { gxc_failure->fields=gxc_out_%s(gx_unboxed(v)); return; }\n", e.names.Type(t, ""), e.names.Type(t.Elem.U(), ""))
 	}
 	out.WriteString("}\n")
-	fmt.Fprintf(out, "static void gxc_init_source(void) { init_zero_globals(); f_%s(); }\n", e.p.Init.Sym)
+	fmt.Fprintf(out, "static void gxc_init_source(void) { init_zero_globals(); f_%s(); }\n", e.names.Symbol(e.p.Init.Sym))
 	out.WriteString("static gx_V gxc_call_source(void) { gx_V c=gx_std_context_with_cancel(gx_background()); gxc_context=gx_at(c,0);\n if(gxc_opts && gxc_opts->timeout_nanoseconds>0) gxc_context=gx_at(gx_std_context_with_timeout(gxc_context,gx_int(gxc_opts->timeout_nanoseconds)),0);\n gxc_poll(); switch(gxc_export) {\n")
 	for k, f := range e.p.Exports {
 		var as []string
@@ -205,15 +205,15 @@ static void gxc_poll(void) {
 			if cContext(t) {
 				as = append(as, "gxc_context")
 			} else {
-				as = append(as, fmt.Sprintf("gxc_in_%d(&gxc_args[%d])", t.U().ID, index))
+				as = append(as, fmt.Sprintf("gxc_in_%s(&gxc_args[%d])", e.names.Type(t.U(), ""), index))
 				index++
 			}
 		}
 		if f.MaySuspend {
-			fmt.Fprintf(out, " case %d: return f_%s(%s);\n", k, f.Sym, strings.Join(as, ","))
+			fmt.Fprintf(out, " case %d: return f_%s(%s);\n", k, e.names.Symbol(f.Sym), strings.Join(as, ","))
 		} else {
 			vec, n := vec(as)
-			fmt.Fprintf(out, " case %d: return gx_sync_frame(gx_func(-1,w_%s,0,NULL),%d,%s,%d);\n", k, f.Sym, n, vec, len(f.Sig.Results))
+			fmt.Fprintf(out, " case %d: return gx_sync_frame(gx_func(-1,w_%s,0,NULL),%d,%s,%d);\n", k, e.names.Symbol(f.Sym), n, vec, len(f.Sig.Results))
 		}
 	}
 	out.WriteString(" } gx_host_fault(\"unknown export\"); }\nstatic void gxc_root_step(gx_Task *t,gx_Frame *f) {if(!f->pc){f->pc=1;gx_call(t,gxc_call_source());return;}gx_ret(t,f); }\nstatic gx_V gxc_entry(void) {return gx_vframe(gx_new_frame(0,gxc_root_step,NULL));}\nstatic void gxc_finish(gx_Task *t) { switch(gxc_export) {\n")
@@ -228,11 +228,11 @@ static void gxc_poll(void) {
 			fmt.Fprintf(out, " if(!gx_is_nil(gx_rv(t,%d))) {gxc_source_error(gx_rv(t,%d)); break;}\n", n, n)
 		}
 		if n == 1 {
-			fmt.Fprintf(out, " *gxc_result=gxc_out_%d(gx_rv(t,0));\n", f.Sig.Results[0].U().ID)
+			fmt.Fprintf(out, " *gxc_result=gxc_out_%s(gx_rv(t,0));\n", e.names.Type(f.Sig.Results[0].U(), ""))
 		} else if n > 1 {
 			fmt.Fprintf(out, " *gxc_result=gxc_list_out(GXC_LIST,%d);\n", n)
 			for i := 0; i < n; i++ {
-				fmt.Fprintf(out, " gxc_result->items[%d]=gxc_out_%d(gx_rv(t,%d));\n", i, f.Sig.Results[i].U().ID, i)
+				fmt.Fprintf(out, " gxc_result->items[%d]=gxc_out_%s(gx_rv(t,%d));\n", i, e.names.Type(f.Sig.Results[i].U(), ""), i)
 			}
 		}
 		out.WriteString(" break;\n")

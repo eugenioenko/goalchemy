@@ -30,6 +30,7 @@ schema_version: 1
 packages: [./cmd/app]      # package patterns, relative to this file
 tags: [prod]               # optional build tags
 gate: sequential           # sequential (default) or cooperative
+compact_names: false        # readable private identifiers (default)
 targets:
   go: {out: out/go}
   typescript: {out: out/ts}
@@ -41,6 +42,59 @@ targets:
 ```
 
 The file uses the same restricted YAML as the contract catalog: no anchors, aliases, or floats, and no unknown keys.
+
+`compile`, `run`, and `build` accept `--compact-names`. `compile` and `run`
+default to readable names and do not load `goalchemy.yaml`. `build` uses the
+configuration's `compact_names` setting unless the flag is explicitly present:
+`--compact-names` selects compact names and `--compact-names=false` selects
+readable names.
+
+```sh
+goalchemy compile -target rust -out out/rust --compact-names .
+goalchemy run -target python --compact-names .
+goalchemy build --compact-names=false
+```
+
+## Generated names
+
+Generated private names are readable by default for Go, TypeScript, Python,
+Java, C#, Rust, and C. Source package, type, function, global, local, and field
+names supply identifier stems. Category prefixes and deterministic numeric
+suffixes distinguish reserved words, shadowed locals, and repeated names across
+packages. Unicode characters are encoded in ASCII as `_u` followed by their
+hexadecimal code point and `_`.
+
+For example, an internal function for `main.Calculate` may be named
+`fn_main_Calculate_2`; a source local `count` may be `v_count_7`. Targets use
+their own legal separators and type prefixes. A named Go struct contributes its
+package/type stem to the generated representation; when several named types
+share an underlying representation, the lexicographically smallest source name
+is chosen deterministically. Anonymous aggregates use shape names such as
+`struct`, `array`, or `map`. Unnamed parameters, results, captures, and
+temporaries use `param`, `result`, `capture`, and `temp` stems.
+
+`--compact-names` replaces compiler-private names with shorter identifiers
+derived from the same IR identities. Public library function/type/field names,
+capability symbols, runtime type strings, and serialized identities retain
+their established contracts in both modes. Native Go embedding and field rules
+also remain intact. Go boundary values from dependency packages receive stable
+exported `Source_<qualified-type>_<ID>` aliases, including values nested in
+fields and collections.
+
+Public façade names cannot occupy names reserved by their target's generated
+API. These collisions produce a library-boundary diagnostic in both modes,
+rather than invalid target code. For example, Rust rejects public structs named
+`V`, `LibraryError`, or `Vec`, and exported functions named `Some`, `None`, `Ok`,
+or `Err`; Python rejects exported functions named `None`, `True`, or `False`.
+These names remain usable internally when the source language permits them.
+
+Readable names help inspect generated source; they do not reconstruct Go's
+original control flow or replace source maps. Some targets still store values
+in runtime frames or numeric aggregate slots and identify them through named
+helpers or slot constants. Runtime support has its own naming conventions, and
+IR dumps keep their diagnostic identifiers. Internal names are not a stable
+API across compiler versions. Neither naming mode promises a performance
+improvement.
 
 ## Output
 

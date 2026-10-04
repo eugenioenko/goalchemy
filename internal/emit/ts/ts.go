@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/naming"
 	"github.com/eugenioenko/goalchemy/internal/sourcemap"
 )
 
@@ -26,6 +27,7 @@ const marker = "\x00@"
 
 type emitter struct {
 	p         *ir.Program
+	names     *naming.Names
 	symbols   map[string]string
 	out       bytes.Buffer
 	contracts map[string]bool
@@ -39,10 +41,10 @@ type emitter struct {
 }
 
 func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
-	e := &emitter{p: p, symbols: symbols, contracts: map[string]bool{}, classes: map[*ir.Type]string{}, arrays: map[*ir.Type]bool{}, tds: map[*ir.Type]string{}, seenHelp: map[*ir.Type]bool{}}
+	e := &emitter{p: p, names: naming.New(p), symbols: symbols, contracts: map[string]bool{}, classes: map[*ir.Type]string{}, arrays: map[*ir.Type]bool{}, tds: map[*ir.Type]string{}, seenHelp: map[*ir.Type]bool{}}
 	for _, t := range p.Types.All {
 		if t.Boxed {
-			e.tds[t] = fmt.Sprintf("TD$%d", t.ID)
+			e.tds[t] = e.names.Type(t, "TD$")
 		}
 	}
 	var fns bytes.Buffer
@@ -63,9 +65,9 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 	for _, g := range p.Globals {
 		z := e.zero(g.Type)
 		if g.AddrTaken && !g.Type.IsAggregate() {
-			fmt.Fprintf(&globals, "const %s = new rt.Cell<any>(%s);\n", g.Sym, z)
+			fmt.Fprintf(&globals, "const %s = new rt.Cell<any>(%s);\n", e.symbol(g.Sym), z)
 		} else {
-			fmt.Fprintf(&globals, "let %s: any = %s;\n", g.Sym, z)
+			fmt.Fprintf(&globals, "let %s: any = %s;\n", e.symbol(g.Sym), z)
 		}
 	}
 	e.flushHelpers()
@@ -80,7 +82,7 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 	e.out.WriteString("\n")
 	e.out.Write(fns.Bytes())
 	for _, f := range p.Funcs {
-		fmt.Fprintf(&e.out, "(%s as any).$fid = %d;\n", f.Sym, f.ID)
+		fmt.Fprintf(&e.out, "(%s as any).$fid = %d;\n", e.symbol(f.Sym), f.ID)
 	}
 	e.out.WriteString("\n")
 	e.out.Write(tds.Bytes())
@@ -88,15 +90,15 @@ func Emit(p *ir.Program, symbols map[string]string) (*Output, error) {
 		e.out.WriteString(library)
 	} else if p.Cooperative {
 		e.use("core.task.spawn")
-		start := p.Entry.Sym + "()"
+		start := e.symbol(p.Entry.Sym) + "()"
 		if !p.Entry.MaySuspend {
-			start = "rt.sync(() => { " + p.Entry.Sym + "(); return []; })"
+			start = "rt.sync(() => { " + e.symbol(p.Entry.Sym) + "(); return []; })"
 		}
 		fmt.Fprintf(&e.out, "\nexport function $run(): void { rt.runMain(%s); }\nexport function $runHost(host: rt.RuntimeHost = rt.runtimeHost): Promise<void> { return rt.runMainHost(%s, host); }\n", start, start)
 	} else {
-		fmt.Fprintf(&e.out, "\nrt.main(() => {\n  %s();\n", p.Init.Sym)
+		fmt.Fprintf(&e.out, "\nrt.main(() => {\n  %s();\n", e.symbol(p.Init.Sym))
 		if p.Main != nil {
-			fmt.Fprintf(&e.out, "  %s();\n", p.Main.Sym)
+			fmt.Fprintf(&e.out, "  %s();\n", e.symbol(p.Main.Sym))
 		}
 		e.out.WriteString("});\n")
 	}
@@ -164,18 +166,14 @@ func (e *emitter) class(t *ir.Type) string {
 	if n, ok := e.classes[u]; ok {
 		return n
 	}
-	n := fmt.Sprintf("S$%d", u.ID)
+	n := e.names.Type(u, "S$")
 	e.classes[u] = n
 	e.needHelpers(u)
 	return n
 }
 
-func fieldProp(t *ir.Type, i int) string {
-	f := t.U().Fields[i]
-	if f.Name == "_" {
-		return fmt.Sprintf("f$_%d", i)
-	}
-	return "f$" + f.Name
+func (e *emitter) fieldProp(t *ir.Type, i int) string {
+	return e.names.Field(t, i, "f$")
 }
 
 func (e *emitter) needHelpers(t *ir.Type) {
@@ -208,17 +206,17 @@ func (e *emitter) structClass(t *ir.Type) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "class %s {\n", n)
 	for i := range t.Fields {
-		fmt.Fprintf(&b, "  %s: any;\n", fieldProp(t, i))
+		fmt.Fprintf(&b, "  %s: any;\n", e.fieldProp(t, i))
 	}
 	b.WriteString("  constructor() {\n")
 	for i, f := range t.Fields {
-		fmt.Fprintf(&b, "    this.%s = %s;\n", fieldProp(t, i), e.zero(f.Type))
+		fmt.Fprintf(&b, "    this.%s = %s;\n", e.fieldProp(t, i), e.zero(f.Type))
 	}
 	b.WriteString("  }\n")
 	fmt.Fprintf(&b, "  $clone(): %s {\n    const r = new %s();\n    r.$set(this);\n    return r;\n  }\n", n, n)
 	b.WriteString("  $set(o: any): void {\n")
 	for i, f := range t.Fields {
-		p := fieldProp(t, i)
+		p := e.fieldProp(t, i)
 		if f.Type.IsAggregate() {
 			fmt.Fprintf(&b, "    %s;\n", e.setStmt(f.Type, "this."+p, "o."+p))
 		} else {
@@ -231,7 +229,7 @@ func (e *emitter) structClass(t *ir.Type) {
 		if f.Name == "_" {
 			continue
 		}
-		p := fieldProp(t, i)
+		p := e.fieldProp(t, i)
 		fmt.Fprintf(&b, " && %s", e.eqExpr(f.Type, "this."+p, "o."+p))
 	}
 	b.WriteString(";\n  }\n")
@@ -240,7 +238,7 @@ func (e *emitter) structClass(t *ir.Type) {
 		if f.Name == "_" {
 			continue
 		}
-		p := fieldProp(t, i)
+		p := e.fieldProp(t, i)
 		fmt.Fprintf(&b, " + %s + \",\"", e.keyExpr(f.Type, "this."+p))
 	}
 	b.WriteString(" + \"}\";\n  }\n}\n\n")
@@ -260,25 +258,24 @@ func sliceNil(t *ir.Type) string {
 }
 
 func (e *emitter) arrayHelpers(t *ir.Type) {
-	id := t.ID
 	el := t.Elem
 	var b strings.Builder
 	if byteElem(el) {
-		fmt.Fprintf(&b, "function zero$%d(): Uint8Array { return new Uint8Array(%d); }\n", id, t.Len)
-		fmt.Fprintf(&b, "function clone$%d(s: Uint8Array): Uint8Array { return s.slice(); }\n", id)
-		fmt.Fprintf(&b, "function set$%d(d: Uint8Array, s: Uint8Array): void { d.set(s); }\n", id)
+		fmt.Fprintf(&b, "function %s(): Uint8Array { return new Uint8Array(%d); }\n", e.names.Type(t, "zero$"), t.Len)
+		fmt.Fprintf(&b, "function %s(s: Uint8Array): Uint8Array { return s.slice(); }\n", e.names.Type(t, "clone$"))
+		fmt.Fprintf(&b, "function %s(d: Uint8Array, s: Uint8Array): void { d.set(s); }\n", e.names.Type(t, "set$"))
 	} else {
-		fmt.Fprintf(&b, "function zero$%d(): any[] {\n  const a = new Array(%d);\n  for (let i = 0; i < %d; i++) a[i] = %s;\n  return a;\n}\n", id, t.Len, t.Len, e.zero(el))
-		fmt.Fprintf(&b, "function clone$%d(s: any[]): any[] {\n  const a = new Array(%d);\n  for (let i = 0; i < %d; i++) a[i] = %s;\n  return a;\n}\n", id, t.Len, t.Len, e.cloneExpr(el, "s[i]"))
-		fmt.Fprintf(&b, "function set$%d(d: any[], s: any[]): void {\n  for (let i = 0; i < %d; i++) ", id, t.Len)
+		fmt.Fprintf(&b, "function %s(): any[] {\n  const a = new Array(%d);\n  for (let i = 0; i < %d; i++) a[i] = %s;\n  return a;\n}\n", e.names.Type(t, "zero$"), t.Len, t.Len, e.zero(el))
+		fmt.Fprintf(&b, "function %s(s: any[]): any[] {\n  const a = new Array(%d);\n  for (let i = 0; i < %d; i++) a[i] = %s;\n  return a;\n}\n", e.names.Type(t, "clone$"), t.Len, t.Len, e.cloneExpr(el, "s[i]"))
+		fmt.Fprintf(&b, "function %s(d: any[], s: any[]): void {\n  for (let i = 0; i < %d; i++) ", e.names.Type(t, "set$"), t.Len)
 		if el.IsAggregate() {
 			fmt.Fprintf(&b, "%s;\n}\n", e.setStmt(el, "d[i]", "s[i]"))
 		} else {
 			b.WriteString("d[i] = s[i];\n}\n")
 		}
 	}
-	fmt.Fprintf(&b, "function eq$%d(x: any, y: any): boolean {\n  for (let i = 0; i < %d; i++) if (!(%s)) return false;\n  return true;\n}\n", id, t.Len, e.eqExpr(el, "x[i]", "y[i]"))
-	fmt.Fprintf(&b, "function key$%d(x: any): string {\n  let s = \"[\";\n  for (let i = 0; i < %d; i++) s += %s + \",\";\n  return s + \"]\";\n}\n\n", id, t.Len, e.keyExpr(el, "x[i]"))
+	fmt.Fprintf(&b, "function %s(x: any, y: any): boolean {\n  for (let i = 0; i < %d; i++) if (!(%s)) return false;\n  return true;\n}\n", e.names.Type(t, "eq$"), t.Len, e.eqExpr(el, "x[i]", "y[i]"))
+	fmt.Fprintf(&b, "function %s(x: any): string {\n  let s = \"[\";\n  for (let i = 0; i < %d; i++) s += %s + \",\";\n  return s + \"]\";\n}\n\n", e.names.Type(t, "key$"), t.Len, e.keyExpr(el, "x[i]"))
 	e.helperOut.WriteString(b.String())
 }
 
@@ -303,7 +300,7 @@ func (e *emitter) zero(t *ir.Type) string {
 		return "new " + e.class(u) + "()"
 	case ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("zero$%d()", u.ID)
+		return fmt.Sprintf("%s()", e.names.Type(u, "zero$"))
 	case ir.KOpaque:
 		if !u.OpaqueRef {
 			e.use(opaqueContracts[u.Name])
@@ -323,7 +320,7 @@ func (e *emitter) cloneExpr(t *ir.Type, x string) string {
 		return x + ".$clone()"
 	case ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("clone$%d(%s)", u.ID, x)
+		return fmt.Sprintf("%s(%s)", e.names.Type(u, "clone$"), x)
 	}
 	return x
 }
@@ -346,7 +343,7 @@ func (e *emitter) setStmt(t *ir.Type, dst, src string) string {
 		return dst + ".$set(" + src + ")"
 	case ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("set$%d(%s, %s)", u.ID, dst, src)
+		return fmt.Sprintf("%s(%s, %s)", e.names.Type(u, "set$"), dst, src)
 	}
 	return dst + " = " + src
 }
@@ -359,7 +356,7 @@ func (e *emitter) eqExpr(t *ir.Type, a, b string) string {
 		return a + ".$eq(" + b + ")"
 	case ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("eq$%d(%s, %s)", u.ID, a, b)
+		return fmt.Sprintf("%s(%s, %s)", e.names.Type(u, "eq$"), a, b)
 	case ir.KInterface:
 		return fmt.Sprintf("rt.ifaceEq(%s, %s)", a, b)
 	case ir.KSlice, ir.KMap, ir.KFunc:
@@ -378,7 +375,7 @@ func (e *emitter) keyExpr(t *ir.Type, x string) string {
 		return x + ".$key()"
 	case ir.KArray:
 		e.needHelpers(u)
-		return fmt.Sprintf("key$%d(%s)", u.ID, x)
+		return fmt.Sprintf("%s(%s)", e.names.Type(u, "key$"), x)
 	case ir.KInterface:
 		return fmt.Sprintf("String(rt.ifaceKey(%s))", x)
 	case ir.KString:
@@ -404,8 +401,7 @@ func (e *emitter) td(t *ir.Type) string {
 	if n, ok := e.tds[t]; ok {
 		return n
 	}
-	t.Boxed = true
-	n := fmt.Sprintf("TD$%d", t.ID)
+	n := e.names.Type(t, "TD$")
 	e.tds[t] = n
 	return n
 }
@@ -445,9 +441,9 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			fn := m.Func.Sym
+			fn := e.symbol(m.Func.Sym)
 			if t.IsAggregate() {
-				fn = fmt.Sprintf("rt.closure(%d, (r: any, ...a: any[]) => %s(%s, ...a))", m.Func.ID, m.Func.Sym, e.cloneExpr(t, "r"))
+				fn = fmt.Sprintf("rt.closure(%d, (r: any, ...a: any[]) => %s(%s, ...a))", m.Func.ID, e.symbol(m.Func.Sym), e.cloneExpr(t, "r"))
 			}
 			if e.p.SuspMethods[m.ID] && !m.Func.MaySuspend {
 				fn = e.adapt(fn, len(m.Func.Results))
@@ -498,21 +494,21 @@ func (fe *fnEmitter) pc() string {
 	return "$pc"
 }
 
-func localName(l *ir.Local) string {
-	n := l.Name
-	if n == "" || n == "_" {
-		n = "t"
-	}
-	return fmt.Sprintf("%s$%d", n, l.ID)
+func (e *emitter) localName(l *ir.Local) string {
+	return e.names.Local(l, "$")
+}
+
+func (e *emitter) symbol(sym string) string {
+	return e.names.Symbol(sym)
 }
 
 func (fe *fnEmitter) w(format string, args ...any) { fmt.Fprintf(&fe.b, format, args...) }
 
 func (fe *fnEmitter) local(l *ir.Local) string {
 	if fe.frame {
-		return "fr." + localName(l)
+		return "fr." + fe.e.localName(l)
 	}
-	return localName(l)
+	return fe.e.localName(l)
 }
 
 // cell reports whether l lives in a rt.Cell.
@@ -529,9 +525,9 @@ func (fe *fnEmitter) val(v ir.Value) string {
 		return fe.e.constant(v)
 	case *ir.FuncRef:
 		if fe.e.susp(v.Type) && !v.Func.MaySuspend {
-			return fe.e.adapt(v.Func.Sym, len(v.Func.Results))
+			return fe.e.adapt(fe.e.symbol(v.Func.Sym), len(v.Func.Results))
 		}
-		return v.Func.Sym
+		return fe.e.symbol(v.Func.Sym)
 	}
 	panic(fmt.Sprintf("ts: operand %T", v))
 }
@@ -598,9 +594,9 @@ func rootType(p *ir.Place) *ir.Type {
 
 func (fe *fnEmitter) globalRef(g *ir.Global) string {
 	if g.AddrTaken && !g.Type.IsAggregate() {
-		return g.Sym + ".v"
+		return fe.e.symbol(g.Sym) + ".v"
 	}
-	return g.Sym
+	return fe.e.symbol(g.Sym)
 }
 
 // rootExpr renders the root of a place as an lvalue-capable expression.
@@ -629,7 +625,7 @@ func (fe *fnEmitter) proj(base string, cur *ir.Type, pr ir.Proj) string {
 	if pr.Index != nil {
 		return fmt.Sprintf("%s[rt.idx(%s, %d)]", base, fe.val(pr.Index), cur.U().Len)
 	}
-	return base + "." + fieldProp(cur, pr.Field)
+	return base + "." + fe.e.fieldProp(cur, pr.Field)
 }
 
 // placeExpr renders the full place as an expression designating the value.
@@ -669,7 +665,7 @@ func (fe *fnEmitter) addrOf(p *ir.Place) string {
 				return fe.local(r.Local)
 			}
 		case ir.GlobalRoot:
-			return r.Global.Sym
+			return fe.e.symbol(r.Global.Sym)
 		}
 	}
 	if t.IsAggregate() {
@@ -684,7 +680,7 @@ func (fe *fnEmitter) addrOf(p *ir.Place) string {
 	if len(p.Path) > 1 {
 		cur = p.Path[len(p.Path)-2].Type
 	}
-	return fmt.Sprintf("rt.fieldRef(%s, %q)", fe.placeExpr(base), fieldProp(cur, last.Field))
+	return fmt.Sprintf("rt.fieldRef(%s, %q)", fe.placeExpr(base), fe.e.fieldProp(cur, last.Field))
 }
 
 // frameFunction emits a suspending function as a resumable frame: a class
@@ -695,10 +691,10 @@ func (e *emitter) frameFunction(f *ir.Func) string {
 	for i, b := range f.Blocks {
 		fe.order[b] = i
 	}
-	cls := "F$" + f.Sym
+	cls := "F$" + e.symbol(f.Sym)
 	fe.w("class %s extends rt.Frame {\n", cls)
 	for _, l := range f.Locals {
-		fe.w("  %s: any;\n", localName(l))
+		fe.w("  %s: any;\n", e.localName(l))
 	}
 	fe.frame = true
 	var rs []string
@@ -726,14 +722,14 @@ func (e *emitter) frameFunction(f *ir.Func) string {
 	fe.w("  default: throw rt.fault(\"bad block\");\n    }\n  }\n}\n")
 	var params []string
 	for _, l := range f.Env {
-		params = append(params, localName(l)+": any")
+		params = append(params, e.localName(l)+": any")
 	}
 	for _, l := range f.Params {
-		params = append(params, localName(l)+": any")
+		params = append(params, e.localName(l)+": any")
 	}
-	fe.w("function %s(%s): any {\n  const fr = new %s();\n", f.Sym, strings.Join(params, ", "), cls)
+	fe.w("function %s(%s): any {\n  const fr = new %s();\n", e.symbol(f.Sym), strings.Join(params, ", "), cls)
 	for _, l := range append(append([]*ir.Local(nil), f.Env...), f.Params...) {
-		fe.w("  fr.%s = %s;\n", localName(l), localName(l))
+		fe.w("  fr.%s = %s;\n", e.localName(l), e.localName(l))
 	}
 	fe.w("  return fr;\n}\n\n")
 	return fe.b.String()
@@ -835,7 +831,7 @@ func (e *emitter) function(f *ir.Func) string {
 	for _, l := range f.Params {
 		params = append(params, fe.local(l)+": any")
 	}
-	fe.w("function %s(%s): any {\n", f.Sym, strings.Join(params, ", "))
+	fe.w("function %s(%s): any {\n", e.symbol(f.Sym), strings.Join(params, ", "))
 	isParam := map[*ir.Local]bool{}
 	for _, l := range f.Env {
 		isParam[l] = true
@@ -965,7 +961,7 @@ func (fe *fnEmitter) callee(c *ir.Call) (fn string, args []string, fid string) {
 	}
 	switch c.Kind {
 	case ir.CallStatic:
-		return c.Func.Sym, args, strconv.Itoa(c.Func.ID)
+		return fe.e.symbol(c.Func.Sym), args, strconv.Itoa(c.Func.ID)
 	case ir.CallValue:
 		f := fe.val(c.Fn)
 		return f, args, "rt.fid(" + f + ")"
@@ -1121,13 +1117,13 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		}
 		inner = append(inner, "...a")
 		v := fmt.Sprintf("rt.closure(%d, ((%s) => (...a: any[]) => %s(%s))(%s))", i.Func.ID,
-			strings.Join(ps, ", "), i.Func.Sym, strings.Join(inner, ", "), strings.Join(as, ", "))
+			strings.Join(ps, ", "), fe.e.symbol(i.Func.Sym), strings.Join(inner, ", "), strings.Join(as, ", "))
 		if e.susp(i.Dst.Type) && !i.Func.MaySuspend {
 			v = e.adapt(v, len(i.Func.Results))
 		}
 		fe.w("%s = %s;\n", fe.val(i.Dst), v)
 	case *ir.MakeBound:
-		v := fmt.Sprintf("rt.bound(%d, %s, %s)", i.Func.ID, i.Func.Sym, fe.val(i.Recv))
+		v := fmt.Sprintf("rt.bound(%d, %s, %s)", i.Func.ID, fe.e.symbol(i.Func.Sym), fe.val(i.Recv))
 		if e.susp(i.Dst.Type) && !i.Func.MaySuspend {
 			v = e.adapt(v, len(i.Func.Results))
 		}

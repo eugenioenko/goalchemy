@@ -130,6 +130,19 @@ Domain formats such as ZIP archives for OpenTDF are candidates for the SDK that 
 | `-C <dir>` | Directory to load packages from. |
 | `-json` | Write diagnostics as JSON. |
 
+Generated source uses readable private names by default on all seven targets.
+Type and function names retain their source package/type/function stems, fields
+retain source names where the target representation permits, and source locals
+retain their names with deterministic suffixes for shadowing. Compiler-created
+values use names such as `temp`, `param`, and `result`.
+
+`compile`, `run`, and `build` accept `--compact-names` to emit short private
+identifiers. Project builds can also set `compact_names: true` in
+`goalchemy.yaml`; an explicit `--compact-names=false` overrides that setting.
+Public library names and runtime behavior stay the same in either mode. See
+[generated naming conventions](docs/usage.md#generated-names) for the limits of
+these names.
+
 A project can list its targets in `goalchemy.yaml` and build them all at once:
 
 ```yaml

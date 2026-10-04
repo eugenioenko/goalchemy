@@ -44,11 +44,28 @@ func (e *emitter) library() (string, error) {
 		roots[f.Pkg] = true
 	}
 	used := map[string]bool{}
+	reserved := map[string]bool{}
+	for _, name := range strings.Fields("V H Key Code Func TypeDesc PanicObj GoPanicPayload ErrorKind LibraryError Cancellation ProviderRequest ProviderError Provider CallOptions Operation HostFault HostFatal SourceStackFatal HostWire HostRecord HostMailbox HostToken HostBoundary HostPending Step Results Frame Task Timer Sched Obj Heap Deferred FrData Fr TempRoots KeyIndex Entry GoMap MapIter EntryReservation SourceGuard Waiter WaiterData Chan Mutex WaitGroup ContextHook Context ContextHookHandle BlockedPayload HostError Vec Rc Cell RefCell Option Result String Some None Ok Err") {
+		reserved[name] = true
+	}
+	for _, f := range e.p.Exports {
+		name := f.Name[strings.LastIndex(f.Name, ".")+1:]
+		if reserved[name] {
+			return "", &LibraryBoundaryError{fmt.Sprintf("reserved Rust public function name %s", name)}
+		}
+		if used[name] {
+			return "", &LibraryBoundaryError{fmt.Sprintf("duplicate Rust public name %s", name)}
+		}
+		used[name] = true
+	}
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KNamed && roots[t.Pkg] && t.U().Kind == ir.KStruct && token.IsExported(t.Obj) && libraryValue(t, map[*ir.Type]bool{}) {
 			n := t.Obj
+			if reserved[n] {
+				return "", &LibraryBoundaryError{fmt.Sprintf("reserved Rust public type name %s", n)}
+			}
 			if used[n] {
-				n = fmt.Sprintf("%s%d", n, t.U().ID)
+				return "", &LibraryBoundaryError{fmt.Sprintf("duplicate Rust public type name %s", n)}
 			}
 			used[n] = true
 			names[t.U()] = n
@@ -70,7 +87,12 @@ func (e *emitter) library() (string, error) {
 			return "Vec<" + typ(u.Elem) + ">"
 		case ir.KStruct:
 			if names[u] == "" {
-				names[u] = fmt.Sprintf("Value%d", u.ID)
+				n := fmt.Sprintf("Value%d", u.ID)
+				for used[n] || reserved[n] {
+					n += "_"
+				}
+				used[n] = true
+				names[u] = n
 			}
 			return names[u]
 		}
@@ -101,7 +123,7 @@ func (e *emitter) library() (string, error) {
 			}
 			b.WriteString("}\n")
 		}
-		fmt.Fprintf(&b, "fn input_%d(v: %s) -> V {\n", u.ID, typ(u))
+		fmt.Fprintf(&b, "fn input_%s(v: %s) -> V {\n", e.names.Type(u, ""), typ(u))
 		switch u.Kind {
 		case ir.KFloat:
 			b.WriteString("V::Float(v as f64)\n")
@@ -114,7 +136,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KStruct:
 			var fields []string
 			for _, f := range u.Fields {
-				fields = append(fields, fmt.Sprintf("input_%d(v.%s)", f.Type.U().ID, f.Name))
+				fields = append(fields, fmt.Sprintf("input_%s(v.%s)", e.names.Type(f.Type.U(), ""), f.Name))
 			}
 			fmt.Fprintf(&b, "vals(vec![%s])\n", strings.Join(fields, ","))
 		case ir.KArray, ir.KSlice:
@@ -129,7 +151,7 @@ func (e *emitter) library() (string, error) {
 					b.WriteString("library_bytes(v)\n")
 				}
 			} else {
-				fmt.Fprintf(&b, "let h=vals(v.into_iter().map(input_%d).collect()).h();\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "let h=vals(v.into_iter().map(input_%s).collect()).h();\n", e.names.Type(u.Elem.U(), ""))
 				if u.Kind == ir.KArray {
 					b.WriteString("V::Obj(h)\n")
 				} else {
@@ -138,7 +160,7 @@ func (e *emitter) library() (string, error) {
 			}
 		}
 		b.WriteString("}\n")
-		fmt.Fprintf(&b, "fn output_%d(v: V) -> %s {\n", u.ID, typ(u))
+		fmt.Fprintf(&b, "fn output_%s(v: V) -> %s {\n", e.names.Type(u, ""), typ(u))
 		switch u.Kind {
 		case ir.KFloat:
 			fmt.Fprintf(&b, "v.f() as f%d\n", u.FloatBits)
@@ -151,7 +173,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KStruct:
 			fmt.Fprintf(&b, "%s {\n", typ(u))
 			for i, f := range u.Fields {
-				fmt.Fprintf(&b, "%s:output_%d(fld(&v,%d)),\n", f.Name, f.Type.U().ID, i)
+				fmt.Fprintf(&b, "%s:output_%s(fld(&v,%d)),\n", f.Name, e.names.Type(f.Type.U(), ""), i)
 			}
 			b.WriteString("}\n")
 		case ir.KArray, ir.KSlice:
@@ -163,9 +185,9 @@ func (e *emitter) library() (string, error) {
 				}
 			} else {
 				if u.Kind == ir.KArray {
-					fmt.Fprintf(&b, "(0..%d).map(|i|output_%d(slot(v.h(),i))).collect()\n", u.Len, u.Elem.U().ID)
+					fmt.Fprintf(&b, "(0..%d).map(|i|output_%s(slot(v.h(),i))).collect()\n", u.Len, e.names.Type(u.Elem.U(), ""))
 				} else {
-					fmt.Fprintf(&b, "let(h,o,n,_,_)=slice_parts(&v);(0..n as usize).map(|i|output_%d(slot(h,o as usize+i))).collect()\n", u.Elem.U().ID)
+					fmt.Fprintf(&b, "let(h,o,n,_,_)=slice_parts(&v);(0..n as usize).map(|i|output_%s(slot(h,o as usize+i))).collect()\n", e.names.Type(u.Elem.U(), ""))
 				}
 			}
 		}
@@ -200,7 +222,7 @@ func (e *emitter) library() (string, error) {
 	}
 	sort.Slice(errorTypes, func(i, j int) bool { return errorTypes[i].ID < errorTypes[j].ID })
 	for _, t := range errorTypes {
-		fmt.Fprintf(&b, "if is_type(v, &TD_%d) { let x=unboxed(v); let mut err=LibraryError::from_bytes(ErrorKind::Source,format_panic_value(v));\n", t.ID)
+		fmt.Fprintf(&b, "if is_type(v, &td_%s) { let x=unboxed(v); let mut err=LibraryError::from_bytes(ErrorKind::Source,format_panic_value(v));\n", e.names.Type(t, ""))
 		for i, f := range t.Elem.U().Fields {
 			switch f.Type.U().Kind {
 			case ir.KString:
@@ -226,7 +248,7 @@ func (e *emitter) library() (string, error) {
 			}
 			a := fmt.Sprintf("a%d", i)
 			ps = append(ps, a+": "+typ(t))
-			args = append(args, fmt.Sprintf("input_%d(%s)", t.U().ID, a))
+			args = append(args, fmt.Sprintf("input_%s(%s)", e.names.Type(t.U(), ""), a))
 		}
 		n := len(f.Sig.Results)
 		hasError := n > 0 && sourceError(f.Sig.Results[n-1])
@@ -236,7 +258,7 @@ func (e *emitter) library() (string, error) {
 		var rs, outs []string
 		for i := 0; i < n; i++ {
 			rs = append(rs, typ(f.Sig.Results[i]))
-			outs = append(outs, fmt.Sprintf("output_%d(rv[%d].clone())", f.Sig.Results[i].U().ID, i))
+			outs = append(outs, fmt.Sprintf("output_%s(rv[%d].clone())", e.names.Type(f.Sig.Results[i].U(), ""), i))
 		}
 		result := "()"
 		out := "()"
@@ -249,13 +271,13 @@ func (e *emitter) library() (string, error) {
 		}
 		ps = append(ps, "options: CallOptions")
 		fmt.Fprintf(&b, "pub fn %s(%s) -> Operation<%s> {\nOperation::submit(options, move |options| {\nlibrary_owner(%d, init_zero_globals, options, |ctx| {\n", name, strings.Join(ps, ","), result, len(e.p.Globals))
-		init := fmt.Sprintf("f_%s()", e.p.Init.Sym)
+		init := fmt.Sprintf("f_%s()", e.names.Symbol(e.p.Init.Sym))
 		if !e.p.Init.MaySuspend {
-			init = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![],0)", e.p.Init.Sym)
+			init = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![],0)", e.names.Symbol(e.p.Init.Sym))
 		}
-		call := fmt.Sprintf("f_%s(%s)", f.Sym, strings.Join(args, ","))
+		call := fmt.Sprintf("f_%s(%s)", e.names.Symbol(f.Sym), strings.Join(args, ","))
 		if !f.MaySuspend {
-			call = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![%s],%d)", f.Sym, strings.Join(args, ","), len(f.Sig.Results))
+			call = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![%s],%d)", e.names.Symbol(f.Sym), strings.Join(args, ","), len(f.Sig.Results))
 		}
 		fmt.Fprintf(&b, "library_sequence(%s, move || %s)\n}, |rv| {\n", init, call)
 		if hasError {

@@ -116,7 +116,6 @@ func (e *emitter) library() (string, error) {
 			return
 		}
 		seen[u] = true
-		id := u.ID
 		switch u.Kind {
 		case ir.KStruct:
 			for _, f := range u.Fields {
@@ -125,7 +124,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KSlice, ir.KArray:
 			converter(u.Elem)
 		}
-		fmt.Fprintf(&b, "function input$%d(v:any):any {\n", id)
+		fmt.Fprintf(&b, "function %s(v:any):any {\n", e.names.Type(u, "input$"))
 		switch u.Kind {
 		case ir.KFloat:
 			fmt.Fprintf(&b, "return rt.boundaryFloat(v,%d);\n", u.FloatBits)
@@ -138,42 +137,42 @@ func (e *emitter) library() (string, error) {
 		case ir.KStruct:
 			fmt.Fprintf(&b, "const o=rt.boundaryObject(v),r=new %s();\n", e.class(u))
 			for i, f := range u.Fields {
-				fmt.Fprintf(&b, "r.%s=input$%d(o[%q]);\n", fieldProp(u, i), f.Type.U().ID, f.Name)
+				fmt.Fprintf(&b, "r.%s=%s(o[%q]);\n", e.fieldProp(u, i), e.names.Type(f.Type.U(), "input$"), f.Name)
 			}
 			b.WriteString("return r;\n")
 		case ir.KSlice:
 			if byteElem(u.Elem) {
 				b.WriteString("return rt.byteSlice(rt.boundaryBytes(v));\n")
 			} else {
-				fmt.Fprintf(&b, "const a=rt.boundaryArray(v);return a===null?rt.NIL:rt.fromArray(Array.from({length:a.length},(_,i)=>input$%d(a[i])));\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "const a=rt.boundaryArray(v);return a===null?rt.NIL:rt.fromArray(Array.from({length:a.length},(_,i)=>%s(a[i])));\n", e.names.Type(u.Elem.U(), "input$"))
 			}
 		case ir.KArray:
 			if byteElem(u.Elem) {
 				fmt.Fprintf(&b, "const a=rt.boundaryBytes(v);if(a===null||a.length!==%d)rt.invalidBoundary();return a;\n", u.Len)
 			} else {
-				fmt.Fprintf(&b, "const a=rt.boundaryArray(v);if(a===null||a.length!==%d)rt.invalidBoundary();return Array.from({length:a.length},(_,i)=>input$%d(a[i]));\n", u.Len, u.Elem.U().ID)
+				fmt.Fprintf(&b, "const a=rt.boundaryArray(v);if(a===null||a.length!==%d)rt.invalidBoundary();return Array.from({length:a.length},(_,i)=>%s(a[i]));\n", u.Len, e.names.Type(u.Elem.U(), "input$"))
 			}
 		}
 		b.WriteString("}\n")
-		fmt.Fprintf(&b, "function output$%d(v:any):any {\n", id)
+		fmt.Fprintf(&b, "function %s(v:any):any {\n", e.names.Type(u, "output$"))
 		switch u.Kind {
 		case ir.KStruct:
 			b.WriteString("return {")
 			for i, f := range u.Fields {
-				fmt.Fprintf(&b, "%s:output$%d(v.%s),", f.Name, f.Type.U().ID, fieldProp(u, i))
+				fmt.Fprintf(&b, "%s:%s(v.%s),", f.Name, e.names.Type(f.Type.U(), "output$"), e.fieldProp(u, i))
 			}
 			b.WriteString("};\n")
 		case ir.KSlice:
 			if byteElem(u.Elem) {
 				b.WriteString("return v.a===null?null:rt.bytes(v);\n")
 			} else {
-				fmt.Fprintf(&b, "return v.a===null?null:rt.toArray(v).map(x=>output$%d(x));\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "return v.a===null?null:rt.toArray(v).map(x=>%s(x));\n", e.names.Type(u.Elem.U(), "output$"))
 			}
 		case ir.KArray:
 			if byteElem(u.Elem) {
 				b.WriteString("return new Uint8Array(v);\n")
 			} else {
-				fmt.Fprintf(&b, "return v.map(x=>output$%d(x));\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "return v.map(x=>%s(x));\n", e.names.Type(u.Elem.U(), "output$"))
 			}
 		default:
 			b.WriteString("return v;\n")
@@ -210,15 +209,15 @@ func (e *emitter) library() (string, error) {
 	b.WriteString("function sourceFailure(err:any):rt.LibraryError|null {\nif(err===null)return null;\n")
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KPointer && t.Elem.U().Kind == ir.KStruct && libraryValue(t.Elem, map[*ir.Type]bool{}) && e.tds[t] != "" {
-			fmt.Fprintf(&b, "if(err.t===%s)return new rt.LibraryError('source',output$%d(err.v));\n", e.tds[t], t.Elem.U().ID)
+			fmt.Fprintf(&b, "if(err.t===%s)return new rt.LibraryError('source',%s(err.v));\n", e.tds[t], e.names.Type(t.Elem.U(), "output$"))
 		}
 	}
 	b.WriteString("return new rt.LibraryError('source');\n}\nfunction libraryReset():void{\n")
 	for _, g := range e.p.Globals {
 		if g.AddrTaken && !g.Type.IsAggregate() {
-			fmt.Fprintf(&b, "%s.v=%s;\n", g.Sym, e.zero(g.Type))
+			fmt.Fprintf(&b, "%s.v=%s;\n", e.symbol(g.Sym), e.zero(g.Type))
 		} else {
-			fmt.Fprintf(&b, "%s=%s;\n", g.Sym, e.zero(g.Type))
+			fmt.Fprintf(&b, "%s=%s;\n", e.symbol(g.Sym), e.zero(g.Type))
 		}
 	}
 	b.WriteString("}\n")
@@ -257,14 +256,14 @@ func (e *emitter) library() (string, error) {
 		fmt.Fprintf(&b, "export async function %s(%s):Promise<%s>{\noptions=rt.snapshotOptions(options);\n", name, strings.Join(ps, ","), result)
 		for i, t := range f.Sig.Params {
 			if !sourceContext(t) {
-				fmt.Fprintf(&b, "a%d=input$%d(a%d);\n", i, t.U().ID, i)
+				fmt.Fprintf(&b, "a%d=%s(a%d);\n", i, e.names.Type(t.U(), "input$"), i)
 			}
 		}
-		init := e.p.Init.Sym + "()"
+		init := e.symbol(e.p.Init.Sym) + "()"
 		if !e.p.Init.MaySuspend {
-			init = "rt.sync(()=>{ " + e.p.Init.Sym + "();return [];})"
+			init = "rt.sync(()=>{ " + e.symbol(e.p.Init.Sym) + "();return [];})"
 		}
-		call := f.Sym + "(" + strings.Join(as, ",") + ")"
+		call := e.symbol(f.Sym) + "(" + strings.Join(as, ",") + ")"
 		if !f.MaySuspend {
 			body := call
 			if len(f.Sig.Results) == 0 {
@@ -278,7 +277,7 @@ func (e *emitter) library() (string, error) {
 		}
 		fmt.Fprintf(&b, "const owned=await rt.runLibrary(options,ctx=>rt.librarySequence(%s,()=>%s),libraryReset,rv=>{\nreturn [", init, call)
 		for i := 0; i < n; i++ {
-			fmt.Fprintf(&b, "output$%d(rv[%d]),", f.Sig.Results[i].U().ID, i)
+			fmt.Fprintf(&b, "%s(rv[%d]),", e.names.Type(f.Sig.Results[i].U(), "output$"), i)
 		}
 		if hasErr {
 			fmt.Fprintf(&b, "sourceFailure(rv[%d]),", n)
