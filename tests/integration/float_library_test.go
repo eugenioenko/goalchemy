@@ -99,8 +99,13 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 			case "c":
 				run(out, "sh", "build.sh")
 				copyFixture("consumer.c", consumer, "consumer.c")
-				gc := filepath.Join(root, ".toolchains/bdwgc")
-				run(consumer, "cc", "-std=c17", "-O2", "-I"+out, "-I"+filepath.Join(gc, "include"), "consumer.c", filepath.Join(out, "libgoalchemy.a"), filepath.Join(gc, "lib/libgc.a"), "-lpthread", "-lm", "-o", "consumer")
+				gc := "-lgc"
+				for _, entry := range env {
+					if prefix := strings.TrimPrefix(entry, "GOALCHEMY_BDWGC="); prefix != entry && prefix != "" {
+						gc = filepath.Join(prefix, "lib", "libgc.a")
+					}
+				}
+				run(consumer, "cc", "-std=c17", "-O2", "-I"+out, "consumer.c", filepath.Join(out, "libgoalchemy.a"), gc, "-lpthread", "-lm", "-o", "consumer")
 				result = run(consumer, filepath.Join(consumer, "consumer"))
 			}
 			if target != "go" && !strings.Contains(result, "PASS float library") {
