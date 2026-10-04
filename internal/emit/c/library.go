@@ -16,7 +16,7 @@ func cValueType(t *ir.Type, seen map[*ir.Type]bool) bool {
 	seen[t] = true
 	u := t.U()
 	switch u.Kind {
-	case ir.KBool, ir.KInt, ir.KString:
+	case ir.KBool, ir.KInt, ir.KString, ir.KFloat:
 		return true
 	case ir.KArray, ir.KSlice:
 		return cValueType(u.Elem, seen)
@@ -93,6 +93,8 @@ static void gxc_poll(void) {
 		fmt.Fprintf(out, "static gx_V gxc_in_%d(const gxc_value *v) {\n", u.ID)
 		fmt.Fprintf(out, " if(v->kind==GXC_NIL) return %s;\n", e.zero(t))
 		switch u.Kind {
+		case ir.KFloat:
+			fmt.Fprintf(out, " if(v->kind!=GXC_FLOAT) gxc_invalid(); return gx_float(gx_round_float(v->floating,%d));\n", u.FloatBits)
 		case ir.KBool:
 			out.WriteString(" if(v->kind!=GXC_BOOL || (v->integer!=0 && v->integer!=1)) gxc_invalid(); return gx_bool(v->integer);\n")
 		case ir.KInt:
@@ -134,6 +136,8 @@ static void gxc_poll(void) {
 		out.WriteString("}\n")
 		fmt.Fprintf(out, "static gxc_value gxc_out_%d(gx_V v) {if(gxc_output_depth>=64 || ++gxc_output_nodes>1000000)gx_host_fault(\"native result tree budget\");gxc_output_depth++;gxc_value r=gxc_out_body_%d(v);gxc_output_depth--;return r;}\nstatic gxc_value gxc_out_body_%d(gx_V v) {\n", u.ID, u.ID, u.ID)
 		switch u.Kind {
+		case ir.KFloat:
+			out.WriteString(" return (gxc_value){.kind=GXC_FLOAT,.floating=gx_f(v)};\n")
 		case ir.KBool:
 			out.WriteString(" return (gxc_value){.kind=GXC_BOOL,.integer=gx_b(v)};\n")
 		case ir.KInt:

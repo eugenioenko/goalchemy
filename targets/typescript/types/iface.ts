@@ -15,7 +15,7 @@ export interface TypeDesc {
   /** False when values of the type are not comparable. */
   comparable?: boolean;
   /** Format for uncaught panic printing, if the type is a named basic type. */
-  basic?: "int" | "bool" | "string";
+  basic?: "int" | "bool" | "string" | "float32" | "float64";
 }
 
 let nextTypeId = 1;

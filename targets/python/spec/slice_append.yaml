@@ -2,7 +2,7 @@
 target: python
 function: core.slice.append
 contract_version: 1.0.0
-contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
+contract_hash: 4a2407e5be0b907f09e658213e096c9dc90fd154c23f08a72e51d8fc45e10a6d
 symbol: "rt.append_slice"
 implementation: runtime/slice_append.py
 implementation_hash: bab4b59aadca1077090c472928a7c7c2625f3e503dd7557a9f3cc2926853c67a

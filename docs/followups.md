@@ -4,17 +4,20 @@ Known gaps and deferred improvements, recorded so they can be picked up later.
 
 ## C target
 
-### Library mode is narrow
+### Legacy scalar library boundary
 
-Non-`main` packages build as C libraries (`goalchemy.h`, `libgoalchemy.a`). Current limits:
+Non-`main` packages build as C libraries (`goalchemy.h`, `libgoalchemy.a`).
+The owned value API accepts booleans, integers, strings, floats and supported
+struct/array/slice trees, including cooperative calls and error mapping.
+The all-target [float consumers](float-support.md) exercise this API.
+The older scalar entry points retain these limits:
 
-- Parameters and results may only be integers, `bool`, and `string`. Structs, slices, maps, errors, and function values are rejected.
+- Parameters and results may only be integers, `bool`, `string`, `float32` and `float64`. Structs, slices and errors use the owned value API; maps and function values remain excluded from value exports.
 - Exported functions must not suspend, so cooperative code cannot be exported.
-- C's scalar library boundary does not support the value/async exports available on Go, TypeScript, Java, C#, Python and Rust.
 - The host must call `goalchemy_init` and the exports from one thread. Other host threads are not registered with the collector.
 - Returned strings point into collected memory, so the host must copy them before dropping its references.
 
-Widening C's boundary remains necessary for SDK consumers: native value conversion, error mapping, owned outputs and async exports. See the accepted [Go](go-library-boundary.md), [TypeScript](typescript-library-boundary.md), [Java](java-library-boundary.md) and [C#](csharp-library-boundary.md) boundaries.
+See the [Go](go-library-boundary.md), [TypeScript](typescript-library-boundary.md), [Java](java-library-boundary.md) and [C#](csharp-library-boundary.md) boundaries for the other host representations.
 
 ## All targets
 
@@ -39,10 +42,11 @@ unsigned scalar reads, typed nil headers and zeroed capacity. See
 [C design, verification and memory evidence](c-byte-storage.md).
 
 The stronger growth-zeroing regressions recorded in these evidence documents
-expose unset spare capacity after append growth in generic storage.
-All six non-Go byte implementations now zero capacity; existing generic non-byte
-append paths still leave spare capacity uninitialized. These follow-ups must
-preserve aliasing and the established capacity rule.
+exposed unset spare capacity after append growth in generic storage.
+The float-support follow-up now initializes new generic spare slots from the
+declared element's zero factory, including nested arrays and structs. It
+preserves existing backing contents when append reuses capacity, aliasing and
+the established capacity rule. See [float verification](float-support.md).
 
 ### Host operations and portable libraries
 

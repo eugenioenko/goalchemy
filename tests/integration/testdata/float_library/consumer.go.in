@@ -1,0 +1,70 @@
+package consumer
+
+import (
+	"context"
+	"math"
+	"testing"
+
+	g "goalchemyout"
+)
+
+func TestFloatLibrary(t *testing.T) {
+	ctx := context.Background()
+	for _, x := range []float64{1.25, math.Copysign(0, -1), math.Inf(1), math.Inf(-1), math.NaN()} {
+		single := g.F32(float32(x))
+		a, err := g.Scalar32(ctx, single)
+		if err != nil || (math.IsNaN(x) && !math.IsNaN(float64(a))) || (!math.IsNaN(x) && math.Float32bits(float32(a)) != math.Float32bits(float32(single))) {
+			t.Fatal("float32 scalar or IEEE value", a, err)
+		}
+		b, err := g.Scalar64(ctx, x)
+		if err != nil || (math.IsNaN(x) && !math.IsNaN(b)) || (!math.IsNaN(x) && math.Float64bits(b) != math.Float64bits(x)) {
+			t.Fatal("float64 scalar or IEEE value", b, err)
+		}
+	}
+	input := g.Value{Small: 1.25, Wide: math.Copysign(0, -1), Values: []float32{2.5}, Nested: [][]float64{{4.5}}, Pair: [2]float32{6.5, 7.5}}
+	small, wide, err := g.Both(ctx, 1.25, math.Copysign(0, -1))
+	if err != nil || small != 1.25 || math.Float64bits(wide) != math.Float64bits(input.Wide) {
+		t.Fatal("multiple float results", small, wide, err)
+	}
+	first, err := g.Echo(ctx, input)
+	if err != nil || first.Small != input.Small || math.Float64bits(first.Wide) != math.Float64bits(input.Wide) || first.Values[0] != 3.5 || first.Nested[0][0] != 6.5 || first.Pair != input.Pair || input.Values[0] != 2.5 || input.Nested[0][0] != 4.5 {
+		t.Fatal("nested float conversion or input ownership", first, input, err)
+	}
+	first.Values[0], first.Nested[0][0] = 99, 99
+	second, err := g.Echo(ctx, input)
+	if err != nil || second.Values[0] != 3.5 || second.Nested[0][0] != 6.5 || input.Values[0] != 2.5 || input.Nested[0][0] != 4.5 {
+		t.Fatal("nested result ownership", err)
+	}
+	async, err := g.Suspended(ctx, input)
+	if err != nil || async.Values[0] != 2.5 || async.Pair != input.Pair {
+		t.Fatal("float values across suspension", err)
+	}
+	owned, err := g.Fixed(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned.Values[0] = 99
+	again, err := g.Fixed(ctx)
+	if err != nil || again.Values[0] != 1.5 || owned.Values[0] != 99 {
+		t.Fatal("global float storage ownership", err)
+	}
+	nilValue, err := g.Echo(ctx, g.Value{})
+	if err != nil || nilValue.Values != nil || nilValue.Nested != nil {
+		t.Fatal("nil float slices", err)
+	}
+	empty, err := g.Echo(ctx, g.Value{Values: []float32{}, Nested: [][]float64{}})
+	if err != nil || empty.Values == nil || empty.Nested == nil {
+		t.Fatal("empty float slices", err)
+	}
+	_, err = g.Fail(ctx)
+	failure, ok := err.(*g.FloatError)
+	if !ok || failure.Small != 1.25 || failure.Wide != -2.5 || failure.Values[0] != 3.75 || failure.Error() != "float error" {
+		t.Fatal("typed error containing floats", err)
+	}
+	failure.Values[0] = 99
+	_, err = g.Fail(ctx)
+	againFailure, ok := err.(*g.FloatError)
+	if !ok || againFailure.Values[0] != 3.75 || failure.Values[0] != 99 {
+		t.Fatal("float error result ownership", err)
+	}
+}

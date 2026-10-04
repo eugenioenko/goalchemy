@@ -53,6 +53,9 @@ void gx_format_panic_value(gx_V v, gx_Buf *out) {
     } else if (strcmp(t->basic, "int") == 0) {
         int n = snprintf(buf, sizeof buf, "%lld", (long long)x.u.i);
         gx_buf_put(&inner, buf, (size_t)n);
+    } else if (strcmp(t->basic, "float32") == 0 || strcmp(t->basic, "float64") == 0) {
+        gx_V formatted = gx_float_print(gx_f(x), strcmp(t->basic, "float32") == 0 ? 32 : 64);
+        gx_buf_put(&inner, formatted.u.p, formatted.l);
     } else if (strcmp(t->basic, "uint") == 0) {
         int n = snprintf(buf, sizeof buf, "%llu", (unsigned long long)(uint64_t)x.u.i);
         gx_buf_put(&inner, buf, (size_t)n);

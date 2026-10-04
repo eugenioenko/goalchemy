@@ -18,7 +18,7 @@ func libraryValue(t *ir.Type, seen map[*ir.Type]bool) bool {
 	seen[t] = true
 	u := t.U()
 	switch u.Kind {
-	case ir.KBool, ir.KInt, ir.KString:
+	case ir.KBool, ir.KInt, ir.KString, ir.KFloat:
 		return true
 	case ir.KArray, ir.KSlice:
 		return libraryValue(u.Elem, seen)
@@ -52,7 +52,7 @@ func (e *emitter) library() (string, error) {
 	roots := map[string]bool{}
 	used := map[string]bool{}
 	reserved := map[string]bool{}
-	for _, name := range strings.Fields("Generated Library Callback Native TaskSpawn Program Box Slice Ref Cell Fn TypeDesc Bounds Ints Out Utf8 Desc GoMap GoPanic FatalPanic Panics Channel StdContextErr StdContextWithCancel EnvFn Object String Long Boolean Void Integer Math System Throwable RuntimeException") {
+	for _, name := range strings.Fields("Generated Library Callback Native TaskSpawn Program Box Slice Ref Cell Fn TypeDesc Bounds Ints Floats Out Utf8 Desc GoMap GoPanic FatalPanic Panics Channel StdContextErr StdContextWithCancel EnvFn Object String Long Boolean Float Double Void Integer Math System Throwable RuntimeException") {
 		reserved[name] = true
 	}
 	for _, symbol := range e.symbols {
@@ -79,6 +79,11 @@ func (e *emitter) library() (string, error) {
 		switch u.Kind {
 		case ir.KBool:
 			return "boolean"
+		case ir.KFloat:
+			if u.FloatBits == 32 {
+				return "float"
+			}
+			return "double"
 		case ir.KInt:
 			return "long"
 		case ir.KString:
@@ -131,7 +136,7 @@ func (e *emitter) library() (string, error) {
 			b.WriteString("Object original=v;copy.enter(original);try {\n")
 		}
 		switch u.Kind {
-		case ir.KBool:
+		case ir.KBool, ir.KFloat:
 			b.WriteString("return v;\n")
 		case ir.KInt:
 			fmt.Fprintf(&b, "return Library.integer(v,%d,%t);\n", u.Int.Bits(), u.Int.Signed())
@@ -160,7 +165,7 @@ func (e *emitter) library() (string, error) {
 		b.WriteString(" }\n")
 		fmt.Fprintf(&b, " private static %s input$%d(%s v) {\n", e.jt(t), id, typ(t))
 		switch u.Kind {
-		case ir.KBool:
+		case ir.KBool, ir.KFloat:
 			b.WriteString("return v;\n")
 		case ir.KInt:
 			fmt.Fprintf(&b, "return Library.integer(v,%d,%t);\n", u.Int.Bits(), u.Int.Signed())
@@ -309,6 +314,12 @@ func (e *emitter) library() (string, error) {
 			}
 			if result == "boolean" {
 				result = "Boolean"
+			}
+			if result == "float" {
+				result = "Float"
+			}
+			if result == "double" {
+				result = "Double"
 			}
 		} else if n > 1 {
 			result = name + "Result"

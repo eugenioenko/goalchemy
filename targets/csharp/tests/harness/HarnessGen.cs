@@ -811,7 +811,7 @@ static partial class Harness
     {
         var v_s = decSlice(h.Let("s"), r => decString(r), () => "");
         var v_vs = decSlice(h.Let("vs"), r => decString(r), () => "");
-        var r0 = R.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_s, v_vs, null), v_s, () => "");
         return new JsonArray(encSlice(r0, e => encString(e)));
     }
 
@@ -819,7 +819,7 @@ static partial class Harness
     {
         var v_s = decSlice(h.Let("s"), r => decInt(r, "i64"), () => 0L);
         var v_vs = decSlice(h.Let("vs"), r => decInt(r, "i64"), () => 0L);
-        var r0 = R.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_s, v_vs, null), v_s, () => 0L);
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
 
@@ -827,7 +827,7 @@ static partial class Harness
     {
         var v_s = decSlice(h.Let("s"), r => decInt(r, "i64"), () => 0L);
         var v_vs = decSlice(h.Let("vs"), r => decInt(r, "i64"), () => 0L);
-        var r0 = R.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_s, v_vs, null), v_s, () => 0L);
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
 
@@ -836,7 +836,7 @@ static partial class Harness
         var v_s = decSlice(h.Let("s"), r => decInt(r, "i64"), () => 0L);
         var v_t = view(v_s, h.Let("t"));
         var v_vs = decSlice(h.Let("vs"), r => decInt(r, "i64"), () => 0L);
-        var r0 = R.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_s, v_vs, null), v_s, () => 0L);
         h.After("t", encSlice(v_t, e => encInt(e, "i64")));
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
@@ -845,7 +845,7 @@ static partial class Harness
     {
         var v_s = decSlice(h.Let("s"), r => decInt(r, "i64"), () => 0L);
         var v_vs = decSlice(h.Let("vs"), r => decInt(r, "i64"), () => 0L);
-        var r0 = R.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_s, v_vs, null), v_s, () => 0L);
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }
 
@@ -854,7 +854,7 @@ static partial class Harness
         var v_s = decSlice(h.Let("s"), r => decInt(r, "i64"), () => 0L);
         var v_a = view(v_s, h.Let("a"));
         var v_vs = view(v_s, h.Let("vs"));
-        var r0 = R.appendSlice(v_a, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(R.appendSlice(v_a, v_vs, null), v_a, () => 0L);
         h.After("s", encSlice(v_s, e => encInt(e, "i64")));
         return new JsonArray(encSlice(r0, e => encInt(e, "i64")));
     }

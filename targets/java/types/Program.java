@@ -186,6 +186,10 @@ public final class Program {
         if (str != null) return indented((String) str.call(v.v));
         boolean builtin = !v.t.name.contains(".");
         if ("string".equals(v.t.basic)) return builtin ? indented((String) v.v) : v.t.name + "(\"" + indented((String) v.v) + "\")";
+        if ("float32".equals(v.t.basic) || "float64".equals(v.t.basic)) {
+            String s = Floats.print(((Number)v.v).doubleValue(), "float32".equals(v.t.basic) ? 32 : 64);
+            return builtin ? s : v.t.name + "(" + s + ")";
+        }
         if ("bool".equals(v.t.basic) || "int".equals(v.t.basic) || "uint".equals(v.t.basic)) {
             String s = v.v instanceof Long l && "uint".equals(v.t.basic) ? Long.toUnsignedString(l) : String.valueOf(v.v);
             return builtin ? s : v.t.name + "(" + s + ")";

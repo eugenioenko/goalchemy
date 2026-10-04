@@ -139,7 +139,7 @@ func IntInfo(name string) (bits uint, signed bool, ok bool) {
 	return r.bits, r.signed, ok
 }
 
-var concreteNames = map[string]bool{"bool": true, "string": true, "error": true, "any": true, "struct{}": true, "func()": true}
+var concreteNames = map[string]bool{"bool": true, "float32": true, "float64": true, "string": true, "error": true, "any": true, "struct{}": true, "func()": true}
 
 // Concrete reports whether a type expression contains only concrete names.
 func (t *TypeExpr) Concrete() bool {
@@ -172,6 +172,8 @@ func InFamily(t *TypeExpr, family string) bool {
 	switch family {
 	case "any":
 		return t.Concrete()
+	case "type.float":
+		return t.Kind == "name" && (t.Name == "float32" || t.Name == "float64")
 	case "type.integer":
 		_, ok := intRanges[t.Name]
 		return t.Kind == "name" && ok

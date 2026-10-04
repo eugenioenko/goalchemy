@@ -420,7 +420,7 @@ func (c *checker) builtinName(id *ast.Ident, name string) {
 	case "close":
 		c.cooperative(id, "builtin close")
 	case "complex", "real", "imag":
-		c.unsupported(id, "GCS007", "builtin "+name, "Floating-point and complex values are rejected in 0.1.")
+		c.unsupported(id, "GCS007", "builtin "+name, "Complex values are unsupported.")
 	default:
 		c.unsupported(id, "GCS007", "builtin "+name, "Use a supported builtin.")
 	}
@@ -498,7 +498,7 @@ func (c *checker) call(n *ast.CallExpr) bool {
 				}
 			}
 			for _, et := range elems {
-				if bt, ok := et.Underlying().(*types.Basic); !ok || bt.Info()&(types.IsBoolean|types.IsInteger|types.IsString) == 0 {
+				if bt, ok := et.Underlying().(*types.Basic); !ok || bt.Info()&(types.IsBoolean|types.IsInteger|types.IsString|types.IsFloat) == 0 {
 					c.unsupported(a, "GCS006", "print of "+types.TypeString(et, nil),
 						"Print only Booleans, integers, and strings; format other values first.")
 				}
@@ -551,8 +551,8 @@ func (c *checker) typeDiag(n ast.Node, t types.Type, why string) {
 				"Remove concurrency from sequential programs or compile with the cooperative gate.")
 			return
 		}
-	case strings.HasPrefix(why, "floating"), strings.HasPrefix(why, "complex"):
-		remedy = "Use integers or fixed-point integer encodings; floating-point is rejected in 0.1."
+	case strings.HasPrefix(why, "complex"):
+		remedy = "Use supported float32/float64 scalars or explicit real/imaginary components; complex values are unsupported."
 	case strings.HasPrefix(why, "unsafe"), strings.HasPrefix(why, "uintptr"):
 		remedy = "Remove unsafe and address-integer operations."
 	}
@@ -587,8 +587,6 @@ func (c *checker) typeProblemUncached(t types.Type) string {
 			return "unsafe.Pointer"
 		case t.Kind() == types.Uintptr:
 			return "uintptr"
-		case t.Info()&types.IsFloat != 0:
-			return "floating-point values"
 		case t.Info()&types.IsComplex != 0:
 			return "complex values"
 		}

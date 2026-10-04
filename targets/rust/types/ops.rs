@@ -176,3 +176,19 @@ pub fn byte_array_eq(a: &V, b: &V) -> bool {
 pub fn byte_array_key(a: &V) -> Key {
     Key::Bytes(Rc::from(byte_snapshot(a.h(), 0, vals_len(a.h()))))
 }
+
+/// Typed zeros for spare capacity; reuse must preserve existing backing values.
+pub fn zero_append_growth(result: V, previous: &V, zero: fn()->V) -> V {
+    let (h,_,l,c,bytes)=slice_parts(&result);
+    let(old,_,_,_,_)=slice_parts(previous);
+    if h != old && !bytes {
+        // A zero factory may allocate traced aggregate storage; never call it
+        // while the heap's RefCell is borrowed by with().
+        let zeros: Vec<V> = (l..c).map(|_| zero()).collect();
+        with(h, |o| match o {
+            Obj::Vals(v) => { for (i,value) in (l..c).zip(zeros) { v[i as usize]=value; } },
+            _ => fault("slice backing expected"),
+        });
+    }
+    result
+}

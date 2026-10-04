@@ -29,7 +29,7 @@ func snapshot(v reflect.Value) reflect.Value {
 		}
 		out := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
 		switch v.Type().Elem().Kind() {
-		case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
 			reflect.Copy(out, v)
 			return out
 		}
@@ -90,7 +90,7 @@ func errorValueType(t reflect.Type, seen map[reflect.Type]bool) bool {
 	}
 	seen[t] = true
 	switch t.Kind() {
-	case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
 		return true
 	case reflect.Array, reflect.Slice:
 		return errorValueType(t.Elem(), seen)

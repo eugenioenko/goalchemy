@@ -197,6 +197,8 @@ func FormatPanic(v any) string {
 		s = strconv.FormatInt(rv.Int(), 10)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		s = strconv.FormatUint(rv.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		s = strconv.FormatFloat(rv.Float(), 'g', -1, rv.Type().Bits())
 	default:
 		return "(" + name + ") " + fmt.Sprintf("%p", v)
 	}

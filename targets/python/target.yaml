@@ -8,6 +8,7 @@ environment:
   build: python3 main.py
   native: "The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "Python float with explicit binary32 rounding, IEEE division and exact integer conversions."}
   - {type: type.boolean, contract_version: 1.0.0, representation: Python bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Python int normalized to the Go width and signedness after every operation (types/integer.py)."}
   - {type: type.string, contract_version: 1.0.0, representation: "Python bytes: immutable, byte-indexed, compared bytewise."}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/harness.py, tests/harness/codec.py, rt_index.py]
   generated: tests/harness/harness_gen.py
   command: [python3, targets/python/tests/harness/harness.py]
-support_files: [types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py, types/library.py]
+support_files: [types/float.py, types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py, types/library.py]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.round_float", implementation: runtime/float_convert.py}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.float_add_<k>", implementation: runtime/float_add.py, harness: "rt.float_add_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "rt.float_sub_<k>", implementation: runtime/float_sub.py, harness: "rt.float_sub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "rt.float_mul_<k>", implementation: runtime/float_mul.py, harness: "rt.float_mul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "rt.float_div_<k>", implementation: runtime/float_div.py, harness: "rt.float_div_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "rt.float_neg_<k>", implementation: runtime/float_neg.py, harness: "rt.float_neg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "rt.float_min_<k>", implementation: runtime/float_min.py, harness: "rt.float_min_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "rt.float_max_<k>", implementation: runtime/float_max.py, harness: "rt.float_max_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.py, harness: "rt.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.py, harness: "rt.sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.mul_<k>", implementation: runtime/integer_mul.py, harness: "rt.mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.sget", implementation: runtime/slice_index.py, harness: "rt.sget({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.sset", implementation: runtime/slice_store.py, harness: "rt.sset({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.reslice", implementation: runtime/slice_slice.py, harness: "rt.reslice({0}, {1}, {2}, {3})"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.append_slice", implementation: runtime/slice_append.py, harness: "rt.append_slice({0}, {1})"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.append_slice", implementation: runtime/slice_append.py, harness: "rt.zero_append_growth(rt.append_slice({0}, {1}), {0}, lambda: {T.zero})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "rt.copy", implementation: runtime/slice_copy.py, harness: "rt.copy({0}, {1})"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "rt.clear_slice", implementation: runtime/slice_clear.py, harness: "rt.clear_slice({0}, lambda: {T.zero})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "rt.slice_to_array", implementation: runtime/slice_to_array.py, harness: "rt.slice_to_array({0}, 2)"}

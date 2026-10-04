@@ -8,6 +8,20 @@ The current project builds the compiler, its language runtimes, contract generat
 
 This document selects concrete defaults so implementation can begin. Changes are allowed as evidence arrives, but a semantic change must update the language specification, affected contracts, and conformance tests together. A planned feature is not advertised as implemented until its acceptance tests pass.
 
+## Floating-point follow-up
+
+Add `float32` and `float64` across all seven targets, including constants,
+arithmetic, comparisons, conversions, collections and exported APIs. Preserve
+Go semantics and verify the resulting feature through native-Go differential
+tests, all-target exported-library consumers, runtime contract conformance and
+passing hosted CI. Publish the accepted implementation as a pull request.
+Complex numbers and the full `math` library remain outside scope.
+
+The detailed requirements and acceptance status are in
+[float support](docs/float-support.md). All-target language fixtures and native
+library consumers verify both precisions; CI also requires runtime contract
+conformance and the existing regression suite.
+
 ## 1. Scope and completion criteria
 
 The full compiler roadmap includes all seven targets. The first usable compiler release supports lowered Go and TypeScript; the other five follow the same contract and test system.

@@ -8,6 +8,7 @@ environment:
   build: node main.ts
   native: "No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP in Node.js or browsers; IEEE CRC32 uses node:zlib.crc32 in Node executable/package entries and a slicing-by-8 fallback in browsers and the portable main entry. Host runtime controls acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "JavaScript number with explicit binary32 rounding, exact BigInt conversions and nonreflexive NaN key encodings."}
   - {type: type.channel, contract_version: 1.0.0, representation: "Chan objects with a buffer and FIFO wait queues (runtime/chan_make.ts); null is the nil channel."}
   - {type: type.task, contract_version: 1.0.0, representation: "Resumable frame stacks dispatched FIFO by runtime/task_spawn.ts; synchronous executable/conformance entry uses virtual time, explicit Promise host entry uses owner-local real monotonic time, mailbox completions and cleanup acknowledgement. Global executable binding rejects overlapping entries; isolated library exports remain gated."}
   - {type: type.boolean, contract_version: 1.0.0, representation: JavaScript boolean.}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
   generated: tests/harness/harness_gen.ts
   command: [node, targets/typescript/tests/harness/harness.ts]
-support_files: [types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, runtime/std_errors_new.ts]
+support_files: [types/float.ts, types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, runtime/std_errors_new.ts]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.roundFloat", implementation: runtime/float_convert.ts}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.floatAdd_<k>", implementation: runtime/float_add.ts, harness: "rt.floatAdd_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "rt.floatSub_<k>", implementation: runtime/float_sub.ts, harness: "rt.floatSub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "rt.floatMul_<k>", implementation: runtime/float_mul.ts, harness: "rt.floatMul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "rt.floatDiv_<k>", implementation: runtime/float_div.ts, harness: "rt.floatDiv_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "rt.floatNeg_<k>", implementation: runtime/float_neg.ts, harness: "rt.floatNeg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "rt.floatMin_<k>", implementation: runtime/float_min.ts, harness: "rt.floatMin_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "rt.floatMax_<k>", implementation: runtime/float_max.ts, harness: "rt.floatMax_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.add_<k>", implementation: runtime/integer_add.ts, harness: "rt.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.sub_<k>", implementation: runtime/integer_sub.ts, harness: "rt.sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.mul_<k>", implementation: runtime/integer_mul.ts, harness: "rt.mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "rt.sget", implementation: runtime/slice_index.ts, harness: "rt.sget({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "rt.sset", implementation: runtime/slice_store.ts, harness: "rt.sset({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "rt.reslice", implementation: runtime/slice_slice.ts, harness: "rt.reslice({0}, {1}, {2}, {3})"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.appendSlice", implementation: runtime/slice_append.ts, harness: "rt.appendSlice({0}, {1})"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "rt.appendSlice", implementation: runtime/slice_append.ts, harness: "rt.zeroAppendGrowth(rt.appendSlice({0}, {1}), {0}, () => {T.zero})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "rt.copy", implementation: runtime/slice_copy.ts, harness: "rt.copy({0}, {1})"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "rt.clearSlice", implementation: runtime/slice_clear.ts, harness: "rt.clearSlice({0}, () => {T.zero})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "rt.sliceToArray", implementation: runtime/slice_to_array.ts, harness: "rt.sliceToArray({0}, 2)"}

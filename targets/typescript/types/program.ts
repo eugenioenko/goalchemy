@@ -4,6 +4,7 @@ import { box, type Box, type TypeDesc, typeDesc } from "./iface.ts";
 import { GoPanic, nilDeref, runtimePanic, TYPE_ASSERTION_ERROR } from "./panic.ts";
 import { writeStderr } from "./print.ts";
 import { runtimeHost } from "./host.ts";
+import { floatPrint } from "./float.ts";
 
 export interface Deferred {
   f: ((...args: any[]) => any) | null;
@@ -143,6 +144,11 @@ export function formatPanicValue(v: Box | null): string {
   switch (v.t.basic) {
     case "string":
       return builtin ? indented(v.v) : v.t.name + '("' + indented(v.v) + '")';
+    case "float32":
+    case "float64": {
+      const text = floatPrint(v.v, v.t.basic === "float32" ? 32 : 64);
+      return builtin ? text : v.t.name + "(" + text + ")";
+    }
     case "int":
     case "bool":
       return builtin ? String(v.v) : v.t.name + "(" + String(v.v) + ")";

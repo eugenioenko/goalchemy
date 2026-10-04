@@ -2,7 +2,7 @@
 target: typescript
 function: core.slice.append
 contract_version: 1.0.0
-contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
+contract_hash: 4a2407e5be0b907f09e658213e096c9dc90fd154c23f08a72e51d8fc45e10a6d
 symbol: "rt.appendSlice"
 implementation: runtime/slice_append.ts
 implementation_hash: fabaf98da1558f138d995eb4cfc3bac98ff10762c1c1dbda872a3f093309475c

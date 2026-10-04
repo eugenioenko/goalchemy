@@ -5,10 +5,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-typedef enum { GXC_NIL, GXC_BOOL, GXC_INT, GXC_BYTES, GXC_LIST, GXC_RECORD } gxc_kind;
+typedef enum { GXC_NIL, GXC_BOOL, GXC_INT, GXC_BYTES, GXC_LIST, GXC_RECORD, GXC_FLOAT } gxc_kind;
 typedef struct gxc_value {
     gxc_kind kind;
     int64_t integer;
+    double floating;
     uint8_t *bytes;
     size_t length;
     struct gxc_value *items;

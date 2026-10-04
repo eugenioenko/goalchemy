@@ -139,6 +139,12 @@ func cAPIType(t *ir.Type) (cParam, bool) {
 	switch u.Kind {
 	case ir.KBool:
 		return cParam{[]string{"bool"}, "gx_bool(%[1]s)", "*%[1]s = gx_b(%[2]s);"}, true
+	case ir.KFloat:
+		typ := "double"
+		if u.FloatBits == 32 {
+			typ = "float"
+		}
+		return cParam{[]string{typ}, "gx_float(%[1]s)", "*%[1]s = (" + typ + ")gx_f(%[2]s);"}, true
 	case ir.KInt:
 		if u.Int == ir.U64 {
 			return cParam{[]string{"uint64_t"}, "gx_int((int64_t)%[1]s)", "*%[1]s = (uint64_t)gx_i(%[2]s);"}, true
@@ -387,6 +393,8 @@ func (e *emitter) zero(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KBool:
 		return "gx_bool(false)"
+	case ir.KFloat:
+		return "gx_float(0.0)"
 	case ir.KInt:
 		return "gx_int(0)"
 	case ir.KString:
@@ -419,6 +427,8 @@ func (e *emitter) zeroFn(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KBool:
 		return "gx_zero_bool"
+	case ir.KFloat:
+		return "gx_zero_float"
 	case ir.KInt:
 		return "gx_zero_int"
 	case ir.KString:
@@ -562,6 +572,8 @@ func (e *emitter) typeDescs(b *bytes.Buffer) {
 			basic = "bool"
 		case ir.KString:
 			basic = "string"
+		case ir.KFloat:
+			basic = u.Basic
 		}
 		eq := "return " + e.eqExpr(t, "a", "b") + ";"
 		key := e.keyStmt(t, "a", "out") + ";"
@@ -727,6 +739,9 @@ func (e *emitter) constant(c *ir.Const) string {
 			return e.zero(c.Type)
 		}
 		return "gx_nil()"
+	}
+	if c.Type.U().Kind == ir.KFloat {
+		return "gx_float(" + ir.FloatLiteral(c) + ")"
 	}
 	switch c.Val.Kind() {
 	case constant.Bool:
@@ -1275,6 +1290,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case ir.Not:
 			w("%s;", fe.set(i.Dst, "gx_bool(!gx_b("+x+"))"))
 		case ir.Neg:
+			if i.Dst.Type.U().Kind == ir.KFloat {
+				e.use("core.float.neg")
+				w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_float_neg_f%d(%s)", i.Dst.Type.U().FloatBits, x)))
+				break
+			}
 			e.use("core.integer.neg")
 			w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_neg_%s(%s)", intKind(i.Dst.Type), x)))
 		case ir.BitNot:
@@ -1282,7 +1302,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 			w("%s;", fe.set(i.Dst, fmt.Sprintf("gx_not_%s(%s)", intKind(i.Dst.Type), x)))
 		}
 	case *ir.BinOp:
-		if i.Op == ir.Min || i.Op == ir.Max {
+		if (i.Op == ir.Min || i.Op == ir.Max) && i.X.IRType().U().Kind != ir.KFloat {
 			op := "<"
 			if i.Op == ir.Max {
 				op = ">"
@@ -1395,6 +1415,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 			ev, n := vec(es)
 			v = fmt.Sprintf("gx_append(%s, %d, %s, %s)", fe.val(i.S), n, ev, cl)
 		}
+		v = fmt.Sprintf("gx_zero_append_growth(%s, %s, %s)", v, fe.val(i.S), e.zeroFn(i.Dst.Type.U().Elem))
 		w("%s;", fe.set(i.Dst, v))
 	case *ir.Copy:
 		e.use("core.slice.copy")
@@ -1461,7 +1482,9 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		var as []string
 		for _, a := range i.Args {
 			v := fe.val(a)
-			if unsigned64(a.IRType()) {
+			if a.IRType().U().Kind == ir.KFloat {
+				v = fmt.Sprintf("gx_float_print(gx_f(%s), %d)", v, a.IRType().U().FloatBits)
+			} else if unsigned64(a.IRType()) {
 				v = "gx_u64s(" + v + ")"
 			}
 			as = append(as, v)
@@ -1560,6 +1583,11 @@ func (fe *fnEmitter) binop(i *ir.BinOp) string {
 	e := fe.e
 	x, y := fe.val(i.X), fe.val(i.Y)
 	t := i.X.IRType()
+	if t.U().Kind == ir.KFloat && !i.Op.IsComparison() {
+		op := map[ir.BinOpKind]string{ir.Add: "add", ir.Sub: "sub", ir.Mul: "mul", ir.Div: "div", ir.Min: "min", ir.Max: "max"}[i.Op]
+		e.use("core.float." + op)
+		return fmt.Sprintf("gx_float_%s_f%d(%s, %s)", op, t.U().FloatBits, x, y)
+	}
 	u := t.U()
 	switch i.Op {
 	case ir.Eq, ir.Ne:
@@ -1604,6 +1632,9 @@ func (fe *fnEmitter) binop(i *ir.BinOp) string {
 
 func cmpExpr(u *ir.Type, unsigned bool, x, op, y string) string {
 	switch {
+	case u.Kind == ir.KFloat:
+		return fmt.Sprintf("gx_f(%s) %s gx_f(%s)", x, op, y)
+
 	case u.Kind == ir.KString:
 		return fmt.Sprintf("gx_scmp(%s, %s) %s 0", x, y, op)
 	case unsigned:
@@ -1616,6 +1647,16 @@ func (fe *fnEmitter) convert(i *ir.Convert) string {
 	e := fe.e
 	x := fe.val(i.X)
 	switch i.Kind {
+	case ir.ConvFloat:
+		e.use("core.float.convert")
+		u, from := i.Dst.Type.U(), i.X.IRType().U()
+		if u.Kind == ir.KFloat {
+			if from.Kind == ir.KFloat {
+				return fmt.Sprintf("gx_float_convert(%s, %d)", x, u.FloatBits)
+			}
+			return fmt.Sprintf("gx_integer_float_convert(%s, %t, %d)", x, !from.Int.Signed(), u.FloatBits)
+		}
+		return fmt.Sprintf("gx_float_integer_convert(%s, %d, %t)", x, u.Int.Bits(), u.Int.Signed())
 	case ir.ConvNop, ir.ConvIfaceToIface:
 		return x
 	case ir.ConvInt:

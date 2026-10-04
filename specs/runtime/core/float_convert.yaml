@@ -1,0 +1,32 @@
+id: core.float.convert
+schema_version: 1
+version: 1.0.0
+summary: "Numeric conversion involving an IEEE scalar, with destination-width rounding."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: any}
+    - {name: U, family: any}
+  inputs:
+    - {name: a, type: "T"}
+  outputs:
+    - {name: result, type: "U"}
+depends_on:
+  - {id: type.float, version: 1.0.0}
+  - {id: type.integer, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Floating zero preserves its sign; integer zero converts to positive zero."
+  nil: "Not applicable."
+  bounds: "Only source numeric conversions involving float32 or float64 instantiate this contract."
+  conversions: "Integer to float rounds directly to destination precision; float-to-float rounds explicitly even at unchanged width. Float-to-integer truncates toward zero with selected Go1.27.1 linux/amd64 exceptional results."
+  overflow: "Floating overflow yields infinity. Small integer kinds use signed32 conversion then wrapping; uint32/int64 use signed64 then wrapping; out-of-range signed32/64 use the respective minimum value. uint64 accepts [-2^63,2^64), wrapping negative values; otherwise its result is 2^63. NaN/infinity use these out-of-range results."
+  mutations: "None."
+  aliasing: "None."
+  allocation: "No observable source allocation."
+  errors: "None."
+  panics: "None."
+  observations: "Typed result. NaN payloads remain unspecified."
+cases: []
+native_tests: [tests/language/language_test.go, tests/integration/float_library_test.go]

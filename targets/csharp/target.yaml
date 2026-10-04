@@ -8,6 +8,7 @@ environment:
   build: "sh run.sh (csc from the .NET 8 SDK), or dotnet run with main.csproj"
   native: ".NET 8 built-ins for crypto (System.Security.Cryptography) and HTTP (HttpClient); IEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package with a content-hash lock, not the shared runtime. Host runtime controls acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "Native float/double with explicit key normalization and numeric conversions."}
   - {type: type.boolean, contract_version: 1.0.0, representation: C# bool.}
   - {type: type.integer, contract_version: 1.0.0, representation: "C# long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.cs)."}
   - {type: type.string, contract_version: 1.0.0, representation: "C# string holding one char per byte (Latin-1), so indexing and length are bytewise."}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/Harness.cs, tests/harness/Codec.cs, tests/harness/run.sh]
   generated: tests/harness/HarnessGen.cs
   command: [sh, targets/csharp/tests/harness/run.sh]
-support_files: [types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs, types/Native.cs, types/Crypto.cs, types/Callback.cs, runtime/Library.cs, runtime/TaskSpawn.cs, runtime/StdContextErr.cs, runtime/StdContextWithCancel.cs, runtime/ChanMake.cs, runtime/ChanClose.cs, runtime/StdErrorsNew.cs]
+support_files: [types/Floats.cs, types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs, types/Native.cs, types/Crypto.cs, types/Callback.cs, runtime/Library.cs, runtime/TaskSpawn.cs, runtime/StdContextErr.cs, runtime/StdContextWithCancel.cs, runtime/ChanMake.cs, runtime/ChanClose.cs, runtime/StdErrorsNew.cs]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "R.round", implementation: runtime/FloatConvert.cs}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "R.floatAdd_<k>", implementation: runtime/FloatAdd.cs, harness: "R.floatAdd_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "R.floatSub_<k>", implementation: runtime/FloatSub.cs, harness: "R.floatSub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "R.floatMul_<k>", implementation: runtime/FloatMul.cs, harness: "R.floatMul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "R.floatDiv_<k>", implementation: runtime/FloatDiv.cs, harness: "R.floatDiv_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "R.floatNeg_<k>", implementation: runtime/FloatNeg.cs, harness: "R.floatNeg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "R.floatMin_<k>", implementation: runtime/FloatMin.cs, harness: "R.floatMin_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "R.floatMax_<k>", implementation: runtime/FloatMax.cs, harness: "R.floatMax_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "R.add_<k>", implementation: runtime/IntegerAdd.cs, harness: "R.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "R.sub_<k>", implementation: runtime/IntegerSub.cs, harness: "R.sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "R.mul_<k>", implementation: runtime/IntegerMul.cs, harness: "R.mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "R.sget", implementation: runtime/SliceIndex.cs, harness: "R.sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "R.sset", implementation: runtime/SliceStore.cs, harness: "R.sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "R.reslice", implementation: runtime/SliceSlice.cs, harness: "R.reslice({0}, {1}, {2}, {3}, false)"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "R.append", implementation: runtime/SliceAppend.cs, harness: "R.appendSlice({0}, {1}, null)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "R.append", implementation: runtime/SliceAppend.cs, harness: "Slice.zeroAppendGrowth(R.appendSlice({0}, {1}, null), {0}, () => {T.zero})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "R.copy", implementation: runtime/SliceCopy.cs, harness: "R.copy({0}, {1}, null)"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "R.clearSlice", implementation: runtime/SliceClear.cs, harness: "R.clearSlice({0}, () => {T.zero})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "R.sliceToArray", implementation: runtime/SliceToArray.cs, harness: "R.sliceToArray({0}, 2, null)"}

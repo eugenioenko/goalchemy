@@ -8,6 +8,7 @@ environment:
   build: "javac -d classes $(find . -name '*.java') && java -Xss512m -cp classes Main"
   native: "JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "Native float/double with explicit numeric unboxing and key normalization."}
   - {type: type.boolean, contract_version: 1.0.0, representation: Java boolean.}
   - {type: type.integer, contract_version: 1.0.0, representation: "Java long for every integer kind, normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/Ints.java)."}
   - {type: type.string, contract_version: 1.0.0, representation: "Java String holding one char per byte (ISO-8859-1), so indexing and length are bytewise."}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/Harness.java, tests/harness/Codec.java, tests/harness/Json.java, tests/harness/run.sh]
   generated: tests/harness/HarnessGen.java
   command: [sh, targets/java/tests/harness/run.sh]
-support_files: [types/Bounds.java, types/Box.java, types/Cell.java, types/Fn.java, types/GoMap.java, types/GoPanic.java, types/Ints.java, types/Out.java, types/Panics.java, types/Program.java, types/Ref.java, types/Slice.java, types/TypeDesc.java, types/Utf8.java, types/Native.java, types/Crypto.java, types/Der.java, types/Callback.java, runtime/Library.java, runtime/StdErrorsNew.java, runtime/StdContextWithCancel.java, runtime/TaskSpawn.java, runtime/StdContextErr.java, runtime/ChanMake.java, runtime/ChanClose.java]
+support_files: [types/Floats.java, types/Bounds.java, types/Box.java, types/Cell.java, types/Fn.java, types/GoMap.java, types/GoPanic.java, types/Ints.java, types/Out.java, types/Panics.java, types/Program.java, types/Ref.java, types/Slice.java, types/TypeDesc.java, types/Utf8.java, types/Native.java, types/Crypto.java, types/Der.java, types/Callback.java, runtime/Library.java, runtime/StdErrorsNew.java, runtime/StdContextWithCancel.java, runtime/TaskSpawn.java, runtime/StdContextErr.java, runtime/ChanMake.java, runtime/ChanClose.java]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "FloatConvert.round", implementation: runtime/FloatConvert.java}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "FloatAdd.floatAdd_<k>", implementation: runtime/FloatAdd.java, harness: "FloatAdd.floatAdd_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "FloatSub.floatSub_<k>", implementation: runtime/FloatSub.java, harness: "FloatSub.floatSub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "FloatMul.floatMul_<k>", implementation: runtime/FloatMul.java, harness: "FloatMul.floatMul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "FloatDiv.floatDiv_<k>", implementation: runtime/FloatDiv.java, harness: "FloatDiv.floatDiv_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "FloatNeg.floatNeg_<k>", implementation: runtime/FloatNeg.java, harness: "FloatNeg.floatNeg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "FloatMin.floatMin_<k>", implementation: runtime/FloatMin.java, harness: "FloatMin.floatMin_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "FloatMax.floatMax_<k>", implementation: runtime/FloatMax.java, harness: "FloatMax.floatMax_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "IntegerAdd.add_<k>", implementation: runtime/IntegerAdd.java, harness: "IntegerAdd.add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "IntegerSub.sub_<k>", implementation: runtime/IntegerSub.java, harness: "IntegerSub.sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "IntegerMul.mul_<k>", implementation: runtime/IntegerMul.java, harness: "IntegerMul.mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "SliceIndex.sget", implementation: runtime/SliceIndex.java, harness: "SliceIndex.sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "SliceStore.sset", implementation: runtime/SliceStore.java, harness: "SliceStore.sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "SliceSlice.reslice", implementation: runtime/SliceSlice.java, harness: "SliceSlice.reslice({0}, {1}, {2}, {3}, false)"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "SliceAppend.append", implementation: runtime/SliceAppend.java, harness: "SliceAppend.appendSlice({0}, {1}, null)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "SliceAppend.append", implementation: runtime/SliceAppend.java, harness: "Slice.zeroAppendGrowth(SliceAppend.appendSlice({0}, {1}, null), {0}, () -> {T.zero})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "SliceCopy.copy", implementation: runtime/SliceCopy.java, harness: "SliceCopy.copy({0}, {1}, null)"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "SliceClear.clearSlice", implementation: runtime/SliceClear.java, harness: "SliceClear.clearSlice({0}, () -> {T.zero})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "SliceToArray.sliceToArray", implementation: runtime/SliceToArray.java, harness: "SliceToArray.sliceToArray({0}, 2, null)"}

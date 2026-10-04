@@ -30,7 +30,7 @@ type Program struct {
 	// resumable calling convention; SuspMethods holds such method identities.
 	SuspTypes   map[*Type]bool
 	SuspMethods map[string]bool
-	Fset      *token.FileSet
+	Fset        *token.FileSet
 }
 
 // Extern describes a call target bound to an external capability contract.
@@ -334,6 +334,7 @@ const (
 	ConvRunesToString
 	ConvSliceToArray
 	ConvIfaceToIface // interface to interface (no check)
+	ConvFloat        // numeric conversion involving a float; destination width rounds explicitly
 )
 
 type Convert struct {

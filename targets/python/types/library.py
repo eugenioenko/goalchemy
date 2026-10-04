@@ -175,3 +175,13 @@ def library_submit(factory, output, reset, inputs, options=None):
         with _condition: _queue.remove(op);_condition.notify_all()
         op._future.set_exception(LibraryFailure('host_fault'))
     return op
+
+
+def library_float(v, bits):
+    if type(v) not in (float, int):
+        raise LibraryFailure('invalid_argument')
+    from .float import round_float
+    try:
+        return round_float(float(v), bits)
+    except (OverflowError, ValueError):
+        raise LibraryFailure('invalid_argument') from None

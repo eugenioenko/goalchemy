@@ -35,6 +35,9 @@ If a feature is useful to only one SDK, it belongs in that SDK, not in Goalchemy
 Notable semantics that hold on every target:
 
 - `int` and `uint` are always 64-bit, with Go's wrapping and conversion rules.
+- `float32` and `float64` retain their IEEE precision, including signed zero,
+  NaN, infinity, numeric conversions and float values in collections and
+  exported APIs. See [float semantics and verification](docs/float-support.md).
 - Strings are immutable byte sequences; slices and maps keep Go's sharing and aliasing.
 - Structs and arrays are copied by value, even on hosts that share objects by default.
 - Errors are values; panics, `defer`, and `recover` follow Go's rules.

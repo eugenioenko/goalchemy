@@ -23,7 +23,7 @@ behavior:
   overflow: "Not applicable."
   mutations: "When capacity suffices, writes into shared storage beyond len(s), which aliases observe."
   aliasing: "Overlapping source and destination behave as if vs were copied first."
-  allocation: "When len(s)+len(vs) exceeds cap(s), allocates capacity max(required, max(1, 2*cap(s))) and copies; otherwise reuses the backing storage."
+  allocation: "When len(s)+len(vs) exceeds cap(s), allocates capacity max(required, max(1, 2*cap(s))) and copies. Newly allocated spare capacity is initialized to independent typed zero values; otherwise reuses the backing storage."
   errors: "Not applicable."
   panics: "Not applicable."
   observations: "Not applicable."

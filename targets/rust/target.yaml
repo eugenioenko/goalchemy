@@ -8,6 +8,7 @@ environment:
   build: "std-only run.sh uses rustc; native executables/libraries use Cargo and native C/CMake/Make/Perl prerequisites"
   native: "Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "V::Float containing binary64; binary32 values are rounded then widened exactly."}
   - {type: type.boolean, contract_version: 1.0.0, representation: "V::Bool."}
   - {type: type.integer, contract_version: 1.0.0, representation: "V::Int holding an i64 normalized to the Go width after every operation; unsigned 64-bit values keep their bits and use unsigned comparison, division, and formatting (types/ints.rs)."}
   - {type: type.string, contract_version: 1.0.0, representation: "V::Str: an immutable shared byte string compared bytewise."}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/main.rs, tests/harness/json.rs, tests/harness/codec.rs, tests/harness/run.sh]
   generated: tests/harness/harness_gen.rs
   command: [sh, targets/rust/tests/harness/run.sh]
-support_files: [types/bounds.rs, types/conc.rs, types/func.rs, types/heap.rs, types/ints.rs, types/map.rs, types/ops.rs, types/out.rs, types/panic.rs, types/program.rs, types/sched.rs, types/utf8.rs, types/value.rs]
+support_files: [types/float.rs, types/bounds.rs, types/conc.rs, types/func.rs, types/heap.rs, types/ints.rs, types/map.rs, types/ops.rs, types/out.rs, types/panic.rs, types/program.rs, types/sched.rs, types/utf8.rs, types/value.rs]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "float_convert", implementation: runtime/float_convert.rs}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "float_add_<k>", implementation: runtime/float_add.rs, harness: "float_add_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "float_sub_<k>", implementation: runtime/float_sub.rs, harness: "float_sub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "float_mul_<k>", implementation: runtime/float_mul.rs, harness: "float_mul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "float_div_<k>", implementation: runtime/float_div.rs, harness: "float_div_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "float_neg_<k>", implementation: runtime/float_neg.rs, harness: "float_neg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "float_min_<k>", implementation: runtime/float_min.rs, harness: "float_min_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "float_max_<k>", implementation: runtime/float_max.rs, harness: "float_max_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "add_<k>", implementation: runtime/integer_add.rs, harness: "add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "sub_<k>", implementation: runtime/integer_sub.rs, harness: "sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "mul_<k>", implementation: runtime/integer_mul.rs, harness: "mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "sget", implementation: runtime/slice_index.rs, harness: "sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "sset", implementation: runtime/slice_store.rs, harness: "sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "reslice", implementation: runtime/slice_slice.rs, harness: "reslice({0}, {1}, {2}, {3}, false)"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "append", implementation: runtime/slice_append.rs, harness: "append_slice({0}, {1}, None)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "append", implementation: runtime/slice_append.rs, harness: "zero_append_growth(append_slice({0}, {1}, None), &{0}, {T.zerofn})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "copy", implementation: runtime/slice_copy.rs, harness: "copy({0}, {1}, None)"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "clear_slice", implementation: runtime/slice_clear.rs, harness: "clear_slice({0}, {T.zerofn})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "slice_to_array", implementation: runtime/slice_to_array.rs, harness: "slice_to_array({0}, 2, None)"}

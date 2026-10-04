@@ -32,4 +32,9 @@ public final class Slice {
 
     public static final Slice NIL = new Slice(null, 0, 0, 0, false);
     public static final Slice BYTE_NIL = new Slice(null, 0, 0, 0, true);
+
+    public static Slice zeroAppendGrowth(Slice result, Slice previous, java.util.function.Supplier<Object> zero) {
+        if(result.a != previous.a && !result.bytes) for(int i=result.l;i<result.c;i++) result.set(i,zero.get());
+        return result;
+    }
 }

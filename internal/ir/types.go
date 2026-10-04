@@ -33,10 +33,12 @@ const (
 	// KOpaque is an external capability type represented by a runtime
 	// handle, such as sync.Mutex or context.Context.
 	KOpaque
+	// KFloat is an IEEE binary32 or binary64 scalar; FloatBits records width.
+	KFloat
 )
 
 func (k Kind) String() string {
-	return [...]string{"invalid", "bool", "int", "string", "struct", "array", "slice", "map", "pointer", "func", "interface", "named", "tuple", "chan", "mapiter", "opaque"}[k]
+	return [...]string{"invalid", "bool", "int", "string", "struct", "array", "slice", "map", "pointer", "func", "interface", "named", "tuple", "chan", "mapiter", "opaque", "float"}[k]
 }
 
 // IntKind identifies the representation of an integer type.
@@ -100,8 +102,9 @@ type Type struct {
 	Kind Kind
 
 	// Basic name for bool, string, and integers: "int", "uint8", ...
-	Basic string
-	Int   IntKind
+	Basic     string
+	Int       IntKind
+	FloatBits int
 
 	Elem *Type
 	Key  *Type
@@ -174,7 +177,7 @@ func (t *Type) String() string {
 // source-qualified names for named types.
 func TypeString(t *Type) string {
 	switch t.Kind {
-	case KBool, KInt, KString:
+	case KBool, KInt, KString, KFloat:
 		return t.Basic
 	case KNamed, KOpaque:
 		return t.Name
@@ -321,6 +324,11 @@ func (ts *Types) Of(gt types.Type) *Type {
 			t.Kind, t.Basic = KBool, "bool"
 		case g.Kind() == types.String:
 			t.Kind, t.Basic = KString, "string"
+		case g.Kind() == types.Float32 || g.Kind() == types.Float64:
+			t.Kind, t.Basic, t.FloatBits = KFloat, g.Name(), 64
+			if g.Kind() == types.Float32 {
+				t.FloatBits = 32
+			}
 		default:
 			k, ok := intKinds[g.Kind()]
 			if !ok {

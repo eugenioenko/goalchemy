@@ -8,6 +8,7 @@ environment:
   build: go build
   native: "Go standard library only: crypto/* for crypto, net/http for HTTP, and hash/crc32.ChecksumIEEE for IEEE CRC32; host runtime controls acceleration."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "Native Go float32/float64; each arithmetic result has an explicit conversion rounding barrier."}
   - {type: type.channel, contract_version: 1.0.0, representation: "rt.Chan[T] (runtime/chan_make.go): a handle to shared channel state with FIFO wait queues; the zero handle is the nil channel."}
   - {type: type.task, contract_version: 1.0.0, representation: "A stack of resumable frames per task driven by a trampoline (runtime/task_spawn.go): suspending functions compile to frame structs with a Step method; exactly one task runs at a time, dispatched FIFO."}
   - {type: type.boolean, contract_version: 1.0.0, representation: Go bool.}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/harness.go]
   generated: tests/harness/harness_gen.go
   command: [go, run, ./targets/go/tests/harness]
-support_files: [runtime/rt.go, runtime/panic.go, runtime/type_integer.go, runtime/type_map.go]
+support_files: [runtime/type_float.go, runtime/rt.go, runtime/panic.go, runtime/type_integer.go, runtime/type_map.go]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.FloatConvert", implementation: runtime/float_convert.go}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.FloatAdd", implementation: runtime/float_add.go, harness: "rt.FloatAdd({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "rt.FloatSub", implementation: runtime/float_sub.go, harness: "rt.FloatSub({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "rt.FloatMul", implementation: runtime/float_mul.go, harness: "rt.FloatMul({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "rt.FloatDiv", implementation: runtime/float_div.go, harness: "rt.FloatDiv({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "rt.FloatNeg", implementation: runtime/float_neg.go, harness: "rt.FloatNeg({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "rt.FloatMin", implementation: runtime/float_min.go, harness: "rt.FloatMin({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "rt.FloatMax", implementation: runtime/float_max.go, harness: "rt.FloatMax({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "rt.IntAdd", implementation: runtime/integer_add.go, harness: "rt.IntAdd({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "rt.IntSub", implementation: runtime/integer_sub.go, harness: "rt.IntSub({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "rt.IntMul", implementation: runtime/integer_mul.go, harness: "rt.IntMul({0}, {1})"}
