@@ -125,23 +125,49 @@ func (e *emitter) sym(base string) string {
 }
 
 func (e *emitter) nameTypes() {
+	for _, f := range e.p.Funcs {
+		e.syms[e.names.Symbol(f.Sym)] = true
+	}
+	for _, g := range e.p.Globals {
+		e.syms[e.names.Symbol(g.Sym)] = true
+	}
+	for _, t := range e.p.Types.All {
+		if t.Kind == ir.KNamed && t.Pkg != "" {
+			e.typeNames[t] = e.sym(e.names.Type(t, "type_"))
+		}
+	}
+
 	// Native exported methods keep their API names. Private method identities
 	// include package paths, so assign collision-free names over the whole IR.
 	identities := map[string]bool{}
+	reserved := map[string]bool{}
+	for _, t := range e.p.Types.All {
+		for i, field := range t.U().Fields {
+			reserved[field.Name] = true
+			reserved[e.fieldName(t, i)] = true
+		}
+	}
+
 	for _, f := range e.p.Funcs {
 		if strings.Contains(f.MethodID, ".") {
 			identities[f.MethodID] = true
+		} else if f.MethodID != "" {
+			reserved[methodShortName(f)] = true
 		}
 	}
 	for _, t := range e.p.Types.All {
 		for _, m := range t.Methods {
 			if strings.Contains(m.ID, ".") {
 				identities[m.ID] = true
+			} else {
+				reserved[m.Name] = true
 			}
 		}
 		for _, m := range t.MethodSet {
 			if strings.Contains(m.ID, ".") {
 				identities[m.ID] = true
+			} else {
+				reserved[m.Name] = true
 			}
 		}
 	}
@@ -156,19 +182,12 @@ func (e *emitter) nameTypes() {
 		if e.p.CompactNames {
 			n = fmt.Sprintf("m_%d", i)
 		}
-		e.methodNames[id] = n
-	}
-
-	for _, f := range e.p.Funcs {
-		e.syms[e.names.Symbol(f.Sym)] = true
-	}
-	for _, g := range e.p.Globals {
-		e.syms[e.names.Symbol(g.Sym)] = true
-	}
-	for _, t := range e.p.Types.All {
-		if t.Kind == ir.KNamed && t.Pkg != "" {
-			e.typeNames[t] = e.sym(e.names.Type(t, "type_"))
+		// One alias per identity must be safe on every native receiver type.
+		for reserved[n] {
+			n += "_"
 		}
+		reserved[n] = true
+		e.methodNames[id] = n
 	}
 }
 

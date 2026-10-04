@@ -346,3 +346,57 @@ func TestLibraryInternalEmbeddingUsesPublicAlias(t *testing.T) {
 		}
 	}
 }
+
+// Native Go fields keep their source names. A private method alias must avoid
+// those names on every receiver while interface dispatch uses the same alias.
+func TestPrivateMethodAliasesAvoidNativeFields(t *testing.T) {
+	seed := buildNamingFixture(t, `package main
+ type State struct{}
+ func(s State)hidden()int{return 1}
+ func main(){println(State{}.hidden())}
+ `)
+	var privateID string
+	for _, fn := range seed.IR.Funcs {
+		if fn.MethodID != "" {
+			privateID = fn.MethodID
+			break
+		}
+	}
+	if privateID == "" {
+		t.Fatal("missing private source method")
+	}
+	readable := fmt.Sprintf("method_%s_0", naming.Identifier(privateID))
+	source := fmt.Sprintf(`package main
+ type State struct {m_0, m_0_, %s, %s_ int}
+ func(s State)hidden()int{return s.m_0+s.m_0_+s.%s+s.%s_}
+ func(s State)Amount()int{return s.hidden()}
+ func main(){
+  value:=State{m_0:1,m_0_:2,%s:3,%s_:4}
+  var private interface{hidden()int}=value
+  var public interface{Amount()int}=value
+  println(value.hidden(),private.hidden(),public.Amount())
+ }
+ `, readable, readable, readable, readable, readable, readable)
+	res := buildNamingFixture(t, source)
+	fixtureDir := filepath.Dir(res.Program.Roots[0].GoFiles[0])
+	native, err := testutil.Native(fixtureDir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if native.Exit != 0 || native.Stdout != "" || native.Stderr != "10 10 10\n" {
+		t.Fatalf("source Go proof: %s", native)
+	}
+	for _, compact := range []bool{false, true} {
+		dir := t.TempDir()
+		if ds := driver.EmitWithOptions("go", res, dir, driver.EmitOptions{CompactNames: compact}); diagnostics.HasErrors(ds) {
+			t.Fatal(ds)
+		}
+		got, err := testutil.Runners["go"](dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Exit != native.Exit || got.Stdout != native.Stdout || got.Stderr != native.Stderr {
+			t.Fatalf("compact=%v differs from source Go: %s", compact, got)
+		}
+	}
+}
