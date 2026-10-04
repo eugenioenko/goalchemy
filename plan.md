@@ -31,8 +31,12 @@ shared naming/config/CLI tests and race checks pass. The all-seven differential
 matrix (three fixtures in two modes) and fourteen importing library consumers
 passed locally. Focused tests also cover anonymous/public-name collisions,
 dependency aliases, private method package identities and reserved façade names.
-User documentation is updated. The broad local regression suite and hosted PR CI
-are pending; merge and v0.4.0 publication follow only after acceptance passes.
+User documentation is updated. The broad local suite identified old numeric-name
+assumptions in C/Rust byte helper probes and a C# GC probe; these were corrected
+without weakening native storage/retirement checks. The affected checks passed,
+including the independent C# consumer's 93 checks in both modes. Other local
+suite packages passed. Final vet and all 736 generated-spec freshness checks
+passed. Hosted CI on the final PR head remains the merge/release gate.
 
 
 ## Floating-point follow-up
