@@ -33,7 +33,7 @@ func TestCByteStorage(t *testing.T) {
 			t.Errorf("emitted byte program lacks %q", want)
 		}
 	}
-	match := regexp.MustCompile(`static gx_V z_(\d+)\(void\) \{ return gx_byte_array\(4\); \}`).FindSubmatch(src)
+	match := regexp.MustCompile(`static gx_V z_([A-Za-z0-9_]+)\(void\) \{ return gx_byte_array\(4\); \}`).FindSubmatch(src)
 	if match == nil {
 		t.Fatal("missing emitted byte zero helper")
 	}
