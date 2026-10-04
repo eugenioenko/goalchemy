@@ -239,6 +239,11 @@ func (e *emitter) jt(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KBool:
 		return "boolean"
+	case ir.KFloat:
+		if u.FloatBits == 32 {
+			return "float"
+		}
+		return "double"
 	case ir.KInt:
 		return "long"
 	case ir.KString:
@@ -279,6 +284,10 @@ func (e *emitter) jt(t *ir.Type) string {
 // cast converts an Object-typed expression to t's Java type.
 func (e *emitter) cast(t *ir.Type, x string) string {
 	switch e.jt(t) {
+	case "float":
+		return "((Float) (" + x + ")).floatValue()"
+	case "double":
+		return "((Double) (" + x + ")).doubleValue()"
 	case "long":
 		return "((Long) (" + x + "))"
 	case "boolean":
@@ -403,6 +412,11 @@ func (e *emitter) zero(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KBool:
 		return "false"
+	case ir.KFloat:
+		if u.FloatBits == 32 {
+			return "0.0f"
+		}
+		return "0.0d"
 	case ir.KInt:
 		return "0L"
 	case ir.KString:
@@ -484,6 +498,8 @@ func (e *emitter) eqExpr(t *ir.Type, a, b string) string {
 func (e *emitter) keyExpr(t *ir.Type, x string) string {
 	u := t.U()
 	switch u.Kind {
+	case ir.KFloat:
+		return "Floats.key(" + x + ")"
 	case ir.KStruct:
 		e.class(u)
 		return x + ".$key()"
@@ -502,7 +518,7 @@ func (e *emitter) keyExpr(t *ir.Type, x string) string {
 
 func (e *emitter) keyFn(t *ir.Type) string {
 	switch t.U().Kind {
-	case ir.KStruct, ir.KArray, ir.KInterface, ir.KPointer, ir.KChan, ir.KOpaque:
+	case ir.KFloat, ir.KStruct, ir.KArray, ir.KInterface, ir.KPointer, ir.KChan, ir.KOpaque:
 		return "k -> " + e.keyExpr(t, e.cast(t, "k"))
 	}
 	return "GoMap::identityKey"
@@ -650,6 +666,9 @@ func (e *emitter) constant(c *ir.Const) string {
 			return sliceNil(c.Type)
 		}
 		return "null"
+	}
+	if c.Type.U().Kind == ir.KFloat {
+		return ir.FloatLiteral(c) + map[bool]string{true: "f", false: "d"}[c.Type.U().FloatBits == 32]
 	}
 	switch c.Val.Kind() {
 	case constant.Bool:
@@ -947,6 +966,10 @@ func (e *emitter) defaultOf(l *ir.Local) string {
 		return "null"
 	}
 	switch e.jt(l.Type) {
+	case "float":
+		return "0.0f"
+	case "double":
+		return "0.0d"
 	case "long":
 		return "0L"
 	case "boolean":
@@ -1296,6 +1319,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case ir.Not:
 			fe.w("%s;\n", fe.assign(i.Dst, "!"+x))
 		case ir.Neg:
+			if i.Dst.Type.U().Kind == ir.KFloat {
+				e.use("core.float.neg")
+				fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.floatNeg_f%d(%s)", e.rc("core.float.neg"), i.Dst.Type.U().FloatBits, x)))
+				break
+			}
 			fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.neg_%s(%s)", e.rc("core.integer.neg"), intKind(i.Dst.Type), x)))
 		case ir.BitNot:
 			fe.w("%s;\n", fe.assign(i.Dst, fmt.Sprintf("%s.not_%s(%s)", e.rc("core.integer.not"), intKind(i.Dst.Type), x)))
@@ -1376,6 +1404,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 				v = fmt.Sprintf("%s.append(%s, new Object[] {%s}, %s)", cls, fe.val(i.S), strings.Join(es, ", "), cl)
 			}
 		}
+		v = fmt.Sprintf("Slice.zeroAppendGrowth(%s, %s, () -> %s)", v, fe.val(i.S), e.zero(i.Dst.Type.U().Elem))
 		fe.w("%s;\n", fe.assign(i.Dst, v))
 	case *ir.Copy:
 		cls := e.rc("core.slice.copy")
@@ -1429,7 +1458,9 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		var as []string
 		for _, a := range i.Args {
 			v := fe.val(a)
-			if unsigned64(a.IRType()) {
+			if a.IRType().U().Kind == ir.KFloat {
+				v = fmt.Sprintf("Floats.print(%s, %d)", v, a.IRType().U().FloatBits)
+			} else if unsigned64(a.IRType()) {
 				v = "Long.toUnsignedString(" + v + ")"
 			}
 			as = append(as, v)
@@ -1594,6 +1625,11 @@ func (fe *fnEmitter) binop(i *ir.BinOp) string {
 	e := fe.e
 	x, y := fe.val(i.X), fe.val(i.Y)
 	t := i.X.IRType()
+	if t.U().Kind == ir.KFloat && !i.Op.IsComparison() {
+		op := map[ir.BinOpKind]string{ir.Add: "add", ir.Sub: "sub", ir.Mul: "mul", ir.Div: "div", ir.Min: "min", ir.Max: "max"}[i.Op]
+		e.use("core.float." + op)
+		return fmt.Sprintf("%s.float%s_f%d(%s, %s)", e.rc("core.float."+op), strings.ToUpper(op[:1])+op[1:], t.U().FloatBits, x, y)
+	}
 	u := t.U()
 	switch i.Op {
 	case ir.Eq, ir.Ne:
@@ -1661,6 +1697,17 @@ func (fe *fnEmitter) convert(i *ir.Convert) string {
 	e := fe.e
 	x := fe.val(i.X)
 	switch i.Kind {
+	case ir.ConvFloat:
+		e.use("core.float.convert")
+		u, from := i.Dst.Type.U(), i.X.IRType().U()
+		cls := e.rc("core.float.convert")
+		if u.Kind == ir.KFloat {
+			if from.Kind == ir.KFloat {
+				return fmt.Sprintf("(%s)%s.round(%s, %d)", e.jt(i.Dst.Type), cls, x, u.FloatBits)
+			}
+			return fmt.Sprintf("(%s)%s.integerFloat(%s, %t, %d)", e.jt(i.Dst.Type), cls, x, !from.Int.Signed(), u.FloatBits)
+		}
+		return fmt.Sprintf("%s.floatInteger(%s, %d, %t)", cls, x, u.Int.Bits(), u.Int.Signed())
 	case ir.ConvNop, ir.ConvIfaceToIface:
 		return x
 	case ir.ConvInt:

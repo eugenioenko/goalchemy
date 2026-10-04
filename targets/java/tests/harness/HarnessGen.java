@@ -712,21 +712,21 @@ final class HarnessGen extends Codec {
     static List<Object> case_101(Harness.H h) {
         var v_s = decSlice(h.let("s"), r -> decString(r), () -> "");
         var v_vs = decSlice(h.let("vs"), r -> decString(r), () -> "");
-        var r0 = SliceAppend.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_s, v_vs, null), v_s, () -> "");
         return Arrays.asList(new Object[] {encSlice(r0, e -> encString(e))});
     }
 
     static List<Object> case_102(Harness.H h) {
         var v_s = decSlice(h.let("s"), r -> decInt(r, "i64"), () -> 0L);
         var v_vs = decSlice(h.let("vs"), r -> decInt(r, "i64"), () -> 0L);
-        var r0 = SliceAppend.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_s, v_vs, null), v_s, () -> 0L);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
 
     static List<Object> case_103(Harness.H h) {
         var v_s = decSlice(h.let("s"), r -> decInt(r, "i64"), () -> 0L);
         var v_vs = decSlice(h.let("vs"), r -> decInt(r, "i64"), () -> 0L);
-        var r0 = SliceAppend.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_s, v_vs, null), v_s, () -> 0L);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
 
@@ -734,7 +734,7 @@ final class HarnessGen extends Codec {
         var v_s = decSlice(h.let("s"), r -> decInt(r, "i64"), () -> 0L);
         var v_t = view(v_s, h.let("t"));
         var v_vs = decSlice(h.let("vs"), r -> decInt(r, "i64"), () -> 0L);
-        var r0 = SliceAppend.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_s, v_vs, null), v_s, () -> 0L);
         h.after("t", encSlice(v_t, e -> encInt(e, "i64")));
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
@@ -742,7 +742,7 @@ final class HarnessGen extends Codec {
     static List<Object> case_105(Harness.H h) {
         var v_s = decSlice(h.let("s"), r -> decInt(r, "i64"), () -> 0L);
         var v_vs = decSlice(h.let("vs"), r -> decInt(r, "i64"), () -> 0L);
-        var r0 = SliceAppend.appendSlice(v_s, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_s, v_vs, null), v_s, () -> 0L);
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }
 
@@ -750,7 +750,7 @@ final class HarnessGen extends Codec {
         var v_s = decSlice(h.let("s"), r -> decInt(r, "i64"), () -> 0L);
         var v_a = view(v_s, h.let("a"));
         var v_vs = view(v_s, h.let("vs"));
-        var r0 = SliceAppend.appendSlice(v_a, v_vs, null);
+        var r0 = Slice.zeroAppendGrowth(SliceAppend.appendSlice(v_a, v_vs, null), v_a, () -> 0L);
         h.after("s", encSlice(v_s, e -> encInt(e, "i64")));
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "i64"))});
     }

@@ -281,6 +281,8 @@ func (e *emitter) zero(t *ir.Type) string {
 	switch u.Kind {
 	case ir.KBool:
 		return "False"
+	case ir.KFloat:
+		return "0.0"
 	case ir.KInt:
 		return "0"
 	case ir.KString:
@@ -365,6 +367,8 @@ func (e *emitter) eqExpr(t *ir.Type, a, b string) string {
 func (e *emitter) keyExpr(t *ir.Type, x string) string {
 	u := t.U()
 	switch u.Kind {
+	case ir.KFloat:
+		return "rt.float_key(" + x + ")"
 	case ir.KStruct:
 		e.class(u)
 		return x + "._key()"
@@ -385,7 +389,7 @@ func (e *emitter) keyExpr(t *ir.Type, x string) string {
 
 func (e *emitter) keyFn(t *ir.Type) string {
 	switch t.U().Kind {
-	case ir.KStruct, ir.KArray, ir.KInterface:
+	case ir.KFloat, ir.KStruct, ir.KArray, ir.KInterface:
 		return "lambda k: " + e.keyExpr(t, "k")
 	}
 	return "rt.identity_key"
@@ -507,6 +511,9 @@ func (e *emitter) constant(c *ir.Const) string {
 			return e.zero(c.Type)
 		}
 		return "None"
+	}
+	if c.Type.U().Kind == ir.KFloat {
+		return ir.FloatLiteral(c)
 	}
 	switch c.Val.Kind() {
 	case constant.Bool:
@@ -1047,6 +1054,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case ir.Not:
 			w("%s = not %s", fe.val(i.Dst), x)
 		case ir.Neg:
+			if i.Dst.Type.U().Kind == ir.KFloat {
+				e.use("core.float.neg")
+				w("%s = rt.float_neg_f%d(%s)", fe.val(i.Dst), i.Dst.Type.U().FloatBits, x)
+				break
+			}
 			e.use("core.integer.neg")
 			w("%s = rt.neg_%s(%s)", fe.val(i.Dst), intKind(i.Dst.Type), x)
 		case ir.BitNot:
@@ -1124,22 +1136,24 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 	case *ir.Append:
 		e.use("core.slice.append")
 		cl := e.cloneFn(i.Dst.Type.U().Elem)
+		var v string
 		switch {
 		case i.Spread != nil && i.Spread.IRType().U().Kind == ir.KString:
-			w("%s = rt.append_string(%s, %s)", fe.val(i.Dst), fe.val(i.S), fe.val(i.Spread))
+			v = fmt.Sprintf("rt.append_string(%s, %s)", fe.val(i.S), fe.val(i.Spread))
 		case i.Spread != nil:
-			w("%s = rt.append_slice(%s, %s%s)", fe.val(i.Dst), fe.val(i.S), fe.val(i.Spread), optArg(cl))
+			v = fmt.Sprintf("rt.append_slice(%s, %s%s)", fe.val(i.S), fe.val(i.Spread), optArg(cl))
 		default:
 			var es []string
 			for _, x := range i.Elems {
 				es = append(es, fe.val(x))
 			}
 			if byteStorage(i.Dst.Type) {
-				w("%s = rt.append(%s, bytearray((%s))%s)", fe.val(i.Dst), fe.val(i.S), strings.Join(es, ", ")+comma(es), optArg(cl))
+				v = fmt.Sprintf("rt.append(%s, bytearray((%s))%s)", fe.val(i.S), strings.Join(es, ", ")+comma(es), optArg(cl))
 			} else {
-				w("%s = rt.append(%s, [%s]%s)", fe.val(i.Dst), fe.val(i.S), strings.Join(es, ", "), optArg(cl))
+				v = fmt.Sprintf("rt.append(%s, [%s]%s)", fe.val(i.S), strings.Join(es, ", "), optArg(cl))
 			}
 		}
+		w("%s = rt.zero_append_growth(%s, %s, lambda: %s)", fe.val(i.Dst), v, fe.val(i.S), e.zero(i.Dst.Type.U().Elem))
 	case *ir.Copy:
 		e.use("core.slice.copy")
 		if i.Src.IRType().U().Kind == ir.KString {
@@ -1196,7 +1210,11 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		e.use("core.print")
 		var as []string
 		for _, a := range i.Args {
-			as = append(as, fe.val(a))
+			v := fe.val(a)
+			if a.IRType().U().Kind == ir.KFloat {
+				v = fmt.Sprintf("rt.float_print(%s, %d)", v, a.IRType().U().FloatBits)
+			}
+			as = append(as, v)
 		}
 		w("rt.go_print([%s], %s)", strings.Join(as, ", "), pyBool(i.Newline))
 	case *ir.Defer:
@@ -1309,6 +1327,11 @@ func (fe *fnEmitter) binop(i *ir.BinOp) string {
 	d := fe.val(i.Dst)
 	x, y := fe.val(i.X), fe.val(i.Y)
 	t := i.X.IRType()
+	if t.U().Kind == ir.KFloat && !i.Op.IsComparison() {
+		op := map[ir.BinOpKind]string{ir.Add: "add", ir.Sub: "sub", ir.Mul: "mul", ir.Div: "div", ir.Min: "min", ir.Max: "max"}[i.Op]
+		e.use("core.float." + op)
+		return fmt.Sprintf("%s = rt.float_%s_f%d(%s, %s)", d, op, t.U().FloatBits, x, y)
+	}
 	switch i.Op {
 	case ir.Eq, ir.Ne:
 		xc, xnil := i.X.(*ir.Const)
@@ -1351,6 +1374,20 @@ func (fe *fnEmitter) convert(i *ir.Convert) string {
 	e := fe.e
 	d, x := fe.val(i.Dst), fe.val(i.X)
 	switch i.Kind {
+	case ir.ConvFloat:
+		e.use("core.float.convert")
+		u, from := i.Dst.Type.U(), i.X.IRType().U()
+		if u.Kind == ir.KFloat {
+			if from.Kind == ir.KFloat {
+				return fmt.Sprintf("%s = rt.round_float(%s, %d)", d, x, u.FloatBits)
+			}
+			return fmt.Sprintf("%s = rt.integer_float(%s, %d)", d, x, u.FloatBits)
+		}
+		signed := "False"
+		if u.Int.Signed() {
+			signed = "True"
+		}
+		return fmt.Sprintf("%s = rt.float_integer(%s, %d, %s)", d, x, u.Int.Bits(), signed)
 	case ir.ConvNop, ir.ConvIfaceToIface:
 		return d + " = " + x
 	case ir.ConvInt:

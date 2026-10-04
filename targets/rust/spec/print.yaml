@@ -2,11 +2,11 @@
 target: rust
 function: core.print
 contract_version: 1.0.0
-contract_hash: 95499c1ad15702d4087510c4154d0049c89b523e6697bb68683d401f34e7624a
+contract_hash: 3da4ca70e4793af9ffe146ae3342343da987973a432624dae0dc43362c277078
 symbol: "go_print"
 implementation: runtime/print.rs
 implementation_hash: f6659525b0f0e531a49b11a596f072ca2435ab30b02a2e6e5b3a8ddc4dae3ab7
-summary: "print/println of Booleans, integers, and strings to standard error."
+summary: "print/println of Booleans, integers, IEEE floats, and strings to standard error."
 suspension: never
 determinism: deterministic
 signature:

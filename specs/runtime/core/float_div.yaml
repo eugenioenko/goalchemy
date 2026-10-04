@@ -1,0 +1,31 @@
+id: core.float.div
+schema_version: 1
+version: 1.0.0
+summary: "IEEE floating-point div, rounded to the operand width."
+signature:
+  source: intrinsic
+  type_parameters:
+    - {name: T, family: type.float}
+  inputs:
+    - {name: a, type: "T"}
+    - {name: b, type: "T"}
+  outputs:
+    - {name: result, type: "T"}
+depends_on:
+  - {id: type.float, version: 1.0.0}
+suspension: never
+determinism: deterministic
+behavior:
+  zero: "Positive and negative zero remain distinct values, but compare equal."
+  nil: "Not applicable."
+  bounds: "Not applicable."
+  conversions: "Operands already have the same IEEE width; result rounds at this operation."
+  overflow: "IEEE infinity; gradual underflow including signed zero."
+  mutations: "None."
+  aliasing: "None."
+  allocation: "No observable source allocation."
+  errors: "None."
+  panics: "None, including division by zero."
+  observations: "Typed result; NaN payloads are unspecified. min/max propagate NaN and select the Go signed zero."
+cases: []
+native_tests: [tests/language/language_test.go, tests/integration/float_library_test.go]

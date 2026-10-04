@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <stdatomic.h>
 
 _Noreturn void gx_fault(const char *msg) {
     if (gx_sched && gx_sched->host && !gx_sched->retired && pthread_equal(gx_sched->thread, pthread_self())) gx_host_fault(msg);
@@ -173,6 +175,8 @@ bool gx_veq(gx_V a, gx_V b) {
     case GX_BOOL:
     case GX_INT:
         return a.u.i == b.u.i;
+    case GX_FLOAT:
+        return a.u.f == b.u.f;
     case GX_STR:
         return a.l == b.l && (a.l == 0 || memcmp(a.u.p, b.u.p, a.l) == 0);
     case GX_OBJ:
@@ -196,6 +200,19 @@ void gx_vkey(gx_V v, gx_Buf *out) {
         gx_buf_put(out, "I", 1);
         gx_buf_put(out, &v.u.i, 8);
         return;
+    case GX_FLOAT: {
+        uint64_t raw;
+        if (isnan(v.u.f)) {
+            static _Atomic uint64_t next_nan = 0;
+            raw = atomic_fetch_add(&next_nan, 1);
+            if (raw == UINT64_MAX) gx_fault("NaN key identity exhausted");
+            gx_buf_put(out, "Q", 1);
+        } else {
+            double x = v.u.f == 0.0 ? 0.0 : v.u.f;
+            memcpy(&raw, &x, sizeof(raw)); gx_buf_put(out, "D", 1);
+        }
+        gx_buf_put(out, &raw, sizeof(raw)); return;
+    }
     case GX_STR:
         gx_buf_put(out, "S", 1);
         gx_buf_put(out, &v.l, 4);
@@ -220,3 +237,10 @@ gx_V gx_zero_string(void) { return gx_str(NULL, 0); }
 gx_V gx_zero_slice(void) { return gx_nil_slice(); }
 
 gx_V gx_zero_byte_slice(void) { return gx_nil_byte_slice(); }
+
+/* Spare slots belong to the declared element type, including nested values. */
+gx_V gx_zero_append_growth(gx_V result, gx_V previous, gx_ZeroFn zero) {
+    if(result.u.p != previous.u.p && !gx_byte_backing(result))
+        for(uint32_t i=result.l;i<result.c;i++) gx_vals(result)[i]=zero();
+    return result;
+}

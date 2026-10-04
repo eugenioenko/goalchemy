@@ -2,11 +2,11 @@
 target: csharp
 function: core.print
 contract_version: 1.0.0
-contract_hash: 95499c1ad15702d4087510c4154d0049c89b523e6697bb68683d401f34e7624a
+contract_hash: 3da4ca70e4793af9ffe146ae3342343da987973a432624dae0dc43362c277078
 symbol: "R.print"
 implementation: runtime/Print.cs
 implementation_hash: bd7e9069f3eb64f84835f785ef0342fa9470781e62bad5d1d26c547683b0f4fa
-summary: "print/println of Booleans, integers, and strings to standard error."
+summary: "print/println of Booleans, integers, IEEE floats, and strings to standard error."
 suspension: never
 determinism: deterministic
 signature:

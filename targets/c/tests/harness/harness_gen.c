@@ -1114,7 +1114,7 @@ static J *case_101(H *h) {
     gx_V v_s = codec_9(h_let(h, "s"));
     gx_V v_vs = codec_9(h_let(h, "vs"));
     gx_V a[] = {v_s, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_string);
     J *out = j_new(J_ARR);
     j_push(out, codec_10(r0));
     return out;
@@ -1124,7 +1124,7 @@ static J *case_102(H *h) {
     gx_V v_s = codec_11(h_let(h, "s"));
     gx_V v_vs = codec_11(h_let(h, "vs"));
     gx_V a[] = {v_s, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_int);
     J *out = j_new(J_ARR);
     j_push(out, codec_5(r0));
     return out;
@@ -1134,7 +1134,7 @@ static J *case_103(H *h) {
     gx_V v_s = codec_11(h_let(h, "s"));
     gx_V v_vs = codec_11(h_let(h, "vs"));
     gx_V a[] = {v_s, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_int);
     J *out = j_new(J_ARR);
     j_push(out, codec_5(r0));
     return out;
@@ -1145,7 +1145,7 @@ static J *case_104(H *h) {
     gx_V v_t = view(v_s, h_let(h, "t"));
     gx_V v_vs = codec_11(h_let(h, "vs"));
     gx_V a[] = {v_s, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_int);
     h_after(h, "t", codec_5(v_t));
     J *out = j_new(J_ARR);
     j_push(out, codec_5(r0));
@@ -1156,7 +1156,7 @@ static J *case_105(H *h) {
     gx_V v_s = codec_11(h_let(h, "s"));
     gx_V v_vs = codec_11(h_let(h, "vs"));
     gx_V a[] = {v_s, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_int);
     J *out = j_new(J_ARR);
     j_push(out, codec_5(r0));
     return out;
@@ -1167,7 +1167,7 @@ static J *case_106(H *h) {
     gx_V v_a = view(v_s, h_let(h, "a"));
     gx_V v_vs = view(v_s, h_let(h, "vs"));
     gx_V a[] = {v_a, v_vs};
-    gx_V r0 = gx_append_slice(a[0], a[1], NULL);
+    gx_V r0 = gx_zero_append_growth(gx_append_slice(a[0], a[1], NULL), a[0], gx_zero_int);
     h_after(h, "s", codec_5(v_s));
     J *out = j_new(J_ARR);
     j_push(out, codec_5(r0));

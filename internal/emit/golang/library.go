@@ -22,7 +22,7 @@ func libraryValue(t *ir.Type, seen map[*ir.Type]bool) bool {
 	seen[t] = true
 	u := t.U()
 	switch u.Kind {
-	case ir.KBool, ir.KInt, ir.KString:
+	case ir.KBool, ir.KInt, ir.KString, ir.KFloat:
 		return true
 	case ir.KSlice, ir.KArray:
 		return libraryValue(u.Elem, seen)

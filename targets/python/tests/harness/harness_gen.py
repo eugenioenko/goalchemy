@@ -705,21 +705,21 @@ def case_100(h):
 def case_101(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_string(r), lambda: b"", False)
     v_vs = dec_slice(h.let("vs"), lambda r: dec_string(r), lambda: b"", False)
-    r0 = rt.append_slice(v_s, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_s, v_vs), v_s, lambda: b"")
     return [enc_slice(r0, lambda e: enc_string(e))]
 
 
 def case_102(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
-    r0 = rt.append_slice(v_s, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_s, v_vs), v_s, lambda: 0)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
 def case_103(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
-    r0 = rt.append_slice(v_s, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_s, v_vs), v_s, lambda: 0)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
@@ -727,7 +727,7 @@ def case_104(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_t = view(v_s, h.let("t"))
     v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
-    r0 = rt.append_slice(v_s, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_s, v_vs), v_s, lambda: 0)
     h.after("t", enc_slice(v_t, lambda e: enc_int(e)))
     return [enc_slice(r0, lambda e: enc_int(e))]
 
@@ -735,7 +735,7 @@ def case_104(h):
 def case_105(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_vs = dec_slice(h.let("vs"), lambda r: dec_int(r, "i64"), lambda: 0, False)
-    r0 = rt.append_slice(v_s, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_s, v_vs), v_s, lambda: 0)
     return [enc_slice(r0, lambda e: enc_int(e))]
 
 
@@ -743,7 +743,7 @@ def case_106(h):
     v_s = dec_slice(h.let("s"), lambda r: dec_int(r, "i64"), lambda: 0, False)
     v_a = view(v_s, h.let("a"))
     v_vs = view(v_s, h.let("vs"))
-    r0 = rt.append_slice(v_a, v_vs)
+    r0 = rt.zero_append_growth(rt.append_slice(v_a, v_vs), v_a, lambda: 0)
     h.after("s", enc_slice(v_s, lambda e: enc_int(e)))
     return [enc_slice(r0, lambda e: enc_int(e))]
 

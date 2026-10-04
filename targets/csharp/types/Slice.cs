@@ -23,4 +23,9 @@ public sealed class Slice
 
     public static readonly Slice NIL = new Slice(null, 0, 0, 0, false);
     public static readonly Slice BYTE_NIL = new Slice(null, 0, 0, 0, true);
+
+    public static Slice zeroAppendGrowth(Slice result, Slice previous, Func<object> zero) {
+        if(!ReferenceEquals(result.a,previous.a) && !result.bytes) for(int i=result.l;i<result.c;i++) result.Set(i,zero());
+        return result;
+    }
 }

@@ -56,6 +56,15 @@ jobs:
       - run: go run ./cmd/goalchemy spec generate -check
       # Preserve the short suite, including native browser and focused C sanitizer tests.
       - run: go test -short -timeout 30m ./...
+      # The short language suite covers Go/TypeScript; exercise float values,
+      # conversions and collection semantics through every released target.
+      - name: All-seven float language differential tests
+        env:
+          FIXTURE: floats
+        run: |
+          test -f tests/language/testdata/floats/main.go
+          test -f tests/language/testdata/co_floats/main.go
+          go test -v -timeout 15m ./tests/language -run '^TestFixtures$' -count=1
       # No -short here: every canonical case must run through all seven host harnesses.
       - name: All-seven runtime contract conformance
         run: go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1

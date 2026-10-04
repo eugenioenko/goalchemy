@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <string.h>
 
-enum { GX_NIL, GX_BOOL, GX_INT, GX_STR, GX_OBJ, GX_PTR, GX_SLICE, GX_TUPLE, GX_FRAME };
+enum { GX_NIL, GX_BOOL, GX_INT, GX_STR, GX_OBJ, GX_PTR, GX_SLICE, GX_TUPLE, GX_FRAME, GX_FLOAT };
 
 /* t is the tag. Strings use p (bytes) and l (length); slices use p (first
  * element, NULL for nil), l, and c; pointers to scalars point at a slot. */
@@ -36,6 +36,7 @@ typedef struct gx_V {
     uint32_t pad;
     union {
         int64_t i;
+        double f;
         void *p;
     } u;
 } gx_V;
@@ -43,6 +44,8 @@ typedef struct gx_V {
 static inline gx_V gx_nil(void) { gx_V v = {0}; return v; }
 static inline gx_V gx_bool(bool b) { gx_V v = {0}; v.t = GX_BOOL; v.u.i = b; return v; }
 static inline gx_V gx_int(int64_t i) { gx_V v = {0}; v.t = GX_INT; v.u.i = i; return v; }
+static inline gx_V gx_float(double f) { gx_V v = {0}; v.t = GX_FLOAT; v.u.f = f; return v; }
+static inline double gx_f(gx_V v) { return v.u.f; }
 static inline gx_V gx_obj(void *p) { gx_V v = {0}; v.t = p ? GX_OBJ : GX_NIL; v.u.p = p; return v; }
 static inline gx_V gx_ptr(gx_V *p) { gx_V v = {0}; v.t = GX_PTR; v.u.p = p; return v; }
 static inline gx_V gx_slice(gx_V *p, uint32_t l, uint32_t c) { gx_V v = {0}; v.t = GX_SLICE; v.u.p = p; v.l = l; v.c = c; return v; }
@@ -64,6 +67,33 @@ static inline gx_V *gx_vals(gx_V v) {
     if (gx_byte_backing(v)) gx_fault("native byte backing used as gx_V storage");
     return (gx_V *)v.u.p;
 }
+
+/* IEEE scalar helpers. */
+gx_V gx_float_add_f32(gx_V a, gx_V b);
+gx_V gx_float_add_f64(gx_V a, gx_V b);
+gx_V gx_float_sub_f32(gx_V a, gx_V b);
+gx_V gx_float_sub_f64(gx_V a, gx_V b);
+gx_V gx_float_mul_f32(gx_V a, gx_V b);
+gx_V gx_float_mul_f64(gx_V a, gx_V b);
+gx_V gx_float_div_f32(gx_V a, gx_V b);
+gx_V gx_float_div_f64(gx_V a, gx_V b);
+gx_V gx_float_min_f32(gx_V a, gx_V b);
+gx_V gx_float_min_f64(gx_V a, gx_V b);
+gx_V gx_float_max_f32(gx_V a, gx_V b);
+gx_V gx_float_max_f64(gx_V a, gx_V b);
+gx_V gx_float_neg_f32(gx_V a);
+gx_V gx_float_neg_f64(gx_V a);
+gx_V gx_float_convert(gx_V a, int bits);
+gx_V gx_integer_float_convert(gx_V a, bool uns, int bits);
+gx_V gx_float_integer_convert(gx_V a, int bits, bool sign);
+
+double gx_round_float(double x, int bits);
+gx_V gx_float_print(double x, int bits);
+double gx_integer_float(int64_t x, bool unsigned_value, int bits);
+int64_t gx_float_integer(double x, int bits, bool sign);
+double gx_float_min(double a, double b);
+double gx_float_max(double a, double b);
+gx_V gx_zero_float(void);
 
 /* Strings. */
 gx_V gx_str(const char *b, size_t n);
@@ -361,6 +391,7 @@ gx_V gx_zero_string(void);
 gx_V gx_zero_slice(void);
 gx_V gx_zero_byte_slice(void);
 typedef gx_V (*gx_ZeroFn)(void);
+gx_V gx_zero_append_growth(gx_V result, gx_V previous, gx_ZeroFn zero);
 typedef gx_V (*gx_CloneFn)(gx_V);
 
 /* Channel and synchronization objects. */

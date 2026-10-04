@@ -1,6 +1,6 @@
 # Goalchemy language specification
 
-Version: 0.1 design baseline. Updated September 30, 2026.
+Version: 0.1 design baseline with accepted follow-ups. Updated October 4, 2026.
 
 Goalchemy is a restricted Go-compatible source language for compilation into multiple target languages. Its source uses ordinary Go syntax and `.go` files. This document defines the intended source semantics and the boundaries of the initial implementation. A feature described here is not a claim of existing compiler support.
 
@@ -26,6 +26,7 @@ The first compiler release implements the sequential gate. The cooperative gate 
 | Functions, methods, recursion, closures, variadic arguments, multiple results | Sequential |
 | Named types and non-generic type aliases | Sequential |
 | Boolean and fixed-width integer operations | Sequential |
+| `float32`, `float64`, numeric conversions and floating-point operations | Sequential |
 | Strings, structs, fixed arrays, slices, maps | Sequential |
 | Struct embedding and promoted fields/methods | Sequential |
 | Pointers to locals, allocated values, and struct fields | Sequential |
@@ -36,7 +37,7 @@ The first compiler release implements the sequential gate. The cooperative gate 
 | Tasks, channels, channel range, `select`, synchronization, cancellation | Cooperative |
 | Generic declarations, generic aliases, generic methods, instantiations | Rejected in 0.1 |
 | Range over iterator functions | Rejected in 0.1 |
-| Floating-point and complex values or operations | Rejected in 0.1 |
+| Complex values or operations | Rejected |
 | Pointers to slice or array elements | Rejected in 0.1 |
 | `unsafe`, source reflection, cgo, `go:linkname`, `goto` | Rejected |
 | Finalizers, source-visible destructors, explicit parallel execution | Excluded |
@@ -66,6 +67,40 @@ Integer types include `int8` through `int64`, `uint8` through `uint64`, `int`, `
 Arithmetic, bitwise operations, conversions, shifts, division, remainder, and overflow follow Go's rules. Signed operations must not inherit undefined behavior from C, and JavaScript numeric rounding must not affect integer results. Division by zero and invalid runtime shift counts produce source panics as specified by the corresponding runtime contracts.
 
 Lengths, capacities, and indices use the 64-bit source profile. A backend may reject an allocation because host resources are insufficient; it may not silently truncate a valid integer or allocation size. Resource exhaustion is a runtime failure, not a successful alternate semantic result.
+
+### Floating-point values
+
+`float32` and `float64` represent IEEE 754 binary32 and binary64 values on all
+seven targets. Named types, aliases, decimal and hexadecimal literals, and
+typed or untyped constants follow Go's type and representability rules.
+Constants retain arbitrary precision until they are rounded directly to the
+destination width.
+
+Arithmetic rounds each operation to its declared width using nearest,
+ties-to-even rounding. Explicit conversions preserve their rounding effect,
+including conversions to the same type; Goalchemy selects unfused execution.
+Subnormal values, signed zero, infinities and NaN comparisons retain their IEEE
+behavior. Runtime division by zero uses the selected native-Go IEEE behavior.
+NaN payload bits are unspecified. `min` and `max` propagate NaN and select
+negative and positive zero respectively when comparing signed zeros.
+
+Representable float-to-integer conversions truncate toward zero. Integer-to-float
+conversions round directly to the destination precision, without first rounding
+through another float width. For unrepresentable runtime float-to-integer
+conversions, Go leaves the result implementation-dependent; Goalchemy selects
+the pinned Go 1.27.1 Linux-amd64 results as defined by
+[`core.float.convert`](runtime/core/float_convert.yaml).
+
+Floats work in the supported structs, arrays, slices, maps, interfaces,
+cooperative frames and exported value boundaries. Zero initialization produces
+positive zero. Map keys compare positive and negative zero as equal; keys
+containing NaN never match an existing entry, including aggregate and interface
+keys. Native host map equality must not change those rules.
+
+Builtin `print` and `println` use the pinned reference toolchain's shortest,
+width-aware float spelling. This feature does not add complex numbers or the
+full Go `math` library. See [float support](../docs/float-support.md) for the
+verification scope and native boundary representations.
 
 ### Strings
 

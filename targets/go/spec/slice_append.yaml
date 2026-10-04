@@ -2,7 +2,7 @@
 target: go
 function: core.slice.append
 contract_version: 1.0.0
-contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
+contract_hash: 4a2407e5be0b907f09e658213e096c9dc90fd154c23f08a72e51d8fc45e10a6d
 symbol: "rt.Append"
 implementation: runtime/slice_append.go
 implementation_hash: 3cd8ae892a14122f896f11688d729d0727a9290abdaa9fe6ec0777940e86ea7b

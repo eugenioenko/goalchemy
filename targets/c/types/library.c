@@ -16,8 +16,8 @@ void gxc_error_free(gxc_error *e) {
 static int copy_value(gxc_value *d,const gxc_value *s,unsigned depth,size_t *budget,size_t *bytes) {
     if (!s || depth>64 || !*budget || s->length>UINT32_MAX) return 1;
     (*budget)--;
-    if (s->kind<GXC_NIL || s->kind>GXC_RECORD) return 1;
-    d->kind=s->kind; d->integer=s->integer; d->length=s->length;
+    if (s->kind<GXC_NIL || s->kind>GXC_FLOAT) return 1;
+    d->kind=s->kind; d->integer=s->integer; d->floating=s->floating; d->length=s->length;
     if (s->kind==GXC_BYTES) {
         if (s->length>*bytes || s->length>128u*1024u*1024u || (s->length && !s->bytes)) return 1;
         *bytes-=s->length;

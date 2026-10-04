@@ -50,3 +50,9 @@ export function toArray<T>(s: Slice<T>): T[] {
 export function sliceLen(s: Slice<unknown>): number {
   return s.l;
 }
+
+/** Initialize newly allocated spare capacity without overwriting reused backing. */
+export function zeroAppendGrowth<T>(result:Slice<T>, previous:Slice<T>, zero:()=>T):Slice<T> {
+  if (result.a !== previous.a && !result.bytes) for(let i=result.l;i<result.c;i++) result.a![i]=zero();
+  return result;
+}

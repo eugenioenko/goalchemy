@@ -32,6 +32,8 @@ features:
   - {id: resumable_frames, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c], fixtures: [co_frames, co_sched_trace]}
   - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c], fixtures: [co_deadlock, co_goroutine_panic]}
   - {id: generics, gate: rejected, status: rejected, targets: [], fixtures: [reject_generic]}
-  - {id: floating_point, gate: rejected, status: rejected, targets: [], fixtures: [reject_float]}
+  - {id: floating_point, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c], fixtures: [floats]}
+  - {id: floating_point_channels, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c], fixtures: [co_floats]}
+  - {id: complex_numbers, gate: rejected, status: rejected, targets: [], fixtures: [reject_complex]}
   - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}
   - {id: goroutines_in_sequential, gate: rejected, status: rejected, targets: [], fixtures: [reject_goroutine]}

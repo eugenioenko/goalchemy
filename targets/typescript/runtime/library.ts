@@ -45,3 +45,10 @@ export async function runLibrary(options:CallOptions,entry:(ctx:Context)=>Frame,
  }catch(e){if(e instanceof NativeCanceled)throw new LibraryError('canceled',{},options.signal?.reason);if(e instanceof LibraryError)throw e;if(e instanceof FatalPanic)throw new LibraryError('source_panic');if(e instanceof HostFault)throw new LibraryError('host_fault');throw new LibraryError('host_fault');}
  finally{reset();installCallbacks(Object.freeze({}));unlock();}
 }
+
+/** Source float boundary accepts numeric IEEE values, including NaN and infinities. */
+export function boundaryFloat(v:unknown,bits:number):number {
+ if(v===undefined)return 0;
+ if(typeof v!=='number')invalidBoundary();
+ return bits===32?Math.fround(v as number):v as number;
+}

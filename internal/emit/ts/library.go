@@ -17,7 +17,7 @@ func libraryValue(t *ir.Type, seen map[*ir.Type]bool) bool {
 	seen[t] = true
 	u := t.U()
 	switch u.Kind {
-	case ir.KBool, ir.KInt, ir.KString:
+	case ir.KBool, ir.KInt, ir.KString, ir.KFloat:
 		return true
 	case ir.KSlice, ir.KArray:
 		return libraryValue(u.Elem, seen)
@@ -61,6 +61,8 @@ func (e *emitter) library() (string, error) {
 		}
 		u := t.U()
 		switch u.Kind {
+		case ir.KFloat:
+			return "number"
 		case ir.KBool:
 			return "boolean"
 		case ir.KInt:
@@ -125,6 +127,8 @@ func (e *emitter) library() (string, error) {
 		}
 		fmt.Fprintf(&b, "function input$%d(v:any):any {\n", id)
 		switch u.Kind {
+		case ir.KFloat:
+			fmt.Fprintf(&b, "return rt.boundaryFloat(v,%d);\n", u.FloatBits)
 		case ir.KBool:
 			b.WriteString("return rt.boundaryBool(v);\n")
 		case ir.KString:

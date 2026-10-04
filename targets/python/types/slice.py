@@ -31,3 +31,10 @@ def alloc_bytes(c):
 
 def from_list(a):
     return Slice(a, 0, len(a), len(a))
+
+
+def zero_append_growth(result, previous, zero):
+    if result.a is not previous.a and not result.b:
+        for i in range(result.l, result.c):
+            result.a[i] = zero()
+    return result

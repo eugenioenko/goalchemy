@@ -183,7 +183,7 @@ func (fl *fnLowerer) conversion(arg ast.Expr, t *ir.Type, e ast.Node) ir.Value {
 	}
 	v := fl.expr(arg)
 	from := v.IRType()
-	if from == t {
+	if from == t && t.U().Kind != ir.KFloat {
 		return v
 	}
 	if t.IsInterface() {
@@ -192,6 +192,9 @@ func (fl *fnLowerer) conversion(arg ast.Expr, t *ir.Type, e ast.Node) ir.Value {
 	fu, tu := from.U(), t.U()
 	kind := ir.ConvNop
 	switch {
+	case (fu.Kind == ir.KFloat && (tu.Kind == ir.KFloat || tu.Kind == ir.KInt)) ||
+		(fu.Kind == ir.KInt && tu.Kind == ir.KFloat):
+		kind = ir.ConvFloat
 	case fu.Kind == ir.KInt && tu.Kind == ir.KInt:
 		if fu.Int != tu.Int {
 			kind = ir.ConvInt

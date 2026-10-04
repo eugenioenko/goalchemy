@@ -1,0 +1,21 @@
+id: type.float
+schema_version: 1
+version: 1.0.0
+family: float
+summary: IEEE binary32 and binary64 scalars with explicit operation-width rounding.
+semantics:
+  zero: "Positive zero of the declared width."
+  copying: "Scalar assignment, argument passing and collection copying preserve the value."
+  identity: "No identity beyond value; NaN is nonreflexive."
+  equality: "IEEE ordered equality: NaN never equals any value, and positive/negative zero compare equal."
+  panics: "No arithmetic panics, including division by zero."
+members: [float32, float64]
+notes: >-
+  Constants retain Go arbitrary precision until rounded directly to their destination width.
+  Each arithmetic operation rounds to its declared width with round-to-nearest, ties-to-even;
+  no contraction/fusion profile. Explicit same-width conversions remain rounding barriers.
+  IEEE infinities, gradual underflow and signed zero are preserved; NaN payloads are unspecified.
+  min/max propagate NaN and choose negative/positive zero respectively.
+  Map keys recursively containing NaN never match, even when an identical key is reused.
+  Float-to-integer exceptional results follow the selected Go1.27.1 linux/amd64 profile.
+exercised_by: [core.float.add, core.float.sub, core.float.mul, core.float.div, core.float.neg, core.float.min, core.float.max, core.float.convert, core.print]

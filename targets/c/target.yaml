@@ -8,6 +8,7 @@ environment:
   build: "sh run.sh (cc -std=c17 with -lgc -lpthread)"
   native: "OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API."
 representations:
+  - {type: type.float, contract_version: 1.0.0, representation: "GX_FLOAT tagged gx_V containing double; volatile operation results enforce the declared IEEE width."}
   - {type: type.boolean, contract_version: 1.0.0, representation: "gx_V tagged GX_BOOL."}
   - {type: type.integer, contract_version: 1.0.0, representation: "gx_V holding an int64_t normalized to the Go width after every operation; arithmetic wraps through uint64_t, so no signed overflow occurs; unsigned 64-bit values keep their bits (types/gx.h)."}
   - {type: type.string, contract_version: 1.0.0, representation: "gx_V with a pointer to immutable bytes and a length; substrings share bytes."}
@@ -25,8 +26,16 @@ harness:
   support: [tests/harness/main.c, tests/harness/json.c, tests/harness/json.h, tests/harness/codec.c, tests/harness/codec.h, tests/harness/run.sh]
   generated: tests/harness/harness_gen.c
   command: [sh, targets/c/tests/harness/run.sh]
-support_files: [types/native.h, types/library.c, types/library.h, types/bounds.c, types/func.c, types/gx.h, types/ints.c, types/map.c, types/panic.c, types/program.c, types/sched.c, types/utf8.c, types/value.c]
+support_files: [types/float.c, types/native.h, types/library.c, types/library.h, types/bounds.c, types/func.c, types/gx.h, types/ints.c, types/map.c, types/panic.c, types/program.c, types/sched.c, types/utf8.c, types/value.c]
 functions:
+  - {id: core.float.convert, contract_version: 1.0.0, symbol: "gx_float_convert", implementation: runtime/float_convert.c}
+  - {id: core.float.add, contract_version: 1.0.0, symbol: "gx_float_add_<k>", implementation: runtime/float_add.c, harness: "gx_float_add_{T.kind}({0}, {1})"}
+  - {id: core.float.sub, contract_version: 1.0.0, symbol: "gx_float_sub_<k>", implementation: runtime/float_sub.c, harness: "gx_float_sub_{T.kind}({0}, {1})"}
+  - {id: core.float.mul, contract_version: 1.0.0, symbol: "gx_float_mul_<k>", implementation: runtime/float_mul.c, harness: "gx_float_mul_{T.kind}({0}, {1})"}
+  - {id: core.float.div, contract_version: 1.0.0, symbol: "gx_float_div_<k>", implementation: runtime/float_div.c, harness: "gx_float_div_{T.kind}({0}, {1})"}
+  - {id: core.float.neg, contract_version: 1.0.0, symbol: "gx_float_neg_<k>", implementation: runtime/float_neg.c, harness: "gx_float_neg_{T.kind}({0})"}
+  - {id: core.float.min, contract_version: 1.0.0, symbol: "gx_float_min_<k>", implementation: runtime/float_min.c, harness: "gx_float_min_{T.kind}({0}, {1})"}
+  - {id: core.float.max, contract_version: 1.0.0, symbol: "gx_float_max_<k>", implementation: runtime/float_max.c, harness: "gx_float_max_{T.kind}({0}, {1})"}
   - {id: core.integer.add, contract_version: 1.0.0, symbol: "gx_add_<k>", implementation: runtime/integer_add.c, harness: "gx_add_{T.kind}({0}, {1})"}
   - {id: core.integer.sub, contract_version: 1.0.0, symbol: "gx_sub_<k>", implementation: runtime/integer_sub.c, harness: "gx_sub_{T.kind}({0}, {1})"}
   - {id: core.integer.mul, contract_version: 1.0.0, symbol: "gx_mul_<k>", implementation: runtime/integer_mul.c, harness: "gx_mul_{T.kind}({0}, {1})"}
@@ -56,7 +65,7 @@ functions:
   - {id: core.slice.index, contract_version: 1.0.0, symbol: "gx_sget", implementation: runtime/slice_index.c, harness: "gx_sget{I.u}({0}, {1})"}
   - {id: core.slice.store, contract_version: 1.0.0, symbol: "gx_sset", implementation: runtime/slice_store.c, harness: "gx_sset{I.u}({0}, {1}, {2})"}
   - {id: core.slice.slice, contract_version: 1.0.0, symbol: "gx_reslice", implementation: runtime/slice_slice.c, harness: "gx_reslice({0}, {1}, {2}, {3}, false)"}
-  - {id: core.slice.append, contract_version: 1.0.0, symbol: "gx_append", implementation: runtime/slice_append.c, harness: "gx_append_slice({0}, {1}, NULL)"}
+  - {id: core.slice.append, contract_version: 1.0.0, symbol: "gx_append", implementation: runtime/slice_append.c, harness: "gx_zero_append_growth(gx_append_slice({0}, {1}, NULL), {0}, {T.zerofn})"}
   - {id: core.slice.copy, contract_version: 1.0.0, symbol: "gx_copy", implementation: runtime/slice_copy.c, harness: "gx_copy({0}, {1}, NULL)"}
   - {id: core.slice.clear, contract_version: 1.0.0, symbol: "gx_clear_slice", implementation: runtime/slice_clear.c, harness: "gx_clear_slice({0}, {T.zerofn})"}
   - {id: core.slice.to_array, contract_version: 1.0.0, symbol: "gx_slice_to_array", implementation: runtime/slice_to_array.c, harness: "gx_slice_to_array({0}, 2, NULL)"}

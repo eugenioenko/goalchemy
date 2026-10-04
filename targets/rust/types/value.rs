@@ -14,6 +14,8 @@ pub enum V {
     Nil,
     Bool(bool),
     Int(i64),
+    /// Already rounded IEEE scalar, widened exactly for binary32.
+    Float(f64),
     Str(Rc<[u8]>),
     /// Struct, array, map, channel, function, interface box, or opaque object.
     Obj(H),
@@ -52,6 +54,11 @@ impl V {
             V::Int(x) => *x,
             _ => fault("integer expected"),
         }
+    }
+
+    #[inline]
+    pub fn f(&self) -> f64 {
+        match self { V::Float(x) => *x, _ => fault("float expected") }
     }
 
     #[inline]
@@ -116,6 +123,8 @@ pub enum Key {
     Nil,
     Bool(bool),
     Int(i64),
+    Float(u64),
+    NaN(u64),
     Str(Rc<[u8]>),
     H(H),
     Ptr(H, u32),
@@ -130,6 +139,12 @@ pub fn vkey(v: &V) -> Key {
         V::Nil => Key::Nil,
         V::Bool(b) => Key::Bool(*b),
         V::Int(i) => Key::Int(*i),
+        V::Float(x) => {
+            if x.is_nan() {
+                thread_local! { static NEXT: Cell<u64> = const { Cell::new(0) }; }
+                Key::NaN(NEXT.with(|n| { let v = n.get().checked_add(1).unwrap_or_else(|| fault("NaN key identity exhausted")); n.set(v); v }))
+            } else { Key::Float(if *x == 0.0 { 0 } else { x.to_bits() }) }
+        },
         V::Str(s) => Key::Str(s.clone()),
         V::Obj(h) => Key::H(*h),
         V::Ptr(h, i) => Key::Ptr(*h, *i),
@@ -147,6 +162,7 @@ pub fn veq(a: &V, b: &V) -> bool {
         (V::Nil, V::Nil) => true,
         (V::Bool(x), V::Bool(y)) => x == y,
         (V::Int(x), V::Int(y)) => x == y,
+        (V::Float(x), V::Float(y)) => x == y,
         (V::Str(x), V::Str(y)) => x[..] == y[..],
         (V::Obj(x), V::Obj(y)) => x == y,
         (V::Ptr(x, i), V::Ptr(y, j)) => x == y && i == j,

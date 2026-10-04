@@ -985,7 +985,7 @@ fn case_101(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_vs.clone()]);
     let a0 = v_s.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_string);
     vec![enc_slice(&r0, &|e: &V| enc_string(e))]
 }
 
@@ -995,7 +995,7 @@ fn case_102(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_vs.clone()]);
     let a0 = v_s.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_int);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
 
@@ -1005,7 +1005,7 @@ fn case_103(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_vs.clone()]);
     let a0 = v_s.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_int);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
 
@@ -1016,7 +1016,7 @@ fn case_104(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_t.clone(), v_vs.clone()]);
     let a0 = v_s.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_int);
     h.after("t", enc_slice(&v_t, &|e: &V| enc_int(e, "i64")));
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
@@ -1027,7 +1027,7 @@ fn case_105(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_vs.clone()]);
     let a0 = v_s.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_int);
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }
 
@@ -1038,7 +1038,7 @@ fn case_106(h: &H) -> Vec<J> {
     let _roots = temp_root(&[v_s.clone(), v_a.clone(), v_vs.clone()]);
     let a0 = v_a.clone();
     let a1 = v_vs.clone();
-    let r0 = append_slice(a0.clone(), a1.clone(), None);
+    let r0 = zero_append_growth(append_slice(a0.clone(), a1.clone(), None), &a0.clone(), zero_int);
     h.after("s", enc_slice(&v_s, &|e: &V| enc_int(e, "i64")));
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "i64"))]
 }

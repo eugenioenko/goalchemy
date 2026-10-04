@@ -2,7 +2,7 @@
 target: c
 function: core.slice.append
 contract_version: 1.0.0
-contract_hash: 2344d5d3e130a25efc6d78f0eabc557f565613382376991e7aff39a9c51797c7
+contract_hash: 4a2407e5be0b907f09e658213e096c9dc90fd154c23f08a72e51d8fc45e10a6d
 symbol: "gx_append"
 implementation: runtime/slice_append.c
 implementation_hash: 4c3529049104822989c4ca10e7baad63e0a4395403e45b4b585cbfe466e10553

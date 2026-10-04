@@ -603,40 +603,40 @@ export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {
   "core.slice.append/from_nil": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => decString(r), false);
     const v_vs = decSlice(h.let("vs"), (r: any) => decString(r), false);
-    const r0 = rt.appendSlice(v_s, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_s, v_vs), v_s, () => "");
     return [encSlice(r0, (e: any) => encString(e))];
   },
   "core.slice.append/grow_doubles": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
-    const r0 = rt.appendSlice(v_s, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_s, v_vs), v_s, () => 0n);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/grow_required": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
-    const r0 = rt.appendSlice(v_s, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_s, v_vs), v_s, () => 0n);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/in_place": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_t = view(v_s, h.let("t"));
     const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
-    const r0 = rt.appendSlice(v_s, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_s, v_vs), v_s, () => 0n);
     h.after("t", encSlice(v_t, (e: any) => encInt(e)));
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/nil_empty": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_vs = decSlice(h.let("vs"), (r: any) => (decInt(r, "i64") as bigint), false);
-    const r0 = rt.appendSlice(v_s, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_s, v_vs), v_s, () => 0n);
     return [encSlice(r0, (e: any) => encInt(e))];
   },
   "core.slice.append/overlap": (h: H) => {
     const v_s = decSlice(h.let("s"), (r: any) => (decInt(r, "i64") as bigint), false);
     const v_a = view(v_s, h.let("a"));
     const v_vs = view(v_s, h.let("vs"));
-    const r0 = rt.appendSlice(v_a, v_vs);
+    const r0 = rt.zeroAppendGrowth(rt.appendSlice(v_a, v_vs), v_a, () => 0n);
     h.after("s", encSlice(v_s, (e: any) => encInt(e)));
     return [encSlice(r0, (e: any) => encInt(e))];
   },

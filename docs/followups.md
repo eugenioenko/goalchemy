@@ -39,10 +39,11 @@ unsigned scalar reads, typed nil headers and zeroed capacity. See
 [C design, verification and memory evidence](c-byte-storage.md).
 
 The stronger growth-zeroing regressions recorded in these evidence documents
-expose unset spare capacity after append growth in generic storage.
-All six non-Go byte implementations now zero capacity; existing generic non-byte
-append paths still leave spare capacity uninitialized. These follow-ups must
-preserve aliasing and the established capacity rule.
+exposed unset spare capacity after append growth in generic storage.
+The float-support follow-up now initializes new generic spare slots from the
+declared element's zero factory, including nested arrays and structs. It
+preserves existing backing contents when append reuses capacity, aliasing and
+the established capacity rule. See [float verification](float-support.md).
 
 ### Host operations and portable libraries
 

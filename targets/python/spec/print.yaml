@@ -2,11 +2,11 @@
 target: python
 function: core.print
 contract_version: 1.0.0
-contract_hash: 95499c1ad15702d4087510c4154d0049c89b523e6697bb68683d401f34e7624a
+contract_hash: 3da4ca70e4793af9ffe146ae3342343da987973a432624dae0dc43362c277078
 symbol: "rt.go_print"
 implementation: runtime/print.py
 implementation_hash: 661dd7787af3d72e8bada457f5a0f90dba86ed3b5d953d192f292b96a712ce90
-summary: "print/println of Booleans, integers, and strings to standard error."
+summary: "print/println of Booleans, integers, IEEE floats, and strings to standard error."
 suspension: never
 determinism: deterministic
 signature:

@@ -38,7 +38,7 @@ func Verify(f *Func) error {
 				bad(b, "untyped constant")
 			} else if !v.Nil && v.Val == nil {
 				bad(b, "constant without value")
-			} else if v.Val != nil && v.Val.Kind() == constant.Int && v.Type.U().Kind != KInt {
+			} else if v.Val != nil && v.Val.Kind() == constant.Int && v.Type.U().Kind != KInt && v.Type.U().Kind != KFloat {
 				bad(b, "integer constant of type %s", v.Type)
 			}
 		case *FuncRef:

@@ -174,7 +174,7 @@ func (e *emitter) typ(t *ir.Type) string {
 		return n
 	}
 	switch t.Kind {
-	case ir.KBool, ir.KInt, ir.KString:
+	case ir.KBool, ir.KInt, ir.KString, ir.KFloat:
 		return t.Basic
 	case ir.KNamed:
 		if t.Name == "error" {
@@ -469,6 +469,9 @@ func (e *emitter) constant(c *ir.Const) string {
 			return "(" + t + "{})"
 		}
 		return "(" + t + ")(nil)"
+	}
+	if c.Type.U().Kind == ir.KFloat {
+		return e.typ(c.Type) + "(" + ir.FloatLiteral(c) + ")"
 	}
 	switch c.Val.Kind() {
 	case constant.Bool:
@@ -1042,6 +1045,10 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		case ir.Min, ir.Max:
 			fe.w("%s = %s(%s, %s)\n", fe.val(i.Dst), i.Op, fe.val(i.X), fe.val(i.Y))
 		default:
+			if i.Dst.Type.U().Kind == ir.KFloat {
+				fe.w("%s = %s(%s %s %s)\n", fe.val(i.Dst), e.typ(i.Dst.Type), fe.val(i.X), i.Op, fe.val(i.Y))
+				break
+			}
 			x, y := fe.val(i.X), fe.val(i.Y)
 			if c, ok := i.X.(*ir.Const); ok && c.Nil && !nilWrapper(i.X.IRType()) {
 				x = "nil"

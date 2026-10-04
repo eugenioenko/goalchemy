@@ -2,11 +2,11 @@
 target: java
 function: core.print
 contract_version: 1.0.0
-contract_hash: 95499c1ad15702d4087510c4154d0049c89b523e6697bb68683d401f34e7624a
+contract_hash: 3da4ca70e4793af9ffe146ae3342343da987973a432624dae0dc43362c277078
 symbol: "Print.print"
 implementation: runtime/Print.java
 implementation_hash: 781b249f421cdbbf579eec450a327c6b7f2155fa4e3b041929171f4b8ccb9ff3
-summary: "print/println of Booleans, integers, and strings to standard error."
+summary: "print/println of Booleans, integers, IEEE floats, and strings to standard error."
 suspension: never
 determinism: deterministic
 signature:
