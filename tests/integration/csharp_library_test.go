@@ -14,6 +14,15 @@ import (
 )
 
 func TestGeneratedCSharpImportingLibrary(t *testing.T) {
+	for _, compact := range []bool{false, true} {
+		t.Run(fmt.Sprintf("compact=%v", compact), func(t *testing.T) {
+			testGeneratedCSharpImportingLibrary(t, compact)
+		})
+	}
+}
+
+func testGeneratedCSharpImportingLibrary(t *testing.T, compact bool) {
+	t.Helper()
 	root, e := filepath.Abs("../..")
 	if e != nil {
 		t.Fatal(e)
@@ -53,7 +62,7 @@ func Derive(ctx context.Context)([]byte,error){return crypto.HKDFSHA256([]byte{1
 			t.Fatal(e)
 		}
 	}
-	if ds := testutil.CompileGate(source, "csharp", out, "cooperative"); len(ds) > 0 {
+	if ds := testutil.CompileGateOptions(source, "csharp", out, "cooperative", driver.EmitOptions{CompactNames: compact}); len(ds) > 0 {
 		t.Fatal(ds)
 	}
 	generated, e := os.ReadFile(filepath.Join(out, "Main.cs"))

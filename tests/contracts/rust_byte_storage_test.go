@@ -45,7 +45,7 @@ func TestRustByteStorage(t *testing.T) {
 	}
 	// Execute the emitted helpers too: behavioral oracles alone could hide a
 	// compiler path which constructs generic storage despite native primitives.
-	match := regexp.MustCompile(`fn z_(\d+)\(\) -> V \{ byte_array\(vec!\[0; 4\]\) \}`).FindSubmatch(src)
+	match := regexp.MustCompile(`fn z_([A-Za-z0-9_]+)\(\) -> V \{ byte_array\(vec!\[0; 4\]\) \}`).FindSubmatch(src)
 	if match == nil {
 		t.Fatal("missing emitted native byte-array zero helper")
 	}

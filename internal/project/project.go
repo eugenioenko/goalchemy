@@ -24,6 +24,7 @@ type Config struct {
 	Packages      []string          `json:"packages"`
 	Tags          []string          `json:"tags,omitempty"`
 	Gate          string            `json:"gate,omitempty"`
+	CompactNames  bool              `json:"compact_names,omitempty"`
 	Targets       map[string]Target `json:"targets"`
 
 	// Dir is the directory containing the configuration file.

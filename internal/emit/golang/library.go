@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/naming"
 )
 
 // LibraryBoundaryError reports a deliberately unsupported public ABI shape.
@@ -39,6 +40,68 @@ func libraryValue(t *ir.Type, seen map[*ir.Type]bool) bool {
 func sourceContext(t *ir.Type) bool { return t.Kind == ir.KOpaque && t.Name == "context.Context" }
 func sourceError(t *ir.Type) bool   { return t.Kind == ir.KNamed && t.Name == "error" }
 
+// libraryNames gives every named value exposed through the boundary a stable
+// public alias before type declarations, including nested dependency values.
+func (e *emitter) libraryNames() error {
+	e.publicTypes = map[*ir.Type]string{}
+	used := map[string]bool{"Callbacks": true, "Callback": true, "LibraryError": true}
+	roots := map[string]bool{}
+	for _, f := range e.p.Exports {
+		roots[f.Pkg] = true
+		used[f.Name[strings.LastIndex(f.Name, ".")+1:]] = true
+	}
+	for _, t := range e.p.Types.All {
+		if t.Kind != ir.KNamed || !roots[t.Pkg] || !token.IsExported(t.Obj) || !libraryValue(t, map[*ir.Type]bool{}) {
+			continue
+		}
+		if used[t.Obj] {
+			return fmt.Errorf("duplicate library public name %s", t.Obj)
+		}
+		used[t.Obj] = true
+		e.publicTypes[t] = t.Obj
+	}
+	seen := map[*ir.Type]bool{}
+	var visit func(*ir.Type)
+	visit = func(t *ir.Type) {
+		if seen[t] || !libraryValue(t, map[*ir.Type]bool{}) {
+			return
+		}
+		seen[t] = true
+		if t.Kind == ir.KNamed && t.Pkg != "" && e.publicTypes[t] == "" {
+			alias := fmt.Sprintf("Source_%s_%d", naming.Identifier(t.Name), t.ID)
+			for used[alias] {
+				alias += "_"
+			}
+			used[alias] = true
+			e.publicTypes[t] = alias
+		}
+		u := t.U()
+		switch u.Kind {
+		case ir.KStruct:
+			for _, field := range u.Fields {
+				visit(field.Type)
+			}
+		case ir.KArray, ir.KSlice:
+			visit(u.Elem)
+		}
+	}
+	// Root aliases may expose dependency values even when not a direct parameter.
+	for _, t := range e.p.Types.All {
+		if e.publicTypes[t] != "" {
+			visit(t)
+		}
+	}
+	for _, f := range e.p.Exports {
+		for _, t := range f.Sig.Params {
+			visit(t)
+		}
+		for _, t := range f.Sig.Results {
+			visit(t)
+		}
+	}
+	return nil
+}
+
 func (e *emitter) library() error {
 	e.use("core.task.spawn")
 	e.use("std.context.background")
@@ -46,34 +109,21 @@ func (e *emitter) library() error {
 	e.use("std.context.with_timeout")
 	e.use("std.context.err")
 	e.p_("type Callbacks = rt.Callbacks\ntype Callback = rt.Callback\ntype LibraryError = rt.LibraryError\n")
-	// Public aliases retain native struct fields and exact integer/slice types.
-	aliases := map[string]bool{"Callbacks": true, "Callback": true, "LibraryError": true}
-	roots := map[string]bool{}
-	for _, f := range e.p.Exports {
-		roots[f.Pkg] = true
-	}
+	// Public aliases retain native fields and integer/slice types. Names are
+	// allocated independently of compact internal naming, including dependencies.
 	for _, t := range e.p.Types.All {
-		if t.Kind != ir.KNamed || !roots[t.Pkg] || !token.IsExported(t.Obj) {
-			continue
+		if alias, ok := e.publicTypes[t]; ok {
+			e.p_("type %s = %s\n", alias, e.typeNames[t])
 		}
-		if aliases[t.Obj] {
-			return fmt.Errorf("duplicate library public name %s", t.Obj)
-		}
-		if !libraryValue(t, map[*ir.Type]bool{}) {
-			continue
-		}
-		aliases[t.Obj] = true
-		e.p_("type %s = %s\n", t.Obj, e.typ(t))
 	}
-	publicType := func(t *ir.Type) string {
-		if t.Kind == ir.KNamed && roots[t.Pkg] && aliases[t.Obj] {
-			return t.Obj
-		}
-		return e.typ(t)
+	publicType := e.typ
+	aliases := map[string]bool{"Callbacks": true, "Callback": true, "LibraryError": true}
+	for _, alias := range e.publicTypes {
+		aliases[alias] = true
 	}
 	e.p_("func libraryReset() {\n")
 	for _, g := range e.p.Globals {
-		e.p_("%s = *new(%s)\n", g.Sym, e.typ(g.Type))
+		e.p_("%s = *new(%s)\n", e.names.Symbol(g.Sym), e.typ(g.Type))
 	}
 	e.p_("}\n")
 	for _, f := range e.p.Exports {
@@ -128,11 +178,11 @@ func (e *emitter) library() error {
 		e.p_("rv, runErr := rt.RunLibrary(ctx, registry, func(sourceCtx rt.Context) rt.Frame {\nlibraryReset()\n")
 		// Init and operation are separate roots in one fresh owner; a wrapper frame
 		// performs initialization before constructing/calling the export.
-		init := e.p.Init.Sym + "()"
+		init := e.names.Symbol(e.p.Init.Sym) + "()"
 		if !e.p.Init.MaySuspend {
-			init = "rt.Sync(func() []any { " + e.p.Init.Sym + "(); return nil })"
+			init = "rt.Sync(func() []any { " + e.names.Symbol(e.p.Init.Sym) + "(); return nil })"
 		}
-		call := f.Sym + "(" + strings.Join(as, ", ") + ")"
+		call := e.names.Symbol(f.Sym) + "(" + strings.Join(as, ", ") + ")"
 		if !f.MaySuspend {
 			call = "rt.Sync(func() []any { " + syncFrameBody(len(results), call) + " })"
 		}

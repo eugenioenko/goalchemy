@@ -1,12 +1,43 @@
 # Goalchemy implementation plan
 
-Status: implementation baseline. Updated October 1, 2026.
+Status: implementation baseline. Updated October 4, 2026.
 
 Goalchemy is a transpiler for a restricted, Go-compatible source language. It lowers one typed program into Go, TypeScript, Python, Java, C#, Rust, and C. A shared semantic model, individually specified runtime functions, and differential tests keep those outputs consistent.
 
 The current project builds the compiler, its language runtimes, contract generators, and conformance tooling. OpenTDF is the motivating source workload. Its source survey is deferred by project direction; building and distributing seven OpenTDF SDKs is a later project phase.
 
 This document selects concrete defaults so implementation can begin. Changes are allowed as evidence arrives, but a semantic change must update the language specification, affected contracts, and conformance tests together. A planned feature is not advertised as implemented until its acceptance tests pass.
+
+## Readable generated names and release
+
+Preserve readable Go-derived internal names by default across Go, TypeScript,
+Python, Java, C#, Rust and C. Provide opt-in `--compact-names` for generated
+internal identifiers, with equivalent command/config behavior. Public export and
+wire names stay consistent between modes. Escape target keywords and invalid
+identifier characters, disambiguate packages/shadowing, and provide deterministic
+names for anonymous types and compiler temporaries without changing runtime IDs
+or Go value semantics.
+
+Acceptance: shared naming and CLI/config tests; source-level emitter tests;
+all-seven differential checks of both naming modes including collisions, Unicode,
+anonymous types, closures and cooperative execution; actual importing library
+consumers in both modes; existing short suite, vet and spec freshness; passing
+hosted CI on the PR head. Update user/compiler documentation, merge the accepted
+PR and publish a signed Goalchemy release with a verified external install.
+Work proceeds in `feat/readable-names`, preserving the original SDK checkouts.
+
+Implementation acceptance: all seven target emitters support both naming modes;
+shared naming/config/CLI tests and race checks pass. The all-seven differential
+matrix (three fixtures in two modes) and fourteen importing library consumers
+passed locally. Focused tests also cover anonymous/public-name collisions,
+dependency aliases, private method package identities and reserved façade names.
+User documentation is updated. The broad local suite identified old numeric-name
+assumptions in C/Rust byte helper probes and a C# GC probe; these were corrected
+without weakening native storage/retirement checks. The affected checks passed,
+including the independent C# consumer's 93 checks in both modes. Other local
+suite packages passed. Final vet and all 736 generated-spec freshness checks
+passed. Hosted CI on the final PR head remains the merge/release gate.
+
 
 ## Floating-point follow-up
 
@@ -68,7 +99,7 @@ The first release is complete when the CLI can validate and compile documented s
 | C memory | Boehm GC initially; generated execution stays single-threaded |
 | Overrides | Explicit, version-checked source replacements; no silent name-based shadowing |
 | Repository | One monorepo; independently testable compiler and target runtime directories |
-| Generated naming | Stable internal names with type IDs; idiomatic public wrappers are outside this phase |
+| Generated naming | Readable Go-derived names by default; opt-in compact internal names; consistent public wrappers in both modes |
 | Optimization | Correctness first; optimizations must preserve observations and pass differential tests |
 
 The installed workspace toolchain was Go 1.25.1 when this plan was written. Bootstrap must select the reference toolchain before oracle results are recorded. Toolchain installation is implementation work, not a completed action in this plan.

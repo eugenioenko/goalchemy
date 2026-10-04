@@ -85,7 +85,7 @@ static class LibraryTest
  [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
  static WeakReference SourceRoot()
  {
-  Frame frame=R.sched.cur.frame;while(frame!=null){foreach(var field in frame.GetType().GetFields(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance)){var value=field.GetValue(frame);if(value!=null&&value.GetType().DeclaringType==typeof(Generated)&&value.GetType().Name.StartsWith("S"))return new WeakReference(value);}frame=frame.parent;}throw new Exception("actual source root not found");
+  Frame frame=R.sched.cur.frame;while(frame!=null){foreach(var field in frame.GetType().GetFields(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance)){var value=field.GetValue(frame);if(value!=null&&value.GetType().DeclaringType==typeof(Generated)&&value.GetType().IsNestedPrivate&&value.GetType().GetMethod("_clone",BindingFlags.Public|BindingFlags.Instance|BindingFlags.DeclaredOnly)!=null)return new WeakReference(value);}frame=frame.parent;}throw new Exception("actual source root not found");
  }
  static void GCRelease()
  {

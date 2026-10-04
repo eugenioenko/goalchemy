@@ -93,6 +93,10 @@ func (e *emitter) library() (string, error) {
 				return n
 			}
 			n := fmt.Sprintf("Value%d", u.ID)
+			for used[n] || reserved[n] {
+				n += "_"
+			}
+			used[n] = true
 			names[u] = n
 			return n
 		case ir.KArray, ir.KSlice:
@@ -129,8 +133,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KArray, ir.KSlice:
 			convert(u.Elem)
 		}
-		id := u.ID
-		fmt.Fprintf(&b, " private static %s snapshot_%d(%s v,Library.CopyContext copy) {\n", typ(t), id, typ(t))
+		fmt.Fprintf(&b, " private static %s %s(%s v,Library.CopyContext copy) {\n", typ(t), e.names.Type(u, "snapshot_"), typ(t))
 		aggregate := u.Kind == ir.KStruct || u.Kind == ir.KArray || u.Kind == ir.KSlice
 		if aggregate {
 			b.WriteString("object original=v;copy.enter(original);try {\n")
@@ -145,7 +148,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KStruct:
 			fmt.Fprintf(&b, "if(v==null)v=new %s(); %s r=new %s();\n", typ(t), typ(t), typ(t))
 			for _, f := range u.Fields {
-				fmt.Fprintf(&b, "r.%s=snapshot_%d(v.%s,copy);\n", f.Name, f.Type.U().ID, f.Name)
+				fmt.Fprintf(&b, "r.%s=%s(v.%s,copy);\n", f.Name, e.names.Type(f.Type.U(), "snapshot_"), f.Name)
 			}
 			b.WriteString("return r;\n")
 		case ir.KArray, ir.KSlice:
@@ -156,14 +159,14 @@ func (e *emitter) library() (string, error) {
 				b.WriteString("return Library.bytes(v);\n")
 			} else {
 				b.WriteString("if(v==null)return null;Library.length(v.Length);\n")
-				fmt.Fprintf(&b, "%s r=%s;for(int i=0;i<r.Length;i++)r[i]=snapshot_%d(v[i],copy);return r;\n", typ(t), publicArray(typ(u.Elem), "v.Length"), u.Elem.U().ID)
+				fmt.Fprintf(&b, "%s r=%s;for(int i=0;i<r.Length;i++)r[i]=%s(v[i],copy);return r;\n", typ(t), publicArray(typ(u.Elem), "v.Length"), e.names.Type(u.Elem.U(), "snapshot_"))
 			}
 		}
 		if aggregate {
 			b.WriteString("} finally {copy.leave(original); }\n")
 		}
 		b.WriteString(" }\n")
-		fmt.Fprintf(&b, " private static %s input_%d(%s v) {\n", e.jt(t), id, typ(t))
+		fmt.Fprintf(&b, " private static %s %s(%s v) {\n", e.jt(t), e.names.Type(u, "input_"), typ(t))
 		switch u.Kind {
 		case ir.KBool, ir.KFloat:
 			b.WriteString("return v;\n")
@@ -174,7 +177,7 @@ func (e *emitter) library() (string, error) {
 		case ir.KStruct:
 			fmt.Fprintf(&b, "if(v==null)v=new %s(); %s r=new %s();\n", typ(t), e.jt(t), e.jt(t))
 			for i, f := range u.Fields {
-				fmt.Fprintf(&b, "r.%s=input_%d(v.%s);\n", fieldProp(u, i), f.Type.U().ID, f.Name)
+				fmt.Fprintf(&b, "r.%s=%s(v.%s);\n", e.fieldProp(u, i), e.names.Type(f.Type.U(), "input_"), f.Name)
 			}
 			b.WriteString("return r;\n")
 		case ir.KArray, ir.KSlice:
@@ -191,7 +194,7 @@ func (e *emitter) library() (string, error) {
 					b.WriteString("if(v==null)return Slice.NIL;\n")
 				}
 				b.WriteString("Library.length(v.Length);object[] a=new object[v.Length];\n")
-				fmt.Fprintf(&b, "for(int i=0;i<a.Length;i++)a[i]=input_%d(v[i]);\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "for(int i=0;i<a.Length;i++)a[i]=%s(v[i]);\n", e.names.Type(u.Elem.U(), "input_"))
 				if u.Kind == ir.KArray {
 					b.WriteString("return a;\n")
 				} else {
@@ -200,12 +203,12 @@ func (e *emitter) library() (string, error) {
 			}
 		}
 		b.WriteString(" }\n")
-		fmt.Fprintf(&b, " private static %s output_%d(%s v) {\n", typ(t), id, e.jt(t))
+		fmt.Fprintf(&b, " private static %s %s(%s v) {\n", typ(t), e.names.Type(u, "output_"), e.jt(t))
 		switch u.Kind {
 		case ir.KStruct:
 			fmt.Fprintf(&b, "%s r=new %s();\n", typ(t), typ(t))
 			for i, f := range u.Fields {
-				fmt.Fprintf(&b, "r.%s=output_%d(v.%s);\n", f.Name, f.Type.U().ID, fieldProp(u, i))
+				fmt.Fprintf(&b, "r.%s=%s(v.%s);\n", f.Name, e.names.Type(f.Type.U(), "output_"), e.fieldProp(u, i))
 			}
 			b.WriteString("return r;\n")
 		case ir.KArray, ir.KSlice:
@@ -224,25 +227,25 @@ func (e *emitter) library() (string, error) {
 					item = "v.Get(i)"
 				}
 				fmt.Fprintf(&b, "%s a=%s;\n", typ(t), publicArray(typ(u.Elem), length))
-				fmt.Fprintf(&b, "for(int i=0;i<a.Length;i++)a[i]=output_%d(%s);return a;\n", u.Elem.U().ID, e.cast(u.Elem, item))
+				fmt.Fprintf(&b, "for(int i=0;i<a.Length;i++)a[i]=%s(%s);return a;\n", e.names.Type(u.Elem.U(), "output_"), e.cast(u.Elem, item))
 			}
 		default:
 			b.WriteString("return v;\n")
 		}
 		b.WriteString(" }\n")
-		fmt.Fprintf(&b, " private static object wire_%d(%s v) {\n", id, typ(t))
+		fmt.Fprintf(&b, " private static object %s(%s v) {\n", e.names.Type(u, "wire_"), typ(t))
 		switch u.Kind {
 		case ir.KStruct:
 			b.WriteString("var r=new System.Collections.Generic.Dictionary<string,object>();\n")
 			for _, f := range u.Fields {
-				fmt.Fprintf(&b, "r.Add(%q,wire_%d(v.%s));\n", f.Name, f.Type.U().ID, f.Name)
+				fmt.Fprintf(&b, "r.Add(%q,%s(v.%s));\n", f.Name, e.names.Type(f.Type.U(), "wire_"), f.Name)
 			}
 			b.WriteString("return r;\n")
 		case ir.KArray, ir.KSlice:
 			if byteElem(u.Elem) {
 				b.WriteString("return v==null?null:(byte[])v.Clone();\n")
 			} else {
-				fmt.Fprintf(&b, "if(v==null)return null;object[] a=new object[v.Length];for(int i=0;i<a.Length;i++)a[i]=wire_%d(v[i]);return a;\n", u.Elem.U().ID)
+				fmt.Fprintf(&b, "if(v==null)return null;object[] a=new object[v.Length];for(int i=0;i<a.Length;i++)a[i]=%s(v[i]);return a;\n", e.names.Type(u.Elem.U(), "wire_"))
 			}
 		default:
 			b.WriteString("return v;\n")
@@ -279,9 +282,9 @@ func (e *emitter) library() (string, error) {
 	b.WriteString(" private static Library.Failure sourceFailure(Box err) {\nif(err==null)return null;\n")
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KPointer && t.Elem.U().Kind == ir.KStruct && libraryValue(t.Elem, map[*ir.Type]bool{}) && e.tds[t] != "" {
-			fmt.Fprintf(&b, "if(err.t==%s) { %s v=output_%d((%s)err.v); var fields=new System.Collections.Generic.Dictionary<string,object>();\n", e.tds[t], typ(t.Elem), t.Elem.U().ID, e.jt(t.Elem))
+			fmt.Fprintf(&b, "if(err.t==%s) { %s v=%s((%s)err.v); var fields=new System.Collections.Generic.Dictionary<string,object>();\n", e.tds[t], typ(t.Elem), e.names.Type(t.Elem.U(), "output_"), e.jt(t.Elem))
 			for _, f := range t.Elem.U().Fields {
-				fmt.Fprintf(&b, "fields.Add(%q,wire_%d(v.%s));\n", f.Name, f.Type.U().ID, f.Name)
+				fmt.Fprintf(&b, "fields.Add(%q,%s(v.%s));\n", f.Name, e.names.Type(f.Type.U(), "wire_"), f.Name)
 			}
 			b.WriteString("return new Library.Failure(\"source\",fields); }\n")
 		}
@@ -289,9 +292,9 @@ func (e *emitter) library() (string, error) {
 	b.WriteString("return new Library.Failure(\"source\");\n }\n private static void libraryReset() {\n")
 	for _, g := range e.p.Globals {
 		if g.AddrTaken && !g.Type.IsAggregate() {
-			fmt.Fprintf(&b, "%s.v=%s;\n", g.Sym, e.zero(g.Type))
+			fmt.Fprintf(&b, "%s.v=%s;\n", e.symbol(g.Sym), e.zero(g.Type))
 		} else {
-			fmt.Fprintf(&b, "%s=%s;\n", g.Sym, e.zero(g.Type))
+			fmt.Fprintf(&b, "%s=%s;\n", e.symbol(g.Sym), e.zero(g.Type))
 		}
 	}
 	b.WriteString("Rt.Program.clearFieldRefs();\n }\n")
@@ -332,20 +335,20 @@ func (e *emitter) library() (string, error) {
 			}
 			a := fmt.Sprintf("a%d", i)
 			ps = append(ps, typ(t)+" "+a)
-			as = append(as, fmt.Sprintf("input_%d(owned%s)", t.U().ID, a))
+			as = append(as, fmt.Sprintf("%s(owned%s)", e.names.Type(t.U(), "input_"), a))
 		}
 		ps = append(ps, "Library.Options options")
 		fmt.Fprintf(&b, " public static Library.Operation<%s> %s(%s) {\ntry {\nLibrary.CopyContext copy=new Library.CopyContext();\n", result, name, strings.Join(ps, ","))
 		for i, t := range f.Sig.Params {
 			if !sourceContext(t) {
-				fmt.Fprintf(&b, "%s owneda%d=snapshot_%d(a%d,copy);\n", typ(t), i, t.U().ID, i)
+				fmt.Fprintf(&b, "%s owneda%d=%s(a%d,copy);\n", typ(t), i, e.names.Type(t.U(), "snapshot_"), i)
 			}
 		}
-		init := e.p.Init.Sym + "()"
+		init := e.symbol(e.p.Init.Sym) + "()"
 		if !e.p.Init.MaySuspend {
-			init = "R.sync(() => { " + e.p.Init.Sym + "();return new object[0];})"
+			init = "R.sync(() => { " + e.symbol(e.p.Init.Sym) + "();return new object[0];})"
 		}
-		call := f.Sym + "(" + strings.Join(as, ",") + ")"
+		call := e.symbol(f.Sym) + "(" + strings.Join(as, ",") + ")"
 		if !f.MaySuspend {
 			body := call + ";return new object[0]"
 			if len(f.Sig.Results) == 1 {
@@ -360,14 +363,14 @@ func (e *emitter) library() (string, error) {
 			fmt.Fprintf(&b, "Library.Failure err=sourceFailure((Box)rv[%d]);if(err!=null)throw err;\n", n)
 		}
 		if n == 1 {
-			fmt.Fprintf(&b, "return output_%d(%s);\n", f.Sig.Results[0].U().ID, e.cast(f.Sig.Results[0], "rv[0]"))
+			fmt.Fprintf(&b, "return %s(%s);\n", e.names.Type(f.Sig.Results[0].U(), "output_"), e.cast(f.Sig.Results[0], "rv[0]"))
 		} else if n > 1 {
 			fmt.Fprintf(&b, "return new %s(", result)
 			for i := 0; i < n; i++ {
 				if i > 0 {
 					b.WriteString(",")
 				}
-				fmt.Fprintf(&b, "output_%d(%s)", f.Sig.Results[i].U().ID, e.cast(f.Sig.Results[i], fmt.Sprintf("rv[%d]", i)))
+				fmt.Fprintf(&b, "%s(%s)", e.names.Type(f.Sig.Results[i].U(), "output_"), e.cast(f.Sig.Results[i], fmt.Sprintf("rv[%d]", i)))
 			}
 			b.WriteString(");\n")
 		} else {

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/naming"
 )
 
 // Output is the generated main package plus the runtime contracts it needs.
@@ -26,23 +27,31 @@ type Output struct {
 }
 
 type emitter struct {
-	p         *ir.Program
-	outDir    string
-	symbols   map[string]string
-	typeNames map[*ir.Type]string
-	syms      map[string]bool
-	contracts map[string]bool
-	buf       bytes.Buffer
-	closures  map[*ir.Func]bool
+	p           *ir.Program
+	names       *naming.Names
+	outDir      string
+	symbols     map[string]string
+	typeNames   map[*ir.Type]string
+	publicTypes map[*ir.Type]string
+	methodNames map[string]string
+	syms        map[string]bool
+	contracts   map[string]bool
+	buf         bytes.Buffer
+	closures    map[*ir.Func]bool
 }
 
 // Emit generates the main package; outDir anchors relative source paths
 // in line directives.
 func Emit(p *ir.Program, outDir string, symbols map[string]string) (*Output, error) {
-	e := &emitter{p: p, outDir: outDir, symbols: symbols, typeNames: map[*ir.Type]string{}, syms: map[string]bool{}, contracts: map[string]bool{}, closures: map[*ir.Func]bool{}}
+	e := &emitter{p: p, names: naming.New(p), outDir: outDir, symbols: symbols, typeNames: map[*ir.Type]string{}, syms: map[string]bool{}, contracts: map[string]bool{}, closures: map[*ir.Func]bool{}}
 	for _, f := range p.Funcs {
 		if f.Closure {
 			e.closures[f] = true
+		}
+	}
+	if p.Library {
+		if err := e.libraryNames(); err != nil {
+			return nil, &LibraryBoundaryError{Message: err.Error()}
 		}
 	}
 	e.nameTypes()
@@ -115,37 +124,78 @@ func (e *emitter) sym(base string) string {
 	return s
 }
 
-func sanitize(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-		} else {
-			b.WriteByte('_')
-		}
-	}
-	return b.String()
-}
-
 func (e *emitter) nameTypes() {
 	for _, f := range e.p.Funcs {
-		e.syms[f.Sym] = true
+		e.syms[e.names.Symbol(f.Sym)] = true
 	}
 	for _, g := range e.p.Globals {
-		e.syms[g.Sym] = true
+		e.syms[e.names.Symbol(g.Sym)] = true
 	}
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KNamed && t.Pkg != "" {
-			e.typeNames[t] = e.sym("T_" + sanitize(strings.ReplaceAll(t.Name, ".", "_")))
+			e.typeNames[t] = e.sym(e.names.Type(t, "type_"))
 		}
+	}
+
+	// Native exported methods keep their API names. Private method identities
+	// include package paths, so assign collision-free names over the whole IR.
+	identities := map[string]bool{}
+	reserved := map[string]bool{}
+	for _, t := range e.p.Types.All {
+		for i, field := range t.U().Fields {
+			reserved[field.Name] = true
+			reserved[e.fieldName(t, i)] = true
+		}
+	}
+
+	for _, f := range e.p.Funcs {
+		if strings.Contains(f.MethodID, ".") {
+			identities[f.MethodID] = true
+		} else if f.MethodID != "" {
+			reserved[methodShortName(f)] = true
+		}
+	}
+	for _, t := range e.p.Types.All {
+		for _, m := range t.Methods {
+			if strings.Contains(m.ID, ".") {
+				identities[m.ID] = true
+			} else {
+				reserved[m.Name] = true
+			}
+		}
+		for _, m := range t.MethodSet {
+			if strings.Contains(m.ID, ".") {
+				identities[m.ID] = true
+			} else {
+				reserved[m.Name] = true
+			}
+		}
+	}
+	var ids []string
+	for id := range identities {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	e.methodNames = map[string]string{}
+	for i, id := range ids {
+		n := fmt.Sprintf("method_%s_%d", naming.Identifier(id), i)
+		if e.p.CompactNames {
+			n = fmt.Sprintf("m_%d", i)
+		}
+		// One alias per identity must be safe on every native receiver type.
+		for reserved[n] {
+			n += "_"
+		}
+		reserved[n] = true
+		e.methodNames[id] = n
 	}
 }
 
 // methodName renders a method identity as a Go method name. Unexported
 // methods keep package-qualified identity through a suffix.
 func (e *emitter) methodName(id, name string) string {
-	if i := strings.LastIndex(id, "."); i >= 0 {
-		return name + "_" + sanitize(id[:i])
+	if n, ok := e.methodNames[id]; ok {
+		return n
 	}
 	return name
 }
@@ -156,6 +206,9 @@ func (e *emitter) fieldName(t *ir.Type, i int) string {
 		ft := f.Type
 		if ft.Kind == ir.KPointer {
 			ft = ft.Elem
+		}
+		if n, ok := e.publicTypes[ft]; ok {
+			return n
 		}
 		if n, ok := e.typeNames[ft]; ok {
 			return n
@@ -170,6 +223,9 @@ func (e *emitter) fieldName(t *ir.Type, i int) string {
 
 // typ renders an IR type as a Go type expression.
 func (e *emitter) typ(t *ir.Type) string {
+	if n, ok := e.publicTypes[t]; ok {
+		return n
+	}
 	if n, ok := e.typeNames[t]; ok {
 		return n
 	}
@@ -366,7 +422,7 @@ func (e *emitter) typeDecls() {
 
 func (e *emitter) globals() {
 	for _, g := range e.p.Globals {
-		e.p_("var %s %s\n", g.Sym, e.typ(g.Type))
+		e.p_("var %s %s\n", e.names.Symbol(g.Sym), e.typ(g.Type))
 	}
 	e.p_("\n")
 }
@@ -374,9 +430,9 @@ func (e *emitter) globals() {
 func (e *emitter) entry() {
 	if e.p.Cooperative {
 		e.use("core.task.spawn")
-		start := e.p.Entry.Sym + "()"
+		start := e.names.Symbol(e.p.Entry.Sym) + "()"
 		if !e.p.Entry.MaySuspend {
-			start = "rt.Sync(func() []any { " + e.p.Entry.Sym + "(); return nil })"
+			start = "rt.Sync(func() []any { " + e.names.Symbol(e.p.Entry.Sym) + "(); return nil })"
 		}
 		run := "RunMain"
 		if ir.HostEntry(e.contracts) {
@@ -385,9 +441,9 @@ func (e *emitter) entry() {
 		e.p_("func main() {\n\trt.%s(%s)\n}\n", run, start)
 		return
 	}
-	e.p_("func main() {\n\trt.Main(func() {\n\t\t%s()\n", e.p.Init.Sym)
+	e.p_("func main() {\n\trt.Main(func() {\n\t\t%s()\n", e.names.Symbol(e.p.Init.Sym))
 	if e.p.Main != nil {
-		e.p_("\t\t%s()\n", e.p.Main.Sym)
+		e.p_("\t\t%s()\n", e.names.Symbol(e.p.Main.Sym))
 	}
 	e.p_("\t})\n}\n")
 }
@@ -412,11 +468,7 @@ type fnEmitter struct {
 func (e *emitter) localNames(f *ir.Func) *fnEmitter {
 	fe := &fnEmitter{e: e, f: f, names: map[*ir.Local]string{}, used: map[string]bool{}}
 	for _, l := range f.Locals {
-		base := sanitize(l.Name)
-		if base == "" || base == "_" {
-			base = "t"
-		}
-		fe.names[l] = fmt.Sprintf("%s_%d", base, l.ID)
+		fe.names[l] = e.names.Local(l, "_")
 	}
 	return fe
 }
@@ -454,7 +506,7 @@ func (e *emitter) funcRef(f *ir.Func) string {
 	if e.nativeMethod(f) {
 		return "(" + e.typ(f.RecvType) + ")." + e.methodName(f.MethodID, methodShortName(f))
 	}
-	return f.Sym
+	return e.names.Symbol(f.Sym)
 }
 
 func methodShortName(f *ir.Func) string {
@@ -504,7 +556,7 @@ func (fe *fnEmitter) place(p *ir.Place) string {
 	case ir.LocalRoot:
 		s = fe.val(r.Local)
 	case ir.GlobalRoot:
-		s = r.Global.Sym
+		s = fe.e.names.Symbol(r.Global.Sym)
 	case ir.DerefRoot:
 		s = "(*" + fe.val(r.Ptr) + ")"
 	case ir.SliceRoot:
@@ -588,7 +640,7 @@ func (e *emitter) function(f *ir.Func) {
 	fe.b = &body
 	fe.body()
 	if isMethod(f) && !e.nativeMethod(f) {
-		e.p_("func %s%s {\n", f.Sym, e.signature(f, fe, false))
+		e.p_("func %s%s {\n", e.names.Symbol(f.Sym), e.signature(f, fe, false))
 		e.buf.Write(body.Bytes())
 		e.p_("}\n\n")
 		e.startMethod(f, false)
@@ -602,7 +654,7 @@ func (e *emitter) function(f *ir.Func) {
 		}
 		e.p_("func (%s %s) %s%s {\n", rn, e.typ(r.Type), e.methodName(f.MethodID, methodShortName(f)), e.signature(f, fe, true))
 	} else {
-		e.p_("func %s%s {\n", f.Sym, e.signature(f, fe, false))
+		e.p_("func %s%s {\n", e.names.Symbol(f.Sym), e.signature(f, fe, false))
 	}
 	e.buf.Write(body.Bytes())
 	e.p_("}\n\n")
@@ -625,7 +677,7 @@ func (e *emitter) startMethod(f *ir.Func, isFrame bool) {
 		ps = append(ps, fmt.Sprintf("a%d_ %s", i, t))
 		as = append(as, a)
 	}
-	call := f.Sym + "(" + strings.Join(append([]string{"r_"}, as...), ", ") + ")"
+	call := e.names.Symbol(f.Sym) + "(" + strings.Join(append([]string{"r_"}, as...), ", ") + ")"
 	body := "return " + call
 	if !isFrame {
 		body = "return rt.Sync(func() []any { " + syncFrameBody(len(f.Results), call) + " })"
@@ -638,7 +690,7 @@ func (e *emitter) startMethod(f *ir.Func, isFrame bool) {
 // and a Step method running the blocks until return or a pause point.
 func (e *emitter) frameFunction(f *ir.Func) {
 	fe := e.localNames(f)
-	ft := "frame_" + f.Sym
+	ft := "frame_" + e.names.Symbol(f.Sym)
 	e.p_("type %s struct {\n\trt.FrameBase\n", ft)
 	for _, l := range f.Locals {
 		t := e.typ(l.Type)
@@ -660,7 +712,7 @@ func (e *emitter) frameFunction(f *ir.Func) {
 		}
 		ps = append(ps, fe.names[l]+" "+t)
 	}
-	e.p_("func %s(%s) rt.Frame {\n\tfr := &%s{}\n", f.Sym, strings.Join(ps, ", "), ft)
+	e.p_("func %s(%s) rt.Frame {\n\tfr := &%s{}\n", e.names.Symbol(f.Sym), strings.Join(ps, ", "), ft)
 	for _, l := range inputs {
 		if l.Boxed && l.Kind != ir.LEnv {
 			e.p_("\tfr.%s = &%s\n", fe.names[l], fe.names[l])
@@ -956,7 +1008,7 @@ func (fe *fnEmitter) callExpr(c *ir.Call) string {
 		if fe.e.nativeMethod(f) {
 			return fe.val(c.Args[0]) + "." + fe.e.methodName(f.MethodID, methodShortName(f)) + "(" + fe.args(c, f.Sig, 1) + ")"
 		}
-		return f.Sym + "(" + fe.args(c, f.Sig, 0) + ")"
+		return fe.e.names.Symbol(f.Sym) + "(" + fe.args(c, f.Sig, 0) + ")"
 	case ir.CallValue:
 		return fe.val(c.Fn) + "(" + fe.args(c, c.Fn.IRType().U(), 0) + ")"
 	case ir.CallInterface:
@@ -1298,7 +1350,7 @@ func (fe *fnEmitter) bindCall(c *ir.Call) (params, args []string, call string) {
 		if fe.e.nativeMethod(c.Func) {
 			call = callArgs[0] + "." + fe.e.methodName(c.Func.MethodID, methodShortName(c.Func)) + "(" + strings.Join(callArgs[1:], ", ") + ")"
 		} else {
-			call = c.Func.Sym + "(" + strings.Join(callArgs, ", ") + ")"
+			call = fe.e.names.Symbol(c.Func.Sym) + "(" + strings.Join(callArgs, ", ") + ")"
 		}
 	case ir.CallValue:
 		f := bind(c.Fn, fe.e.typ(c.Fn.IRType()))
@@ -1436,7 +1488,7 @@ func (fe *fnEmitter) closure(i *ir.MakeClosure) {
 		ps, as := e.forward(u)
 		call = append(call, as...)
 		fe.w("%s = func(%s) %s { return func(%s) rt.Frame { return %s(%s) } }(%s)\n", fe.val(i.Dst), strings.Join(envPs, ", "),
-			e.startType(u), strings.Join(ps, ", "), f.Sym, strings.Join(call, ", "), strings.Join(envAs, ", "))
+			e.startType(u), strings.Join(ps, ", "), fe.e.names.Symbol(f.Sym), strings.Join(call, ", "), strings.Join(envAs, ", "))
 		return
 	}
 	ce := fe.e.localNames(f)

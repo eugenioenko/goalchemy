@@ -66,6 +66,8 @@ jobs:
             test -f "tests/language/testdata/$fixture/main.go"
           done
           go test -v -timeout 15m ./tests/language -run '^TestFixtures$' -count=1
+      - name: All-seven readable and compact naming differential tests
+        run: go test -v -timeout 15m ./tests/language -run '^TestNamingModes$' -count=1
       # No -short here: every canonical case must run through all seven host harnesses.
       - name: All-seven runtime contract conformance
         run: go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1

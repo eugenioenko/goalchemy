@@ -7,9 +7,12 @@ import (
 
 // Program is a whole lowered Goalchemy program.
 type Program struct {
-	Types   *Types
-	Funcs   []*Func
-	Globals []*Global
+	// CompactNames requests short private identifiers during target emission.
+	// Source identities and public export names are independent of this option.
+	CompactNames bool
+	Types        *Types
+	Funcs        []*Func
+	Globals      []*Global
 	// Init runs package initialization in dependency order.
 	Init *Func
 	// Main is the executable entry point, if any.

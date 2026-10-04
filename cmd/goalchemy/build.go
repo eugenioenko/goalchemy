@@ -20,6 +20,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	fs.SetOutput(stderr)
 	cfgPath := fs.String("config", project.FileName, "project configuration file")
 	asJSON := fs.Bool("json", false, "write diagnostics as JSON")
+	compactNames := fs.Bool("compact-names", false, "override compact_names in the project configuration")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -28,6 +29,11 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		fmt.Fprintln(stderr, "goalchemy build:", err)
 		return 2
 	}
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "compact-names" {
+			cfg.CompactNames = *compactNames
+		}
+	})
 	res, ds := driver.Build(ctx, driver.Options{Dir: cfg.Dir, Patterns: cfg.Packages, Tags: cfg.Tags, Gate: subset.Gate(cfg.Gate)})
 	if diagnostics.HasErrors(ds) {
 		_ = diagnostics.Write(stderr, ds, *asJSON)
@@ -39,7 +45,7 @@ func runBuild(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		if eds := driver.Emit(t, res, out); len(eds) > 0 {
+		if eds := driver.EmitWithOptions(t, res, out, driver.EmitOptions{CompactNames: cfg.CompactNames}); len(eds) > 0 {
 			_ = diagnostics.Write(stderr, eds, *asJSON)
 			return 1
 		}
@@ -56,6 +62,7 @@ func runRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	sf.register(fs)
 	target := fs.String("target", "typescript", "target to run")
 	keep := fs.Bool("keep", false, "keep the generated directory and print its path")
+	compactNames := fs.Bool("compact-names", false, "use short private generated identifiers")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -74,7 +81,7 @@ func runRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	} else {
 		defer os.RemoveAll(out)
 	}
-	if eds := driver.Emit(*target, res, out); len(eds) > 0 {
+	if eds := driver.EmitWithOptions(*target, res, out, driver.EmitOptions{CompactNames: *compactNames}); len(eds) > 0 {
 		_ = diagnostics.Write(stderr, eds, sf.json)
 		return 1
 	}
