@@ -1,11 +1,24 @@
 # CI prerequisites and coverage
 
-The Linux x86_64 CI job keeps the existing `go test -short ./...` suite and adds
-an unshort `TestTargetConformance` run over Go, TypeScript, Python, Java, C#,
-Rust, and C. Short mode limits the general language/example matrices; it still
-runs the native integration, actual Chromium, and focused C ASan/UBSan checks.
-The separate contract step has no `-short` flag or target filter. The full
-sanitizer/corpus/memory matrices retain their existing short-mode behavior.
+Linux x86_64 CI runs ten independent jobs in parallel. The original
+`go test -short ./...` coverage is partitioned into core packages, language and
+corpus fixtures, native contracts/browser checks, and four integration shards.
+Float differential tests, readable/compact naming tests, and unshort runtime
+conformance each run in their own job across all seven targets. Short mode
+still limits the general language/example matrices, and retains the native
+integration, actual Chromium, and focused C ASan/UBSan checks. The full
+sanitizer/corpus/memory matrices keep their existing short-mode behavior.
+
+`scripts/ci-suite.py` discovers packages with `go list ./...`; packages outside
+the explicitly separated suites join the core job automatically. Integration
+shards discover top-level tests, fuzz seed tests and examples with `go test
+-list .`, sort their names and distribute them across four jobs. Subtests stay
+with their parent. The core job audits that the partitions cover the discovered
+packages and integration tests without overlap. No test-source changes or
+new skip conditions are needed. All runners retain the existing pinned native
+and browser prerequisites. The final `test` job preserves the existing check
+name and succeeds only when every matrix job succeeds; failures do not cancel
+the other shards.
 
 `scripts/ci-bootstrap.sh` prepares the prerequisites rather than skipping
 checks. Native C needs a C compiler, pkg-config, Boehm GC, libcurl, OpenSSL and
@@ -53,6 +66,12 @@ go run ./cmd/goalchemy spec generate -check
 go test -short -timeout 30m ./...
 go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1
 ```
+
+To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
+`fixtures`, `contracts`, `floats`, `naming`, or `runtime` after bootstrap.
+Integration jobs use `python3 scripts/ci-suite.py integration --shard 0`
+through `--shard 3`. Add `--plan` to inspect commands without executing them,
+or use `python3 scripts/ci-suite.py --verify-plan` to audit coverage.
 
 Use `--with-browser-deps` when bootstrap should also install Chromium's OS
 prerequisites. CI writes its runtime paths to `GITHUB_PATH`/`GITHUB_ENV`; local

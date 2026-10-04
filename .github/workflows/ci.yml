@@ -11,8 +11,24 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  checks:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: Core compiler, suite: core}
+          - {name: Language and corpus, suite: fixtures}
+          - {name: Native contracts and browser, suite: contracts}
+          - {name: Integration 1 of 4, suite: integration, shard: 0}
+          - {name: Integration 2 of 4, suite: integration, shard: 1}
+          - {name: Integration 3 of 4, suite: integration, shard: 2}
+          - {name: Integration 4 of 4, suite: integration, shard: 3}
+          - {name: Float differential all seven targets, suite: floats}
+          - {name: Naming modes all seven targets, suite: naming}
+          - {name: Runtime conformance all seven targets, suite: runtime}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -52,22 +68,17 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
       - name: Prepare pinned native and browser test dependencies
         run: bash scripts/ci-bootstrap.sh --with-browser-deps
-      - run: go vet ./...
-      - run: go run ./cmd/goalchemy spec generate -check
-      # Preserve the short suite, including native browser and focused C sanitizer tests.
-      - run: go test -short -timeout 30m ./...
-      # The short language suite covers Go/TypeScript; exercise float values,
-      # conversions and collection semantics through every released target.
-      - name: All-seven float language differential tests
+      - name: Run selected checks
+        run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --shard '${{ matrix.shard || 0 }}'
+
+  # Preserve the existing required check name and fail if any shard fails or skips.
+  test:
+    needs: checks
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all CI checks
         env:
-          FIXTURE: floats
-        run: |
-          for fixture in floats co_floats floats_panic32 floats_panic64 floats_panic_named32 floats_panic_named64; do
-            test -f "tests/language/testdata/$fixture/main.go"
-          done
-          go test -v -timeout 15m ./tests/language -run '^TestFixtures$' -count=1
-      - name: All-seven readable and compact naming differential tests
-        run: go test -v -timeout 15m ./tests/language -run '^TestNamingModes$' -count=1
-      # No -short here: every canonical case must run through all seven host harnesses.
-      - name: All-seven runtime contract conformance
-        run: go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECKS_RESULT" = success
