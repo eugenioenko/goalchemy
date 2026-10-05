@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Run one CI suite while preserving the original short-suite package coverage."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[1]
+MODULE = 'github.com/eugenioenko/goalchemy'
+INTEGRATION = MODULE + '/tests/integration'
+INTEGRATION_SHARDS = 4
+SPECIAL_PACKAGES = {
+    'fixtures': [MODULE + '/tests/language', MODULE + '/tests/corpus'],
+    'contracts': [MODULE + '/tests/contracts'],
+    'integration': [INTEGRATION],
+}
+FLOAT_FIXTURES = ('floats', 'co_floats', 'floats_panic32', 'floats_panic64',
+                  'floats_panic_named32', 'floats_panic_named64')
+SUITES = ('core', 'fixtures', 'contracts', 'integration', 'floats', 'naming', 'runtime')
+
+
+def output(command):
+    return subprocess.check_output(command, cwd=ROOT, text=True)
+
+
+def package_groups():
+    packages = output(['go', 'list', './...']).splitlines()
+    special = {p for group in SPECIAL_PACKAGES.values() for p in group}
+    missing = special.difference(packages)
+    if missing:
+        raise RuntimeError('missing CI packages: ' + ', '.join(sorted(missing)))
+    # New packages join core automatically rather than falling out of CI.
+    return dict(SPECIAL_PACKAGES, core=[p for p in packages if p not in special])
+
+
+def integration_tests():
+    listing = output(['go', 'test', '-list', '.', INTEGRATION])
+    names = sorted(line for line in listing.splitlines()
+                   if re.fullmatch(r'(?:Test|Fuzz|Example)\w*', line))
+    if not names or len(names) != len(set(names)):
+        raise RuntimeError('integration test discovery is empty or contains duplicates')
+    return names
+
+
+def integration_shard(index):
+    if index < 0 or index >= INTEGRATION_SHARDS:
+        raise ValueError('integration shard must be between 0 and 3')
+    selected = integration_tests()[index::INTEGRATION_SHARDS]
+    if not selected:
+        raise RuntimeError('integration shard is empty')
+    return selected
+
+
+def verify_plan():
+    groups = package_groups()
+    assigned = [p for group in groups.values() for p in group]
+    if len(assigned) != len(set(assigned)):
+        raise RuntimeError('short-suite packages overlap')
+    names = integration_tests()
+    shards = [names[i::INTEGRATION_SHARDS] for i in range(INTEGRATION_SHARDS)]
+    if not all(shards) or sorted(n for shard in shards for n in shard) != names:
+        raise RuntimeError('integration shards do not cover every test exactly once')
+    return {'short_suite_packages': groups, 'integration_shards': shards}
+
+
+def plan(suite, shard):
+    environment = {}
+    if suite == 'core':
+        commands = [['go', 'vet', './...'],
+                    ['go', 'run', './cmd/goalchemy', 'spec', 'generate', '-check'],
+                    ['go', 'test', '-short', '-v', '-timeout', '30m', *package_groups()['core']]]
+    elif suite in ('fixtures', 'contracts'):
+        commands = [['go', 'test', '-short', '-v', '-timeout', '30m', *SPECIAL_PACKAGES[suite]]]
+    elif suite == 'integration':
+        selected = integration_shard(shard)
+        pattern = '^(?:' + '|'.join(re.escape(name) for name in selected) + ')$'
+        commands = [['go', 'test', '-short', '-v', '-timeout', '30m', '-run', pattern, INTEGRATION]]
+    elif suite == 'floats':
+        for fixture in FLOAT_FIXTURES:
+            if not (ROOT / 'tests/language/testdata' / fixture / 'main.go').is_file():
+                raise RuntimeError('missing float fixture: ' + fixture)
+        environment['FIXTURE'] = 'floats'
+        commands = [['go', 'test', '-v', '-timeout', '15m', './tests/language',
+                     '-run', '^TestFixtures$', '-count=1']]
+    elif suite == 'naming':
+        commands = [['go', 'test', '-v', '-timeout', '15m', './tests/language',
+                     '-run', '^TestNamingModes$', '-count=1']]
+    else:
+        # No -short or target filter: every canonical case still runs on all seven.
+        commands = [['go', 'test', '-v', '-timeout', '15m', './tests/contracts',
+                     '-run', '^TestTargetConformance$', '-count=1']]
+    return {'suite': suite, 'shard': shard, 'environment': environment, 'commands': commands}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('suite', nargs='?', choices=SUITES)
+    parser.add_argument('--shard', type=int, default=0)
+    parser.add_argument('--plan', action='store_true', help='print commands without running checks')
+    parser.add_argument('--verify-plan', action='store_true', help='audit package and test coverage')
+    args = parser.parse_args()
+    if args.verify_plan:
+        print(json.dumps(verify_plan(), indent=2))
+        return
+    if args.suite is None:
+        parser.error('provide a suite or --verify-plan')
+    if args.suite == 'core' and not args.plan:
+        print(json.dumps(verify_plan(), indent=2), flush=True)
+    selected = plan(args.suite, args.shard)
+    print(json.dumps(selected, indent=2), flush=True)
+    if args.plan:
+        return
+    environment = dict(os.environ, **selected['environment'])
+    for command in selected['commands']:
+        print('RUN ' + shlex.join(command), flush=True)
+        subprocess.run(command, cwd=ROOT, env=environment, check=True)
+
+
+if __name__ == '__main__':
+    main()
