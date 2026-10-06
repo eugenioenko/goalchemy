@@ -200,6 +200,7 @@ cd examples/bank && goalchemy build
 | Supported feature matrix | [`specs/features.yaml`](specs/features.yaml) |
 | Runtime and type contracts | [`specs/runtime`](specs/runtime), [`specs/types`](specs/types) |
 | Host lifecycles per target | [Host operations](docs/host-operations.md) |
+| Implementing a new target language | [Adding a language](docs/adding-language.md) |
 | Testing, toolchains, reports | [Hardening](docs/hardening.md) |
 | Known limits and future work | [Follow-ups](docs/followups.md) |
 | Design and roadmap | [Implementation plan](plan.md) |
