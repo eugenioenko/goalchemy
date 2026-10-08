@@ -19,3 +19,8 @@ LLVM_SHA256='54ec30358afcc9fb8aa74307db3046f5187f9fb89fb37064cdde906e062ebf36'
 LIBTINFO5_VERSION='6.3-2ubuntu0.3'
 LIBTINFO5_URL='https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_amd64.deb'
 LIBTINFO5_SHA256='4df4288404108f1a156d014e8764a064e977e34e6d44931ab60451694c03c90d'
+
+# Official Ubuntu 22.04 archive; upstream PGP signature verified before pinning.
+SWIFT_VERSION='6.4.0'
+SWIFT_URL='https://download.swift.org/swift-6.4.0-release/ubuntu2204/swift-6.4.0-RELEASE/swift-6.4.0-RELEASE-ubuntu22.04.tar.gz'
+SWIFT_SHA256='bce85ea80f1471b85f39993f9285dbc798ec8e1eac5f677e24b2ac693856f9f8'

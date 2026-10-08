@@ -14,7 +14,7 @@ if [[ $(uname -s) != Linux || $(uname -m) != x86_64 ]]; then
 fi
 
 only=${1:-all}
-case "$only" in all|jdk|dotnet|bdwgc|llvm) ;; *) echo "unknown toolchain: $only" >&2; exit 2 ;; esac
+case "$only" in all|jdk|dotnet|bdwgc|llvm|swift) ;; *) echo "unknown toolchain: $only" >&2; exit 2 ;; esac
 
 fetch() {
   local url=$1 hash=$2 archive=$3
@@ -97,6 +97,12 @@ if [[ $only == all || $only == llvm ]]; then
     rm -rf "$tc/libtinfo5"
     mv "$staging" "$tc/libtinfo5"
   fi
+fi
+
+if [[ $only == all || $only == swift ]]; then
+  archive="$tc/downloads/swift-$SWIFT_VERSION-RELEASE-ubuntu22.04.tar.gz"
+  fetch "$SWIFT_URL" "$SWIFT_SHA256" "$archive"
+  install_tar "$archive" "$tc/swift-$SWIFT_VERSION" 1 "$tc/swift-$SWIFT_VERSION/usr/bin/swiftc" "$SWIFT_SHA256"
 fi
 
 echo "toolchains ready under $tc"

@@ -106,5 +106,5 @@ func TestCByteStorageSanitized(t *testing.T) {
 // The shared values fixture also guards native byte arrays nested inside struct
 // and interface map keys; replay those additions on every accepted target.
 func TestByteValuesAcrossTargets(t *testing.T) {
-	testutil.RunFixture(t, testutil.Fixture{Name: "java_byte_values", Dir: "testdata/java_byte_values", Gate: "cooperative"}, []string{"go", "typescript", "python", "java", "csharp", "rust", "c"})
+	testutil.RunFixture(t, testutil.Fixture{Name: "java_byte_values", Dir: "testdata/java_byte_values", Gate: "cooperative"}, []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"})
 }

@@ -155,7 +155,16 @@ func CompileGateOptions(fixtureDir, target, out, gate string, opts driver.EmitOp
 // Runner knows how to build and run a compiled target directory.
 type Runner func(out string) (Observation, error)
 
+// Fixture subtests run in parallel. Limit Swift frontend builds so a full
+// language matrix does not exhaust memory on a two-core CI runner.
+var swiftBuilds = make(chan struct{}, 2)
+
 var Runners = map[string]Runner{
+	"swift": func(out string) (Observation, error) {
+		swiftBuilds <- struct{}{}
+		defer func() { <-swiftBuilds }()
+		return run(out, 5*time.Minute, "sh", "run.sh")
+	},
 	"go": func(out string) (Observation, error) {
 		if o, err := run(out, 2*time.Minute, "go", "build", "-o", "prog", "."); err != nil || o.Exit != 0 {
 			return o, fmt.Errorf("go build failed: %v\n%s", err, o.Stderr)

@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/goalchemy.png" alt="Goalchemy: one Go-compatible program compiled to Go, TypeScript, Python, Java, C#, Rust, and C" width="100%">
+  <img src="docs/goalchemy.png" alt="Goalchemy: one Go-compatible program compiled to Go, TypeScript, Python, Java, C#, Rust, C, and Swift" width="100%">
 </p>
 
 # Goalchemy
 
-Goalchemy is a transpiler for a restricted, Go-compatible language. You write a program once as ordinary `.go` files, and Goalchemy lowers it to **Go, TypeScript, Python, Java, C#, Rust, and C** with the same observable behavior on every target.
+Goalchemy is a transpiler for a restricted, Go-compatible language. You write a program once as ordinary `.go` files, and Goalchemy lowers it to **Go, TypeScript, Python, Java, C#, Rust, C, and Swift** with the same observable behavior on every target.
 
 The source is plain Go: it builds, runs, and tests with the standard Go toolchain, and needs no new syntax or custom parser. Goalchemy accepts the subset of Go described in the [language specification](specs/language.md) and rejects everything else with a clear diagnostic.
 
@@ -14,7 +14,7 @@ Shipping the same logic as an SDK in several languages usually means maintaining
 
 ## Scope
 
-Goalchemy is a framework for building one SDK that ships in several languages. You write the SDK's logic once, in a restricted subset of Go, and Goalchemy generates the Go, TypeScript, Python, Java, C#, Rust, and C packages from it with the same behavior.
+Goalchemy is a framework for building one SDK that ships in several languages. You write the SDK's logic once, in a restricted subset of Go, and Goalchemy generates the Go, TypeScript, Python, Java, C#, Rust, C, and Swift packages from it with the same behavior.
 
 It is **not** a general-purpose transpiler. It won't convert arbitrary Go programs, and it doesn't try to reproduce the whole Go standard library on every target.
 
@@ -130,7 +130,7 @@ Domain formats such as ZIP archives for OpenTDF are candidates for the SDK that 
 | `-C <dir>` | Directory to load packages from. |
 | `-json` | Write diagnostics as JSON. |
 
-Generated source uses readable private names by default on all seven targets.
+Generated source uses readable private names by default on all targets.
 Type and function names retain their source package/type/function stems, fields
 retain source names where the target representation permits, and source locals
 retain their names with deterministic suffixes for shadowing. Compiler-created
@@ -169,12 +169,18 @@ Non-`main` packages compile to value libraries for every target. See the [usage 
 | C# | `Main.cs`, `main.csproj` | .NET SDK 8 |
 | Rust | `src/main.rs`, `Cargo.toml` | Stable Rust, edition 2021 |
 | C | `main.c`, `run.sh` | C17 compiler and bdwgc 8.x with threads |
+| Swift (experimental) | `main.swift`, `run.sh` | Swift 6.4, C compiler, pkg-config, OpenSSL 3, zlib, libcurl; Linux x86_64 |
 
 Each output directory also contains its runtime files, a `README.md`, a line map back to the Go source, and a `goalchemy.manifest.json` recording the compiler version, contracts, and files. Output is deterministic for the same inputs.
 
+Swift libraries emit a SwiftPM product named `GoalchemyGenerated` with typed
+public values and synchronous or asynchronous operations. All Swift outputs
+currently include native dependency prerequisites. See [Swift setup and library
+use](docs/swift-target.md); Apple SDK integration has not yet been verified.
+
 ## Examples
 
-The [`examples/`](examples) directory has complete programs with a `goalchemy.yaml` for all seven targets:
+The [`examples/`](examples) directory has complete programs with a `goalchemy.yaml` for all targets:
 
 - [`bank`](examples/bank): typed errors, interfaces, and deferred audit logging
 - [`calc`](examples/calc): an integer expression parser and evaluator
@@ -201,11 +207,12 @@ cd examples/bank && goalchemy build
 | Runtime and type contracts | [`specs/runtime`](specs/runtime), [`specs/types`](specs/types) |
 | Host lifecycles per target | [Host operations](docs/host-operations.md) |
 | Implementing a new target language | [Adding a language](docs/adding-language.md) |
+| Swift setup, representation, libraries and verification | [Swift target](docs/swift-target.md) |
 | Testing, toolchains, reports | [Hardening](docs/hardening.md) |
 | Known limits and future work | [Follow-ups](docs/followups.md) |
 | Design and roadmap | [Implementation plan](plan.md) |
 
-Per-target details live in [`docs/`](docs): library boundaries, byte storage, and host operations for TypeScript, Python, Java, C#, Rust, and C.
+Per-target details live in [`docs/`](docs): library boundaries, byte storage, and host operations for TypeScript, Python, Java, C#, Rust, C, and Swift.
 
 ## License
 

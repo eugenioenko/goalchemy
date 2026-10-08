@@ -11,7 +11,7 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
-var targets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}
+var targets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"}
 
 func TestRegressions(t *testing.T) {
 	targets := targets

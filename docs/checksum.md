@@ -15,6 +15,7 @@ provides no cryptographic authentication.
 | TypeScript browser or portable library entry | Slicing-by-8 IEEE implementation | No standard browser CRC API |
 | C | Slicing-by-8 IEEE implementation | No standard C CRC API |
 | Rust | `crc32fast::hash` with runtime CPU detection | Cargo crate, pinned to 1.5.2 |
+| Swift | `crc32` via the native zlib shim | System zlib; Swift has no standard CRC32 API |
 
 Host APIs choose their own native implementation, vectorization, and hardware
 acceleration. Delegation permits host optimizations; Goalchemy does not guarantee

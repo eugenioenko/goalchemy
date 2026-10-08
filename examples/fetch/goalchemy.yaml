@@ -9,3 +9,4 @@ targets:
   csharp: {out: ../../out/examples/fetch/csharp}
   rust: {out: ../../out/examples/fetch/rust}
   c: {out: ../../out/examples/fetch/c}
+  swift: {out: ../../out/examples/fetch/swift}

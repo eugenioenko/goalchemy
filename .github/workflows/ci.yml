@@ -26,9 +26,10 @@ jobs:
           - {name: Integration 2 of 4, suite: integration, shard: 1}
           - {name: Integration 3 of 4, suite: integration, shard: 2}
           - {name: Integration 4 of 4, suite: integration, shard: 3}
-          - {name: Float differential all seven targets, suite: floats}
-          - {name: Naming modes all seven targets, suite: naming}
-          - {name: Runtime conformance all seven targets, suite: runtime}
+          - {name: Float differential all targets, suite: floats}
+          - {name: Naming modes all targets, suite: naming}
+          - {name: Runtime conformance all targets, suite: runtime}
+          - {name: Swift language and corpus, suite: swift}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -53,7 +54,7 @@ jobs:
           dotnet-version: '8.0.x'
       - uses: dtolnay/rust-toolchain@stable
       - name: Install native build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev perl ripgrep
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev zlib1g-dev libedit2 libxml2 perl ripgrep
       - name: Cache pinned toolchain downloads
         uses: actions/cache@v5
         with:

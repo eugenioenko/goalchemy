@@ -9,3 +9,4 @@ targets:
   csharp: {out: ../../out/examples/pipeline/csharp}
   rust: {out: ../../out/examples/pipeline/rust}
   c: {out: ../../out/examples/pipeline/c}
+  swift: {out: ../../out/examples/pipeline/swift}

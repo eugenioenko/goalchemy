@@ -34,7 +34,7 @@ import (
 
 const reportVersion = 2
 
-var allTargets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}
+var allTargets = []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"}
 
 type targetList []string
 
@@ -228,7 +228,7 @@ func toolchains() map[string]string {
 		"go": command("go", "version"), "node": command("node", "--version"),
 		"python": command("python3", "--version"), "java": command("javac", "-version"),
 		"dotnet": command("dotnet", "--version"), "rust": command("rustc", "--version"),
-		"c": command("cc", "--version"), "bdwgc": bdwgcVersion(),
+		"c": command("cc", "--version"), "bdwgc": bdwgcVersion(), "swift": command("swift", "--version"),
 	}
 	if clang, err := testutil.SanitizerClang(); err == nil {
 		out["clang"] = command(clang, "--version")

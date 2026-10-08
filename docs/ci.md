@@ -1,10 +1,11 @@
 # CI prerequisites and coverage
 
-Linux x86_64 CI runs ten independent jobs in parallel. The original
+Linux x86_64 CI runs eleven independent jobs in parallel. The original
 `go test -short ./...` coverage is partitioned into core packages, language and
 corpus fixtures, native contracts/browser checks, and four integration shards.
 Float differential tests, readable/compact naming tests, and unshort runtime
-conformance each run in their own job across all seven targets. Short mode
+conformance each run in their own job across all targets. A dedicated Swift
+job runs its full language fixtures and corpus checks. Short mode
 still limits the general language/example matrices, and retains the native
 integration, actual Chromium, and focused C ASan/UBSan checks. The full
 sanitizer/corpus/memory matrices keep their existing short-mode behavior.
@@ -27,6 +28,13 @@ installs those OS packages and Playwright's browser
 OS dependencies. The existing hash-verified `toolchains.lock` fetcher provides
 repository-local .NET and LLVM/libtinfo for tests that require those paths.
 Java remains the workflow's Temurin 21 installation.
+
+Swift uses the hash-verified Swift 6.4.0 Ubuntu 22.04 Linux x86_64 toolchain
+from `toolchains.lock`, with Swift 5 language mode. Its native module requires
+OpenSSL 3, zlib and libcurl development files, a C compiler and pkg-config.
+CI installs those packages before bootstrap. `driver.ToolEnv()` also discovers
+the local Swift binary and optional `.toolchains/pkgconfig` directory; this
+allows local development without changing system profiles.
 
 Python uses CPython 3.10 and a dedicated `.toolchains/ci-python` environment.
 `ci/python-requirements.txt` pins and hashes binary wheels for the Linux x86_64
@@ -68,7 +76,7 @@ go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=
 ```
 
 To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
-`fixtures`, `contracts`, `floats`, `naming`, or `runtime` after bootstrap.
+`fixtures`, `contracts`, `floats`, `naming`, `runtime`, or `swift` after bootstrap.
 Integration jobs use `python3 scripts/ci-suite.py integration --shard 0`
 through `--shard 3`. Add `--plan` to inspect commands without executing them,
 or use `python3 scripts/ci-suite.py --verify-plan` to audit coverage.

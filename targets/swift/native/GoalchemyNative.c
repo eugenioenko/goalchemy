@@ -1,0 +1,155 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+#include "GoalchemyNative.h"
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/ec.h>
+#include <openssl/pem.h>
+#include <openssl/rand.h>
+#include <openssl/hmac.h>
+#include <openssl/core_names.h>
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include <curl/curl.h>
+#include <stdatomic.h>
+#include <ctype.h>
+#include <zlib.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+
+void gcn_free(void *p) { free(p); }
+int gcn_random(uint8_t *out,size_t n) { return n<=INT_MAX && RAND_bytes(out,(int)n)==1; }
+int gcn_sha256(const uint8_t *data,size_t n,uint8_t *out) { unsigned int len=0;return EVP_Digest(data,n,out,&len,EVP_sha256(),NULL)==1 && len==32; }
+int gcn_hmac(const uint8_t *key,size_t nk,const uint8_t *data,size_t n,uint8_t *out) { unsigned int len=0;return nk<=INT_MAX && HMAC(EVP_sha256(),key,(int)nk,data,n,out,&len)!=NULL && len==32; }
+int gcn_aes(int decrypt,const uint8_t *key,const uint8_t *iv,const uint8_t *data,size_t n,const uint8_t *aad,size_t na,uint8_t *out,size_t *size) {
+    int ok=0,l=0,last=0;EVP_CIPHER_CTX *ctx=EVP_CIPHER_CTX_new();if(!ctx)return 0;
+    if(n>INT_MAX || na>INT_MAX || (decrypt && n<16))goto done;
+    if(decrypt) {
+        if(EVP_DecryptInit_ex(ctx,EVP_aes_256_gcm(),NULL,NULL,NULL)!=1 || EVP_CIPHER_CTX_ctrl(ctx,EVP_CTRL_GCM_SET_IVLEN,12,NULL)!=1 || EVP_DecryptInit_ex(ctx,NULL,NULL,key,iv)!=1)goto done;
+        if(na && EVP_DecryptUpdate(ctx,NULL,&l,aad,(int)na)!=1)goto done;
+        if(EVP_DecryptUpdate(ctx,out,&l,data,(int)n-16)!=1 || EVP_CIPHER_CTX_ctrl(ctx,EVP_CTRL_GCM_SET_TAG,16,(void *)(data+n-16))!=1 || EVP_DecryptFinal_ex(ctx,out+l,&last)!=1)goto done;
+        *size=(size_t)(l+last);ok=1;
+    } else {
+        if(EVP_EncryptInit_ex(ctx,EVP_aes_256_gcm(),NULL,NULL,NULL)!=1 || EVP_CIPHER_CTX_ctrl(ctx,EVP_CTRL_GCM_SET_IVLEN,12,NULL)!=1 || EVP_EncryptInit_ex(ctx,NULL,NULL,key,iv)!=1)goto done;
+        if(na && EVP_EncryptUpdate(ctx,NULL,&l,aad,(int)na)!=1)goto done;
+        if(EVP_EncryptUpdate(ctx,out,&l,data,(int)n)!=1 || EVP_EncryptFinal_ex(ctx,out+l,&last)!=1 || EVP_CIPHER_CTX_ctrl(ctx,EVP_CTRL_GCM_GET_TAG,16,out+l+last)!=1)goto done;
+        *size=(size_t)(l+last+16);ok=1;
+    }
+done:EVP_CIPHER_CTX_free(ctx);return ok;
+}
+void *gcn_key_generate(int kind) {
+    EVP_PKEY *key=NULL;EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new_id(kind==1 ? EVP_PKEY_RSA:EVP_PKEY_EC,NULL);if(!ctx)return NULL;
+    int ok=EVP_PKEY_keygen_init(ctx)>0;
+    if(ok)ok=kind==1 ? EVP_PKEY_CTX_set_rsa_keygen_bits(ctx,2048)>0:EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx,NID_X9_62_prime256v1)>0;
+    if(ok)ok=EVP_PKEY_keygen(ctx,&key)>0;EVP_PKEY_CTX_free(ctx);if(!ok){EVP_PKEY_free(key);key=NULL;}return key;
+}
+int gcn_key_kind(void *raw) {
+    EVP_PKEY *key=raw;if(!key)return 0;
+    if(EVP_PKEY_is_a(key,"RSA") && EVP_PKEY_get_bits(key)==2048)return 1;
+    if(EVP_PKEY_is_a(key,"EC")){char group[80];size_t n=0;if(EVP_PKEY_get_utf8_string_param(key,OSSL_PKEY_PARAM_GROUP_NAME,group,sizeof(group),&n)>0 && (!strcmp(group,"prime256v1") || !strcmp(group,"P-256")))return 2;}
+    return 0;
+}
+int gcn_key_private(void *raw) { EVP_PKEY *key=raw;BIGNUM *bn=NULL;int ok=EVP_PKEY_get_bn_param(key,gcn_key_kind(key)==1 ? OSSL_PKEY_PARAM_RSA_D:OSSL_PKEY_PARAM_PRIV_KEY,&bn)>0;BN_clear_free(bn);return ok; }
+static int gcn_no_password(char *buffer,int size,int write,void *user) { (void)buffer;(void)size;(void)write;(void)user;return 0; }
+void *gcn_key_import(const uint8_t *data,size_t n) {
+    if(n>65536 || n>INT_MAX)return NULL;
+    BIO *bio=BIO_new_mem_buf(data,(int)n);if(!bio)return NULL;
+    EVP_PKEY *key=PEM_read_bio_PrivateKey(bio,NULL,gcn_no_password,NULL);
+    if(!key){ERR_clear_error();BIO_free(bio);bio=BIO_new_mem_buf(data,(int)n);if(bio)key=PEM_read_bio_PUBKEY(bio,NULL,NULL,NULL);}
+    if(!key){ERR_clear_error();BIO_free(bio);bio=BIO_new_mem_buf(data,(int)n);X509 *certificate=bio ? PEM_read_bio_X509(bio,NULL,NULL,NULL):NULL;if(certificate){key=X509_get_pubkey(certificate);X509_free(certificate);}}
+    if(!key){ERR_clear_error();BIO_free(bio);bio=BIO_new_mem_buf(data,(int)n);RSA *rsa=bio ? PEM_read_bio_RSAPublicKey(bio,NULL,NULL,NULL):NULL;if(rsa){key=EVP_PKEY_new();if(!key || EVP_PKEY_assign_RSA(key,rsa)!=1){EVP_PKEY_free(key);RSA_free(rsa);key=NULL;}}}
+    if(key && !gcn_key_kind(key)){EVP_PKEY_free(key);key=NULL;}
+    if(key){EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new(key,NULL);int valid=ctx && (gcn_key_private(key) ? EVP_PKEY_check(ctx):EVP_PKEY_public_check(ctx))>0;EVP_PKEY_CTX_free(ctx);if(!valid){EVP_PKEY_free(key);key=NULL;}}
+    BIO_free(bio);return key;
+}
+void *gcn_key_retain(void *key) {return key && EVP_PKEY_up_ref(key)==1 ? key:NULL;}
+void gcn_key_release(void *key) {EVP_PKEY_free(key);}
+int gcn_key_export(void *key,int private,uint8_t **out,size_t *n) {
+    BIO *bio=BIO_new(BIO_s_mem());if(!bio)return 0;
+    int ok=private ? PEM_write_bio_PKCS8PrivateKey(bio,key,NULL,NULL,0,NULL,NULL):PEM_write_bio_PUBKEY(bio,key);
+    if(ok){char *p=NULL;long len=BIO_get_mem_data(bio,&p);*out=malloc((size_t)len);if(!*out)ok=0;else{memcpy(*out,p,(size_t)len);*n=(size_t)len;}}
+    BIO_free(bio);return ok;
+}
+int gcn_key_component(void *key,int component,uint8_t *out,size_t *n) {
+    const char *name=component==0 ? OSSL_PKEY_PARAM_RSA_N:component==1 ? OSSL_PKEY_PARAM_RSA_E:component==2 ? OSSL_PKEY_PARAM_EC_PUB_X:OSSL_PKEY_PARAM_EC_PUB_Y;
+    BIGNUM *bn=NULL;if(EVP_PKEY_get_bn_param(key,name,&bn)!=1)return 0;
+    int length=component>=2 ? 32:BN_num_bytes(bn);int ok=*n>=(size_t)length && BN_bn2binpad(bn,out,length)==length;*n=(size_t)length;BN_free(bn);return ok;
+}
+int gcn_sign(int alg,void *key,const uint8_t *data,size_t n,uint8_t *out,size_t *size) {
+    EVP_MD_CTX *ctx=EVP_MD_CTX_new();size_t length=512;uint8_t signature[512];int ok=0;if(!ctx)return 0;
+    if(EVP_DigestSignInit(ctx,NULL,EVP_sha256(),NULL,key)!=1 || EVP_DigestSign(ctx,signature,&length,data,n)!=1)goto done;
+    if(alg==1){if(*size<length)goto done;memcpy(out,signature,length);*size=length;ok=1;}
+    else {const unsigned char *p=signature;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&p,(long)length);if(!sig)goto done;const BIGNUM *r,*s;ECDSA_SIG_get0(sig,&r,&s);ok=*size>=64 && BN_bn2binpad(r,out,32)==32 && BN_bn2binpad(s,out+32,32)==32;*size=64;ECDSA_SIG_free(sig);}
+done:EVP_MD_CTX_free(ctx);return ok;
+}
+int gcn_verify(int alg,void *key,const uint8_t *data,size_t n,const uint8_t *signature,size_t size) {
+    uint8_t der[80];const uint8_t *sig=signature;size_t length=size;
+    if(alg==2){if(size!=64)return -1;ECDSA_SIG *es=ECDSA_SIG_new();BIGNUM *r=BN_bin2bn(signature,32,NULL),*s=BN_bin2bn(signature+32,32,NULL);if(!es || !r || !s){ECDSA_SIG_free(es);BN_free(r);BN_free(s);return -1;}ECDSA_SIG_set0(es,r,s);unsigned char *p=der;int len=i2d_ECDSA_SIG(es,&p);ECDSA_SIG_free(es);if(len<=0 || len>80)return -1;sig=der;length=(size_t)len;}
+    EVP_MD_CTX *ctx=EVP_MD_CTX_new();if(!ctx)return -1;int ok=EVP_DigestVerifyInit(ctx,NULL,EVP_sha256(),NULL,key)==1 ? EVP_DigestVerify(ctx,sig,length,data,n):-1;EVP_MD_CTX_free(ctx);return ok==1 ? 1:ok==0 ? 0:-1;
+}
+int gcn_oaep(int decrypt,void *key,const uint8_t *data,size_t n,uint8_t *out,size_t *size) {
+    EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new(key,NULL);if(!ctx)return 0;int ok=decrypt ? EVP_PKEY_decrypt_init(ctx)>0:EVP_PKEY_encrypt_init(ctx)>0;
+    ok=ok && EVP_PKEY_CTX_set_rsa_padding(ctx,RSA_PKCS1_OAEP_PADDING)>0 && EVP_PKEY_CTX_set_rsa_oaep_md(ctx,EVP_sha1())>0 && EVP_PKEY_CTX_set_rsa_mgf1_md(ctx,EVP_sha1())>0;
+    if(ok)ok=decrypt ? EVP_PKEY_decrypt(ctx,out,size,data,n)>0:EVP_PKEY_encrypt(ctx,out,size,data,n)>0;
+    EVP_PKEY_CTX_free(ctx);return ok;
+}
+int gcn_ecdh(void *private,void *public,uint8_t *out,size_t *size) {
+    EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new(private,NULL);if(!ctx)return 0;int ok=EVP_PKEY_derive_init(ctx)>0 && EVP_PKEY_derive_set_peer(ctx,public)>0 && EVP_PKEY_derive(ctx,out,size)>0;EVP_PKEY_CTX_free(ctx);return ok;
+}
+uint32_t gcn_crc32(const uint8_t *bytes,size_t n) {uLong crc=crc32(0L,Z_NULL,0);while(n){uInt chunk=n>UINT_MAX ? UINT_MAX:(uInt)n;crc=crc32(crc,bytes,chunk);bytes+=chunk;n-=chunk;}return (uint32_t)crc;}
+
+struct gcn_header { char *name;char *value;size_t sequence; };
+struct gcn_http { atomic_int canceled;uint8_t *body;size_t length,limit;struct gcn_header *headers;size_t count,header_bytes;int status;const char *error; };
+gcn_http *gcn_http_create(void){gcn_http *http=calloc(1,sizeof(*http));if(http)atomic_init(&http->canceled,0);return http;}
+void gcn_http_cancel(gcn_http *http){if(http)atomic_store(&http->canceled,1);}
+static int http_progress(void *data,curl_off_t a,curl_off_t b,curl_off_t c,curl_off_t d){(void)a;(void)b;(void)c;(void)d;return atomic_load(&((gcn_http *)data)->canceled);}
+static size_t http_body(char *data,size_t size,size_t count,void *opaque){
+    gcn_http *http=opaque;if(count && size>SIZE_MAX/count)return 0;size_t n=size*count;
+    if(n>http->limit-http->length){http->error="http: response body exceeds limit";return 0;}
+    uint8_t *out=realloc(http->body,http->length+n+1);if(!out){http->error="http: allocation failed";return 0;}
+    http->body=out;memcpy(out+http->length,data,n);http->length+=n;return n;
+}
+static void http_clear_headers(gcn_http *http){for(size_t i=0;i<http->count;i++){free(http->headers[i].name);free(http->headers[i].value);}free(http->headers);http->headers=NULL;http->count=0;}
+static char *http_string(const char *p,size_t n){char *s=malloc(n+1);if(!s)return NULL;memcpy(s,p,n);s[n]=0;return s;}
+static size_t http_header(char *data,size_t size,size_t count,void *opaque){
+    gcn_http *http=opaque;if(count && size>SIZE_MAX/count)return 0;size_t n=size*count;
+    http->header_bytes+=n;if(http->header_bytes>65536){http->error="http: response headers exceed limit";return 0;}
+    if(n>=5 && !memcmp(data,"HTTP/",5)){http_clear_headers(http);return n;}
+    if(n<=2)return n;
+    char *colon=memchr(data,':',n);if(!colon)return n;
+    size_t name_size=(size_t)(colon-data);const char *start=colon+1,*end=data+n;
+    while(start<end && (*start==' ' || *start=='\t'))start++;
+    while(end>start && (end[-1]=='\r' || end[-1]=='\n' || end[-1]==' ' || end[-1]=='\t'))end--;
+    char *name=http_string(data,name_size),*value=http_string(start,(size_t)(end-start));
+    if(!name || !value){free(name);free(value);http->error="http: allocation failed";return 0;}
+    int upper=1;for(size_t i=0;i<name_size;i++){unsigned char c=(unsigned char)name[i];name[i]=(char)(upper ? toupper(c):tolower(c));upper=c=='-';}
+    struct gcn_header *headers=realloc(http->headers,(http->count+1)*sizeof(*headers));
+    if(!headers){free(name);free(value);http->error="http: allocation failed";return 0;}
+    http->headers=headers;headers[http->count]=(struct gcn_header){name,value,http->count};http->count++;return n;
+}
+static int header_compare(const void *a,const void *b){const struct gcn_header *x=a,*y=b;int cmp=strcmp(x->name,y->name);return cmp ? cmp:x->sequence<y->sequence ? -1:x->sequence>y->sequence;}
+int gcn_http_run(gcn_http *http,const char *method,const char *url,const char *const *headers,size_t header_count,const uint8_t *body,size_t body_size,size_t limit,int64_t timeout){
+    CURL *curl=curl_easy_init();struct curl_slist *list=NULL;int ok=0,auto_gzip=1;if(!curl){http->error="http: transport initialization failed";return 0;}http->limit=limit;
+    for(size_t i=0;i<header_count;i+=2){size_t n=strlen(headers[i])+strlen(headers[i+1])+3;char *header=malloc(n);if(!header){http->error="http: allocation failed";goto done;}snprintf(header,n,"%s: %s",headers[i],headers[i+1]);struct curl_slist *next=curl_slist_append(list,header);free(header);if(!next){http->error="http: allocation failed";goto done;}list=next;if(!strcasecmp(headers[i],"accept-encoding"))auto_gzip=0;}
+    curl_easy_setopt(curl,CURLOPT_URL,url);curl_easy_setopt(curl,CURLOPT_HTTPHEADER,list);curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);
+    curl_easy_setopt(curl,CURLOPT_FOLLOWLOCATION,0L);curl_easy_setopt(curl,CURLOPT_MAXREDIRS,0L);curl_easy_setopt(curl,CURLOPT_TIMEOUT_MS,(long)timeout);
+    curl_easy_setopt(curl,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(curl,CURLOPT_SSL_VERIFYHOST,2L);curl_easy_setopt(curl,CURLOPT_PROTOCOLS,CURLPROTO_HTTP|CURLPROTO_HTTPS);
+    curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,http_body);curl_easy_setopt(curl,CURLOPT_WRITEDATA,http);curl_easy_setopt(curl,CURLOPT_HEADERFUNCTION,http_header);curl_easy_setopt(curl,CURLOPT_HEADERDATA,http);
+    curl_easy_setopt(curl,CURLOPT_XFERINFOFUNCTION,http_progress);curl_easy_setopt(curl,CURLOPT_XFERINFODATA,http);curl_easy_setopt(curl,CURLOPT_NOPROGRESS,0L);
+    if(auto_gzip)curl_easy_setopt(curl,CURLOPT_ACCEPT_ENCODING,"gzip");
+    if(!strcmp(method,"POST")){curl_easy_setopt(curl,CURLOPT_POST,1L);curl_easy_setopt(curl,CURLOPT_POSTFIELDS,body ? (const char *)body:"");curl_easy_setopt(curl,CURLOPT_POSTFIELDSIZE_LARGE,(curl_off_t)body_size);}
+    CURLcode result=curl_easy_perform(curl);
+    if(result!=CURLE_OK){if(!http->error)http->error=result==CURLE_OPERATION_TIMEDOUT ? "context deadline exceeded":result==CURLE_ABORTED_BY_CALLBACK ? "context canceled":curl_easy_strerror(result);goto done;}
+    long status=0;curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&status);http->status=(int)status;
+    if(auto_gzip){int compressed=0;for(size_t i=0;i<http->count;i++)if(!strcmp(http->headers[i].name,"Content-Encoding") && !strcasecmp(http->headers[i].value,"gzip"))compressed=1;
+        if(compressed){size_t out=0;for(size_t i=0;i<http->count;i++){if(!strcmp(http->headers[i].name,"Content-Encoding") || !strcmp(http->headers[i].name,"Content-Length")){free(http->headers[i].name);free(http->headers[i].value);}else{http->headers[out++]=http->headers[i];}}http->count=out;}}
+    if(http->count)qsort(http->headers,http->count,sizeof(*http->headers),header_compare);ok=1;
+done:curl_easy_cleanup(curl);curl_slist_free_all(list);return ok;
+}
+int gcn_http_status(gcn_http *http){return http->status;}
+const uint8_t *gcn_http_body(gcn_http *http,size_t *length){*length=http->length;return http->body;}
+size_t gcn_http_headers(gcn_http *http){return http->count;}
+const char *gcn_http_header_name(gcn_http *http,size_t index){return http->headers[index].name;}
+const char *gcn_http_header_value(gcn_http *http,size_t index){return http->headers[index].value;}
+const char *gcn_http_error(gcn_http *http){return http->error ? http->error:"http: transport failure";}
+void gcn_http_release(gcn_http *http){if(http){http_clear_headers(http);free(http->body);free(http);}}

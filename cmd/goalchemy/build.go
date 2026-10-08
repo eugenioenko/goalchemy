@@ -122,6 +122,7 @@ var runners = map[string]func(ctx context.Context, out string) *exec.Cmd{
 	"csharp": shellRunner,
 	"rust":   shellRunner,
 	"c":      shellRunner,
+	"swift":  shellRunner,
 }
 
 func shellRunner(ctx context.Context, out string) *exec.Cmd {

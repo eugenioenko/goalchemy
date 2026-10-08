@@ -18,7 +18,7 @@ Why two importable roots:
 
 - A `std/` package behaves identically on every target and needs no native dependencies, because each target runs the same translated source. Go unit tests compare each package with the real standard library, and the language suite compares every target with native Go.
 - A `lib/` package talks to the host, so it needs one native implementation per target. Availability and native dependencies can differ by target, and some calls may suspend the calling task.
-- Writing pure logic once avoids seven hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.
+- Writing pure logic once avoids hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.
 
 ## Packages
 
@@ -1653,6 +1653,7 @@ Every entry lists:
 | java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |
 | python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration. |
 | rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration. |
+| swift | experimental | Swift 6.4.0 on Linux x86_64 | OpenSSL 3 libcrypto, zlib CRC32, and libcurl HTTP via a C module. All current output packages include these native prerequisites. |
 | typescript | experimental | Node.js 22.6 (ES2022) | No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP in Node.js or browsers; IEEE CRC32 uses node:zlib.crc32 in Node executable/package entries and a slicing-by-8 fallback in browsers and the portable main entry. Host runtime controls acceleration. |
 
 ## callback
@@ -1663,9 +1664,9 @@ import "github.com/eugenioenko/goalchemy/lib/callback"
 
 Package callback declares a bounded asynchronous host callback capability.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Request` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Request` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Request
 
@@ -1689,9 +1690,9 @@ import "github.com/eugenioenko/goalchemy/lib/checksum"
 
 Package checksum provides non-cryptographic checksums backed by host APIs where available.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `CRC32IEEE` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `CRC32IEEE` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### CRC32IEEE
 
@@ -1715,9 +1716,9 @@ import "github.com/eugenioenko/goalchemy/lib/clock"
 
 Package clock provides wall time, independent of Goalchemy virtual time.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Unix` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Unix` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Unix
 
@@ -1739,15 +1740,15 @@ import "github.com/eugenioenko/goalchemy/lib/context"
 
 Package context provides Goalchemy's cancellation contexts; deadlines use the virtual clock.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Background` | yes | yes | yes | yes | yes | yes | yes |
-| `Canceled` | yes | yes | yes | yes | yes | yes | yes |
-| `Context.Done` | yes | yes | yes | yes | yes | yes | yes |
-| `Context.Err` | yes | yes | yes | yes | yes | yes | yes |
-| `DeadlineExceeded` | yes | yes | yes | yes | yes | yes | yes |
-| `WithCancel` | yes | yes | yes | yes | yes | yes | yes |
-| `WithTimeout` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Background` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Canceled` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Context.Done` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Context.Err` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `DeadlineExceeded` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WithCancel` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WithTimeout` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Background
 
@@ -1844,29 +1845,29 @@ import "github.com/eugenioenko/goalchemy/lib/crypto"
 
 Package crypto provides bounded native cryptographic capabilities.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `AES256GCMDecrypt` | yes | yes | yes | yes | yes | yes | yes |
-| `AES256GCMEncrypt` | yes | yes | yes | yes | yes | yes | yes |
-| `ECDH` | yes | yes | yes | yes | yes | yes | yes |
-| `ES256Sign` | yes | yes | yes | yes | yes | yes | yes |
-| `ES256Verify` | yes | yes | yes | yes | yes | yes | yes |
-| `GenerateP256` | yes | yes | yes | yes | yes | yes | yes |
-| `GenerateRSA2048` | yes | yes | yes | yes | yes | yes | yes |
-| `HKDFSHA256` | yes | yes | yes | yes | yes | yes | yes |
-| `HMACSHA256` | yes | yes | yes | yes | yes | yes | yes |
-| `HMACSHA256Verify` | yes | yes | yes | yes | yes | yes | yes |
-| `ImportPEM` | yes | yes | yes | yes | yes | yes | yes |
-| `Key.Close` | yes | yes | yes | yes | yes | yes | yes |
-| `Key.PrivatePEM` | yes | yes | yes | yes | yes | yes | yes |
-| `Key.PublicJWK` | yes | yes | yes | yes | yes | yes | yes |
-| `Key.PublicPEM` | yes | yes | yes | yes | yes | yes | yes |
-| `RS256Sign` | yes | yes | yes | yes | yes | yes | yes |
-| `RS256Verify` | yes | yes | yes | yes | yes | yes | yes |
-| `RSAOAEPDecrypt` | yes | yes | yes | yes | yes | yes | yes |
-| `RSAOAEPEncrypt` | yes | yes | yes | yes | yes | yes | yes |
-| `Random` | yes | yes | yes | yes | yes | yes | yes |
-| `SHA256` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `AES256GCMDecrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `AES256GCMEncrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ECDH` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES256Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `GenerateP256` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `GenerateRSA2048` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `HKDFSHA256` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `HMACSHA256` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `HMACSHA256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ImportPEM` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Key.Close` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Key.PrivatePEM` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Key.PublicJWK` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Key.PublicPEM` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS256Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RSAOAEPDecrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RSAOAEPEncrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Random` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `SHA256` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### AES256GCMDecrypt
 
@@ -2168,12 +2169,12 @@ import "github.com/eugenioenko/goalchemy/lib/encoding"
 
 Package encoding provides canonical RFC 4648 base64 encodings.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Base64Decode` | yes | yes | yes | yes | yes | yes | yes |
-| `Base64Encode` | yes | yes | yes | yes | yes | yes | yes |
-| `Base64URLDecode` | yes | yes | yes | yes | yes | yes | yes |
-| `Base64URLEncode` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Base64Decode` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Base64Encode` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Base64URLDecode` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Base64URLEncode` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Base64Decode
 
@@ -2239,11 +2240,11 @@ import "github.com/eugenioenko/goalchemy/lib/errors"
 
 Package errors provides Goalchemy's error values.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Is` | yes | yes | yes | yes | yes | yes | yes |
-| `New` | yes | yes | yes | yes | yes | yes | yes |
-| `Unwrap` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Is` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `New` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Unwrap` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Is
 
@@ -2291,9 +2292,9 @@ import "github.com/eugenioenko/goalchemy/lib/http"
 
 Package http provides bounded HTTP exchanges, retaining TLS verification and returning redirect responses without following them.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Do` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Do` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Do
 
@@ -2317,9 +2318,9 @@ import "github.com/eugenioenko/goalchemy/lib/runtime"
 
 Package runtime provides Goalchemy's scheduler controls.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Gosched` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Gosched` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Gosched
 
@@ -2341,13 +2342,13 @@ import "github.com/eugenioenko/goalchemy/lib/sync"
 
 Package sync provides Goalchemy's synchronization primitives.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Mutex.Lock` | yes | yes | yes | yes | yes | yes | yes |
-| `Mutex.Unlock` | yes | yes | yes | yes | yes | yes | yes |
-| `WaitGroup.Add` | yes | yes | yes | yes | yes | yes | yes |
-| `WaitGroup.Done` | yes | yes | yes | yes | yes | yes | yes |
-| `WaitGroup.Wait` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Mutex.Lock` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Mutex.Unlock` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WaitGroup.Add` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WaitGroup.Done` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WaitGroup.Wait` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Mutex.Lock
 
@@ -2418,9 +2419,9 @@ import "github.com/eugenioenko/goalchemy/lib/task"
 
 Package task provides structured waiting for Goalchemy programs.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `All` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `All` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### All
 
@@ -2442,9 +2443,9 @@ import "github.com/eugenioenko/goalchemy/lib/time"
 
 Package time provides Goalchemy's virtual clock: Sleep advances it deterministically.
 
-| Function | c | csharp | go | java | python | rust | typescript |
-| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| `Sleep` | yes | yes | yes | yes | yes | yes | yes |
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Sleep` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Sleep
 

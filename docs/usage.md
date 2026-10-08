@@ -1,6 +1,6 @@
 # Using Goalchemy
 
-Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Release 0.1 supports the sequential and cooperative language on seven targets: lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, C# for .NET 8, Rust (edition 2021), and C17. Run `goalchemy features` for the current feature matrix.
+Goalchemy compiles programs written in a restricted subset of Go into other languages. Source files are ordinary `.go` files: they build and run with the Go toolchain, and Goalchemy accepts the subset described in [the language specification](../specs/language.md). Targets are lowered Go, TypeScript for Node.js, Python 3.10+, Java 21, C# for .NET 8, Rust (edition 2021), C17, and experimental Swift 6.4 on Linux x86_64. Run `goalchemy features` for the current feature matrix.
 
 ## Install
 
@@ -15,7 +15,7 @@ The repository's `go.mod` selects the Go 1.27.1 reference toolchain. Source prog
 | Command | Purpose |
 | --- | --- |
 | `goalchemy check [-gate g] [-tags t] [-json] [packages]` | Load, type-check, and validate against the language gate. |
-| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|c\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
+| `goalchemy compile -target <go\|typescript\|python\|java\|csharp\|rust\|c\|swift\|ir> -out <dir> [packages]` | Write a complete, runnable target directory. |
 | `goalchemy build [-config goalchemy.yaml]` | Compile every target listed in a project configuration. |
 | `goalchemy run -target <name> [packages]` | Compile to a temporary directory and run the program. |
 | `goalchemy features` | Print supported features and targets. |
@@ -39,6 +39,7 @@ targets:
   csharp: {out: out/cs}
   rust: {out: out/rs}
   c: {out: out/c}
+  swift: {out: out/swift}
 ```
 
 The file uses the same restricted YAML as the contract catalog: no anchors, aliases, or floats, and no unknown keys.
@@ -58,7 +59,7 @@ goalchemy build --compact-names=false
 ## Generated names
 
 Generated private names are readable by default for Go, TypeScript, Python,
-Java, C#, Rust, and C. Source package, type, function, global, local, and field
+Java, C#, Rust, C, and Swift. Source package, type, function, global, local, and field
 names supply identifier stems. Category prefixes and deterministic numeric
 suffixes distinguish reserved words, shadowed locals, and repeated names across
 packages. Unicode characters are encoded in ASCII as `_u` followed by their
@@ -107,15 +108,17 @@ Each target directory contains the generated program, the runtime files it needs
 - **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
 - **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run std-only output with `sh run.sh` (plain `rustc`) or `cargo run --release`; native capability output builds with Cargo and maintained dependencies. The SDK package helper supplies its full dependency lock. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
 - **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. Programs that use `lib/crypto` or `lib/http` also link OpenSSL (`-lssl -lcrypto`) and, for HTTP, libcurl through `pkg-config libcurl`. `CC`, `CFLAGS` and `LDLIBS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
+- **Swift**: `main.swift`, `rt/`, `run.sh`, `LICENSE`, and `main.swift.lines`. Run with `sh run.sh`, which builds a native C module and Swift executable. Requires Swift 6.4, OpenSSL 3, zlib, libcurl and pkg-config even for pure-logic programs. Linux x86_64 is the verified baseline; see [Swift setup, semantics and public libraries](swift-target.md).
 
 ### Libraries
 
-Non-`main` packages can emit value libraries for Go, TypeScript, Java, C#, Python, Rust and C:
+Non-`main` packages can emit value libraries for Go, TypeScript, Java, C#, Python, Rust, C and Swift:
 
 - [Go libraries](go-library-boundary.md) expose copied values and cancellable, serialized calls.
 - [TypeScript libraries](typescript-library-boundary.md) emit portable JavaScript and declarations for Node and browsers.
 - [Java libraries](java-library-boundary.md) emit `Generated.java`, `build.sh` and a named-package JAR with byte arrays, typed values and cancellable asynchronous operations. Production crypto requires the pinned BC 1.86 dependency alongside JDK 21.
 - [C# libraries](csharp-library-boundary.md) emit .NET 8 class libraries with owned values and cancellable asynchronous operations. Crypto and HTTP use .NET built-ins; IEEE CRC32 adds the official Microsoft `System.IO.Hashing` 8.0.0 NuGet package.
+- [Swift libraries](swift-target.md) emit a `GoalchemyGenerated` SwiftPM product with typed values, lossless Go strings, and cancellable `wait()`/async `value()` calls. All current Swift packages need OpenSSL 3, zlib and libcurl development files.
 
 Python libraries emit an importable generated module with owned byte/value
 boundaries and cancellable sync/async operations. Production crypto uses
