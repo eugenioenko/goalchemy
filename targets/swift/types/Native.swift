@@ -236,7 +236,7 @@ enum GNative {
       return []
     case "core.slice.slice":
       return [try GSlice.reslice(args[0], args[1], args[2], args.count > 3 ? args[3] : nil)]
-    case "core.slice.append": return [try GSlice.append(args[0], try GElements(args[1]))]
+    case "core.slice.append": return [try GSlice.append(args[0], args[1])]
     case "core.slice.copy": return [try GSlice.copy(args[0], args[1])]
     case "core.slice.clear":
       try GClear(args[0])

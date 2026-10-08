@@ -3,6 +3,7 @@ package contracts
 import (
 	"testing"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
@@ -11,6 +12,7 @@ import (
 func TestSwiftByteValuesNativeOracle(t *testing.T) {
 	for _, fixture := range []testutil.Fixture{
 		{Name: "growth", Dir: "testdata/byte_growth"},
+		{Name: "bulk", Dir: "testdata/byte_bulk"},
 		{Name: "values", Dir: "testdata/java_byte_values", Gate: "cooperative"},
 		{Name: "storage", Dir: "../language/testdata/byte_storage"},
 	} {
@@ -18,4 +20,8 @@ func TestSwiftByteValuesNativeOracle(t *testing.T) {
 			testutil.RunFixture(t, fixture, []string{"go", "swift"})
 		})
 	}
+}
+
+func TestSwiftBulkBytesCompactNativeOracle(t *testing.T) {
+	testutil.RunFixtureOptions(t, testutil.Fixture{Name: "bulk", Dir: "testdata/byte_bulk"}, []string{"go", "swift"}, driver.EmitOptions{CompactNames: true})
 }
