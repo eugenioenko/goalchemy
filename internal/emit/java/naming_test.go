@@ -83,7 +83,7 @@ func TestNamingModes(t *testing.T) {
 					t.Errorf("emission changed function %s identity", fn.Name)
 				}
 			}
-			source := string(out.Source)
+			source := generatedSource(out)
 			for _, f := range res.IR.Funcs {
 				if !strings.Contains(source, naming.Symbol(res.IR, f.Sym)+"(") {
 					t.Errorf("missing emitted function %s", f.Name)
@@ -135,7 +135,7 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		source := string(out.Source)
+		source := generatedSource(out)
 		for _, name := range []string{"public static final class State", "public long Clone", "public String Label", "Export("} {
 			if !strings.Contains(source, name) {
 				t.Errorf("compact=%v public API missing %q", compact, name)
@@ -178,9 +178,17 @@ func TestLibraryAnonymousPublicNameCollision(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, name := range []string{publicName, publicName + "_"} {
-			if !strings.Contains(string(out.Source), "class "+name+" {") {
+			if !strings.Contains(generatedSource(out), "class "+name+" {") {
 				t.Errorf("compact=%v missing distinct public class %s", compact, name)
 			}
 		}
 	}
+}
+
+func generatedSource(output *java.Output) string {
+	var source strings.Builder
+	for _, file := range output.Files {
+		source.Write(file.Source)
+	}
+	return source.String()
 }

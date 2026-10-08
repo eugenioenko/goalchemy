@@ -112,3 +112,22 @@ interpreter, with no runtime edits. Logs and review modules are ignored under
 
 Java, C#, Rust, C and Swift migration, final CI and all eight committed SDK source
 distributions remain pending.
+
+## Java implementation acceptance, 2026-10-08
+
+Java emits actual source-package holder classes owning functions, frames and
+mutable globals. They share package-private `_GoalchemySupport` for canonical
+representations. `Main` or the existing `io.goalchemy.generated.Generated`
+library entry binds descriptors centrally after leaf support loads; holder
+helpers do not eagerly depend on entry initialization. Native build scripts
+compile explicit generated/runtime inventories, retaining caller-owned sources
+without compiling them accidentally. Manifests and physical per-file line maps
+describe the new files.
+
+Readable/compact source-oracle execution and independent JAR consumers passed,
+including unique descriptors, initialization, overlap, retained result/error
+ownership and cancellation/cleanup acknowledgment. Existing importing, emitted
+host, method-value, native crypto, byte and eight language fixture checks passed
+on the pinned JDK. Logs and review trees remain ignored under
+`out/package-output-java/`. SDK Java acceptance, C#/Rust/C/Swift migration and
+final compiler/SDK CI remain pending.

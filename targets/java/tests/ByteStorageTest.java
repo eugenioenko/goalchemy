@@ -118,22 +118,22 @@ public final class ByteStorageTest {
         // Inspect compiler-generated primitive array helpers, independently of
         // emitted-text checks and the language fixture's observable values.
         int helpers = 0;
-        for (Method zero : Main.class.getDeclaredMethods()) {
+        for (Method zero : _GoalchemySupport.class.getDeclaredMethods()) {
             if (!zero.getName().startsWith("zero_") || zero.getReturnType() != byte[].class) continue;
             byte[] orig = (byte[]) zero.invoke(null);
             if (orig.length == 0) continue;
             String id = zero.getName().substring(5);
             orig[0] = (byte) 255;
-            byte[] copy = (byte[]) Main.class.getDeclaredMethod("clone_" + id, byte[].class).invoke(null, orig);
+            byte[] copy = (byte[]) _GoalchemySupport.class.getDeclaredMethod("clone_" + id, byte[].class).invoke(null, orig);
             check(copy != orig && Arrays.equals(copy, orig), "array clone native and detached");
-            Method key = Main.class.getDeclaredMethod("key_" + id, byte[].class);
+            Method key = _GoalchemySupport.class.getDeclaredMethod("key_" + id, byte[].class);
             Object savedKey = key.invoke(null, orig);
             check(savedKey.equals(key.invoke(null, copy)), "byte array keys compare by values");
-            Method eq = Main.class.getDeclaredMethod("eq_" + id, byte[].class, byte[].class);
+            Method eq = _GoalchemySupport.class.getDeclaredMethod("eq_" + id, byte[].class, byte[].class);
             check((Boolean) eq.invoke(null, orig, copy), "byte array equality");
             orig[0] = 3;
             check(!savedKey.equals(key.invoke(null, orig)), "array key snapshot independent");
-            Main.class.getDeclaredMethod("set_" + id, byte[].class, byte[].class).invoke(null, orig, copy);
+            _GoalchemySupport.class.getDeclaredMethod("set_" + id, byte[].class, byte[].class).invoke(null, orig, copy);
             check(orig[0] == (byte) 255 && savedKey.equals(key.invoke(null, orig)), "array assignment preserves storage");
             helpers++;
         }

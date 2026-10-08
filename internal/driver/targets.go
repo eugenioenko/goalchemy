@@ -294,23 +294,24 @@ func init() {
 	Register("java", emitJava)
 }
 
-const javaRun = `#!/bin/sh
-# Compiles and runs the program with a Java 21 or later JDK.
-set -e
-cd "$(dirname "$0")"
-if [ -n "$JAVA_HOME" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
-javac -nowarn -encoding UTF-8 -d classes Main.java rt/types/*.java rt/runtime/*.java
-exec java -cp classes Main
-`
-
-const javaLibraryBuild = `#!/bin/sh
-set -eu
-cd "$(dirname "$0")"
-if [ -n "${JAVA_HOME:-}" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
-mkdir -p classes
-javac -nowarn -encoding UTF-8 -d classes Generated.java rt/types/*.java rt/runtime/*.java
-jar --create --date=2026-01-01T00:00:00Z --file goalchemy-generated.jar -C classes .
-`
+// javaBuildScript compiles precisely the emitted native source inventory.
+// Caller adapters and obsolete sources are not globbed into the build.
+func javaBuildScript(library bool, generated, runtime []string) []byte {
+	var source strings.Builder
+	source.WriteString("#!/bin/sh\nset -eu\ncd \"$(dirname \"$0\")\"\nif [ -n \"${JAVA_HOME:-}\" ]; then PATH=\"$JAVA_HOME/bin:$PATH\"; fi\nmkdir -p classes\njavac -nowarn -encoding UTF-8 -d classes")
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".java") {
+			source.WriteString(" \\\n    '" + strings.ReplaceAll(name, "'", "'\\''") + "'")
+		}
+	}
+	source.WriteString("\n")
+	if library {
+		source.WriteString("jar --create --date=2026-01-01T00:00:00Z --file goalchemy-generated.jar -C classes .\n")
+	} else {
+		source.WriteString("exec java -cp classes Main\n")
+	}
+	return []byte(source.String())
+}
 
 func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := java.Emit(res.IR, symbols(res, "java"))
@@ -340,9 +341,11 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 				return emitErr("GCE005", err.Error())
 			}
 		}
-		source := []byte(strings.ReplaceAll(string(o.Source), "import rt.*;", "import io.goalchemy.runtime.*;"))
-		gen := map[string][]byte{"Generated.java": source, "Generated.java.lines": lineTable(o.Lines, out), "build.sh": []byte(javaLibraryBuild), "README.md": []byte(readme("java", "sh build.sh; import io.goalchemy.generated.Generated from goalchemy-generated.jar", "JDK21; serialized cancellable value operations; production crypto additionally requires declared BC1.86."))}
-		var names []string
+		names, err := writeSourceArtifacts(out, o.Files)
+		if err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		gen := map[string][]byte{"build.sh": javaBuildScript(true, names, rtFiles), "README.md": []byte(readme("java", "sh build.sh; import io.goalchemy.generated.Generated from goalchemy-generated.jar", "JDK21; serialized cancellable value operations; production crypto additionally requires declared BC1.86."))}
 		for name, data := range gen {
 			if err := link.WriteFile(out, name, data); err != nil {
 				return emitErr("GCE005", err.Error())
@@ -350,18 +353,16 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 			names = append(names, name)
 		}
 		sort.Strings(names)
-		if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+		if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 			return emitErr("GCE005", err.Error())
 		}
 		return nil
 	}
-	gen := map[string][]byte{
-		"Main.java":       o.Source,
-		"Main.java.lines": lineTable(o.Lines, out),
-		"run.sh":          []byte(javaRun),
-		"README.md":       []byte(readme("java", "sh run.sh", "Requires a Java 21 or later JDK.")),
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
 	}
-	var names []string
+	gen := map[string][]byte{"run.sh": javaBuildScript(false, names, rtFiles), "README.md": []byte(readme("java", "sh run.sh", "Requires a Java 21 or later JDK."))}
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -369,7 +370,7 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
