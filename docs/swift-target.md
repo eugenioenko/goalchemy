@@ -143,6 +143,7 @@ GOALCHEMY_TEST_TARGETS=go,swift go test -v -parallel 2 -timeout 30m ./tests/lang
 go test -v -timeout 15m ./tests/contracts -run '^TestSwift' -count=1
 go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$/swift$' -count=1
 go test -v -timeout 15m ./tests/integration -run '^TestGeneratedFloatLibraries/(readable|compact)/swift$' -count=1
+go test -v -timeout 15m ./tests/integration -run '^TestSwift(PureLibraryOutput|LibraryHostLifecycle)$' -count=1
 python3 scripts/ci-suite.py swift --plan
 ```
 

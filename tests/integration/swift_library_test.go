@@ -18,6 +18,17 @@ import (
 // This exercises submission copies, foreign-thread completion, cancellation
 // acknowledgement, callback reentry rejection and retained native key aliases.
 func TestSwiftLibraryHostLifecycle(t *testing.T) {
+	for _, compact := range []bool{false, true} {
+		mode := "readable"
+		if compact {
+			mode = "compact"
+		}
+		t.Run(mode, func(t *testing.T) { testSwiftLibraryHostLifecycle(t, compact) })
+	}
+}
+
+func testSwiftLibraryHostLifecycle(t *testing.T, compact bool) {
+	t.Helper()
 	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
@@ -48,6 +59,13 @@ func OtherWork(ctx context.Context)([]byte,error){
 }
 func Identity(value string)(string,error){return value,nil}
 func ErrorBytes(value string)(string,error){return errors.New(value).Error(),nil}
+func Signed64(value int64)(int64,error){return value,nil}
+func Unsigned64(value uint64)(uint64,error){return value,nil}
+func Narrow8(s int8,u uint8)(int8,uint8,error){if s != -128 || u != 255 {return 0,0,errors.New("bad narrow8 input")};return s,u,nil}
+func Narrow16(s int16,u uint16)(int16,uint16,error){if s != -32768 || u != 65535 {return 0,0,errors.New("bad narrow16 input")};return s,u,nil}
+func Narrow32(s int32,u uint32)(int32,uint32,error){if s != -2147483648 || u != 4294967295 {return 0,0,errors.New("bad narrow32 input")};return s,u,nil}
+func IntegerResults(s int64,u uint64)(int64,uint64,error){return s,u,nil}
+func ExactArithmetic(s int64,u uint64)(int64,uint64,error){return s-1,u+1,nil}
 func Key()(*crypto.Key,error){return crypto.GenerateP256()}
 func Public(key *crypto.Key)(string,error){return key.PublicPEM()}
 func Same(a,b *crypto.Key)(bool,error){return a==b,nil}
@@ -55,7 +73,7 @@ func Alias(key *crypto.Key)(*crypto.Key,error){return key,nil}
 func Close(key *crypto.Key)error{key.Close();return nil}
 func Panic()error{panic("deliberate")}
 `)
-	if ds := testutil.CompileGate(source, "swift", out, "cooperative"); len(ds) > 0 {
+	if ds := testutil.CompileGateOptions(source, "swift", out, "cooperative", driver.EmitOptions{CompactNames: compact}); len(ds) > 0 {
 		t.Fatal(ds)
 	}
 	write(consumer, "Package.swift", fmt.Sprintf(`// swift-tools-version: 6.0
@@ -66,6 +84,18 @@ let package = Package(name: "HostConsumer", dependencies: [.package(name: "Goalc
 import GoalchemyGenerated
 func require(_ value: Bool,_ text: String) { if !value {fatalError(text)} }
 struct ProviderError: Error {}
+for value: Int64 in [.min,.max,-9_007_199_254_740_993,9_007_199_254_740_993] {
+ require(try Signed64(value).wait()==value,"exact signed64 public boundary")
+}
+for value: UInt64 in [0,.max,9_007_199_254_740_993] {
+ require(try Unsigned64(value).wait()==value,"exact unsigned64 public boundary")
+}
+let n8=try Narrow8(-128,255).wait();require(n8.0 == -128 && n8.1 == 255,"signed/unsigned8 public boundary")
+let n16=try Narrow16(-32768,65535).wait();require(n16.0 == -32768 && n16.1 == 65535,"signed/unsigned16 public boundary")
+let n32=try Narrow32(-2147483648,4294967295).wait();require(n32.0 == -2147483648 && n32.1 == 4294967295,"signed/unsigned32 public boundary")
+let integerPair=try IntegerResults(.min,.max).wait();require(integerPair.0 == .min && integerPair.1 == .max,"multiple exact integer results")
+let arithmetic=try ExactArithmetic(9_007_199_254_740_993,9_007_199_254_740_993).wait()
+require(arithmetic.0 == 9_007_199_254_740_992 && arithmetic.1 == 9_007_199_254_740_994,"public integers preserve source arithmetic above 2^53")
 let arbitrary=GoString(bytes:[255,0,128])
 require(try Identity(arbitrary).wait()==arbitrary,"lossless GoString boundary")
 require(try ErrorBytes(arbitrary).wait()==arbitrary,"lossless errors.New string")
