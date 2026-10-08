@@ -3,7 +3,6 @@ package contracts
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -24,7 +23,7 @@ func TestTypeScriptByteStorage(t *testing.T) {
 	if ds := testutil.CompileGate("../language/testdata/byte_storage", "typescript", outDir, "sequential"); len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	src, err := os.ReadFile(filepath.Join(outDir, "main.ts"))
+	src, err := testutil.GeneratedSource(outDir, ".ts")
 	if err != nil {
 		t.Fatal(err)
 	}

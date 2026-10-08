@@ -83,7 +83,7 @@ func TestNamingModes(t *testing.T) {
 					t.Errorf("emission changed function %s identity", fn.Name)
 				}
 			}
-			source := string(out.Source)
+			source := generatedSource(out)
 			for _, f := range res.IR.Funcs {
 				if !strings.Contains(source, naming.Symbol(res.IR, f.Sym)+"(") {
 					t.Errorf("missing emitted function %s", f.Name)
@@ -135,7 +135,7 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		source := string(out.Source)
+		source := generatedSource(out)
 		for _, name := range []string{"interface State", "Clone?: bigint", "Label?: string", "Export("} {
 			if !strings.Contains(source, name) {
 				t.Errorf("compact=%v public API missing %q", compact, name)
@@ -155,4 +155,12 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 	if facade[0] != facade[1] {
 		t.Fatalf("public API depends on private names:\n%s\n%s", facade[0], facade[1])
 	}
+}
+
+func generatedSource(out *ts.Output) string {
+	var b strings.Builder
+	for _, file := range out.Files {
+		b.Write(file.Source)
+	}
+	return b.String()
 }

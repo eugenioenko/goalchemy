@@ -293,6 +293,16 @@ func (l *Lowerer) analyze(p *packages.Package) {
 		case *ast.SelectorExpr:
 			if sel := info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal && !sel.Indirect() {
 				markAddr(x.X)
+			} else if sel == nil {
+				// Package-qualified source globals have no field selection.
+				// Their address needs the same stable storage as a local
+				// package identifier in targets without native lvalues.
+				if v, ok := info.Uses[x.Sel].(*types.Var); ok {
+					if g, ok := l.globals[v]; ok {
+						l.boxed[v] = true
+						g.AddrTaken = true
+					}
+				}
 			}
 		case *ast.IndexExpr:
 			if t := info.TypeOf(x.X); t != nil {

@@ -60,3 +60,33 @@ Other seven backends remain pending. Before final acceptance, the shared driver
 must remove obsolete compiler-managed files when reusing an output directory,
 while preserving unlisted caller files. Final compiler CI, eight-target SDK
 interoperability and committed formatted distributions are still required.
+
+## TypeScript implementation acceptance, 2026-10-08
+
+TypeScript now emits native ESM source-package modules with module-owned live
+global storage and qualified imports. Canonical representation helpers remain
+in one leaf shared module; the central entry binds descriptors and method
+references after imports load. The existing executable, portable host and public
+Node/browser library entries retain their APIs. Build configuration and the
+manifest include the package files and their individual source maps.
+
+Focused executable and independent importing-library checks passed in readable
+and compact naming, including real Chromium. They cover dependency-ordered
+initializers, package-initializer closures, cross-package pointers and mutation,
+method/interface identity, fresh overlapping calls, retained results/errors and
+cancellation. Existing host/crypto lifecycle, byte storage, CRC entries and
+language regressions passed. An independent decoder verified physical module
+declaration lines against their original source positions after import preambles.
+
+Shared driver cleanup now removes only obsolete members from the previous
+generated/runtime manifest after successful native emission. Failed preflight
+or emission preserves prior files, unlisted caller files remain, and unsafe
+inventory paths are rejected. IR-only emission bypasses native inventories.
+Actual re-emission with a changed package graph passed. Address analysis now
+marks qualified source globals consistently with unqualified globals; package
+initializer closures retain the package being initialized as their owner.
+Focused Go checks passed after these shared lowering changes.
+
+Python, Java, C#, Rust, C and Swift output, final CI and all SDK distributions
+remain pending. Development logs and review artifacts are ignored under
+`out/package-output-ts/`.

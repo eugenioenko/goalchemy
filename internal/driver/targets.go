@@ -151,10 +151,6 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 	if len(ds) > 0 {
 		return ds
 	}
-	rtFiles, err := link.CopyRuntime(res.Catalog, "typescript", files, out, "rt", false)
-	if err != nil {
-		return emitErr("GCE005", err.Error())
-	}
 	if res.IR.Library {
 		filtered := files[:0]
 		for _, f := range files {
@@ -163,14 +159,12 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 			}
 		}
 		files = filtered
-		kept := rtFiles[:0]
-		for _, f := range rtFiles {
-			if f != "rt/types/node_host.ts" {
-				kept = append(kept, f)
-			}
-		}
-		rtFiles = kept
-		_ = os.Remove(filepath.Join(out, "rt/types/node_host.ts"))
+	}
+	rtFiles, err := link.CopyRuntime(res.Catalog, "typescript", files, out, "rt", false)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	if res.IR.Library {
 		src, readErr := fs.ReadFile(res.Catalog.FS, "targets/typescript/runtime/library.ts")
 		if readErr != nil {
 			return emitErr("GCE005", readErr.Error())
@@ -189,31 +183,21 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		}
 		fmt.Fprintf(&index, "export * from \"./%s\";\n", f)
 	}
-	abs, _ := filepath.Abs(out)
-	if res.IR.Cooperative {
-		o.SourceMap.File = "program.ts"
-	}
-	smap, err := o.SourceMap.JSON(abs)
+	names, err := writeSourceArtifacts(out, o.Files)
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	gen := map[string][]byte{
-		"main.ts":      o.Source,
-		"main.ts.map":  smap,
 		"rt/index.ts":  []byte(index.String()),
 		"package.json": []byte("{\n  \"type\": \"module\",\n  \"private\": true,\n  \"engines\": {\"node\": \">=22.6\"}\n}\n"),
 		"README.md":    []byte(readme("typescript", "node main.ts", "Requires Node.js 22.6 or later (TypeScript type stripping); Node 22 needs --experimental-strip-types.")),
 	}
 	if res.IR.Library {
-		gen["main.ts"] = o.Source
 		gen["node.ts"] = []byte("// Node library entry: install standard-library CRC without executable I/O or process exit.\nimport \"./rt/types/node_checksum.ts\";\nexport * from \"./main.ts\";\n")
-		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["main.ts","node.ts","rt/**/*.ts"]}`)
+		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["*.ts","rt/**/*.ts"]}`)
 		gen["package.json"] = []byte(`{"name":"goalchemy-generated","version":"0.0.0","type":"module","private":true,"exports":{".":{"types":"./dist/main.d.ts","node":"./dist/node.js","browser":"./dist/main.js","default":"./dist/main.js"}},"files":["dist"],"engines":{"node":">=22.6"},"scripts":{"build":"tsc -p ."}}`)
 		gen["README.md"] = []byte(readme("typescript", "tsc -p . (TypeScript >=5.7)", "Portable Node/browser Promise library; Uint8Array bytes and bigint int64. Import the package to select the Node standard-library CRC adapter automatically, or import ./dist/node.js directly in Node. Browser/default package imports and direct ./dist/main.js imports use the portable CRC fallback. Hardware acceleration is determined by the host runtime and is not guaranteed."))
 	} else if res.IR.Cooperative {
-		gen["program.ts"] = []byte(strings.ReplaceAll(string(o.Source), "sourceMappingURL=main.ts.map", "sourceMappingURL=program.ts.map"))
-		gen["program.ts.map"] = smap
-		delete(gen, "main.ts.map")
 		run := "import { $run } from \"./program.ts\";\n$run();\n"
 		used := map[string]bool{}
 		for _, c := range o.Contracts {
@@ -225,7 +209,6 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		gen["main.ts"] = []byte("// Node executable entry.\nimport \"./rt/types/node_host.ts\";\n" + run)
 		gen["host.ts"] = []byte("// Portable Promise entry; executable globals are serialized, not library instances.\nexport { $runHost as runHost } from \"./program.ts\";\n")
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -233,7 +216,7 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "typescript", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "typescript", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil

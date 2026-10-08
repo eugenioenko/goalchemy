@@ -94,7 +94,21 @@ func EmitWithOptions(name string, res *Result, out string, opts EmitOptions) (ds
 			return ds
 		}
 	}
-	return e(res, out)
+	if name == "ir" {
+		return e(res, out)
+	}
+	previous, err := managedFiles(out)
+	if err != nil {
+		return emitErr("GCE005", "output inventory: "+err.Error())
+	}
+	ds = e(res, out)
+	if diagnostics.HasErrors(ds) {
+		return ds
+	}
+	if err := cleanObsoleteFiles(out, previous); err != nil {
+		return emitErr("GCE005", "output cleanup: "+err.Error())
+	}
+	return ds
 }
 
 func joinTargets() string {
