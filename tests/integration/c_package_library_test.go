@@ -55,7 +55,6 @@ func CRC(ctx context.Context,data []byte)(uint32,error){return checksum.CRC32IEE
 		t.Fatal(ds)
 	}
 	env := driver.ToolEnv()
-	gc := filepath.Join(driver.ToolchainRoot(), "bdwgc")
 	run := func(t *testing.T, dir, name string, args ...string) string {
 		t.Helper()
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -105,11 +104,30 @@ int tdf3_test_export(const gxc_value *input,gxc_value *output,gxc_error *error){
 			if err := os.WriteFile(filepath.Join(consumer, "consumer.c"), []byte(cPackageLibraryConsumer), 0600); err != nil {
 				t.Fatal(err)
 			}
-			run(t, consumer, "cc", "-std=c17", "-Wall", "-Wextra", "-Werror", "-I.", "-I"+filepath.Join(gc, "include"), "consumer.c", filepath.Join(out, "libtdf3.a"), filepath.Join(gc, "lib", "libgc.a"), "-lssl", "-lcrypto", "-lpthread", "-ldl", "-o", "consumer")
+			if err := os.WriteFile(filepath.Join(consumer, "build.sh"), []byte(cPackageConsumerBuild), 0600); err != nil {
+				t.Fatal(err)
+			}
+			run(t, consumer, "sh", "build.sh", filepath.Join(out, "libtdf3.a"))
 			t.Log(run(t, consumer, filepath.Join(consumer, "consumer")))
 		})
 	}
 }
+
+// Match collector discovery in the generated build script: local toolchains
+// expose GOALCHEMY_BDWGC, while CI supplies the system libgc-dev package.
+const cPackageConsumerBuild = `#!/bin/sh
+set -eu
+gc=-lgc
+inc=""
+if [ -n "${GOALCHEMY_BDWGC:-}" ]; then
+ gc="$GOALCHEMY_BDWGC/lib/libgc.a"
+ inc="-I$GOALCHEMY_BDWGC/include"
+elif pkg-config --exists bdw-gc 2>/dev/null; then
+ gc=$(pkg-config --libs bdw-gc)
+ inc=$(pkg-config --cflags bdw-gc)
+fi
+${CC:-cc} -std=c17 -Wall -Wextra -Werror -I. $inc consumer.c "$1" $gc -lssl -lcrypto -lpthread -ldl -o consumer
+`
 
 func cSourceFiles(t *testing.T, out string) []string {
 	t.Helper()
