@@ -40,7 +40,7 @@ string and collection semantics do not replace it.
 | Integer | Explicit width and signedness over UInt64 bits; wrapping arithmetic and signed division toward zero |
 | `float32`, `float64` | Float/Double precision, explicit binary32 rounding, signed zero and IEEE exceptional values |
 | String | Immutable `[UInt8]`, including NUL and invalid UTF-8 |
-| Byte array or slice | Native `[UInt8]` backing with a source slice header; nil, empty, length, capacity and shared aliases preserved |
+| Byte array or slice | Native `[UInt8]` backing with bulk append/copy and public byte conversion; nil, empty, length, capacity and shared aliases preserved |
 | Other array or struct | Stable cells and recursive explicit value copies |
 | Map | Source equality and type descriptors, including aggregate keys and nonreflexive NaN |
 | Pointer | Stable cell identity; assignments update cells in place |
@@ -53,6 +53,12 @@ Roots include source globals, live frames, deferred captures, channels, pending
 host operations and retained public call inputs. Field pointers and bound
 method receivers retain their backing objects. This preserves source ownership
 even when the host representation introduces a closure or reference cycle.
+
+Bulk byte operations retain native source views instead of expanding each byte
+into a runtime value. Swift copy-on-write preserves source snapshots for
+overlapping operations and caller-owned inputs; source slice aliases continue
+to observe updates through their shared backing object. Other element types
+retain recursive Go value copying.
 
 Readability and `--compact-names` affect private identifiers, while the public
 Swift names retain source identifiers. Swift keywords are escaped with

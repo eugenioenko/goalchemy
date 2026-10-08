@@ -57,6 +57,11 @@ func OtherWork(ctx context.Context)([]byte,error){
  task.All(func(){callback.Request(child,"block",nil)},func(){time.Sleep(time.Millisecond);cancel();result,_=callback.Request(ctx,"probe",nil)})
  return result,nil
 }
+type Octet uint8
+ type ByteHolder struct { Bytes []Octet; Fixed [3]Octet }
+ func EchoBytes(value []byte)([]byte,error){return value,nil}
+ func MutateBytes(value []byte)([]byte,error){if len(value)>0 {value[0]++};return value,nil}
+ func MutateNamed(value ByteHolder)(ByteHolder,error){if len(value.Bytes)>0 {value.Bytes[0]++};value.Fixed[0]++;return value,nil}
 func Identity(value string)(string,error){return value,nil}
 func ErrorBytes(value string)(string,error){return errors.New(value).Error(),nil}
 func Signed64(value int64)(int64,error){return value,nil}
@@ -100,6 +105,24 @@ let n32=try Narrow32(-2147483648,4294967295).wait();require(n32.0 == -2147483648
 let integerPair=try IntegerResults(.min,.max).wait();require(integerPair.0 == .min && integerPair.1 == .max,"multiple exact integer results")
 let arithmetic=try ExactArithmetic(9_007_199_254_740_993,9_007_199_254_740_993).wait()
 require(arithmetic.0 == 9_007_199_254_740_992 && arithmetic.1 == 9_007_199_254_740_994,"public integers preserve source arithmetic above 2^53")
+var byteInput:[UInt8]?=[255,0,128]
+let byteOperation=MutateBytes(byteInput)
+byteInput![0]=7
+var byteResult=try byteOperation.wait()
+require(byteResult==[0,0,128] && byteInput==[7,0,128],"byte submission input aliases caller")
+byteResult![1]=99
+require(try byteOperation.wait()==[0,0,128],"returned bytes alias cached source result")
+require(try EchoBytes(nil).wait()==nil,"nil byte input/output")
+let emptyBytes=try EchoBytes([]).wait()
+require(emptyBytes != nil && emptyBytes!.isEmpty,"present empty byte input/output")
+var namedInput=ByteHolder(Bytes:[255,128],Fixed:[255,0,128])
+let namedOperation=MutateNamed(namedInput)
+namedInput.Bytes![0]=9;namedInput.Fixed[0]=10
+let namedResult=try namedOperation.wait()
+require(namedResult.Bytes==[0,128] && namedResult.Fixed==[0,0,128],"named-byte slice or array submission")
+require(namedInput.Bytes==[9,128] && namedInput.Fixed==[10,0,128],"named-byte mutation escaped source")
+do{_ = try MutateNamed(ByteHolder(Bytes:nil,Fixed:[1,2])).wait();fatalError("byte array length accepted")}
+catch let error as GoalchemyFailure{require(error.kind=="invalid_argument","byte array length error")}
 let arbitrary=GoString(bytes:[255,0,128])
 require(try Identity(arbitrary).wait()==arbitrary,"lossless GoString boundary")
 require(try ErrorBytes(arbitrary).wait()==arbitrary,"lossless errors.New string")

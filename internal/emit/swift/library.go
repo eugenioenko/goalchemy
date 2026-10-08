@@ -173,7 +173,11 @@ func (e *emitter) library() (string, error) {
 			} else {
 				fmt.Fprintf(&b, "    if v.count != %d { throw GoalchemyFailure(\"invalid_argument\", \"array length must be %d\") }\n", u.Len, u.Len)
 			}
-			fmt.Fprintf(&b, "    let buffer = GBuffer(v.count, %d)\n    for i in v.indices { buffer.write(i, try gInput%d(v[i])) }\n", u.Elem.ID, u.Elem.U().ID)
+			if elem := u.Elem.U(); elem.Kind == ir.KInt && elem.Int.Bits() == 8 && !elem.Int.Signed() {
+				fmt.Fprintf(&b, "    let buffer = GBuffer(bytes: v, elem: %d)\n", u.Elem.ID)
+			} else {
+				fmt.Fprintf(&b, "    let buffer = GBuffer(v.count, %d)\n    for i in v.indices { buffer.write(i, try gInput%d(v[i])) }\n", u.Elem.ID, u.Elem.U().ID)
+			}
 			if u.Kind == ir.KSlice {
 				fmt.Fprintf(&b, "    return .slice(GSlice(buffer, 0, v.count, v.count, %d))\n", u.Elem.ID)
 			} else {
@@ -206,7 +210,11 @@ func (e *emitter) library() (string, error) {
 			if u.Kind == ir.KSlice {
 				b.WriteString("    if case .slice(let s) = v, s.storage == nil { return nil }\n")
 			}
-			fmt.Fprintf(&b, "    return try GElements(v).map { try gOutput%d($0) }\n", u.Elem.U().ID)
+			if elem := u.Elem.U(); elem.Kind == ir.KInt && elem.Int.Bits() == 8 && !elem.Int.Signed() {
+				b.WriteString("    guard let bytes = GSlice.byteSource(v) else { throw GFault(\"byte boundary\") }; return Array(bytes)\n")
+			} else {
+				fmt.Fprintf(&b, "    return try GElements(v).map { try gOutput%d($0) }\n", u.Elem.U().ID)
+			}
 		default:
 			if cryptoKey(t) {
 				b.WriteString("    if case .nilValue = v { return nil }; guard case .pointer(let p) = v, case .opaque(let k) = p.value, let key = k as? GCryptoKey else { throw GFault(\"key boundary\") }; return GoalchemyKey(key, p)\n")

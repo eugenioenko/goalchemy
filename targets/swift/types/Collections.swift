@@ -13,8 +13,58 @@ extension GSlice {
     let n = try GBounds.index(index, s.length)
     return s.storage!.cell(s.offset + n)
   }
+  // A retained native view snapshots the source before mutation. Swift COW also
+  // handles distinct GBuffer wrappers sharing an Array allocation; Go aliases
+  // still observe mutation through their shared GBuffer object.
+  static func byteSource(_ value: GValue) -> ArraySlice<UInt8>? {
+    switch value {
+    case .slice(let s):
+      if let bytes = s.storage?.bytes { return bytes[s.offset..<s.offset + s.length] }
+      if s.length == 0 { return [] }
+    case .string(let bytes): return bytes[...]
+    case .aggregate(let a):
+      if let bytes = a.buffer?.bytes { return bytes[...] }
+    default: break
+    }
+    return nil
+  }
+  private static func isByte(_ elem: Int) -> Bool {
+    let t = GTypes.table[elem]
+    return t.kind == "int" && t.bits == 8 && !t.signed
+  }
+  static func append(_ value: GValue, _ source: GValue) throws -> GValue {
+    if case .slice(let s) = value, isByte(s.elem), let bytes = byteSource(source) {
+      return try appendBytes(s, bytes)
+    }
+    // Keep source validation and recursive value copying in the generic path.
+    return try append(value, GElements(source))
+  }
+  private static func appendBytes(_ s: GSlice, _ values: ArraySlice<UInt8>) throws -> GValue {
+    if values.isEmpty { return .slice(s) }
+    let (n, overflow) = s.length.addingReportingOverflow(values.count)
+    if overflow { throw GFault("slice allocation exceeds limits") }
+    var storage = s.storage
+    var offset = s.offset
+    var capacity = s.capacity
+    if n > capacity {
+      let doubled = capacity.multipliedReportingOverflow(by: 2)
+      capacity = max(n, max(1, doubled.overflow ? Int.max : doubled.partialValue))
+      let new = GBuffer(capacity, s.elem)
+      if s.length > 0 {
+        let bytes = s.storage!.bytes!
+        new.bytes!.replaceSubrange(0..<s.length, with: bytes[s.offset..<s.offset + s.length])
+      }
+      storage = new
+      offset = 0
+    }
+    storage!.bytes!.replaceSubrange(offset + s.length..<offset + n, with: values)
+    return .slice(GSlice(storage, offset, n, capacity, s.elem))
+  }
   static func append(_ value: GValue, _ values: [GValue]) throws -> GValue {
     guard case .slice(let s) = value else { throw GFault("slice representation") }
+    if isByte(s.elem) {
+      return try appendBytes(s, values.map { UInt8(truncatingIfNeeded: $0.unsigned) }[...])
+    }
     if values.isEmpty { return value }
     let (n, overflow) = s.length.addingReportingOverflow(values.count)
     if overflow { throw GFault("slice allocation exceeds limits") }
@@ -36,6 +86,11 @@ extension GSlice {
   }
   static func copy(_ dst: GValue, _ src: GValue) throws -> GValue {
     guard case .slice(let d) = dst else { throw GFault("slice representation") }
+    if isByte(d.elem), let bytes = byteSource(src) {
+      let n = min(d.length, bytes.count)
+      if n > 0 { d.storage!.bytes!.replaceSubrange(d.offset..<d.offset + n, with: bytes.prefix(n)) }
+      return .int(Int64(n))
+    }
     let elements = try GElements(src)
     let n = min(d.length, elements.count)
     let snapshot = elements.prefix(n).map(GCopy)

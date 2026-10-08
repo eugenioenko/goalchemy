@@ -483,7 +483,7 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		e.use("core.slice.append")
 		vs := fe.values(i.Elems)
 		if i.Spread != nil {
-			vs = "try GElements(" + fe.val(i.Spread) + ")"
+			vs = fe.val(i.Spread)
 		}
 		w("%s = try GSlice.append(%s, %s)", fe.val(i.Dst), fe.val(i.S), vs)
 	case *ir.Copy:

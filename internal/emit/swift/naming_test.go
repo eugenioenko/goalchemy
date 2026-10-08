@@ -124,3 +124,27 @@ func TestLibraryBoundaryDiagnostics(t *testing.T) {
 		}
 	}
 }
+
+func TestBulkByteEmission(t *testing.T) {
+	result := buildSwift(t, `package bytes
+ type Octet uint8
+ func Join(a,b []Octet) []Octet { return append(a,b...) }
+ func Fixed(a [3]Octet) [3]Octet { return a }
+ `)
+	for _, compact := range []bool{false, true} {
+		t.Run(fmt.Sprintf("compact=%v", compact), func(t *testing.T) {
+			result.IR.CompactNames = compact
+			output, err := swiftemit.Emit(result.IR, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			source := string(output.Source)
+			if strings.Contains(source, "GSlice.append(") && strings.Contains(source, "try GElements(") {
+				t.Fatal("bulk byte append or public boundary expands bytes to GValue elements")
+			}
+			if !strings.Contains(source, "GBuffer(bytes: v, elem:") || !strings.Contains(source, "GSlice.byteSource(v)") {
+				t.Fatal("byte public conversion lacks native buffer path")
+			}
+		})
+	}
+}
