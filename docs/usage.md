@@ -97,6 +97,25 @@ IR dumps keep their diagnostic identifiers. Internal names are not a stable
 API across compiler versions. Neither naming mode promises a performance
 improvement.
 
+## Initialization guidance
+
+Prefer explicit constructors or setup functions for configuration, I/O, key
+generation and resource acquisition. They make dependencies, errors and cleanup
+visible to callers. Avoid hiding this work in `init()` or in package-level
+variables initialized by calls to setup functions.
+
+Small deterministic initialization remains supported. Goalchemy preserves Go's
+package-variable dependency ordering and `init()` functions in its central
+initialization routine. Splitting generated code into files does not remove
+those effects.
+
+The SDK-capable library boundary creates fresh source state and runs package
+initialization once per operation. An expensive initializer or externally
+visible side effect therefore repeats across calls. This differs from a native
+Go process, which initializes its packages once at startup. Consult the target's
+library-boundary documentation for its lifecycle; the legacy sequential C
+scalar/string API uses an explicit `goalchemy_init()` call.
+
 ## Output
 
 Each target directory contains the generated program, the runtime files it needs (one file per runtime function, plus shared representation files), a `README.md`, and `goalchemy.manifest.json`. The manifest records the source profile, compiler version, contract IDs, versions, and hashes, and every runtime and generated file. Output is deterministic for the same inputs.
