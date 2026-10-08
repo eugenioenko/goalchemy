@@ -67,6 +67,7 @@ func cHostAdapter(t *testing.T, out, url, tls, cert string) {
 	if e := os.WriteFile(filepath.Join(out, "rt/runtime/test_only_transport.c"), []byte(s), 0600); e != nil {
 		t.Fatal(e)
 	}
+	cHostInject(t, filepath.Join(out, "run.sh"), "set --", "set -- 'rt/runtime/test_only_transport.c'")
 	cHostInject(t, filepath.Join(out, "rt/types/sched.c"), "        if (!s->fault)\n            s->fault = GC_strdup(message);", "        extern void test_only_fault_frame(gx_Frame *); test_only_fault_frame(s->cur ? s->cur->frame : NULL);\n        if (!s->fault)\n            s->fault = GC_strdup(message);")
 	cHostInject(t, filepath.Join(out, "rt/runtime/task_spawn.c"), "    s->escape = NULL;", "    s->escape = NULL;\n    extern void test_only_final_cleanup(void); test_only_final_cleanup();")
 	cHostInject(t, filepath.Join(out, "rt/runtime/std_time_sleep.c"), "    gx_set_rv(t, 0, NULL);", "    if (d.u.i >= 123 && d.u.i <= 131) { extern void test_only_sleep(gx_Task *, int); test_only_sleep(t, (int)d.u.i); return; }\n    gx_set_rv(t, 0, NULL);")

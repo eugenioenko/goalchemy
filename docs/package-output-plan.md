@@ -172,3 +172,24 @@ Logs and review modules are ignored under out/package-output-rust/.
 
 Actual SDK Rust acceptance, C/Swift migration and final compiler/SDK CI remain
 pending.
+
+## C implementation acceptance, 2026-10-08
+
+C emits separately compiled package-owned translation units with functions,
+frames, globals and named helpers. A private header shares declarations rather
+than function bodies; shared.c defines the canonical descriptors once. Main.c
+retains central initialization and public library entry points. Generated scripts
+compile explicit inventories and archives include each object plus SDK adapters.
+
+Readable/compact package oracles, physical maps and independent TU compilation
+passed. Native symbol inspection confirms definitions and cross-package global
+references. Independent public-header/archive consumers passed fresh initialization,
+overlap, retained values/errors, GC, native crypto and CRC, queued cancellation
+and active cancellation with cleanup acknowledgment. Existing source-error versus
+queued-cancellation codes are preserved. Existing generated host/fatal, sanitized
+byte/host, eight language fixture, native conformance and shared cleanup checks
+passed. Native conformance required the prepared curl sysroot after its initial
+missing pkg-config dependency. No runtime changes were needed.
+
+Logs and review trees are ignored under out/package-output-c/. Actual SDK C
+acceptance, Swift migration and final compiler/SDK CI remain pending.

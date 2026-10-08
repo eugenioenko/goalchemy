@@ -672,10 +672,7 @@ elif pkg-config --exists bdw-gc 2>/dev/null; then
 else
   gc=-lgc
 fi
-set -- main.c rt/types/*.c
-for source in rt/runtime/*.c; do
-  if [ -f "$source" ]; then set -- "$@" "$source"; fi
-done
+@GOALCHEMY_C_SOURCES@
 ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main "$@" $gc ${LDLIBS:-} -lpthread >&2
 exec ./main
 `
@@ -706,10 +703,7 @@ if [ -n "$GOALCHEMY_BDWGC" ]; then inc="-I$GOALCHEMY_BDWGC/include"
 elif pkg-config --exists bdw-gc 2>/dev/null; then inc=$(pkg-config --cflags bdw-gc); fi
 mkdir -p obj
 objects=""
-set -- main.c rt/types/*.c
-for source in rt/runtime/*.c; do
-  if [ -f "$source" ]; then set -- "$@" "$source"; fi
-done
+@GOALCHEMY_C_SOURCES@
 for f do
   object="obj/$(echo "$f" | tr / _).o"
   ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -Irt/types $inc -c "$f" -o "$object"
@@ -724,6 +718,21 @@ if [ -f tdf3.c ]; then
 fi
 `
 
+func cBuildScript(library bool, generated, runtime []string) []byte {
+	script := cRun
+	if library {
+		script = cLibBuild
+	}
+	var sources strings.Builder
+	sources.WriteString("set --")
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".c") {
+			sources.WriteString(" \\\n    '" + strings.ReplaceAll(name, "'", "'\\''") + "'")
+		}
+	}
+	return []byte(strings.Replace(script, "@GOALCHEMY_C_SOURCES@", sources.String(), 1))
+}
+
 func emitC(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := cemit.Emit(res.IR, symbols(res, "c"))
 	if err != nil {
@@ -737,13 +746,14 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
 	gen := map[string][]byte{
-		"main.c":       o.Source,
-		"main.c.lines": lineTable(o.Lines, out),
-		"README.md":    []byte(readme("c", "sh run.sh", "Requires a C17 compiler and the Boehm-Demers-Weiser collector (bdwgc 8.x with threads).")),
+		"README.md": []byte(readme("c", "sh run.sh", "Requires a C17 compiler and the Boehm-Demers-Weiser collector (bdwgc 8.x with threads).")),
 	}
 	if o.Header != nil {
-		gen["goalchemy.h"] = o.Header
 		for _, name := range []string{"library.h"} {
 			data, err := os.ReadFile(filepath.Join(out, "rt", "types", name))
 			if err != nil {
@@ -751,12 +761,11 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 			}
 			gen[name] = data
 		}
-		gen["build.sh"] = []byte(cLibBuild)
+		gen["build.sh"] = cBuildScript(true, names, rtFiles)
 		gen["README.md"] = []byte(readme("c", "sh build.sh", "Builds libgoalchemy.a; include goalchemy.h and link with bdwgc (-lgc) and -lpthread. Requires a C17 compiler and bdwgc 8.x with threads."))
 	} else {
-		gen["run.sh"] = []byte(strings.Replace(cRun, "${LDLIBS:-}", "${LDLIBS:-}"+cNativeLibs(o.Contracts), 1))
+		gen["run.sh"] = []byte(strings.Replace(string(cBuildScript(false, names, rtFiles)), "${LDLIBS:-}", "${LDLIBS:-}"+cNativeLibs(o.Contracts), 1))
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -764,7 +773,7 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "c", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "c", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
