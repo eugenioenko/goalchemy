@@ -93,9 +93,15 @@ async def async_cases():
    while not allow.is_set():await asyncio.sleep(.002)
    done.set()
  op=p.Provider(b'wait',b'',{'callbacks':{'wait':waiting}})
- async def await_op():return await op
- waiter=asyncio.create_task(await_op())
+ # Exercise the callback-first order, then ensure cancellation reaches the
+ # operation's await handler rather than canceling an unstarted consumer task.
  while not entered.is_set():await asyncio.sleep(.002)
+ awaiting=asyncio.Event()
+ async def await_op():
+  awaiting.set()
+  return await op
+ waiter=asyncio.create_task(await_op())
+ await awaiting.wait()
  waiter.cancel()
  while not in_finally.is_set():await asyncio.sleep(.002)
  check(not waiter.done() and not op.done(),'async cancellation awaits finally')
