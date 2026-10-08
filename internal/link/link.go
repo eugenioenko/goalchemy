@@ -15,19 +15,21 @@ import (
 
 	"github.com/eugenioenko/goalchemy/internal/contracts"
 	"github.com/eugenioenko/goalchemy/internal/diagnostics"
+	"github.com/eugenioenko/goalchemy/internal/emit/artifact"
 	"github.com/eugenioenko/goalchemy/internal/frontend"
 )
 
 const CompilerVersion = "0.5.1"
 
 type Manifest struct {
-	Compiler       string            `json:"compiler"`
-	Target         string            `json:"target"`
-	TargetVersion  string            `json:"target_version"`
-	SourceProfile  map[string]string `json:"source_profile"`
-	Contracts      []ContractRef     `json:"contracts"`
-	RuntimeFiles   []string          `json:"runtime_files"`
-	GeneratedFiles []string          `json:"generated_files"`
+	Compiler       string                  `json:"compiler"`
+	Target         string                  `json:"target"`
+	TargetVersion  string                  `json:"target_version"`
+	SourceProfile  map[string]string       `json:"source_profile"`
+	Contracts      []ContractRef           `json:"contracts"`
+	RuntimeFiles   []string                `json:"runtime_files"`
+	GeneratedFiles []string                `json:"generated_files"`
+	SourcePackages []artifact.PackageFiles `json:"source_packages,omitempty"`
 }
 
 type ContractRef struct {
@@ -124,12 +126,13 @@ func WriteFile(out, rel string, data []byte) error {
 	return os.WriteFile(p, data, 0o644)
 }
 
-func WriteManifest(out string, cat *contracts.Catalog, target string, refs []ContractRef, runtime, generated []string, prog *frontend.Program) error {
+func WriteManifest(out string, cat *contracts.Catalog, target string, refs []ContractRef, runtime, generated []string, prog *frontend.Program, packages ...artifact.PackageFiles) error {
 	m := Manifest{
 		Compiler: CompilerVersion, Target: target, TargetVersion: cat.Targets[target].Version,
 		SourceProfile: map[string]string{"language": frontend.SourceLanguage, "toolchain": frontend.ReferenceToolchain,
 			"goos": frontend.SourceGOOS, "goarch": frontend.SourceGOARCH, "cgo": "0"},
 		Contracts: refs, RuntimeFiles: runtime, GeneratedFiles: generated,
+		SourcePackages: packages,
 	}
 	if m.Contracts == nil {
 		m.Contracts = []ContractRef{}

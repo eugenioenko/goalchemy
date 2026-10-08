@@ -36,3 +36,27 @@ Root coordinates one implementation worker at a time, reviews results and makes 
 - Both PRs have green CI at their final heads. Any CI synthetic merge tree is checked against the reviewed source tree before claiming equivalent evidence.
 
 Document explicit constructors/setup as preferred for substantial initialization, including setup hidden in package-variable initializers. Small deterministic `init()` functions remain supported; do not silently discard initialization.
+
+## Go implementation acceptance, 2026-10-08
+
+Go now emits directly into package-owned native files in the existing generated
+Go package. Named types, globals and functions retain their source owners;
+initialization/API code remains in `main.go`, with canonical registration and
+shared external support in `shared.go`. Source-package dependency metadata and
+artifact paths/maps survive into the manifest. Receiver-wrapper ownership was
+added without changing IDs or names.
+
+Focused checks passed in readable and compact naming: the multi-package source
+oracle, unique declaration ownership, same-basename package paths, deterministic
+output, manifest completeness and physical source maps; importing libraries with
+race checks, overlapping calls, fresh initialization and retained results/errors;
+existing interface, embedded-method, closure, cooperative-frame and global-init
+fixtures; and naming/CLI option checks. The combined fixture exposed a Go
+interface-signature bug when an unrelated function value with the same signature
+suspended. Interface declarations now follow the method identity's suspension
+classification, and the unchanged regression passes.
+
+Other seven backends remain pending. Before final acceptance, the shared driver
+must remove obsolete compiler-managed files when reusing an output directory,
+while preserving unlisted caller files. Final compiler CI, eight-target SDK
+interoperability and committed formatted distributions are still required.

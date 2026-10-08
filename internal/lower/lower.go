@@ -60,6 +60,14 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 	for _, p := range prog.Source {
 		l.pkgs[p.Types] = p
 		l.alias(p.PkgPath, p.Name)
+		pkg := ir.Package{Path: p.PkgPath, Name: p.Name, Root: l.root(p), Imports: []string{}}
+		for imported := range p.Imports {
+			if prog.IsSource(imported) {
+				pkg.Imports = append(pkg.Imports, imported)
+			}
+		}
+		sort.Strings(pkg.Imports)
+		l.out.Packages = append(l.out.Packages, pkg)
 	}
 	for _, p := range prog.Source {
 		l.declare(p)

@@ -41,7 +41,7 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 			return []diagnostics.Diagnostic{{Code: "GCE007", Severity: diagnostics.Error, Feature: "Go library boundary", Message: boundary.Error(), Remedy: "Use public struct value trees, primitive arrays/slices and a final error result; native pointers, maps, channels and arbitrary callbacks are outside this library ABI."}}
 		}
 		if o != nil {
-			_ = link.WriteFile(out, "main.go", o.Source)
+			_, _ = writeSourceArtifacts(out, o.Files)
 		}
 		return emitErr("GCE004", err.Error())
 	}
@@ -112,7 +112,8 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 			return emitErr("GCE005", err.Error())
 		}
 	}
-	if err := link.WriteFile(out, "main.go", o.Source); err != nil {
+	generated, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	if err := link.WriteFile(out, "go.mod", []byte("module goalchemyout\n\ngo 1.25\n")); err != nil {
@@ -125,7 +126,9 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 	if err := link.WriteFile(out, "README.md", []byte(readme("go", usage, "Requires Go 1.25 or later."))); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
-	if err := link.WriteManifest(out, res.Catalog, "go", refs, rtFiles, []string{"README.md", "go.mod", "main.go"}, res.Program); err != nil {
+	generated = append(generated, "README.md", "go.mod")
+	sort.Strings(generated)
+	if err := link.WriteManifest(out, res.Catalog, "go", refs, rtFiles, generated, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
