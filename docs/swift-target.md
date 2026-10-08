@@ -125,12 +125,31 @@ arrays with source fixed-length validation, and slices use optional arrays to
 distinguish nil from present empty values. Nested slices preserve the same
 distinction. `GoString` stores arbitrary bytes; `GoString("text")` and string
 literals encode UTF-8, while `GoString(bytes: ...)` preserves binary strings.
-`GoalchemyKey` exposes native key ownership and `close()`.
+`GoalchemyKey` exposes native key ownership and `close()`. Key aliases preserve
+the source pointer identity and share close state. A retained wrapper keeps its
+source cell rooted across later calls and tracing collections. Submitted calls
+retain the key inputs they need; callers may release their wrappers before
+waiting for completion.
+
+The public boundary accepts booleans, exact-width integers, floats, strings,
+fixed arrays, slices, structs with exported nonembedded fields, and opaque
+crypto keys, including supported nested values. It rejects maps, channels,
+function values, ordinary pointers, arbitrary interfaces, variadic exports,
+and structs with private or embedded fields with `GCE007`. These restrictions
+apply to exported values; the corresponding supported source constructs remain
+available inside generated programs.
 
 `CallOptions.callbacks` maps a capability name to a `CallbackProvider`. A
 provider receives an owned byte request and cancellation token, invokes its
 completion once, and may return a cancellation hook. Providers must eventually
 complete after cancellation so the owner can acknowledge cleanup.
+
+Providers and cancellation hooks must not synchronously wait on another
+generated call. Such reentry fails with a `GoalchemyFailure` whose kind is
+`host`. Hooks run on host workers so they can wait for their own native cleanup
+without blocking source scheduling. A canceled, failed or panicking call
+retires pending host work and waits for cleanup acknowledgement before
+publishing its result or error.
 
 ## Verification
 

@@ -71,6 +71,10 @@ func Public(key *crypto.Key)(string,error){return key.PublicPEM()}
 func Same(a,b *crypto.Key)(bool,error){return a==b,nil}
 func Alias(key *crypto.Key)(*crypto.Key,error){return key,nil}
 func Close(key *crypto.Key)error{key.Close();return nil}
+func PanicOutstanding(ctx context.Context)error{
+ task.All(func(){callback.Request(ctx,"retire",nil)},func(){time.Sleep(time.Millisecond);panic("retire panic")})
+ return nil
+}
 func Panic()error{panic("deliberate")}
 `)
 	if ds := testutil.CompileGateOptions(source, "swift", out, "cooperative", driver.EmitOptions{CompactNames: compact}); len(ds) > 0 {
@@ -139,6 +143,14 @@ let blockingHook:CallbackProvider={_,settle in
 }
 let probe:CallbackProvider={_,settle in progressed.signal();settle(.success([9]));return nil }
 require(try OtherWork(CallOptions(callbacks:["block":blockingHook,"probe":probe])).wait()==[9],"source progress during host cleanup")
+var submittedKey=try Key().wait()
+let submittedPem=try Public(submittedKey).wait()
+weak var droppedWrapper=submittedKey
+let submittedOperation=Public(submittedKey)
+submittedKey=nil
+require(droppedWrapper==nil,"submitted key operation retained caller wrapper instead of owned source cell")
+for _ in 0..<80 {_ = try Identity("submitted handle collection").wait()}
+require(try submittedOperation.wait()==submittedPem,"submitted operation lost key after caller released last wrapper")
 let key=try Key().wait();require(key != nil,"key generation")
 let pem=try Public(key).wait(),alias=try Alias(key).wait()
 require(try Same(key,key).wait(),"same public key lost pointer identity")
@@ -152,6 +164,22 @@ try Close(key).wait()
 do{_ = try Public(alias).wait();fatalError("closed alias remained usable")}catch let error as GoalchemyFailure{require(error.message=="crypto: key is closed","key aliases share close state")}
 require(try Same(key,alias).wait(),"closing key changed pointer identity")
 try Close(alias).wait();try Close(distinct).wait();key?.close()
+let retireStarted=DispatchSemaphore(value:0)
+var retiredCleanupCount=0
+let retire:CallbackProvider={input,settle in
+ retireStarted.signal()
+ return {
+  require(input.cancellation.isCanceled,"owner retirement did not cancel pending callback")
+  DispatchQueue.global().asyncAfter(deadline:.now()+0.01){
+   lock.lock();retiredCleanupCount+=1;lock.unlock();settle(.success([]))
+  }
+ }
+}
+do{try PanicOutstanding(CallOptions(callbacks:["retire":retire])).wait();fatalError("source panic with outstanding callback lost")}
+catch let error as GoalchemyFailure{require(error.kind=="panic" && error.message.contains("retire panic"),"retirement changed panic classification")}
+require(retireStarted.wait(timeout:.now()) == .success,"retirement callback was never submitted")
+lock.lock();require(retiredCleanupCount==1,"source panic returned before pending native cleanup acknowledgement");lock.unlock()
+require(try Identity("after retirement").wait()==GoString("after retirement"),"source owner not reusable after draining outstanding callback")
 do{try Panic().wait();fatalError("source panic lost")}catch let error as GoalchemyFailure{require(error.kind=="panic","source panic classified incorrectly")}
 require(try Identity("after panic").wait()==GoString("after panic"),"source owner not reusable after panic")
 print("PASS Swift library lifecycle")
