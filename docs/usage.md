@@ -120,9 +120,22 @@ scalar/string API uses an explicit `goalchemy_init()` call.
 
 Each target directory contains the generated program, the runtime files it needs (one file per runtime function, plus shared representation files), a `README.md`, and `goalchemy.manifest.json`. The manifest records the source profile, compiler version, contract IDs, versions, and hashes, and every runtime and generated file. Output is deterministic for the same inputs.
 
-- **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
-- **TypeScript**: sequential output has `main.ts` and `main.ts.map`; cooperative output adds portable `program.ts`, `program.ts.map`, and `host.ts`, with `main.ts` as its Node wrapper. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
-- **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required. Cooperative output exposes synchronous `main.runHost()` with monotonic time, a calling-thread owner and cleanup-before-return; see [its lifecycle and recursion limits](python-host-operations.md).
+Program declarations are grouped by their original Go package. The manifest's
+`source_packages` records each included package's import path, dependencies and
+native source files. Shared representations and the central initializer remain
+separate from package-owned declarations. Native public entry points and library
+imports stay the same; this does not publish a separate native library for every
+Go package. Existing identifier prefixes and compact-name behavior are retained.
+
+Each source file has its own diagnostic map where source positions are available.
+When an output directory is reused successfully, Goalchemy removes obsolete files
+listed by its previous generated/runtime inventory and preserves unlisted caller
+files. Failed emission does not clean that inventory. IR-only output does not use
+native output inventories.
+
+- **Go**: `main.go`, `shared.go`, `pkg_*.go`, `go.mod`, `rt/`, all in the existing native package. Run with `go run .`. Line directives map positions back to the Goalchemy source.
+- **TypeScript**: native `pkg_*.ts` ESM modules and leaf `shared.ts`; sequential output has `main.ts`, while cooperative output adds portable `program.ts` and `host.ts`, with `main.ts` as its Node wrapper. Source files have individual `.ts.map` files. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
+- **Python**: `main.py`, native `pkg_*.py` modules, leaf `_shared.py`, and `rt/` (a package). Individual `.py.lines` sidecars map generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required. Cooperative output exposes synchronous `main.runHost()` with monotonic time, a calling-thread owner and cleanup-before-return; see [its lifecycle and recursion limits](python-host-operations.md).
 - **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored). Cooperative output also exposes `Main.runHost()` for an explicit serialized monotonic executable drive that returns after cleanup; see [its lifecycle and executable-global limits](java-host-operations.md).
 - **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
 - **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run std-only output with `sh run.sh` (plain `rustc`) or `cargo run --release`; native capability output builds with Cargo and maintained dependencies. The SDK package helper supplies its full dependency lock. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.

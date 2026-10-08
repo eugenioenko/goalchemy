@@ -90,3 +90,25 @@ Focused Go checks passed after these shared lowering changes.
 Python, Java, C#, Rust, C and Swift output, final CI and all SDK distributions
 remain pending. Development logs and review artifacts are ignored under
 `out/package-output-ts/`.
+
+## Python implementation acceptance, 2026-10-08
+
+Python now emits native source-package modules with qualified references to live
+module globals and functions. Canonical helpers and the descriptor registry live
+in leaf `_shared.py`; `main.py` binds descriptors and preserves executable and
+public library entry behavior. The manifest records package ownership and native
+members, and physical declaration checks validate each source module's `.lines`
+sidecar. Library reset preserves the Cell of an addressed scalar global.
+
+Readable/compact executable and independent four-package importing consumers
+passed, covering initialization, closures, interface dispatch, shared runtime
+identity, simultaneous caller threads, input snapshots, retained results/errors,
+queued/active cancellation and actual callback cleanup acknowledgment. Existing
+language, byte, host and fatal-cleanup regressions passed. Pinned cryptography
+50.0.2 passed 133 native capability checks and 71 importing-library checks; an
+initial ambient cryptography 3.4.8 failure required selecting the pinned local
+interpreter, with no runtime edits. Logs and review modules are ignored under
+`out/package-output-python/`.
+
+Java, C#, Rust, C and Swift migration, final CI and all eight committed SDK source
+distributions remain pending.

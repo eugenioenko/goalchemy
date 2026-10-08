@@ -264,24 +264,11 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 		mod := strings.TrimSuffix(strings.ReplaceAll(f, "/", "."), ".py")
 		fmt.Fprintf(&index, "from .%s import *\n", mod)
 	}
-	abs, _ := filepath.Abs(out)
-	var lines strings.Builder
-	keys := make([]int, 0, len(o.Lines))
-	for k := range o.Lines {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		pos := o.Lines[k]
-		name := pos.Filename
-		if rel, err := filepath.Rel(abs, name); err == nil {
-			name = filepath.ToSlash(rel)
-		}
-		fmt.Fprintf(&lines, "%d\t%s:%d:%d\n", k, name, pos.Line, pos.Column)
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
 	}
 	gen := map[string][]byte{
-		"main.py":                o.Source,
-		"main.py.lines":          []byte(lines.String()),
 		"rt/__init__.py":         []byte(index.String()),
 		"rt/types/__init__.py":   []byte(""),
 		"rt/runtime/__init__.py": []byte(""),
@@ -290,7 +277,6 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 	if res.IR.Library {
 		gen["__init__.py"] = []byte("from .main import *\n")
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -298,7 +284,7 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "python", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "python", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
