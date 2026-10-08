@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -21,10 +20,7 @@ cd "$(dirname "$0")"
 mkdir -p .build/native
 ${CC:-cc} -O2 -Wno-deprecated-declarations -c rt/native/GoalchemyNative.c -o .build/native/native.o $(pkg-config --cflags openssl zlib libcurl)
 build_swift() {
-    set -- main.swift
-    for source in rt/types/*.swift rt/runtime/*.swift; do
-        if [ -f "$source" ]; then set -- "$@" "$source"; fi
-    done
+    @GOALCHEMY_SWIFT_SOURCES@
     ${SWIFTC:-swiftc} -swift-version 5 -suppress-warnings -I rt/native "$@" .build/native/native.o $(pkg-config --libs openssl zlib libcurl) -o .build/program
 }
 build_swift
@@ -51,11 +47,11 @@ let package = Package(
         .systemLibrary(name: "CCurl", path: "system/curl", pkgConfig: "libcurl",
                        providers: [.apt(["libcurl4-openssl-dev"]), .brew(["curl"])]),
         .target(name: "GoalchemyNative", dependencies: ["COpenSSL", "CZlib", "CCurl"],
-                path: "rt/native", publicHeadersPath: ".",
+                path: "rt/native", sources: ["GoalchemyNative.c"], publicHeadersPath: ".",
                 linkerSettings: [.linkedLibrary("crypto"), .linkedLibrary("z"), .linkedLibrary("curl")]),
         .target(name: "GoalchemyGenerated", dependencies: ["GoalchemyNative"], path: ".",
-                exclude: ["rt/native", "system", "README.md", "LICENSE", "build.sh", "Generated.swift.lines", "goalchemy.manifest.json"],
-                sources: ["Generated.swift", "rt/types", "rt/runtime"])
+                exclude: ["rt/native", "system", "README.md", "LICENSE", "build.sh", @GOALCHEMY_SWIFT_MAPS@"goalchemy.manifest.json"],
+                sources: [@GOALCHEMY_SWIFT_SOURCES@])
     ],
     swiftLanguageModes: [.v5]
 )
@@ -78,26 +74,32 @@ func emitSwift(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
-	sourceName := "main.swift"
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	var sources []string
+	var sourceArgs strings.Builder
+	sourceArgs.WriteString("set --")
+	var maps []string
+	for _, file := range append(append([]string(nil), names...), runtimeFiles...) {
+		if strings.HasSuffix(file, ".swift") {
+			sources = append(sources, fmt.Sprintf("%q", file))
+			sourceArgs.WriteString(" \\\n        '" + strings.ReplaceAll(file, "'", "'\\''") + "'")
+		}
+		if strings.HasSuffix(file, ".lines") {
+			maps = append(maps, fmt.Sprintf("%q, ", file))
+		}
+	}
 	generated := map[string][]byte{
-		"run.sh":    []byte(swiftRun),
+		"run.sh":    []byte(strings.Replace(swiftRun, "@GOALCHEMY_SWIFT_SOURCES@", sourceArgs.String(), 1)),
 		"README.md": []byte(readme("swift", "sh run.sh", "Requires Swift 6.4 or later, a C compiler, pkg-config, OpenSSL 3, zlib, and libcurl development headers/libraries. Native dependencies are currently included in every Swift output. The verified baseline is Linux x86_64; Apple SDK integration is not yet verified.")),
 	}
 	if res.IR.Library {
-		sourceName = "Generated.swift"
 		delete(generated, "run.sh")
 		generated["build.sh"] = []byte(swiftLibraryBuild)
-		packageSource := swiftPackage
-		hasOperations := false
-		for _, file := range runtimeFiles {
-			if strings.HasPrefix(file, "rt/runtime/") && strings.HasSuffix(file, ".swift") {
-				hasOperations = true
-				break
-			}
-		}
-		if !hasOperations {
-			packageSource = strings.Replace(packageSource, ", \"rt/runtime\"", "", 1)
-		}
+		packageSource := strings.Replace(swiftPackage, "@GOALCHEMY_SWIFT_SOURCES@", strings.Join(sources, ", "), 1)
+		packageSource = strings.Replace(packageSource, "@GOALCHEMY_SWIFT_MAPS@", strings.Join(maps, ""), 1)
 		generated["Package.swift"] = []byte(packageSource)
 		generated["system/openssl/module.modulemap"] = []byte("module COpenSSL [system] {\n    header \"shim.h\"\n    link \"crypto\"\n    export *\n}\n")
 		generated["system/openssl/shim.h"] = []byte("#include <openssl/evp.h>\n")
@@ -107,42 +109,24 @@ func emitSwift(res *Result, out string) []diagnostics.Diagnostic {
 		generated["system/curl/shim.h"] = []byte("#include <curl/curl.h>\n")
 		generated["README.md"] = []byte(readme("swift", "sh build.sh", "SwiftPM library product/module GoalchemyGenerated. Add this directory as a local package dependency or publish it under your SDK package name. Requires Swift 6.4 or later, OpenSSL 3, zlib, and libcurl development files. Native dependency discovery uses pkg-config. Verified on Linux x86_64; Apple SDK integration is not yet verified."))
 	}
-	generated[sourceName] = o.Source
 	license, err := fs.ReadFile(res.Catalog.FS, "LICENSE")
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	generated["LICENSE"] = license
-	keys := make([]int, 0, len(o.Lines))
-	for line := range o.Lines {
-		keys = append(keys, line)
-	}
-	sort.Ints(keys)
-	abs, err := filepath.Abs(out)
-	if err != nil {
-		return emitErr("GCE005", err.Error())
-	}
-	var positions strings.Builder
-	for _, line := range keys {
-		pos := o.Lines[line]
-		filename := pos.Filename
-		if relative, err := filepath.Rel(abs, filename); err == nil {
-			filename = filepath.ToSlash(relative)
-		}
-		fmt.Fprintf(&positions, "%d\t%s:%d:%d\n", line, filename, pos.Line, pos.Column)
-	}
-	generated[sourceName+".lines"] = []byte(positions.String())
-	names := make([]string, 0, len(generated))
+	var metadata []string
 	for name := range generated {
-		names = append(names, name)
+		metadata = append(metadata, name)
 	}
-	sort.Strings(names)
-	for _, name := range names {
+	sort.Strings(metadata)
+	for _, name := range metadata {
 		if err := link.WriteFile(out, name, generated[name]); err != nil {
 			return emitErr("GCE005", err.Error())
 		}
 	}
-	if err := link.WriteManifest(out, res.Catalog, "swift", refs, runtimeFiles, names, res.Program); err != nil {
+	names = append(names, metadata...)
+	sort.Strings(names)
+	if err := link.WriteManifest(out, res.Catalog, "swift", refs, runtimeFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil

@@ -193,3 +193,26 @@ missing pkg-config dependency. No runtime changes were needed.
 
 Logs and review trees are ignored under out/package-output-c/. Actual SDK C
 acceptance, Swift migration and final compiler/SDK CI remain pending.
+
+## Swift implementation acceptance, 2026-10-08
+
+Swift emits native package-owned globals, functions and frames within the
+existing native module/SwiftPM target. Shared.swift holds the canonical type
+table; main.swift or Generated.swift retains initialization and the public
+facade. Executable entry explicitly forces shared type registration before
+method binding because registration moved to a lazily initialized global. Only
+the registration variable's private access widened. Native scripts and SwiftPM
+list source inventories explicitly, including the native C shim, and retain the
+SDK adapter's target/exclusion insertion pattern.
+
+Readable/compact source oracles, ownership, determinism and physical maps passed.
+Independent SwiftPM importers passed fresh initialization, overlap, retained
+values/error fields and actual acquired-resource cancellation with cleanup
+acknowledgment blocking later owners. Existing host/pure importers, language,
+byte, native crypto/HTTP, lifetime/error and shared cleanup/boundary checks passed.
+The draft importer expectation was corrected to the unchanged error fixture;
+no runtime changes were needed. Logs are ignored under out/package-output-swift/.
+
+All eight compiler backends now have local focused acceptance. Actual SDK Swift
+acceptance, final formatted distributions and compiler/SDK hosted CI remain
+required. Local native build/import proofs do not claim a new real-KAS matrix.
