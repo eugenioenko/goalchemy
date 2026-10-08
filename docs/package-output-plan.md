@@ -131,3 +131,23 @@ host, method-value, native crypto, byte and eight language fixture checks passed
 on the pinned JDK. Logs and review trees remain ignored under
 `out/package-output-java/`. SDK Java acceptance, C#/Rust/C/Swift migration and
 final compiler/SDK CI remain pending.
+
+## C# implementation acceptance, 2026-10-08
+
+C# emits native partial GoProgram declarations in source-package files, owning
+functions, frames, globals and named representations. Shared helpers and
+canonical descriptors live in shared.cs; Main.cs retains public entry points and
+central initialization. Each native file has its own physical line map and
+manifest ownership. Executable builds use explicit generated/runtime members;
+projects also accept root adapters such as the SDK facade.
+
+Readable/compact executable and independent DLL consumers passed initialization,
+canonical descriptor identity, overlap, owned input/result/error storage, queued
+and active cancellation, and callback cleanup acknowledgment. Existing language,
+host/fatal-cleanup, byte, native crypto and importing library checks passed.
+CRC project/import/deployment checks passed with the pinned dotnet directory on
+PATH after an initial executable lookup failure. No runtime implementation
+changes were needed. Evidence is ignored under out/package-output-csharp/.
+
+Actual SDK C# acceptance, Rust/C/Swift migration and final compiler/SDK CI remain
+pending.

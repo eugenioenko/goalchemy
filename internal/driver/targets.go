@@ -427,6 +427,7 @@ const csharpProject = `<Project Sdk="Microsoft.NET.Sdk">
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NoWarn>CS0162;CS0164;CS0168;CS0219;CS1718;CS8981</NoWarn>
   </PropertyGroup>
 </Project>
@@ -436,6 +437,32 @@ const csharpChecksumReference = `  <ItemGroup>
     <PackageReference Include="System.IO.Hashing" Version="[8.0.0]" />
   </ItemGroup>
 `
+
+// csharpSources lists native generated/runtime members without their maps.
+func csharpSources(generated, runtime []string) []string {
+	var sources []string
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".cs") {
+			sources = append(sources, name)
+		}
+	}
+	return sources
+}
+
+func csharpSourceProject(project string, sources []string) string {
+	escape := strings.NewReplacer("&", "&amp;", "\"", "&quot;", "<", "&lt;", ">", "&gt;")
+	var items strings.Builder
+	items.WriteString("  <ItemGroup>\n")
+	for _, source := range sources {
+		fmt.Fprintf(&items, "    <Compile Include=\"%s\" />\n", escape.Replace(source))
+	}
+	// Native adapters such as the SDK's TDF3.cs and executable HostRunner.cs
+	// remain ordinary root source members. Runtime members come only from the
+	// manifest inventory, and generated root members are not compiled twice.
+	fmt.Fprintf(&items, "    <Compile Include=\"*.cs\" Exclude=\"%s\" />\n", escape.Replace(strings.Join(sources, ";")))
+	items.WriteString("  </ItemGroup>\n")
+	return strings.Replace(project, "</Project>", items.String()+"</Project>", 1)
+}
 
 func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := csharp.Emit(res.IR, symbols(res, "csharp"))
@@ -453,6 +480,11 @@ func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	sources := csharpSources(names, rtFiles)
 	project := csharpProject
 	checksum := false
 	for _, ref := range refs {
@@ -461,6 +493,11 @@ func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 		}
 	}
 	runScript := csharpRun
+	var arguments strings.Builder
+	for _, source := range sources {
+		arguments.WriteString(" \\\n    '" + strings.ReplaceAll(source, "'", "'\\''") + "'")
+	}
+	runScript = strings.Replace(runScript, " Main.cs rt/types/*.cs rt/runtime/*.cs", arguments.String(), 1)
 	if checksum {
 		project = strings.Replace(project, "</PropertyGroup>", "  <RestoreLockedMode>true</RestoreLockedMode>\n  </PropertyGroup>", 1)
 		project = strings.Replace(project, "</Project>", csharpChecksumReference+"</Project>", 1)
@@ -478,12 +515,11 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 	if res.IR.Library {
 		project = strings.Replace(project, "<OutputType>Exe</OutputType>", "<OutputType>Library</OutputType>", 1)
 	}
+	project = csharpSourceProject(project, sources)
 	gen := map[string][]byte{
-		"Main.cs":       o.Source,
-		"Main.cs.lines": lineTable(o.Lines, out),
-		"main.csproj":   []byte(project),
-		"run.sh":        []byte(runScript),
-		"README.md":     []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
+		"main.csproj": []byte(project),
+		"run.sh":      []byte(runScript),
+		"README.md":   []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
 	}
 	if res.IR.Library {
 		delete(gen, "run.sh")
@@ -498,7 +534,6 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 		gen["packages.lock.json"] = locked
 		gen["README.md"] = append(gen["README.md"], []byte("\nIEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package, restored against packages.lock.json. It is not part of the shared .NET runtime. Hardware acceleration is selected by the host and is not guaranteed. Library consumers should reference main.csproj to inherit the package dependency; assembly-only consumers must also reference System.IO.Hashing 8.0.0 and deploy its DLL.\n")...)
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -506,7 +541,7 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "csharp", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "csharp", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
