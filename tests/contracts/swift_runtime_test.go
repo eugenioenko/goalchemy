@@ -173,3 +173,212 @@ func main(){value:=string([]byte{255,0,128});err:=errors.New(value);println(err.
 	}
 	testutil.RunFixture(t, testutil.Fixture{Name: "error_bytes", Dir: source, Gate: "cooperative"}, []string{"go", "swift"})
 }
+
+// Native error values have different Go method sets: ordinary errors implement
+// Error only, runtime panics add RuntimeError, and the deadline sentinel adds
+// Timeout and Temporary. Exercise assertions, dispatch, identity, and names.
+func TestSwiftNativeErrorMethodsNativeOracle(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := t.TempDir()
+	for name, text := range map[string]string{
+		"go.mod": fmt.Sprintf("module swifterrormethods\n\ngo 1.25\nrequire github.com/eugenioenko/goalchemy v0.0.0\nreplace github.com/eugenioenko/goalchemy => %q\n", root),
+		"main.go": `package main
+import (
+ "github.com/eugenioenko/goalchemy/lib/context"
+ "github.com/eugenioenko/goalchemy/lib/crypto"
+ "github.com/eugenioenko/goalchemy/lib/errors"
+)
+type RuntimeMarker interface { RuntimeError() }
+type RuntimeError interface { Error() string; RuntimeError() }
+type Timeout interface { Timeout() bool }
+type Temporary interface { Temporary() bool }
+type DeadlineError interface { Error() string; Timeout() bool; Temporary() bool }
+type Message = string
+type Flag = bool
+type DeadlineAlias interface { Error() Message; Timeout() Flag; Temporary() Flag }
+type Extra interface { Extra() }
+type UserError struct{}
+func (UserError) Error() string { return "user" }
+func (UserError) RuntimeError() { println("user marker invoked") }
+type Calculator struct{}
+func (Calculator) Calculate(n int) int { return n + 1 }
+type Word string
+type NamedError struct{}
+func (NamedError) Error() Word { return "named result" }
+var unwrapCalls, isCalls int
+type WrongResult struct{}
+func (WrongResult) Error() string { return "wrong result" }
+func (WrongResult) Unwrap() string { unwrapCalls++; return "wrong" }
+func (WrongResult) Is(error) int { isCalls++; return 0 }
+type WrongParam struct { inner error }
+func (WrongParam) Error() string { return "wrong param" }
+func (w WrongParam) Unwrap() any { unwrapCalls++; return w.inner }
+func (WrongParam) Is(any) bool { isCalls++; return false }
+type AliasError = error
+type Wrapped struct { inner error }
+func (Wrapped) Error() string { return "wrapped" }
+func (w Wrapped) Unwrap() AliasError { unwrapCalls++; return w.inner }
+func (Wrapped) Is(error) Flag { isCalls++; return false }
+func optionalMethods(name string, value, target error) {
+ unwrapCalls = 0; isCalls = 0
+ println(name, errors.Unwrap(value) == nil, errors.Is(value, target), unwrapCalls, isCalls)
+ unwrapCalls = 0; isCalls = 0
+ println(name, "nil target", errors.Is(value, nil), unwrapCalls, isCalls)
+}
+func inspect(name string, value any) {
+ e, isError := value.(error)
+ marker, isRuntime := value.(RuntimeMarker)
+ _, isBoth := value.(RuntimeError)
+ timeout, isTimeout := value.(Timeout)
+ temporary, isTemporary := value.(Temporary)
+ _, isDeadline := value.(DeadlineError)
+ _, isDeadlineAlias := value.(DeadlineAlias)
+ _, wrongError := value.(interface { Error() int })
+ _, wrongRuntime := value.(interface { RuntimeError() bool })
+ _, wrongTimeout := value.(interface { Timeout() int })
+ _, wrongTemporary := value.(interface { Temporary(int) bool })
+ println(name, "methods", isError, isRuntime, isBoth)
+ println(name, "deadline methods", isTimeout, isTemporary, isDeadline, isDeadlineAlias)
+ println(name, "wrong signatures", wrongError, wrongRuntime, wrongTimeout, wrongTemporary)
+ if isError {
+  println(name, e.Error())
+  sameText := errors.New(e.Error())
+  println(name, "error type identity", e == sameText, sameText == e)
+ }
+ if isRuntime { marker.RuntimeError() }
+ if isTimeout { bound := timeout.Timeout; println(name, "timeout", timeout.Timeout(), bound()) }
+ if isTemporary { bound := temporary.Temporary; println(name, "temporary", temporary.Temporary(), bound()) }
+ switch value.(type) {
+ case RuntimeError: println(name, "switch runtime")
+ case error: println(name, "switch error")
+ default: println(name, "switch other")
+ }
+}
+func recovered(name string, f func()) {
+ defer func() { inspect(name, recover()) }()
+ f()
+}
+func failedExtra(name string, f func()) {
+ recovered(name, func() {
+  defer func() { _ = recover().(Extra) }()
+  f()
+ })
+}
+func assertionError() (err error) {
+ defer func() { err = recover().(error) }()
+ var value any = 1
+ _ = value.(string)
+ return nil
+}
+func main() {
+ ordinary := errors.New("ordinary")
+ inspect("new", ordinary)
+ _, capability := crypto.Random(-1)
+ inspect("crypto", capability)
+ inspect("canceled", context.Canceled)
+ inspect("deadline", context.DeadlineExceeded)
+ duplicate := errors.New("context deadline exceeded")
+ println("deadline identity", context.DeadlineExceeded == context.DeadlineExceeded,
+  context.DeadlineExceeded == duplicate, duplicate == context.DeadlineExceeded,
+  errors.Is(context.DeadlineExceeded, duplicate), errors.Is(duplicate, context.DeadlineExceeded))
+ ctx, cancel := context.WithTimeout(context.Background(), -1)
+ defer cancel()
+ <-ctx.Done()
+ inspect("context deadline", ctx.Err())
+ println("context sentinel", ctx.Err() == context.DeadlineExceeded,
+  context.DeadlineExceeded == ctx.Err(), errors.Is(ctx.Err(), context.DeadlineExceeded))
+ inspect("user", UserError{})
+ inspect("named result", NamedError{})
+ target := errors.New("target")
+ optionalMethods("wrong result methods", WrongResult{}, target)
+ optionalMethods("wrong parameter methods", WrongParam{target}, target)
+ optionalMethods("correct methods", Wrapped{target}, target)
+ var calculator any = Calculator{}
+ correct, isCorrect := calculator.(interface { Calculate(int) int })
+ _, wrongParam := calculator.(interface { Calculate(string) int })
+ _, wrongResult := calculator.(interface { Calculate(int) string })
+ _, wrongArity := calculator.(interface { Calculate() int })
+ println("source signatures", isCorrect, correct.Calculate(2), wrongParam, wrongResult, wrongArity)
+ first, second := assertionError(), assertionError()
+ println("assertion pointer identity", first == first, first == second, second == first)
+ recovered("divide", func() { zero := 0; _ = 1 / zero })
+ recovered("channel", func() { ch := make(chan int); close(ch); close(ch) })
+ recovered("nil panic", func() { panic(nil) })
+ recovered("index", func() { values := []int{1}; index := 2; _ = values[index] })
+ recovered("slice", func() { values := []int{1}; high := 2; _ = values[:high] })
+ recovered("array conversion", func() { values := []int{1}; _ = [2]int(values) })
+ failedExtra("nil panic extra", func() { panic(nil) })
+ failedExtra("index extra", func() { values := []int{1}; index := 2; _ = values[index] })
+ failedExtra("slice extra", func() { values := []int{1}; high := 2; _ = values[:high] })
+ failedExtra("array conversion extra", func() { values := []int{1}; _ = [2]int(values) })
+ recovered("assert primitive", func() { var value any = 1; _ = value.(string) })
+ recovered("assert ordinary", func() { _ = ordinary.(RuntimeMarker) })
+ recovered("assert missing", func() { _ = ordinary.(Extra) })
+ recovered("assert ordinary timeout", func() { _ = ordinary.(Timeout) })
+ recovered("assert ordinary signature", func() { _ = any(ordinary).(interface { Error() int }) })
+ recovered("assert source signature", func() { _ = calculator.(interface { Calculate(string) int }) })
+ recovered("assert deadline runtime", func() { _ = context.DeadlineExceeded.(RuntimeMarker) })
+ recovered("assert runtime timeout", func() {
+  defer func() { _ = recover().(Timeout) }()
+  zero := 0; _ = 1 / zero
+ })
+ recovered("panic ordinary", func() { panic(ordinary) })
+}
+`,
+	} {
+		if err := os.WriteFile(filepath.Join(source, name), []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testutil.RunFixture(t, testutil.Fixture{Name: "native_error_methods", Dir: source, Gate: "cooperative"}, []string{"swift"})
+	// Go's fallback panic text can include host pointer addresses. Compare the
+	// observable method calls instead: only exact Error/String signatures run.
+	for _, tc := range []struct {
+		name, methods string
+		wantGood      bool
+	}{
+		{"wrong_both", `func (Value) Error() int { println("WRONG_METHOD_CALLED"); return 1 }
+func (Value) String() int { println("WRONG_METHOD_CALLED"); return 2 }`, false},
+		{"wrong_error_good_string", `func (Value) Error() int { println("WRONG_METHOD_CALLED"); return 1 }
+func (Value) String() Message { println("GOOD_METHOD_CALLED"); return "good" }`, true},
+		{"good_error_wrong_string", `func (Value) Error() Message { println("GOOD_METHOD_CALLED"); return "good" }
+func (Value) String() int { println("WRONG_METHOD_CALLED"); return 2 }`, true},
+	} {
+		t.Run("panic_formatting_"+tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, text := range map[string]string{
+				"go.mod":  fmt.Sprintf("module swiftpanicformat\n\ngo 1.25\nrequire github.com/eugenioenko/goalchemy v0.0.0\nreplace github.com/eugenioenko/goalchemy => %q\n", root),
+				"main.go": "package main\ntype Message = string\ntype Value struct { n int }\n" + tc.methods + "\nfunc main() { panic(Value{5}) }\n",
+			} {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			work := t.TempDir()
+			native, err := testutil.Native(dir, work)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out := filepath.Join(work, "swift")
+			if ds := testutil.CompileGateOptions(dir, "swift", out, "cooperative", driver.EmitOptions{}); len(ds) != 0 {
+				t.Fatal(ds)
+			}
+			swift, err := testutil.Runners["swift"](out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for name, observation := range map[string]testutil.Observation{"native Go": native, "Swift": swift} {
+				wantCalls := 0
+				if tc.wantGood {
+					wantCalls = 1
+				}
+				if observation.Exit != 2 || strings.Contains(observation.Stderr, "WRONG_METHOD_CALLED") || strings.Count(observation.Stderr, "GOOD_METHOD_CALLED") != wantCalls {
+					t.Errorf("%s panic formatter called an incorrect method: %s", name, observation)
+				}
+			}
+		})
+	}
+}

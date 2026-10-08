@@ -148,11 +148,15 @@ final class GType {
   let blank: [Bool]
   let requiredMethods: [String]
   let comparable: Bool
+  let implementedInterfaces: Set<Int>
+  let missingInterfaceMethods: [Int: String]
+  let nativeMethods: Set<String>
   var methods: [String: GFunction] = [:]
   init(
     _ name: String, _ kind: String, _ bits: Int, _ signed: Bool, _ elem: Int,
     _ key: Int, _ length: Int, _ fields: [Int], _ names: [String], _ blank: [Bool],
-    _ required: [String], _ comparable: Bool
+    _ required: [String], _ comparable: Bool, _ implemented: [Int] = [],
+    _ missing: [Int: String] = [:], _ native: [String] = []
   ) {
     self.name = name
     self.kind = kind
@@ -166,6 +170,9 @@ final class GType {
     self.blank = blank
     requiredMethods = required
     self.comparable = comparable
+    implementedInterfaces = Set(implemented)
+    missingInterfaceMethods = missing
+    nativeMethods = Set(native)
   }
 }
 enum GTypes {
@@ -384,7 +391,9 @@ func GEqual(_ a: GValue, _ b: GValue) throws -> Bool {
       throw GPanic.runtime("comparing uncomparable type " + GTypes.table[x.type].name)
     }
     return try GEqual(x.value, y.value)
-  case (.error(let x), .error(let y)): return x.identity ? x === y : x.message == y.message
+  case (.error(let x), .error(let y)):
+    guard x.type == y.type else { return false }
+    return x.identity ? x === y : x.message == y.message
   case (.slice, _), (.map, _), (.function, _):
     if case .nilValue = b {
       if case .slice(let s) = a { return s.storage == nil }
@@ -408,11 +417,13 @@ enum GBounds {
   static func index(_ v: GValue, _ n: Int) throws -> Int {
     let i = v.intValue
     if !GNumeric.signedInteger(v) && v.unsigned > UInt64(Int64.max) {
-      throw GPanic.runtime("index out of range [\(v.unsigned)] with length \(n)")
+      throw GPanic.runtime(
+        "index out of range [\(v.unsigned)] with length \(n)", "runtime.boundsError")
     }
     if i < 0 || UInt64(i) >= UInt64(n) {
       throw GPanic.runtime(
-        i < 0 ? "index out of range [\(i)]" : "index out of range [\(i)] with length \(n)")
+        i < 0 ? "index out of range [\(i)]" : "index out of range [\(i)] with length \(n)",
+        "runtime.boundsError")
     }
     return Int(i)
   }
@@ -428,7 +439,9 @@ extension GBounds {
   static func slice(_ lo: Int64, _ hi: Int64, _ maximum: Int64?, _ limit: Int, _ word: String)
     throws
   {
-    func bad(_ text: String) throws { throw GPanic.runtime("slice bounds out of range " + text) }
+    func bad(_ text: String) throws {
+      throw GPanic.runtime("slice bounds out of range " + text, "runtime.boundsError")
+    }
     if let mx = maximum {
       if mx < 0 { try bad("[::\(mx)]") }
       if mx > limit { try bad("[::\(mx)] with \(word) \(limit)") }

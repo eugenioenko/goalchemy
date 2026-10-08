@@ -20,9 +20,10 @@ final class GPanic: Error {
   var recovered = false
   var previous: GPanic?
   init(_ value: GValue) { self.value = value }
-  static func runtime(_ text: String) -> GPanic {
+  static func runtime(_ text: String, _ type: String = "runtime.errorString") -> GPanic {
     GPanic(
-      .interface(GInterface(-1, .error(GError("runtime error: " + text, "runtime.Error", false)))))
+      .interface(
+        GInterface(-1, .error(GError("runtime error: " + text, type, false)))))
   }
   static func plain(_ text: String) -> GPanic {
     GPanic(.interface(GInterface(-1, .error(GError(text, "runtime.plainError", false)))))
@@ -34,7 +35,15 @@ final class GPanic: Error {
     return GPanic(.interface(GInterface(t, .text(text))))
   }
   static func source(_ value: GValue) -> GPanic {
-    if case .nilValue = value { return runtime("panic called with nil argument") }
+    if case .nilValue = value {
+      return GPanic(
+        .interface(
+          GInterface(
+            -1,
+            .error(
+              GError("runtime error: panic called with nil argument", "*runtime.PanicNilError")))
+        ))
+    }
     return GPanic(value)
   }
 }
@@ -43,7 +52,10 @@ func GPanicBytes(_ panic: GPanic) -> [UInt8] {
   var bytes = GFormat(panic.value)
   if case .interface(let box) = panic.value, box.type >= 0 {
     let t = GTypes.table[box.type]
-    if let method = t.methods["Error"] ?? t.methods["String"] {
+    let method =
+      (t.nativeMethods.contains("Error") ? t.methods["Error"] : nil)
+      ?? (t.nativeMethods.contains("String") ? t.methods["String"] : nil)
+    if let method = method {
       if let result = try? GOwner(host: false).run(method.start([box.value])) {
         bytes = result.first?.bytes ?? []
       }
@@ -128,6 +140,19 @@ final class GInterface: GManaged {
     self.value = value
     GHeap.track(self)
   }
+  private static func nativeHasMethod(_ value: GValue, _ method: String) -> Bool {
+    guard case .error(let error) = value else { return false }
+    if method == "Error" { return true }
+    if method == "RuntimeError" {
+      return error.type == "runtime.errorString" || error.type == "runtime.plainError"
+        || error.type == "runtime.boundsError" || error.type == "*runtime.TypeAssertionError"
+        || error.type == "*runtime.PanicNilError"
+    }
+    if method == "Timeout" || method == "Temporary" {
+      return error.type == "context.deadlineExceededError"
+    }
+    return false
+  }
   static func start(_ v: GValue, _ method: String, _ args: [GValue]) throws -> GFrame {
     guard case .interface(let box) = v else {
       throw GPanic.runtime("invalid memory address or nil pointer dereference")
@@ -136,7 +161,13 @@ final class GInterface: GManaged {
       if method == "Error", case .error(let error) = box.value {
         return GFrame.sync { [.string(error.bytes)] }
       }
-      if method == "RuntimeError" { return GFrame.sync { [] } }
+      if method == "RuntimeError", nativeHasMethod(box.value, method) {
+        return GFrame.sync { [] }
+      }
+      if method == "Timeout" || method == "Temporary", nativeHasMethod(box.value, method) {
+        return GFrame.sync { [.bool(true)] }
+      }
+      throw GFault("missing method " + method)
     }
     guard let f = GTypes.table[box.type].methods[method] else {
       throw GFault("missing method " + method)
@@ -164,11 +195,16 @@ final class GInterface: GManaged {
     var missing: String?
     if case .interface(let box) = v {
       if target.kind == "interface" {
-        missing = target.requiredMethods.first {
-          box.type < 0
-            ? ($0 != "Error" && $0 != "RuntimeError") : GTypes.table[box.type].methods[$0] == nil
+        if box.type < 0 {
+          missing = target.requiredMethods.first {
+            !target.nativeMethods.contains($0) || !nativeHasMethod(box.value, $0)
+          }
+          success = missing == nil
+        } else {
+          let concrete = GTypes.table[box.type]
+          missing = concrete.missingInterfaceMethods[type]
+          success = target.requiredMethods.isEmpty || concrete.implementedInterfaces.contains(type)
         }
-        success = missing == nil
       } else {
         success = box.type == type
       }
@@ -177,7 +213,14 @@ final class GInterface: GManaged {
     if commaOK { return (GTypes.zero(type), false) }
     let message: String
     if case .interface(let box) = v {
-      let name = box.type >= 0 ? GTypes.table[box.type].name : "runtime.Error"
+      let name: String
+      if box.type >= 0 {
+        name = GTypes.table[box.type].name
+      } else if case .error(let error) = box.value {
+        name = error.type
+      } else {
+        throw GFault("invalid native interface")
+      }
       message =
         missing.map {
           "interface conversion: " + name + " is not " + target.name + ": missing method "
@@ -188,7 +231,7 @@ final class GInterface: GManaged {
       message = "interface conversion: " + GTypes.table[source].name + " is nil, not " + target.name
     }
     throw GPanic(
-      .interface(GInterface(-1, .error(GError(message, "*runtime.TypeAssertionError", false)))))
+      .interface(GInterface(-1, .error(GError(message, "*runtime.TypeAssertionError")))))
   }
   func children() -> [GValue] { [value] }
   func releaseEdges() { value = .nilValue }

@@ -252,7 +252,8 @@ func GConvert(_ value: GValue, _ type: Int, _ conversion: Int) throws -> GValue 
     let elements = try GElements(value)
     if elements.count < target.length {
       throw GPanic.runtime(
-        "cannot convert slice with length \(elements.count) to array or pointer to array with length \(target.length)"
+        "cannot convert slice with length \(elements.count) to array or pointer to array with length \(target.length)",
+        "runtime.boundsError"
       )
     }
     let aggregate = GAggregate(type)

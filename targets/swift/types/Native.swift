@@ -3,7 +3,8 @@ import Foundation
 
 enum GNative {
   static let canceledError = error("context canceled")
-  static let deadlineError = error("context deadline exceeded")
+  static let deadlineError = GValue.interface(
+    GInterface(-1, .error(GError("context deadline exceeded", "context.deadlineExceededError"))))
   static var background: GContext?
   static func error(_ message: String) -> GValue {
     .interface(GInterface(-1, .error(GError(message))))
@@ -58,7 +59,7 @@ enum GNative {
     if contract == "std.errors.is" { return isFrame(args) }
     if contract == "std.errors.unwrap" {
       if case .interface(let b) = args[0], b.type >= 0,
-        GTypes.table[b.type].methods["Unwrap"] != nil
+        GTypes.table[b.type].nativeMethods.contains("Unwrap")
       {
         do { return try GInterface.start(args[0], "Unwrap", []) } catch {
           return GFrame.failure(error)
@@ -140,6 +141,11 @@ enum GNative {
     return frame
   }
   static func isFrame(_ args: [GValue]) -> GFrame {
+    if case .nilValue = args[1] {
+      let frame = GFrame.sync { [.bool(try GEqual(args[0], .nilValue))] }
+      frame.roots = { args }
+      return frame
+    }
     let frame = GFrame(-1)
     var current = args[0]
     let target = args[1]
@@ -165,7 +171,7 @@ enum GNative {
           guard case .interface(let b) = current, b.type >= 0 else {
             return .complete([.bool(false)])
           }
-          if GTypes.table[b.type].methods["Is"] != nil {
+          if GTypes.table[b.type].nativeMethods.contains("Is") {
             frame.pc = 1
             return .call(try GInterface.start(current, "Is", [target]))
           }
@@ -173,7 +179,7 @@ enum GNative {
         }
         if frame.pc == 2 {
           guard case .interface(let b) = current, b.type >= 0,
-            GTypes.table[b.type].methods["Unwrap"] != nil
+            GTypes.table[b.type].nativeMethods.contains("Unwrap")
           else { return .complete([.bool(false)]) }
           frame.pc = 3
           return .call(try GInterface.start(current, "Unwrap", []))

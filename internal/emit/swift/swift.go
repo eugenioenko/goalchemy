@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"go/types"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,6 +88,31 @@ func id(t *ir.Type) int {
 }
 func (e *emitter) use(s string) { e.contracts[s] = true }
 func (e *emitter) types(b *bytes.Buffer) {
+	// Preserve Go's complete method signatures, including aliases and receiver
+	// method sets. Native errors have negative IDs and use declared signatures.
+	var interfaces []*ir.Type
+	for _, t := range e.p.Types.All {
+		if t.IsInterface() && t.Go != nil {
+			interfaces = append(interfaces, t)
+		}
+	}
+	nativeSignatures := map[string]*types.Signature{}
+	errorType := types.Universe.Lookup("error").Type()
+	for name, result := range map[string]types.Type{
+		"Error": types.Typ[types.String], "String": types.Typ[types.String], "RuntimeError": nil,
+		"Timeout": types.Typ[types.Bool], "Temporary": types.Typ[types.Bool],
+		"Unwrap": errorType, "Is": types.Typ[types.Bool],
+	} {
+		params := types.NewTuple()
+		if name == "Is" {
+			params = types.NewTuple(types.NewVar(token.NoPos, nil, "", errorType))
+		}
+		results := types.NewTuple()
+		if result != nil {
+			results = types.NewTuple(types.NewVar(token.NoPos, nil, "", result))
+		}
+		nativeSignatures[name] = types.NewSignatureType(nil, nil, nil, params, results, false)
+	}
 	b.WriteString("private let gTypeRegistration: Void = {\n    GTypes.table = [\n")
 	for _, t := range e.p.Types.All {
 		u := t.U()
@@ -96,9 +122,30 @@ func (e *emitter) types(b *bytes.Buffer) {
 			names = append(names, quote(f.Name))
 			blank = append(blank, strconv.FormatBool(f.Name == "_"))
 		}
-		var methods []string
+		var methods, nativeMethods, implementations, missingMethods []string
 		for _, m := range u.Methods {
 			methods = append(methods, quote(m.ID))
+		}
+		if t.Go != nil {
+			methodSet := types.NewMethodSet(t.Go)
+			for i := 0; i < methodSet.Len(); i++ {
+				method := methodSet.At(i).Obj()
+				if signature := nativeSignatures[method.Id()]; signature != nil && types.Identical(method.Type(), signature) {
+					nativeMethods = append(nativeMethods, quote(method.Id()))
+				}
+			}
+			for _, target := range interfaces {
+				iface := target.Go.Underlying().(*types.Interface)
+				if types.Implements(t.Go, iface) {
+					implementations = append(implementations, strconv.Itoa(target.ID))
+				} else if method, _ := types.MissingMethod(t.Go, iface, true); method != nil {
+					missingMethods = append(missingMethods, fmt.Sprintf("%d: %s", target.ID, quote(method.Id())))
+				}
+			}
+		}
+		missing := strings.Join(missingMethods, ", ")
+		if missing == "" {
+			missing = ":"
 		}
 		bits := 0
 		signed := false
@@ -110,7 +157,7 @@ func (e *emitter) types(b *bytes.Buffer) {
 			bits = u.FloatBits
 		}
 		comparable := t.Go != nil && t.Comparable()
-		fmt.Fprintf(b, "        GType(%s, %s, %d, %t, %d, %d, %d, [%s], [%s], [%s], [%s], %t), // %s\n", quote(ir.TypeString(t)), quote(u.Kind.String()), bits, signed, id(u.Elem), id(u.Key), u.Len, strings.Join(fields, ", "), strings.Join(names, ", "), strings.Join(blank, ", "), strings.Join(methods, ", "), comparable, e.names.Type(t, "T_"))
+		fmt.Fprintf(b, "        GType(%s, %s, %d, %t, %d, %d, %d, [%s], [%s], [%s], [%s], %t, [%s], [%s], [%s]), // %s\n", quote(ir.TypeString(t)), quote(u.Kind.String()), bits, signed, id(u.Elem), id(u.Key), u.Len, strings.Join(fields, ", "), strings.Join(names, ", "), strings.Join(blank, ", "), strings.Join(methods, ", "), comparable, strings.Join(implementations, ", "), missing, strings.Join(nativeMethods, ", "), e.names.Type(t, "T_"))
 	}
 	b.WriteString("    ]\n}()\n")
 }
