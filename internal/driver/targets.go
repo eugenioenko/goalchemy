@@ -563,6 +563,8 @@ const rustCargo = `[package]
 name = "goalchemy-out"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+autolib = false
 
 [[bin]]
 name = "main"
@@ -616,12 +618,10 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		fmt.Fprintf(&mod, "pub use %s::*;\n", name)
 	}
 	gen := map[string][]byte{
-		"src/main.rs":       o.Source,
-		"src/main.rs.lines": lineTable(o.Lines, out),
-		"src/rt/mod.rs":     []byte(mod.String()),
-		"Cargo.toml":        []byte(rustCargo),
-		"run.sh":            []byte(rustRun),
-		"README.md":         []byte(readme("rust", "sh run.sh", "Requires a stable Rust toolchain (edition 2021); cargo run --release also works.")),
+		"src/rt/mod.rs": []byte(mod.String()),
+		"Cargo.toml":    []byte(rustCargo),
+		"run.sh":        []byte(rustRun),
+		"README.md":     []byte(readme("rust", "sh run.sh", "Requires a stable Rust toolchain (edition 2021); cargo run --release also works.")),
 	}
 	native := res.IR.Library
 	for _, c := range o.Contracts {
@@ -634,15 +634,14 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		gen["run.sh"] = []byte("#!/bin/sh\nset -e\ncd \"$(dirname \"$0\")\"\ncargo run --release --quiet -- \"$@\"\n")
 	}
 	if res.IR.Library {
-		delete(gen, "src/main.rs")
-		delete(gen, "src/main.rs.lines")
 		delete(gen, "run.sh")
-		gen["src/lib.rs"] = o.Source
-		gen["src/lib.rs.lines"] = lineTable(o.Lines, out)
 		gen["Cargo.toml"] = []byte(strings.ReplaceAll(rustNativeCargo, "[[bin]]\nname = \"main\"\npath = \"src/main.rs\"", "[lib]\npath = \"src/lib.rs\""))
 		gen["README.md"] = []byte(readme("rust", "cargo build --release", "Owned typed Rust Result/Future library; use CallOptions and wait or await."))
 	}
-	var names []string
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -650,7 +649,7 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "rust", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "rust", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -775,6 +774,8 @@ const rustNativeCargo = `[package]
 name = "goalchemy-generated"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+autolib = false
 rust-version = "1.88"
 license = "Apache-2.0"
 [features]

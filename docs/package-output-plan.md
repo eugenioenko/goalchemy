@@ -151,3 +151,24 @@ changes were needed. Evidence is ignored under out/package-output-csharp/.
 
 Actual SDK C# acceptance, Rust/C/Swift migration and final compiler/SDK CI remain
 pending.
+
+## Rust implementation acceptance, 2026-10-08
+
+Rust emits real native mod files with source-owned functions, frames, wrappers,
+global slot identities and named helpers. The single traced globals vector and
+canonical descriptors remain shared; package zero-storage routines are called
+centrally without changing source initialization. Explicit module paths survive
+the SDK's lib.rs to generated.rs adapter. Cargo uses explicit native targets
+and ignores retained, unlisted executable/library entry sources.
+
+Readable/compact native source-oracle and independent Cargo consumers passed
+physical maps, ownership, initialization, overlap, retained result/error storage,
+queued/active cancellation and real provider cleanup acknowledgment. Forced GC
+and native key/function method wrappers passed. Existing host/fatal/CRC checks,
+byte/GC/storage regressions, target conformance including native crypto and eight
+language fixtures passed. A draft test's SHA vector was corrected independently;
+no runtime changes were needed. Existing structured-error coverage is retained.
+Logs and review modules are ignored under out/package-output-rust/.
+
+Actual SDK Rust acceptance, C/Swift migration and final compiler/SDK CI remain
+pending.
