@@ -95,7 +95,7 @@ func libraryDoc(cat *contracts.Catalog) ([]byte, error) {
 	b.WriteString("Why two importable roots:\n\n")
 	b.WriteString("- A `std/` package behaves identically on every target and needs no native dependencies, because each target runs the same translated source. Go unit tests compare each package with the real standard library, and the language suite compares every target with native Go.\n")
 	b.WriteString("- A `lib/` package talks to the host, so it needs one native implementation per target. Availability and native dependencies can differ by target, and some calls may suspend the calling task.\n")
-	b.WriteString("- Writing pure logic once avoids seven hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.\n\n")
+	b.WriteString("- Writing pure logic once avoids hand-written copies that could drift apart. Host access and security-sensitive code such as crypto must use vetted native implementations instead. A `std/` function that proves too slow can later become a capability without changing its import path.\n\n")
 	b.WriteString("## Packages\n\n| Package | Import path | Summary |\n| --- | --- | --- |\n")
 	for _, sp := range std {
 		fmt.Fprintf(&b, "| [%s](#%s) | `%s%s` | %s |\n", sp.path, anchor(sp.path), stdModule, sp.path, cell(sp.synopsis))

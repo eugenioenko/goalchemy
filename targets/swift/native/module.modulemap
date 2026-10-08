@@ -1,0 +1,4 @@
+module GoalchemyNative {
+    header "GoalchemyNative.h"
+    export *
+}

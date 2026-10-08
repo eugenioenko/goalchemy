@@ -1,8 +1,8 @@
 # Adding a target language
 
 This guide covers adding a compiler backend, its runtime, native capabilities,
-exported library API, and verification to Goalchemy. Use it for a new target
-such as Swift; it does not mean Swift is implemented today. Commands run from
+exported library API, and verification to Goalchemy. The
+[Swift target](swift-target.md) provides a concrete example. Commands run from
 the Goalchemy repository root unless stated otherwise. Replace `NEW_TARGET`
 and `new_target` with the chosen CLI identifier and package name.
 

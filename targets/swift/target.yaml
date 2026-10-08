@@ -1,0 +1,711 @@
+schema_version: 1
+target: swift
+version: 0.1.0
+status: experimental
+environment:
+  runtime: Swift
+  minimum: Swift 6.4.0 on Linux x86_64
+  build: sh run.sh (Swift compiler and a native C shim)
+  native: OpenSSL 3 libcrypto, zlib CRC32, and libcurl HTTP via a C module. All current output packages
+    include these native prerequisites.
+representations:
+- type: type.float
+  contract_version: 1.0.0
+  representation: Swift Float/Double with explicit binary32 boundaries, exact integer conversions, IEEE
+    comparisons and Go shortest printing.
+- type: type.boolean
+  contract_version: 1.0.0
+  representation: Swift Bool in a tagged runtime value.
+- type: type.integer
+  contract_version: 1.0.0
+  representation: UInt64 bit patterns with explicit source width and signedness; arithmetic wraps and
+    signed division truncates toward zero.
+- type: type.string
+  contract_version: 1.0.0
+  representation: Immutable native [UInt8] preserving arbitrary Go string bytes.
+- type: type.array
+  contract_version: 1.0.0
+  representation: Reference-backed fixed aggregate storage with recursive explicit value copies; uint8
+    arrays use native [UInt8].
+- type: type.struct
+  contract_version: 1.0.0
+  representation: Stable field cells in reference-backed aggregates; assignment copies recursively in
+    place so field pointer identity survives.
+- type: type.slice
+  contract_version: 1.0.0
+  representation: Swift value header over shared buffer, offset, length and capacity; uint8 buffers use
+    [UInt8], nil and empty remain distinct.
+- type: type.map
+  contract_version: 1.0.0
+  representation: Insertion-ordered entry objects with explicit Go equality, nil behavior, iterator entry
+    snapshots, aggregate keys and NaN nonreflexivity.
+- type: type.pointer
+  contract_version: 1.0.0
+  representation: Stable GCell identity and strong source edges, with explicit tracing cycle collection
+    at scheduler safepoints.
+- type: type.interface
+  contract_version: 1.0.0
+  representation: Dynamic source type descriptor and copied payload; methods, typed nil, assertions and
+    comparability preserved.
+- type: type.function
+  contract_version: 1.0.0
+  representation: GFunction captures stable cells and produces stack-safe resumable frames; nil calls
+    panic.
+- type: type.error
+  contract_version: 1.0.0
+  representation: Ordinary interface values, preserving custom source methods; host boundary exposes GoalchemyFailure
+    and public field copies.
+- type: type.channel
+  contract_version: 1.0.0
+  representation: GChannel FIFO queues, buffering, rendezvous and shared select registration.
+- type: type.task
+  contract_version: 1.0.0
+  representation: Owner-controlled FIFO stack of resumable frames; virtual timers by default, explicit
+    host entries wait for immutable native mailbox completions and cleanup acknowledgements.
+support_files:
+- types/Channels.swift
+- types/Collections.swift
+- types/Crypto.swift
+- types/HTTP.swift
+- types/Library.swift
+- types/Native.swift
+- types/Numeric.swift
+- types/Program.swift
+- types/Value.swift
+- native/GoalchemyNative.h
+- native/GoalchemyNative.c
+- native/module.modulemap
+functions:
+- id: core.float.convert
+  contract_version: 1.0.0
+  symbol: GNative.core_float_convert
+  implementation: runtime/core_float_convert.swift
+  harness: 'native: GNative.core_float_convert({args}, {types})'
+- id: core.float.add
+  contract_version: 1.0.0
+  symbol: GNative.core_float_add
+  implementation: runtime/core_float_add.swift
+  harness: 'native: GNative.core_float_add({args}, {types})'
+- id: core.float.sub
+  contract_version: 1.0.0
+  symbol: GNative.core_float_sub
+  implementation: runtime/core_float_sub.swift
+  harness: 'native: GNative.core_float_sub({args}, {types})'
+- id: core.float.mul
+  contract_version: 1.0.0
+  symbol: GNative.core_float_mul
+  implementation: runtime/core_float_mul.swift
+  harness: 'native: GNative.core_float_mul({args}, {types})'
+- id: core.float.div
+  contract_version: 1.0.0
+  symbol: GNative.core_float_div
+  implementation: runtime/core_float_div.swift
+  harness: 'native: GNative.core_float_div({args}, {types})'
+- id: core.float.neg
+  contract_version: 1.0.0
+  symbol: GNative.core_float_neg
+  implementation: runtime/core_float_neg.swift
+  harness: 'native: GNative.core_float_neg({args}, {types})'
+- id: core.float.min
+  contract_version: 1.0.0
+  symbol: GNative.core_float_min
+  implementation: runtime/core_float_min.swift
+  harness: 'native: GNative.core_float_min({args}, {types})'
+- id: core.float.max
+  contract_version: 1.0.0
+  symbol: GNative.core_float_max
+  implementation: runtime/core_float_max.swift
+  harness: 'native: GNative.core_float_max({args}, {types})'
+- id: core.integer.add
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_add
+  implementation: runtime/core_integer_add.swift
+  harness: 'native: GNative.core_integer_add({args}, {types})'
+- id: core.integer.sub
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_sub
+  implementation: runtime/core_integer_sub.swift
+  harness: 'native: GNative.core_integer_sub({args}, {types})'
+- id: core.integer.mul
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_mul
+  implementation: runtime/core_integer_mul.swift
+  harness: 'native: GNative.core_integer_mul({args}, {types})'
+- id: core.integer.div
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_div
+  implementation: runtime/core_integer_div.swift
+  harness: 'native: GNative.core_integer_div({args}, {types})'
+- id: core.integer.rem
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_rem
+  implementation: runtime/core_integer_rem.swift
+  harness: 'native: GNative.core_integer_rem({args}, {types})'
+- id: core.integer.and
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_and
+  implementation: runtime/core_integer_and.swift
+  harness: 'native: GNative.core_integer_and({args}, {types})'
+- id: core.integer.or
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_or
+  implementation: runtime/core_integer_or.swift
+  harness: 'native: GNative.core_integer_or({args}, {types})'
+- id: core.integer.xor
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_xor
+  implementation: runtime/core_integer_xor.swift
+  harness: 'native: GNative.core_integer_xor({args}, {types})'
+- id: core.integer.andnot
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_andnot
+  implementation: runtime/core_integer_andnot.swift
+  harness: 'native: GNative.core_integer_andnot({args}, {types})'
+- id: core.integer.neg
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_neg
+  implementation: runtime/core_integer_neg.swift
+  harness: 'native: GNative.core_integer_neg({args}, {types})'
+- id: core.integer.not
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_not
+  implementation: runtime/core_integer_not.swift
+  harness: 'native: GNative.core_integer_not({args}, {types})'
+- id: core.integer.shl
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_shl
+  implementation: runtime/core_integer_shl.swift
+  harness: 'native: GNative.core_integer_shl({args}, {types})'
+- id: core.integer.shr
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_shr
+  implementation: runtime/core_integer_shr.swift
+  harness: 'native: GNative.core_integer_shr({args}, {types})'
+- id: core.integer.convert
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_convert
+  implementation: runtime/core_integer_convert.swift
+  harness: 'native: GNative.core_integer_convert({args}, {types})'
+- id: core.integer.compare
+  contract_version: 1.0.0
+  symbol: GNative.core_integer_compare
+  implementation: runtime/core_integer_compare.swift
+  harness: 'native: GNative.core_integer_compare({args}, {types})'
+- id: core.string.index
+  contract_version: 1.0.0
+  symbol: GNative.core_string_index
+  implementation: runtime/core_string_index.swift
+  harness: 'native: GNative.core_string_index({args}, {types})'
+- id: core.string.slice
+  contract_version: 1.0.0
+  symbol: GNative.core_string_slice
+  implementation: runtime/core_string_slice.swift
+  harness: 'native: GNative.core_string_slice({args}, {types})'
+- id: core.string.concat
+  contract_version: 1.0.0
+  symbol: GNative.core_string_concat
+  implementation: runtime/core_string_concat.swift
+  harness: 'native: GNative.core_string_concat({args}, {types})'
+- id: core.string.compare
+  contract_version: 1.0.0
+  symbol: GNative.core_string_compare
+  implementation: runtime/core_string_compare.swift
+  harness: 'native: GNative.core_string_compare({args}, {types})'
+- id: core.string.decode_rune
+  contract_version: 1.0.0
+  symbol: GNative.core_string_decode_rune
+  implementation: runtime/core_string_decode_rune.swift
+  harness: 'native: GNative.core_string_decode_rune({args}, {types})'
+- id: core.string.from_bytes
+  contract_version: 1.0.0
+  symbol: GNative.core_string_from_bytes
+  implementation: runtime/core_string_from_bytes.swift
+  harness: 'native: GNative.core_string_from_bytes({args}, {types})'
+- id: core.string.to_bytes
+  contract_version: 1.0.0
+  symbol: GNative.core_string_to_bytes
+  implementation: runtime/core_string_to_bytes.swift
+  harness: 'native: GNative.core_string_to_bytes({args}, {types})'
+- id: core.string.from_runes
+  contract_version: 1.0.0
+  symbol: GNative.core_string_from_runes
+  implementation: runtime/core_string_from_runes.swift
+  harness: 'native: GNative.core_string_from_runes({args}, {types})'
+- id: core.string.to_runes
+  contract_version: 1.0.0
+  symbol: GNative.core_string_to_runes
+  implementation: runtime/core_string_to_runes.swift
+  harness: 'native: GNative.core_string_to_runes({args}, {types})'
+- id: core.string.from_rune
+  contract_version: 1.0.0
+  symbol: GNative.core_string_from_rune
+  implementation: runtime/core_string_from_rune.swift
+  harness: 'native: GNative.core_string_from_rune({args}, {types})'
+- id: core.slice.make
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_make
+  implementation: runtime/core_slice_make.swift
+  harness: 'native: GNative.core_slice_make({args}, {types})'
+- id: core.slice.index
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_index
+  implementation: runtime/core_slice_index.swift
+  harness: 'native: GNative.core_slice_index({args}, {types})'
+- id: core.slice.store
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_store
+  implementation: runtime/core_slice_store.swift
+  harness: 'native: GNative.core_slice_store({args}, {types})'
+- id: core.slice.slice
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_slice
+  implementation: runtime/core_slice_slice.swift
+  harness: 'native: GNative.core_slice_slice({args}, {types})'
+- id: core.slice.append
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_append
+  implementation: runtime/core_slice_append.swift
+  harness: 'native: GNative.core_slice_append({args}, {types})'
+- id: core.slice.copy
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_copy
+  implementation: runtime/core_slice_copy.swift
+  harness: 'native: GNative.core_slice_copy({args}, {types})'
+- id: core.slice.clear
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_clear
+  implementation: runtime/core_slice_clear.swift
+  harness: 'native: GNative.core_slice_clear({args}, {types})'
+- id: core.slice.to_array
+  contract_version: 1.0.0
+  symbol: GNative.core_slice_to_array
+  implementation: runtime/core_slice_to_array.swift
+  harness: 'native: GNative.core_slice_to_array({args}, {types})'
+- id: core.map.make
+  contract_version: 1.0.0
+  symbol: GNative.core_map_make
+  implementation: runtime/core_map_make.swift
+  harness: 'native: GNative.core_map_make({args}, {types})'
+- id: core.map.lookup
+  contract_version: 1.0.0
+  symbol: GNative.core_map_lookup
+  implementation: runtime/core_map_lookup.swift
+  harness: 'native: GNative.core_map_lookup({args}, {types})'
+- id: core.map.store
+  contract_version: 1.0.0
+  symbol: GNative.core_map_store
+  implementation: runtime/core_map_store.swift
+  harness: 'native: GNative.core_map_store({args}, {types})'
+- id: core.map.delete
+  contract_version: 1.0.0
+  symbol: GNative.core_map_delete
+  implementation: runtime/core_map_delete.swift
+  harness: 'native: GNative.core_map_delete({args}, {types})'
+- id: core.map.len
+  contract_version: 1.0.0
+  symbol: GNative.core_map_len
+  implementation: runtime/core_map_len.swift
+  harness: 'native: GNative.core_map_len({args}, {types})'
+- id: core.map.clear
+  contract_version: 1.0.0
+  symbol: GNative.core_map_clear
+  implementation: runtime/core_map_clear.swift
+  harness: 'native: GNative.core_map_clear({args}, {types})'
+- id: core.map.iterate
+  contract_version: 1.0.0
+  symbol: GNative.core_map_iterate
+  implementation: runtime/core_map_iterate.swift
+  requires:
+  - core.map.len
+  harness: 'native: GNative.core_map_iterate({args}, {types})'
+- id: core.print
+  contract_version: 1.0.0
+  symbol: GNative.core_print
+  implementation: runtime/core_print.swift
+  harness: 'native: GNative.core_print({args}, {types})'
+- id: std.errors.new
+  contract_version: 1.0.0
+  symbol: GNative.std_errors_new
+  implementation: runtime/std_errors_new.swift
+  harness: 'native: GNative.std_errors_new({args}, {types})'
+- id: std.errors.is
+  contract_version: 1.0.0
+  symbol: GNative.std_errors_is
+  implementation: runtime/std_errors_is.swift
+  harness: 'native: GNative.std_errors_is({args}, {types})'
+- id: std.errors.unwrap
+  contract_version: 1.0.0
+  symbol: GNative.std_errors_unwrap
+  implementation: runtime/std_errors_unwrap.swift
+  harness: 'native: GNative.std_errors_unwrap({args}, {types})'
+- id: core.task.spawn
+  contract_version: 1.0.0
+  symbol: GNative.core_task_spawn
+  implementation: runtime/core_task_spawn.swift
+  harness: 'native: GNative.core_task_spawn({args}, {types})'
+- id: core.chan.make
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_make
+  implementation: runtime/core_chan_make.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.core_chan_make({args}, {types})'
+- id: core.chan.send
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_send
+  implementation: runtime/core_chan_send.swift
+  requires:
+  - core.chan.make
+  harness: 'native: GNative.core_chan_send({args}, {types})'
+- id: core.chan.recv
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_recv
+  implementation: runtime/core_chan_recv.swift
+  requires:
+  - core.chan.make
+  harness: 'native: GNative.core_chan_recv({args}, {types})'
+- id: core.chan.close
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_close
+  implementation: runtime/core_chan_close.swift
+  requires:
+  - core.chan.make
+  harness: 'native: GNative.core_chan_close({args}, {types})'
+- id: core.chan.len
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_len
+  implementation: runtime/core_chan_len.swift
+  requires:
+  - core.chan.make
+  harness: 'native: GNative.core_chan_len({args}, {types})'
+- id: core.chan.cap
+  contract_version: 1.0.0
+  symbol: GNative.core_chan_cap
+  implementation: runtime/core_chan_cap.swift
+  requires:
+  - core.chan.make
+  harness: 'native: GNative.core_chan_cap({args}, {types})'
+- id: core.select
+  contract_version: 1.0.0
+  symbol: GNative.core_select
+  implementation: runtime/core_select.swift
+  requires:
+  - core.chan.recv
+  harness: 'native: GNative.core_select({args}, {types})'
+- id: std.sync.mutex.lock
+  contract_version: 1.0.0
+  symbol: GNative.std_sync_mutex_lock
+  implementation: runtime/std_sync_mutex_lock.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.std_sync_mutex_lock({args}, {types})'
+- id: std.sync.mutex.unlock
+  contract_version: 1.0.0
+  symbol: GNative.std_sync_mutex_unlock
+  implementation: runtime/std_sync_mutex_unlock.swift
+  requires:
+  - std.sync.mutex.lock
+  harness: 'native: GNative.std_sync_mutex_unlock({args}, {types})'
+- id: std.sync.waitgroup.add
+  contract_version: 1.0.0
+  symbol: GNative.std_sync_waitgroup_add
+  implementation: runtime/std_sync_waitgroup_add.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.std_sync_waitgroup_add({args}, {types})'
+- id: std.sync.waitgroup.done
+  contract_version: 1.0.0
+  symbol: GNative.std_sync_waitgroup_done
+  implementation: runtime/std_sync_waitgroup_done.swift
+  requires:
+  - std.sync.waitgroup.add
+  harness: 'native: GNative.std_sync_waitgroup_done({args}, {types})'
+- id: std.sync.waitgroup.wait
+  contract_version: 1.0.0
+  symbol: GNative.std_sync_waitgroup_wait
+  implementation: runtime/std_sync_waitgroup_wait.swift
+  requires:
+  - std.sync.waitgroup.add
+  harness: 'native: GNative.std_sync_waitgroup_wait({args}, {types})'
+- id: std.runtime.gosched
+  contract_version: 1.0.0
+  symbol: GNative.std_runtime_gosched
+  implementation: runtime/std_runtime_gosched.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.std_runtime_gosched({args}, {types})'
+- id: std.time.sleep
+  contract_version: 1.0.0
+  symbol: GNative.std_time_sleep
+  implementation: runtime/std_time_sleep.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.std_time_sleep({args}, {types})'
+- id: std.context.background
+  contract_version: 1.0.0
+  symbol: GNative.std_context_background
+  implementation: runtime/std_context_background.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_background({args}, {types})'
+- id: std.context.with_cancel
+  contract_version: 1.0.0
+  symbol: GNative.std_context_with_cancel
+  implementation: runtime/std_context_with_cancel.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_with_cancel({args}, {types})'
+- id: std.context.with_timeout
+  contract_version: 1.0.0
+  symbol: GNative.std_context_with_timeout
+  implementation: runtime/std_context_with_timeout.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_with_timeout({args}, {types})'
+- id: std.context.done
+  contract_version: 1.0.0
+  symbol: GNative.std_context_done
+  implementation: runtime/std_context_done.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_done({args}, {types})'
+- id: std.context.err
+  contract_version: 1.0.0
+  symbol: GNative.std_context_err
+  implementation: runtime/std_context_err.swift
+  requires:
+  - core.chan.close
+  - std.errors.new
+  harness: 'native: GNative.std_context_err({args}, {types})'
+- id: std.context.canceled
+  contract_version: 1.0.0
+  symbol: GNative.std_context_canceled
+  implementation: runtime/std_context_canceled.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_canceled({args}, {types})'
+- id: std.context.deadline_exceeded
+  contract_version: 1.0.0
+  symbol: GNative.std_context_deadline_exceeded
+  implementation: runtime/std_context_deadline_exceeded.swift
+  requires:
+  - std.context.err
+  harness: 'native: GNative.std_context_deadline_exceeded({args}, {types})'
+- id: lib.task.all
+  contract_version: 1.0.0
+  symbol: GNative.lib_task_all
+  implementation: runtime/lib_task_all.swift
+  requires:
+  - core.task.spawn
+  harness: 'native: GNative.lib_task_all({args}, {types})'
+- id: lib.crypto.random
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_random
+  implementation: runtime/lib_crypto_random.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_random({args}, {types})'
+- id: lib.crypto.sha256
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_sha256
+  implementation: runtime/lib_crypto_sha256.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_sha256({args}, {types})'
+- id: lib.crypto.hmac_sha256
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_hmac_sha256
+  implementation: runtime/lib_crypto_hmac_sha256.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_hmac_sha256({args}, {types})'
+- id: lib.crypto.hmac_sha256_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_hmac_sha256_verify
+  implementation: runtime/lib_crypto_hmac_sha256_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_hmac_sha256_verify({args}, {types})'
+- id: lib.crypto.hkdf_sha256
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_hkdf_sha256
+  implementation: runtime/lib_crypto_hkdf_sha256.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_hkdf_sha256({args}, {types})'
+- id: lib.crypto.aes256_gcm_encrypt
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_aes256_gcm_encrypt
+  implementation: runtime/lib_crypto_aes256_gcm_encrypt.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_aes256_gcm_encrypt({args}, {types})'
+- id: lib.crypto.aes256_gcm_decrypt
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_aes256_gcm_decrypt
+  implementation: runtime/lib_crypto_aes256_gcm_decrypt.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_aes256_gcm_decrypt({args}, {types})'
+- id: lib.crypto.generate_rsa2048
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_generate_rsa2048
+  implementation: runtime/lib_crypto_generate_rsa2048.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_generate_rsa2048({args}, {types})'
+- id: lib.crypto.generate_p256
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_generate_p256
+  implementation: runtime/lib_crypto_generate_p256.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_generate_p256({args}, {types})'
+- id: lib.crypto.import_pem
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_import_pem
+  implementation: runtime/lib_crypto_import_pem.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_import_pem({args}, {types})'
+- id: lib.crypto.public_pem
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_public_pem
+  implementation: runtime/lib_crypto_public_pem.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_public_pem({args}, {types})'
+- id: lib.crypto.private_pem
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_private_pem
+  implementation: runtime/lib_crypto_private_pem.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_private_pem({args}, {types})'
+- id: lib.crypto.public_jwk
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_public_jwk
+  implementation: runtime/lib_crypto_public_jwk.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_public_jwk({args}, {types})'
+- id: lib.crypto.ecdh
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_ecdh
+  implementation: runtime/lib_crypto_ecdh.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_ecdh({args}, {types})'
+- id: lib.crypto.rsa_oaep_encrypt
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rsa_oaep_encrypt
+  implementation: runtime/lib_crypto_rsa_oaep_encrypt.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rsa_oaep_encrypt({args}, {types})'
+- id: lib.crypto.rsa_oaep_decrypt
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rsa_oaep_decrypt
+  implementation: runtime/lib_crypto_rsa_oaep_decrypt.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rsa_oaep_decrypt({args}, {types})'
+- id: lib.crypto.rs256_sign
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs256_sign
+  implementation: runtime/lib_crypto_rs256_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs256_sign({args}, {types})'
+- id: lib.crypto.rs256_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs256_verify
+  implementation: runtime/lib_crypto_rs256_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs256_verify({args}, {types})'
+- id: lib.crypto.es256_sign
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es256_sign
+  implementation: runtime/lib_crypto_es256_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es256_sign({args}, {types})'
+- id: lib.crypto.es256_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es256_verify
+  implementation: runtime/lib_crypto_es256_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es256_verify({args}, {types})'
+- id: lib.crypto.close
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_close
+  implementation: runtime/lib_crypto_close.swift
+  requires:
+  - core.task.spawn
+  - std.errors.new
+  harness: 'native: GNative.lib_crypto_close({args}, {types})'
+- id: lib.encoding.base64_encode
+  contract_version: 1.0.0
+  symbol: GNative.lib_encoding_base64_encode
+  implementation: runtime/lib_encoding_base64_encode.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_encoding_base64_encode({args}, {types})'
+- id: lib.encoding.base64_decode
+  contract_version: 1.0.0
+  symbol: GNative.lib_encoding_base64_decode
+  implementation: runtime/lib_encoding_base64_decode.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_encoding_base64_decode({args}, {types})'
+- id: lib.encoding.base64_url_encode
+  contract_version: 1.0.0
+  symbol: GNative.lib_encoding_base64_url_encode
+  implementation: runtime/lib_encoding_base64_url_encode.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_encoding_base64_url_encode({args}, {types})'
+- id: lib.encoding.base64_url_decode
+  contract_version: 1.0.0
+  symbol: GNative.lib_encoding_base64_url_decode
+  implementation: runtime/lib_encoding_base64_url_decode.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_encoding_base64_url_decode({args}, {types})'
+- id: lib.clock.unix
+  contract_version: 1.0.0
+  symbol: GNative.lib_clock_unix
+  implementation: runtime/lib_clock_unix.swift
+  harness: 'native: GNative.lib_clock_unix({args}, {types})'
+- id: lib.http.do
+  contract_version: 1.0.0
+  symbol: GNative.lib_http_do
+  implementation: runtime/lib_http_do.swift
+  requires:
+  - lib.crypto.close
+  - std.context.err
+  harness: 'native: GNative.lib_http_do({args}, {types})'
+- id: lib.callback.request
+  contract_version: 1.0.0
+  symbol: GNative.lib_callback_request
+  implementation: runtime/lib_callback_request.swift
+  requires:
+  - lib.crypto.close
+  - std.context.err
+  harness: 'native: GNative.lib_callback_request({args}, {types})'
+- id: lib.checksum.crc32_ieee
+  contract_version: 1.0.0
+  symbol: GNative.lib_checksum_crc32_ieee
+  implementation: runtime/lib_checksum_crc32_ieee.swift
+  harness: 'native: GNative.lib_checksum_crc32_ieee({args}, {types})'
+harness:
+  support:
+  - tests/harness/main.swift
+  - tests/harness/Codec.swift
+  - tests/harness/run.sh
+  generated: tests/harness/HarnessGen.swift
+  command:
+  - sh
+  - targets/swift/tests/harness/run.sh

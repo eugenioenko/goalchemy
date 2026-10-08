@@ -32,29 +32,31 @@ func readTree(t *testing.T, dir string) map[string][]byte {
 }
 
 func TestReproducibleOutput(t *testing.T) {
-	targets := []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}
+	targets := []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"}
 	if testing.Short() {
 		targets = targets[:2]
 	}
 	for _, target := range targets {
-		for _, f := range fixtures {
-			a, b := t.TempDir(), t.TempDir()
-			if ds := testutil.Compile(f, target, a); len(ds) > 0 {
-				t.Fatal(ds)
-			}
-			if ds := testutil.Compile(f, target, b); len(ds) > 0 {
-				t.Fatal(ds)
-			}
-			ta, tb := readTree(t, a), readTree(t, b)
-			if len(ta) != len(tb) {
-				t.Fatalf("%s %s: file sets differ", target, f)
-			}
-			for p, data := range ta {
-				if !bytes.Equal(data, tb[p]) {
-					t.Errorf("%s %s: %s differs between runs", target, f, p)
+		t.Run(target, func(t *testing.T) {
+			for _, f := range fixtures {
+				a, b := t.TempDir(), t.TempDir()
+				if ds := testutil.Compile(f, target, a); len(ds) > 0 {
+					t.Fatal(ds)
+				}
+				if ds := testutil.Compile(f, target, b); len(ds) > 0 {
+					t.Fatal(ds)
+				}
+				ta, tb := readTree(t, a), readTree(t, b)
+				if len(ta) != len(tb) {
+					t.Fatalf("%s %s: file sets differ", target, f)
+				}
+				for p, data := range ta {
+					if !bytes.Equal(data, tb[p]) {
+						t.Errorf("%s %s: %s differs between runs", target, f, p)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 

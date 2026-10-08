@@ -8,3 +8,4 @@ targets:
   csharp: {out: ../../out/examples/calc/csharp}
   rust: {out: ../../out/examples/calc/rust}
   c: {out: ../../out/examples/calc/c}
+  swift: {out: ../../out/examples/calc/swift}

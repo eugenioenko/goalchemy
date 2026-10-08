@@ -15,7 +15,7 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/driver"
 )
 
-// Exercise only the new capability cases through all seven actual host harnesses.
+// Exercise the checksum capability cases through every actual host harness.
 func TestChecksumTargetConformance(t *testing.T) {
 	for _, kv := range driver.ToolEnv() {
 		k, v, _ := strings.Cut(kv, "=")
@@ -28,7 +28,7 @@ func TestChecksumTargetConformance(t *testing.T) {
 		t.Fatal(ds)
 	}
 	const id = "lib.checksum.crc32_ieee"
-	for _, name := range []string{"go", "typescript", "python", "java", "csharp", "rust", "c"} {
+	for _, name := range []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"} {
 		t.Run(name, func(t *testing.T) {
 			target := cat.Targets[name]
 			impl, ok := target.Function(id)

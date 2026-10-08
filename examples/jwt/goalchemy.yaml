@@ -9,3 +9,4 @@ targets:
   csharp: {out: ../../out/examples/jwt/csharp}
   rust: {out: ../../out/examples/jwt/rust}
   c: {out: ../../out/examples/jwt/c}
+  swift: {out: ../../out/examples/jwt/swift}

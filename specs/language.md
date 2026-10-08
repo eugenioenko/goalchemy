@@ -71,7 +71,7 @@ Lengths, capacities, and indices use the 64-bit source profile. A backend may re
 ### Floating-point values
 
 `float32` and `float64` represent IEEE 754 binary32 and binary64 values on all
-seven targets. Named types, aliases, decimal and hexadecimal literals, and
+targets. Named types, aliases, decimal and hexadecimal literals, and
 typed or untyped constants follow Go's type and representability rules.
 Constants retain arbitrary precision until they are rounded directly to the
 destination width.

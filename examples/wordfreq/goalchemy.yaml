@@ -8,3 +8,4 @@ targets:
   csharp: {out: ../../out/examples/wordfreq/csharp}
   rust: {out: ../../out/examples/wordfreq/rust}
   c: {out: ../../out/examples/wordfreq/c}
+  swift: {out: ../../out/examples/wordfreq/swift}

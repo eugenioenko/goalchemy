@@ -22,7 +22,7 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixtures := filepath.Join(root, "tests/integration/testdata/float_library")
-	targets := []string{"go", "typescript", "python", "java", "csharp", "rust", "c"}
+	targets := []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"}
 	for _, compact := range []bool{false, true} {
 		mode := "readable"
 		if compact {
@@ -101,6 +101,32 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 					write(consumer, "Cargo.toml", fmt.Sprintf("[package]\nname=\"float-consumer\"\nversion=\"0.1.0\"\nedition=\"2021\"\n[dependencies]\ngoalchemy-generated={path=%q}\n[[bin]]\nname=\"float-consumer\"\npath=\"main.rs\"\n", out))
 					env = append(env, "CARGO_TARGET_DIR="+filepath.Join(root, "out/float-library-cargo"))
 					result = run(consumer, "cargo", "run", "--release", "--offline", "--quiet")
+				case "swift":
+					copyFixture("FloatConsumer.swift", consumer, "FloatConsumer.swift")
+					write(consumer, "Package.swift", fmt.Sprintf(`// swift-tools-version: 6.0
+import PackageDescription
+let package = Package(
+    name: "FloatConsumer",
+    dependencies: [.package(name: "GoalchemyGenerated", path: %q)],
+    targets: [.executableTarget(name: "FloatConsumer",
+        dependencies: [.product(name: "GoalchemyGenerated", package: "GoalchemyGenerated")],
+        path: ".", sources: ["FloatConsumer.swift"])],
+    swiftLanguageModes: [.v5]
+)
+`, out))
+					swift := "swift"
+					for _, entry := range env {
+						if strings.HasPrefix(entry, "PATH=") {
+							for _, dir := range filepath.SplitList(strings.TrimPrefix(entry, "PATH=")) {
+								candidate := filepath.Join(dir, "swift")
+								if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0111 != 0 {
+									swift = candidate
+									break
+								}
+							}
+						}
+					}
+					result = run(consumer, swift, "run", "-c", "release")
 				case "c":
 					run(out, "sh", "build.sh")
 					copyFixture("consumer.c", consumer, "consumer.c")

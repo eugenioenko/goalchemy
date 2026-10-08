@@ -42,6 +42,25 @@ func ToolchainRoot() string {
 func withToolchains(env []string, tc string) []string {
 	var bins []string
 	set := map[string]string{}
+	if native := filepath.Join(tc, "pkgconfig"); isDirectory(native) {
+		set["PKG_CONFIG_PATH"] = native
+		for _, entry := range env {
+			if existing, ok := strings.CutPrefix(entry, "PKG_CONFIG_PATH="); ok && existing != "" {
+				set["PKG_CONFIG_PATH"] += string(os.PathListSeparator) + existing
+				break
+			}
+		}
+	}
+	if swift, _ := filepath.Glob(filepath.Join(tc, "swift-*")); len(swift) > 0 {
+		sort.Strings(swift)
+		for i := len(swift) - 1; i >= 0; i-- {
+			selected := swift[i]
+			if st, err := os.Stat(filepath.Join(selected, "usr", "bin", "swiftc")); err == nil && !st.IsDir() {
+				bins = append(bins, filepath.Join(selected, "usr", "bin"))
+				break
+			}
+		}
+	}
 	libDir := filepath.Join(tc, "libtinfo5", "lib", "x86_64-linux-gnu")
 	if _, err := os.Stat(filepath.Join(libDir, "libtinfo.so.5")); err == nil {
 		set["LD_LIBRARY_PATH"] = libDir
@@ -84,4 +103,9 @@ func withToolchains(env []string, tc string) []string {
 		out = append(out, k+"="+v)
 	}
 	return out
+}
+
+func isDirectory(path string) bool {
+	st, err := os.Stat(path)
+	return err == nil && st.IsDir()
 }

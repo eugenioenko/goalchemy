@@ -3,6 +3,8 @@
 set -euo pipefail
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo"
+# Read the same version pin used by the archive fetcher.
+source "$repo/toolchains.lock"
 case "${1:-}" in
   '') browser_deps=() ;;
   --with-browser-deps) browser_deps=(--with-deps) ;;
@@ -12,6 +14,7 @@ esac
 # Match tests that intentionally require repository-local, hash-verified tools.
 bash scripts/fetch-toolchains.sh dotnet
 bash scripts/fetch-toolchains.sh llvm
+bash scripts/fetch-toolchains.sh swift
 
 # Prewarm both the frontend's reference Go and the native HTTP probe's Go.
 reference_go=$(sed -n 's/.*ReferenceToolchain = "\([^"]*\)".*/\1/p' internal/frontend/frontend.go)
@@ -50,13 +53,13 @@ sh targets/csharp/tests/checksum-dependencies.sh
 mkdir -p out/ci
 # The environment is also usable by local checks; no machine profiles are changed.
 {
-  printf 'export PATH=%q:"$PATH"\n' "$repo/.toolchains/ci-python/bin:$browser/node_modules/.bin:$repo/.toolchains/dotnet"
+  printf 'export PATH=%q:"$PATH"\n' "$repo/.toolchains/ci-python/bin:$browser/node_modules/.bin:$repo/.toolchains/dotnet:$repo/.toolchains/swift-$SWIFT_VERSION/usr/bin"
   printf 'export DOTNET_ROOT=%q\n' "$repo/.toolchains/dotnet"
   printf 'export PLAYWRIGHT_BROWSERS_PATH=%q\n' "$PLAYWRIGHT_BROWSERS_PATH"
   printf 'export GOALCHEMY_CHROME=%q\n' "$GOALCHEMY_CHROME"
 } > out/ci/environment.sh
 if [[ -n ${GITHUB_PATH:-} && -n ${GITHUB_ENV:-} ]]; then
-  printf '%s\n' "$repo/.toolchains/ci-python/bin" "$browser/node_modules/.bin" "$repo/.toolchains/dotnet" >> "$GITHUB_PATH"
+  printf '%s\n' "$repo/.toolchains/ci-python/bin" "$browser/node_modules/.bin" "$repo/.toolchains/dotnet" "$repo/.toolchains/swift-$SWIFT_VERSION/usr/bin" >> "$GITHUB_PATH"
   printf 'DOTNET_ROOT=%s\nPLAYWRIGHT_BROWSERS_PATH=%s\nGOALCHEMY_CHROME=%s\n' "$repo/.toolchains/dotnet" "$PLAYWRIGHT_BROWSERS_PATH" "$GOALCHEMY_CHROME" >> "$GITHUB_ENV"
 fi
 printf 'CI prerequisites ready; local shell: source %s/out/ci/environment.sh\n' "$repo"

@@ -19,7 +19,7 @@ SPECIAL_PACKAGES = {
 }
 FLOAT_FIXTURES = ('floats', 'co_floats', 'floats_panic32', 'floats_panic64',
                   'floats_panic_named32', 'floats_panic_named64')
-SUITES = ('core', 'fixtures', 'contracts', 'integration', 'floats', 'naming', 'runtime')
+SUITES = ('core', 'fixtures', 'contracts', 'integration', 'floats', 'naming', 'runtime', 'swift')
 
 
 def output(command):
@@ -78,6 +78,12 @@ def plan(suite, shard):
         selected = integration_shard(shard)
         pattern = '^(?:' + '|'.join(re.escape(name) for name in selected) + ')$'
         commands = [['go', 'test', '-short', '-v', '-timeout', '30m', '-run', pattern, INTEGRATION]]
+    elif suite == 'swift':
+        environment['GOALCHEMY_TEST_TARGETS'] = 'go,swift'
+        commands = [['go', 'test', '-v', '-parallel', '2', '-timeout', '30m', './tests/language',
+                     '-run', '^TestFixtures$', '-count=1'],
+                    ['go', 'test', '-v', '-parallel', '2', '-timeout', '30m', './tests/corpus',
+                     '-run', '^TestRegressions$', '-count=1']]
     elif suite == 'floats':
         for fixture in FLOAT_FIXTURES:
             if not (ROOT / 'tests/language/testdata' / fixture / 'main.go').is_file():
@@ -89,7 +95,7 @@ def plan(suite, shard):
         commands = [['go', 'test', '-v', '-timeout', '15m', './tests/language',
                      '-run', '^TestNamingModes$', '-count=1']]
     else:
-        # No -short or target filter: every canonical case still runs on all seven.
+        # No -short or target filter: every canonical case runs on every harness.
         commands = [['go', 'test', '-v', '-timeout', '15m', './tests/contracts',
                      '-run', '^TestTargetConformance$', '-count=1']]
     return {'suite': suite, 'shard': shard, 'environment': environment, 'commands': commands}

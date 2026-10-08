@@ -1,7 +1,7 @@
 # Hardening and upgrades
 
-Milestone 11 uses `cmd/hardening` to record three independent results for all
-seven released targets. Install the pinned Linux x64 toolchains from
+`cmd/hardening` records three independent results for all targets, including
+experimental Swift. Install the pinned Linux x64 toolchains from
 `toolchains.lock` first, then run it from the repository root. The installer
 verifies every archive's SHA-256 and builds bdwgc with POSIX thread support.
 Reports use JSON schema version 2 and
@@ -26,7 +26,7 @@ go run ./cmd/hardening -mode baseline -samples 3 -budget 15m -out reports/perfor
 `go test -short -timeout 5m ./...` is the development check. It runs Go and
 TypeScript for the language, corpus, contract, and integration matrices and
 skips the sanitizer and heap stress suites. The standard full command above
-runs all seven targets. The Go-only, one-case, eight-operation fuzz smoke test
+runs all targets. The Go-only, one-case, eight-operation fuzz smoke test
 runs in both modes.
 
 `-target go,typescript` selects a smaller matrix during development. The
@@ -84,7 +84,7 @@ That sequence records the code revision with `dirty: false` in every report.
 3. For a semantic change, update `specs/language.md`, affected canonical
    contracts, contract versions, generated specs, and conformance cases
    together. Save any reduced fuzz mismatch in `tests/corpus/` and rerun all
-   seven targets.
+   targets.
 4. Archive the old and new JSON reports with the release revision. Keep the
    seed, budgets, and toolchain image together so the result can be replayed.
 
