@@ -67,6 +67,43 @@ do { _ = try GSlice.append(.int(1),.int(2));fatalError("bad append accepted") }
 catch let e as GFault {require(e.message=="expected slice, array or string","append validation order")}
 do { _ = try GSlice.copy(.int(1),.int(2));fatalError("bad copy accepted") }
 catch let e as GFault {require(e.message=="slice representation","copy validation order")}
+// Keep only numeric addresses: retaining an Array here would itself require COW.
+func address(_ b: GBuffer) -> UInt {
+ b.bytes!.withUnsafeBufferPointer { UInt(bitPattern:$0.baseAddress!) }
+}
+let unique=GBuffer(1 << 20,1)
+for i in 0..<16 { unique.write(i,.integer(UInt64(i+1),8,false)) }
+let uniqueAddress=address(unique)
+_ = try GSlice.copy(slice(unique,2,6,unique.count-2,1),slice(unique,0,6,unique.count,1))
+require(address(unique)==uniqueAddress,"small forward copy duplicated capacity-sized storage")
+require(unique.read(2).unsigned==1 && unique.read(7).unsigned==6,"same-buffer forward copy")
+_ = try GSlice.copy(slice(unique,0,6,unique.count,1),slice(unique,2,6,unique.count-2,1))
+require(address(unique)==uniqueAddress,"small backward copy duplicated capacity-sized storage")
+require(unique.read(0).unsigned==1 && unique.read(5).unsigned==6,"same-buffer backward copy")
+let forward=try GNative.invoke("core.slice.append",[slice(unique,1,1,unique.count-1,1),slice(unique,0,6,unique.count,1)])[0]
+require(address(unique)==uniqueAddress,"in-capacity forward append duplicated backing storage")
+guard case .slice(let forwardSlice)=forward else{fatalError("forward append header")}
+require(forwardSlice.offset==1 && forwardSlice.length==7 && forwardSlice.capacity==unique.count-1,"in-capacity append header")
+require(unique.read(2).unsigned==1 && unique.read(7).unsigned==6,"same-buffer forward append")
+_ = try GSlice.append(slice(unique,1,1,unique.count-1,1),slice(unique,3,5,unique.count-3,1))
+require(address(unique)==uniqueAddress,"in-capacity backward append duplicated backing storage")
+require(unique.read(2).unsigned==2 && unique.read(6).unsigned==6,"same-buffer backward append")
+let external=GBuffer(bytes:unique.bytes!,elem:1)
+require(address(external)==uniqueAddress,"probe did not establish external COW sharing")
+require(try GSlice.copy(slice(unique,2,4,unique.count-2,1),slice(unique,2,4,unique.count-2,1)).intValue==4,"same-range copy count")
+require(try GSlice.copy(slice(unique,2,0,unique.count-2,1),slice(unique,0,4,unique.count,1)).intValue==0,"zero destination copy count")
+require(try GSlice.copy(slice(unique,2,4,unique.count-2,1),slice(unique,0,0,unique.count,1)).intValue==0,"zero source copy count")
+_ = try GSlice.append(slice(unique,1,1,unique.count-1,1),slice(unique,2,4,unique.count-2,1))
+_ = try GSlice.append(slice(unique,1,1,unique.count-1,1),slice(unique,0,0,unique.count,1))
+require(address(unique)==uniqueAddress && address(external)==uniqueAddress,"no-op byte moves detached externally shared storage")
+_ = try GSlice.copy(slice(unique,3,4,unique.count-3,1),slice(unique,0,4,unique.count,1))
+require(address(unique) != uniqueAddress && address(external)==uniqueAddress,"legitimate external-wrapper COW isolation")
+require(external.read(3).unsigned==3 && unique.read(3).unsigned==1,"same-buffer move changed external wrapper")
+let appendExternal=GBuffer(bytes:external.bytes!,elem:1)
+_ = try GSlice.append(slice(appendExternal,1,1,appendExternal.count-1,1),slice(appendExternal,0,4,appendExternal.count,1))
+require(external.read(2).unsigned==2 && appendExternal.read(2).unsigned==1,"same-buffer append changed external wrapper")
+do { _ = try GSlice.append(slice(unique,0,Int.max,Int.max,1),slice(unique,0,1,unique.count,1));fatalError("append length overflow accepted") }
+catch let e as GFault {require(e.message=="slice allocation exceeds limits","append checked length overflow")}
 let large=GBuffer(bytes:[UInt8](repeating:128,count:2 << 20),elem:0)
 let big=try GSlice.append(slice(nil,0,0,0),slice(large,1,(2 << 20)-1,(2 << 20)-1))
 require(try GNative.buffer(big).count==(2 << 20)-1,"large packed append")

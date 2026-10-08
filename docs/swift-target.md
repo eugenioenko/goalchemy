@@ -40,7 +40,7 @@ string and collection semantics do not replace it.
 | Integer | Explicit width and signedness over UInt64 bits; wrapping arithmetic and signed division toward zero |
 | `float32`, `float64` | Float/Double precision, explicit binary32 rounding, signed zero and IEEE exceptional values |
 | String | Immutable `[UInt8]`, including NUL and invalid UTF-8 |
-| Byte array or slice | Native `[UInt8]` backing with bulk append/copy and public byte conversion; nil, empty, length, capacity and shared aliases preserved |
+| Byte array or slice | Native `[UInt8]` backing with source headers for slices, bulk append/copy and public byte conversion; nil, empty, length, capacity and shared aliases preserved |
 | Other array or struct | Stable cells and recursive explicit value copies |
 | Map | Source equality and type descriptors, including aggregate keys and nonreflexive NaN |
 | Pointer | Stable cell identity; assignments update cells in place |

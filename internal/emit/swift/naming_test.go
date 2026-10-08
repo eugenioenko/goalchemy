@@ -130,6 +130,7 @@ func TestBulkByteEmission(t *testing.T) {
  type Octet uint8
  func Join(a,b []Octet) []Octet { return append(a,b...) }
  func Fixed(a [3]Octet) [3]Octet { return a }
+ func Integers(v []int) []int { return v }
  `)
 	for _, compact := range []bool{false, true} {
 		t.Run(fmt.Sprintf("compact=%v", compact), func(t *testing.T) {
@@ -139,8 +140,20 @@ func TestBulkByteEmission(t *testing.T) {
 				t.Fatal(err)
 			}
 			source := string(output.Source)
-			if strings.Contains(source, "GSlice.append(") && strings.Contains(source, "try GElements(") {
-				t.Fatal("bulk byte append or public boundary expands bytes to GValue elements")
+			foundAppend := false
+			for _, line := range strings.Split(source, "\n") {
+				_, call, ok := strings.Cut(line, "GSlice.append(")
+				if !ok {
+					continue
+				}
+				foundAppend = true
+				_, spread, ok := strings.Cut(call, ", ")
+				if !ok || strings.Contains(spread, "GElements(") {
+					t.Fatalf("spread argument expands bytes to GValue elements: %s", line)
+				}
+			}
+			if !foundAppend || !strings.Contains(source, "return try GElements(v).map") {
+				t.Fatal("fixture must exercise byte spread append and unrelated generic conversion")
 			}
 			if !strings.Contains(source, "GBuffer(bytes: v, elem:") || !strings.Contains(source, "GSlice.byteSource(v)") {
 				t.Fatal("byte public conversion lacks native buffer path")

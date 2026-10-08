@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
+#if os(Linux)
+  import Glibc
+#else
+  import Darwin
+#endif
+
 extension GSlice {
   static func make(_ length: GValue, _ capacity: GValue, _ elem: Int) throws -> GValue {
     let n = try GBounds.size(length, "makeslice: len out of range")
@@ -32,9 +38,28 @@ extension GSlice {
     let t = GTypes.table[elem]
     return t.kind == "int" && t.bits == 8 && !t.signed
   }
+  // Do not retain an ArraySlice for a move inside the same Go backing object:
+  // that would force Swift COW to duplicate the entire native byte allocation.
+  private static func moveWithin(_ buffer: GBuffer, from: Int, to: Int, count: Int) {
+    if count == 0 || from == to { return }
+    buffer.bytes!.withUnsafeMutableBufferPointer { bytes in
+      _ = memmove(bytes.baseAddress!.advanced(by: to), bytes.baseAddress!.advanced(by: from), count)
+    }
+  }
   static func append(_ value: GValue, _ source: GValue) throws -> GValue {
-    if case .slice(let s) = value, isByte(s.elem), let bytes = byteSource(source) {
-      return try appendBytes(s, bytes)
+    if case .slice(let s) = value, isByte(s.elem) {
+      if case .slice(let src) = source, let buffer = s.storage,
+        src.storage === buffer, buffer.bytes != nil
+      {
+        if src.length == 0 { return value }
+        let (n, overflow) = s.length.addingReportingOverflow(src.length)
+        if overflow { throw GFault("slice allocation exceeds limits") }
+        if n <= s.capacity {
+          moveWithin(buffer, from: src.offset, to: s.offset + s.length, count: src.length)
+          return .slice(GSlice(buffer, s.offset, n, s.capacity, s.elem))
+        }
+      }
+      if let bytes = byteSource(source) { return try appendBytes(s, bytes) }
     }
     // Keep source validation and recursive value copying in the generic path.
     return try append(value, GElements(source))
@@ -86,10 +111,19 @@ extension GSlice {
   }
   static func copy(_ dst: GValue, _ src: GValue) throws -> GValue {
     guard case .slice(let d) = dst else { throw GFault("slice representation") }
-    if isByte(d.elem), let bytes = byteSource(src) {
-      let n = min(d.length, bytes.count)
-      if n > 0 { d.storage!.bytes!.replaceSubrange(d.offset..<d.offset + n, with: bytes.prefix(n)) }
-      return .int(Int64(n))
+    if isByte(d.elem) {
+      if case .slice(let s) = src, let buffer = d.storage,
+        s.storage === buffer, buffer.bytes != nil
+      {
+        let n = min(d.length, s.length)
+        moveWithin(buffer, from: s.offset, to: d.offset, count: n)
+        return .int(Int64(n))
+      }
+      if let bytes = byteSource(src) {
+        let n = min(d.length, bytes.count)
+        if n > 0 { d.storage!.bytes!.replaceSubrange(d.offset..<d.offset + n, with: bytes.prefix(n)) }
+        return .int(Int64(n))
+      }
     }
     let elements = try GElements(src)
     let n = min(d.length, elements.count)
