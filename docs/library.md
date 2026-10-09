@@ -1384,13 +1384,21 @@ const (
 
 Layouts accepted by Format and Parse.
 
+### Sleep
+
+```go
+func Sleep(d Duration)
+```
+
+Sleep suspends the calling task for at least d of scheduler time, like lib/time.Sleep (cooperative gate).
+
 ### type Duration
 
 ```go
 type Duration int64
 ```
 
-A Duration is the elapsed time between two instants as an int64 nanosecond count. It is distinct from lib/time.Duration, which drives the scheduler clock; convert between them explicitly.
+A Duration is the elapsed time between two instants as an int64 nanosecond count. Sleep accepts it directly; it is a distinct type from lib/time.Duration, so convert explicitly when calling lib/time or lib/context APIs.
 
 ### ParseDuration
 

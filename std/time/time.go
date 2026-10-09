@@ -6,12 +6,18 @@ package time
 import (
 	"github.com/eugenioenko/goalchemy/lib/clock"
 	"github.com/eugenioenko/goalchemy/lib/errors"
+	libtime "github.com/eugenioenko/goalchemy/lib/time"
 )
 
 // A Duration is the elapsed time between two instants as an int64 nanosecond
-// count. It is distinct from lib/time.Duration, which drives the scheduler
-// clock; convert between them explicitly.
+// count. Sleep accepts it directly; it is a distinct type from
+// lib/time.Duration, so convert explicitly when calling lib/time or
+// lib/context APIs.
 type Duration int64
+
+// Sleep suspends the calling task for at least d of scheduler time, like
+// lib/time.Sleep (cooperative gate).
+func Sleep(d Duration) { libtime.Sleep(libtime.Duration(d)) }
 
 const (
 	minDuration Duration = -1 << 63

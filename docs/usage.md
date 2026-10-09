@@ -210,7 +210,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
 | `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
 | `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
-| `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
+| `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 
 | `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
@@ -231,7 +231,7 @@ The [runtime library reference](library.md) documents every function. For `lib/`
 - Every `Time` is UTC. `UTC` is the only `Location`; `Parse` applies a numeric offset and returns the UTC instant, so the original offset is not kept.
 - `Format` and `AppendFormat` accept only `RFC3339` and `RFC3339Nano` and panic on any other layout. `Parse` returns an error for any other layout. For these two layouts, `Parse` accepts and rejects the same inputs as Go, with the same error text.
 - `Now` has no monotonic reading, so `Since`, `Until` and `Sub` follow host clock adjustments. `Now` precision is the host clock's: milliseconds on TypeScript, microseconds or better elsewhere.
-- `Sleep` and scheduler timeouts stay in `lib/time`, whose `Duration` is a separate type; convert with `libtime.Duration(d)`.
+- `Sleep` takes a `std/time.Duration` and delegates to `lib/time.Sleep`. `lib/time.Duration`, used by `lib/context.WithTimeout`, is a separate type; convert with `libtime.Duration(d)`.
 
 Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` or `"strings"` directly is rejected with a remedy naming its `std/` or `lib/` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 
