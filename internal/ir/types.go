@@ -405,7 +405,7 @@ func (ts *Types) Of(gt types.Type) *Type {
 		ts.add(t)
 		for i := 0; i < g.NumMethods(); i++ {
 			m := g.Method(i)
-			t.Methods = append(t.Methods, Method{ID: m.Id(), Name: m.Name(), Sig: ts.Of(m.Type())})
+			t.Methods = append(t.Methods, Method{ID: MethodID(m), Name: m.Name(), Sig: ts.Of(m.Type())})
 		}
 		return t
 	case *types.Tuple:
