@@ -122,6 +122,27 @@ fn strings_value(v: Vec<Vec<u8>>) -> V {
     let n = v.len() as u32;
     V::Slice(vals(v.iter().map(|b| s(b)).collect()).h(), 0, n, n)
 }
+/// The JWK curve name and fixed coordinate width of a supported EC group.
+/// OpenSSL names explicit parameters that resemble a named curve, so the
+/// encoding is checked too.
+fn curve(group: &openssl::ec::EcGroupRef) -> Result<(&'static str, usize), String> {
+    if group.asn1_flag() != openssl::ec::Asn1Flag::NAMED_CURVE {
+        return Err(bad());
+    }
+    match group.curve_name() {
+        Some(Nid::X9_62_PRIME256V1) => Ok(("P-256", 32)),
+        Some(Nid::SECP384R1) => Ok(("P-384", 48)),
+        Some(Nid::SECP521R1) => Ok(("P-521", 66)),
+        _ => Err(bad()),
+    }
+}
+fn digest(bits: &str) -> MessageDigest {
+    match bits {
+        "256" => MessageDigest::sha256(),
+        "384" => MessageDigest::sha384(),
+        _ => MessageDigest::sha512(),
+    }
+}
 fn check_key(k: NativeKey) -> Result<NativeKey, String> {
     if let NativeKey::Private(private) = &k {
         match private.id() {
@@ -139,7 +160,7 @@ fn check_key(k: NativeKey) -> Result<NativeKey, String> {
         Id::RSA => {
             let rsa = native(public.rsa())?;
             if rsa.n().is_negative()
-                || rsa.n().num_bits() != 2048
+                || ![2048, 3072, 4096].contains(&rsa.n().num_bits())
                 || rsa.e().is_negative()
                 || !rsa.e().is_odd()
                 || rsa.e().num_bits() < 2
@@ -150,9 +171,7 @@ fn check_key(k: NativeKey) -> Result<NativeKey, String> {
         }
         Id::EC => {
             let ec = native(public.ec_key())?;
-            if ec.group().curve_name() != Some(Nid::X9_62_PRIME256V1) {
-                return Err(bad());
-            };
+            curve(ec.group())?;
             native(ec.check_key())?
         }
         _ => return Err(bad()),
@@ -322,11 +341,19 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
             };
             Ok(native_slice_bytes(out))
         }
-        "generate_rsa2048" => Ok(own_key(NativeKey::Private(native(PKey::from_rsa(
-            native(Rsa::generate(2048))?,
-        ))?))),
-        "generate_p256" => {
-            let group = native(EcGroup::from_curve_name(Nid::X9_62_PRIME256V1))?;
+        "generate_rsa2048" | "generate_rsa4096" => Ok(own_key(NativeKey::Private(native(
+            PKey::from_rsa(native(Rsa::generate(if op.ends_with("2048") {
+                2048
+            } else {
+                4096
+            }))?),
+        )?))),
+        "generate_p256" | "generate_p384" | "generate_p521" => {
+            let group = native(EcGroup::from_curve_name(match op {
+                "generate_p256" => Nid::X9_62_PRIME256V1,
+                "generate_p384" => Nid::SECP384R1,
+                _ => Nid::SECP521R1,
+            }))?;
             Ok(own_key(NativeKey::Private(native(PKey::from_ec_key(
                 native(EcKey::generate(&group))?,
             ))?)))
@@ -344,6 +371,7 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
                 out[3] = URL_SAFE_NO_PAD.encode(r.e().to_vec()).into_bytes()
             } else {
                 let ec = native(p.ec_key())?;
+                let (crv, width) = curve(ec.group())?;
                 let mut x = native(BigNum::new())?;
                 let mut y = native(BigNum::new())?;
                 let mut ctx = native(BigNumContext::new())?;
@@ -354,12 +382,12 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
                     &mut ctx,
                 ))?;
                 out[0] = b"EC".to_vec();
-                out[1] = b"P-256".to_vec();
+                out[1] = crv.as_bytes().to_vec();
                 out[4] = URL_SAFE_NO_PAD
-                    .encode(native(x.to_vec_padded(32))?)
+                    .encode(native(x.to_vec_padded(width as i32))?)
                     .into_bytes();
                 out[5] = URL_SAFE_NO_PAD
-                    .encode(native(y.to_vec_padded(32))?)
+                    .encode(native(y.to_vec_padded(width as i32))?)
                     .into_bytes()
             };
             Ok(strings_value(out))
@@ -370,10 +398,14 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
             if p.id() != Id::EC || q.id() != Id::EC {
                 return Err(bad());
             };
+            let (_, width) = curve(native(p.ec_key())?.group())?;
+            if curve(native(q.ec_key())?.group())?.1 != width {
+                return Err(bad());
+            }
             let mut derive = native(Deriver::new(&p))?;
             native(derive.set_peer(&q))?;
             let out = native(derive.derive_to_vec())?;
-            if out.len() != 32 {
+            if out.len() != width {
                 return Err(bad());
             }
             Ok(native_slice_bytes(out))
@@ -384,14 +416,15 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
                 return Err(bad());
             };
             let data = bytes(1)?;
-            if data.len() > 214 {
+            let size = native(p.rsa())?.size() as usize;
+            if data.len() > size - 42 {
                 return Err(bad());
             };
             let mut enc = native(Encrypter::new(&p))?;
             native(enc.set_rsa_padding(Padding::PKCS1_OAEP))?;
             native(enc.set_rsa_oaep_md(MessageDigest::sha1()))?;
             native(enc.set_rsa_mgf1_md(MessageDigest::sha1()))?;
-            let mut out = vec![0; 256];
+            let mut out = vec![0; size];
             let n = native(enc.encrypt(&data, &mut out))?;
             out.truncate(n);
             Ok(native_slice_bytes(out))
@@ -402,57 +435,71 @@ fn crypto(op: &str, a: Vec<V>) -> Result<V, String> {
                 return Err(bad());
             };
             let data = bytes(1)?;
-            if data.len() != 256 {
+            let size = native(p.rsa())?.size() as usize;
+            if data.len() != size {
                 return Err(bad());
             };
             let mut dec = native(Decrypter::new(&p))?;
             native(dec.set_rsa_padding(Padding::PKCS1_OAEP))?;
             native(dec.set_rsa_oaep_md(MessageDigest::sha1()))?;
             native(dec.set_rsa_mgf1_md(MessageDigest::sha1()))?;
-            let mut out = vec![0; 256];
+            let mut out = vec![0; size];
             let n = native(dec.decrypt(&data, &mut out))?;
             out.truncate(n);
             Ok(native_slice_bytes(out))
         }
-        "rs256_sign" | "es256_sign" => {
-            let p = key(0)?.private()?;
+        "rs256_sign" | "rs384_sign" | "rs512_sign" | "es256_sign" | "es384_sign" | "es512_sign"
+        | "rs256_verify" | "rs384_verify" | "rs512_verify" | "es256_verify" | "es384_verify"
+        | "es512_verify" => {
             let rsa = op.starts_with("rs");
-            if p.id() != if rsa { Id::RSA } else { Id::EC } {
+            let verify = op.ends_with("verify");
+            let public = native(key(0)?.public())?;
+            if public.id() != if rsa { Id::RSA } else { Id::EC } {
                 return Err(bad());
             };
-            let mut signer = native(Signer::new(MessageDigest::sha256(), &p))?;
-            if rsa {
-                native(signer.set_rsa_padding(Padding::PKCS1))?
+            let width = if rsa {
+                native(public.rsa())?.size() as usize
+            } else {
+                let (_, n) = curve(native(public.ec_key())?.group())?;
+                if n != match &op[2..5] {
+                    "256" => 32,
+                    "384" => 48,
+                    _ => 66,
+                } {
+                    return Err(bad());
+                }
+                n
             };
-            native(signer.update(&bytes(1)?))?;
-            let mut sig = native(signer.sign_to_vec())?;
-            if !rsa {
-                let s = native(EcdsaSig::from_der(&sig))?;
-                sig = native(s.r().to_vec_padded(32))?;
-                sig.extend(native(s.s().to_vec_padded(32))?)
-            };
-            Ok(native_slice_bytes(sig))
-        }
-        "rs256_verify" | "es256_verify" => {
-            let p = native(key(0)?.public())?;
-            let rsa = op.starts_with("rs");
-            if p.id() != if rsa { Id::RSA } else { Id::EC } {
-                return Err(bad());
-            };
+            let md = digest(&op[2..5]);
+            if !verify {
+                let p = key(0)?.private()?;
+                let mut signer = native(Signer::new(md, &p))?;
+                if rsa {
+                    native(signer.set_rsa_padding(Padding::PKCS1))?
+                };
+                native(signer.update(&bytes(1)?))?;
+                let mut sig = native(signer.sign_to_vec())?;
+                if !rsa {
+                    let s = native(EcdsaSig::from_der(&sig))?;
+                    sig = native(s.r().to_vec_padded(width as i32))?;
+                    sig.extend(native(s.s().to_vec_padded(width as i32))?)
+                };
+                return Ok(native_slice_bytes(sig));
+            }
             let mut sig = bytes(2)?;
-            if sig.len() != if rsa { 256 } else { 64 } {
+            if sig.len() != if rsa { width } else { 2 * width } {
                 return Err(bad());
             };
             if !rsa {
                 sig = native(
                     native(EcdsaSig::from_private_components(
-                        native(BigNum::from_slice(&sig[..32]))?,
-                        native(BigNum::from_slice(&sig[32..]))?,
+                        native(BigNum::from_slice(&sig[..width]))?,
+                        native(BigNum::from_slice(&sig[width..]))?,
                     ))?
                     .to_der(),
                 )?
             };
-            let mut verifier = native(Verifier::new(MessageDigest::sha256(), &p))?;
+            let mut verifier = native(Verifier::new(md, &public))?;
             if rsa {
                 native(verifier.set_rsa_padding(Padding::PKCS1))?
             };

@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 3b0651ad5c93165df8d6b3f5ffbdd71aaac9d2f63b8c57c2caa0bed9bc54985d
 symbol: "LibCryptoGenerateP256.libCryptoGenerateP256"
 implementation: runtime/LibCryptoGenerateP256.java
-implementation_hash: db866bf3c8d52080bad84530a322425a69282e157effc1b445d397e51b2a303c
+implementation_hash: acc9a5366c0a56a6eb3e6bdff2c23f3bb68124a0600be3726a128af143ef850c
 summary: "crypto.GenerateP256: a new random NIST P-256 private key handle."
 suspension: may
 determinism: nondeterministic

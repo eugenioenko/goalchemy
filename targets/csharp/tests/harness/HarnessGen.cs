@@ -1388,6 +1388,48 @@ static partial class Harness
 
     static JsonArray case_169(H h)
     {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        object[] rv = host(t => { R.libCryptoEs384Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
+    }
+
+    static JsonArray case_170(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        var v_signature = decByteSlice(h.Let("signature"));
+        object[] rv = host(t => { R.libCryptoEs384Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encBool(r0), encError(r1));
+    }
+
+    static JsonArray case_171(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        object[] rv = host(t => { R.libCryptoEs512Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
+    }
+
+    static JsonArray case_172(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        var v_signature = decByteSlice(h.Let("signature"));
+        object[] rv = host(t => { R.libCryptoEs512Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encBool(r0), encError(r1));
+    }
+
+    static JsonArray case_173(H h)
+    {
         var v_secret = decByteSlice(h.Let("secret"));
         var v_salt = decByteSlice(h.Let("salt"));
         var v_info = decByteSlice(h.Let("info"));
@@ -1398,7 +1440,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_170(H h)
+    static JsonArray case_174(H h)
     {
         var v_key = decByteSlice(h.Let("key"));
         var v_data = decByteSlice(h.Let("data"));
@@ -1408,7 +1450,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_171(H h)
+    static JsonArray case_175(H h)
     {
         var v_key = decByteSlice(h.Let("key"));
         var v_data = decByteSlice(h.Let("data"));
@@ -1419,7 +1461,7 @@ static partial class Harness
         return new JsonArray(encBool(r0), encError(r1));
     }
 
-    static JsonArray case_172(H h)
+    static JsonArray case_176(H h)
     {
         var v_data = decString(h.Let("data"));
         object[] rv = host(t => { R.libCryptoImportPem(t, v_data); });
@@ -1428,7 +1470,7 @@ static partial class Harness
         return new JsonArray(encKey(r0), encError(r1));
     }
 
-    static JsonArray case_173(H h)
+    static JsonArray case_177(H h)
     {
         var v_key = (Native.Key)null;
         object[] rv = host(t => { R.libCryptoPrivatePem(t, v_key); });
@@ -1437,7 +1479,7 @@ static partial class Harness
         return new JsonArray(encString(r0), encError(r1));
     }
 
-    static JsonArray case_174(H h)
+    static JsonArray case_178(H h)
     {
         var v_key = (Native.Key)null;
         object[] rv = host(t => { R.libCryptoPublicJwk(t, v_key); });
@@ -1446,7 +1488,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encString(e)), encError(r1));
     }
 
-    static JsonArray case_175(H h)
+    static JsonArray case_179(H h)
     {
         var v_key = (Native.Key)null;
         object[] rv = host(t => { R.libCryptoPublicPem(t, v_key); });
@@ -1455,7 +1497,7 @@ static partial class Harness
         return new JsonArray(encString(r0), encError(r1));
     }
 
-    static JsonArray case_176(H h)
+    static JsonArray case_180(H h)
     {
         var v_n = decInt(h.Let("n"), "i64");
         object[] rv = host(t => { R.libCryptoRandom(t, v_n); });
@@ -1464,7 +1506,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_177(H h)
+    static JsonArray case_181(H h)
     {
         var v_key = (Native.Key)null;
         var v_data = decByteSlice(h.Let("data"));
@@ -1474,7 +1516,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_178(H h)
+    static JsonArray case_182(H h)
     {
         var v_key = (Native.Key)null;
         var v_data = decByteSlice(h.Let("data"));
@@ -1485,7 +1527,49 @@ static partial class Harness
         return new JsonArray(encBool(r0), encError(r1));
     }
 
-    static JsonArray case_179(H h)
+    static JsonArray case_183(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        object[] rv = host(t => { R.libCryptoRs384Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
+    }
+
+    static JsonArray case_184(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        var v_signature = decByteSlice(h.Let("signature"));
+        object[] rv = host(t => { R.libCryptoRs384Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encBool(r0), encError(r1));
+    }
+
+    static JsonArray case_185(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        object[] rv = host(t => { R.libCryptoRs512Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
+    }
+
+    static JsonArray case_186(H h)
+    {
+        var v_key = (Native.Key)null;
+        var v_data = decByteSlice(h.Let("data"));
+        var v_signature = decByteSlice(h.Let("signature"));
+        object[] rv = host(t => { R.libCryptoRs512Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return new JsonArray(encBool(r0), encError(r1));
+    }
+
+    static JsonArray case_187(H h)
     {
         var v_key = (Native.Key)null;
         var v_data = decByteSlice(h.Let("data"));
@@ -1495,7 +1579,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_180(H h)
+    static JsonArray case_188(H h)
     {
         var v_key = (Native.Key)null;
         var v_data = decByteSlice(h.Let("data"));
@@ -1505,7 +1589,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_181(H h)
+    static JsonArray case_189(H h)
     {
         var v_data = decByteSlice(h.Let("data"));
         object[] rv = host(t => { R.libCryptoSha256(t, v_data); });
@@ -1514,7 +1598,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_182(H h)
+    static JsonArray case_190(H h)
     {
         var v_data = decString(h.Let("data"));
         object[] rv = (object[]) (R.libEncodingBase64Decode(v_data));
@@ -1523,7 +1607,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_183(H h)
+    static JsonArray case_191(H h)
     {
         var v_data = decByteSlice(h.Let("data"));
         object[] rv = (object[]) (R.libEncodingBase64Encode(v_data));
@@ -1532,7 +1616,7 @@ static partial class Harness
         return new JsonArray(encString(r0), encError(r1));
     }
 
-    static JsonArray case_184(H h)
+    static JsonArray case_192(H h)
     {
         var v_data = decString(h.Let("data"));
         object[] rv = (object[]) (R.libEncodingBase64UrlDecode(v_data));
@@ -1541,7 +1625,7 @@ static partial class Harness
         return new JsonArray(encSlice(r0, e => encInt(e, "u8")), encError(r1));
     }
 
-    static JsonArray case_185(H h)
+    static JsonArray case_193(H h)
     {
         var v_data = decByteSlice(h.Let("data"));
         object[] rv = (object[]) (R.libEncodingBase64UrlEncode(v_data));
@@ -1550,7 +1634,7 @@ static partial class Harness
         return new JsonArray(encString(r0), encError(r1));
     }
 
-    static JsonArray case_186(H h)
+    static JsonArray case_194(H h)
     {
         var v_ctx = R.stdContextBackground();
         var v_method = decString(h.Let("method"));
@@ -1567,46 +1651,46 @@ static partial class Harness
         return new JsonArray(encInt(r0, "i64"), encSlice(r1, e => encString(e)), encSlice(r2, e => encInt(e, "u8")), encError(r3));
     }
 
-    static JsonArray case_187(H h)
+    static JsonArray case_195(H h)
     {
         var v_fns = decSlice(h.Let("fns"), r => (Fn) null, () => null);
         object[] rv = R.runIsolated(t => { R.libTaskAll(t, v_fns); });
         return new JsonArray();
     }
 
-    static JsonArray case_188(H h)
+    static JsonArray case_196(H h)
     {
         var r0 = R.stdContextBackground();
         return new JsonArray(encZero(r0));
     }
 
-    static JsonArray case_189(H h)
+    static JsonArray case_197(H h)
     {
         var r0 = R.stdContextCanceled();
         return new JsonArray(encError(r0));
     }
 
-    static JsonArray case_190(H h)
+    static JsonArray case_198(H h)
     {
         var r0 = R.stdContextDeadlineExceeded();
         return new JsonArray(encError(r0));
     }
 
-    static JsonArray case_191(H h)
+    static JsonArray case_199(H h)
     {
         var v_ctx = R.stdContextBackground();
         var r0 = R.stdContextContextDone(v_ctx);
         return new JsonArray(encChan(r0, e => encZero(e)));
     }
 
-    static JsonArray case_192(H h)
+    static JsonArray case_200(H h)
     {
         var v_ctx = R.stdContextBackground();
         var r0 = R.stdContextContextErr(v_ctx);
         return new JsonArray(encError(r0));
     }
 
-    static JsonArray case_193(H h)
+    static JsonArray case_201(H h)
     {
         var v_parent = R.stdContextBackground();
         object[] rv = (object[]) (R.stdContextWithCancel(v_parent));
@@ -1615,7 +1699,7 @@ static partial class Harness
         return new JsonArray(encZero(r0), encZero(r1));
     }
 
-    static JsonArray case_194(H h)
+    static JsonArray case_202(H h)
     {
         var v_parent = R.stdContextBackground();
         var v_d = decInt(h.Let("d"), "i64");
@@ -1625,7 +1709,7 @@ static partial class Harness
         return new JsonArray(encZero(r0), encZero(r1));
     }
 
-    static JsonArray case_195(H h)
+    static JsonArray case_203(H h)
     {
         var v_err = decError(h.Let("err"));
         var v_target = decError(h.Let("target"));
@@ -1633,7 +1717,7 @@ static partial class Harness
         return new JsonArray(encBool(r0));
     }
 
-    static JsonArray case_196(H h)
+    static JsonArray case_204(H h)
     {
         var v_err = decError(h.Let("err"));
         var v_target = decError(h.Let("target"));
@@ -1641,7 +1725,7 @@ static partial class Harness
         return new JsonArray(encBool(r0));
     }
 
-    static JsonArray case_197(H h)
+    static JsonArray case_205(H h)
     {
         var v_err = decError(h.Let("err"));
         var v_target = v_err;
@@ -1649,41 +1733,41 @@ static partial class Harness
         return new JsonArray(encBool(r0));
     }
 
-    static JsonArray case_198(H h)
+    static JsonArray case_206(H h)
     {
         var v_text = decString(h.Let("text"));
         var r0 = R.stdErrorsNew(v_text);
         return new JsonArray(encError(r0));
     }
 
-    static JsonArray case_199(H h)
+    static JsonArray case_207(H h)
     {
         var v_err = decError(h.Let("err"));
         var r0 = R.stdErrorsUnwrap(v_err);
         return new JsonArray(encError(r0));
     }
 
-    static JsonArray case_200(H h)
+    static JsonArray case_208(H h)
     {
         object[] rv = R.runIsolated(t => { R.stdRuntimeGosched(t); });
         return new JsonArray();
     }
 
-    static JsonArray case_201(H h)
+    static JsonArray case_209(H h)
     {
         var v_m = new GoMutex();
         object[] rv = R.runIsolated(t => { R.stdSyncMutexLock(t, v_m); });
         return new JsonArray();
     }
 
-    static JsonArray case_202(H h)
+    static JsonArray case_210(H h)
     {
         var v_m = new GoMutex();
         object[] rv = R.runIsolated(t => { R.stdSyncMutexLock(t, v_m); R.stdSyncMutexUnlock(v_m); });
         return new JsonArray();
     }
 
-    static JsonArray case_203(H h)
+    static JsonArray case_211(H h)
     {
         var v_wg = new WaitGroup();
         var v_delta = decInt(h.Let("delta"), "i64");
@@ -1691,7 +1775,7 @@ static partial class Harness
         return new JsonArray();
     }
 
-    static JsonArray case_204(H h)
+    static JsonArray case_212(H h)
     {
         var v_wg = new WaitGroup();
         var v_delta = decInt(h.Let("delta"), "i64");
@@ -1699,21 +1783,21 @@ static partial class Harness
         return new JsonArray();
     }
 
-    static JsonArray case_205(H h)
+    static JsonArray case_213(H h)
     {
         var v_wg = new WaitGroup();
         R.stdSyncWaitgroupDone(v_wg);
         return new JsonArray();
     }
 
-    static JsonArray case_206(H h)
+    static JsonArray case_214(H h)
     {
         var v_wg = new WaitGroup();
         object[] rv = R.runIsolated(t => { R.stdSyncWaitgroupWait(t, v_wg); });
         return new JsonArray();
     }
 
-    static JsonArray case_207(H h)
+    static JsonArray case_215(H h)
     {
         var v_d = decInt(h.Let("d"), "i64");
         object[] rv = R.runIsolated(t => { R.stdTimeSleep(t, v_d); });
@@ -1891,44 +1975,52 @@ static partial class Harness
         ["lib.crypto.ecdh/boundary_example"] = case_166,
         ["lib.crypto.es256_sign/boundary_example"] = case_167,
         ["lib.crypto.es256_verify/boundary_example"] = case_168,
-        ["lib.crypto.hkdf_sha256/boundary_example"] = case_169,
-        ["lib.crypto.hmac_sha256/boundary_example"] = case_170,
-        ["lib.crypto.hmac_sha256_verify/boundary_example"] = case_171,
-        ["lib.crypto.import_pem/boundary_example"] = case_172,
-        ["lib.crypto.private_pem/boundary_example"] = case_173,
-        ["lib.crypto.public_jwk/boundary_example"] = case_174,
-        ["lib.crypto.public_pem/boundary_example"] = case_175,
-        ["lib.crypto.random/boundary_example"] = case_176,
-        ["lib.crypto.rs256_sign/boundary_example"] = case_177,
-        ["lib.crypto.rs256_verify/boundary_example"] = case_178,
-        ["lib.crypto.rsa_oaep_decrypt/boundary_example"] = case_179,
-        ["lib.crypto.rsa_oaep_encrypt/boundary_example"] = case_180,
-        ["lib.crypto.sha256/boundary_example"] = case_181,
-        ["lib.encoding.base64_decode/boundary_example"] = case_182,
-        ["lib.encoding.base64_encode/boundary_example"] = case_183,
-        ["lib.encoding.base64_url_decode/boundary_example"] = case_184,
-        ["lib.encoding.base64_url_encode/boundary_example"] = case_185,
-        ["lib.http.do/boundary_example"] = case_186,
-        ["lib.task.all/empty"] = case_187,
-        ["std.context.background/root"] = case_188,
-        ["std.context.canceled/message"] = case_189,
-        ["std.context.deadline_exceeded/message"] = case_190,
-        ["std.context.done/background"] = case_191,
-        ["std.context.err/background"] = case_192,
-        ["std.context.with_cancel/child"] = case_193,
-        ["std.context.with_timeout/child"] = case_194,
-        ["std.errors.is/distinct"] = case_195,
-        ["std.errors.is/nils"] = case_196,
-        ["std.errors.is/same"] = case_197,
-        ["std.errors.new/message"] = case_198,
-        ["std.errors.unwrap/plain"] = case_199,
-        ["std.runtime.gosched/alone"] = case_200,
-        ["std.sync.mutex.lock/unlocked"] = case_201,
-        ["std.sync.mutex.unlock/lock_then_unlock"] = case_202,
-        ["std.sync.waitgroup.add/negative"] = case_203,
-        ["std.sync.waitgroup.add/positive"] = case_204,
-        ["std.sync.waitgroup.done/underflow"] = case_205,
-        ["std.sync.waitgroup.wait/zero_returns"] = case_206,
-        ["std.time.sleep/zero"] = case_207,
+        ["lib.crypto.es384_sign/boundary_example"] = case_169,
+        ["lib.crypto.es384_verify/boundary_example"] = case_170,
+        ["lib.crypto.es512_sign/boundary_example"] = case_171,
+        ["lib.crypto.es512_verify/boundary_example"] = case_172,
+        ["lib.crypto.hkdf_sha256/boundary_example"] = case_173,
+        ["lib.crypto.hmac_sha256/boundary_example"] = case_174,
+        ["lib.crypto.hmac_sha256_verify/boundary_example"] = case_175,
+        ["lib.crypto.import_pem/boundary_example"] = case_176,
+        ["lib.crypto.private_pem/boundary_example"] = case_177,
+        ["lib.crypto.public_jwk/boundary_example"] = case_178,
+        ["lib.crypto.public_pem/boundary_example"] = case_179,
+        ["lib.crypto.random/boundary_example"] = case_180,
+        ["lib.crypto.rs256_sign/boundary_example"] = case_181,
+        ["lib.crypto.rs256_verify/boundary_example"] = case_182,
+        ["lib.crypto.rs384_sign/boundary_example"] = case_183,
+        ["lib.crypto.rs384_verify/boundary_example"] = case_184,
+        ["lib.crypto.rs512_sign/boundary_example"] = case_185,
+        ["lib.crypto.rs512_verify/boundary_example"] = case_186,
+        ["lib.crypto.rsa_oaep_decrypt/boundary_example"] = case_187,
+        ["lib.crypto.rsa_oaep_encrypt/boundary_example"] = case_188,
+        ["lib.crypto.sha256/boundary_example"] = case_189,
+        ["lib.encoding.base64_decode/boundary_example"] = case_190,
+        ["lib.encoding.base64_encode/boundary_example"] = case_191,
+        ["lib.encoding.base64_url_decode/boundary_example"] = case_192,
+        ["lib.encoding.base64_url_encode/boundary_example"] = case_193,
+        ["lib.http.do/boundary_example"] = case_194,
+        ["lib.task.all/empty"] = case_195,
+        ["std.context.background/root"] = case_196,
+        ["std.context.canceled/message"] = case_197,
+        ["std.context.deadline_exceeded/message"] = case_198,
+        ["std.context.done/background"] = case_199,
+        ["std.context.err/background"] = case_200,
+        ["std.context.with_cancel/child"] = case_201,
+        ["std.context.with_timeout/child"] = case_202,
+        ["std.errors.is/distinct"] = case_203,
+        ["std.errors.is/nils"] = case_204,
+        ["std.errors.is/same"] = case_205,
+        ["std.errors.new/message"] = case_206,
+        ["std.errors.unwrap/plain"] = case_207,
+        ["std.runtime.gosched/alone"] = case_208,
+        ["std.sync.mutex.lock/unlocked"] = case_209,
+        ["std.sync.mutex.unlock/lock_then_unlock"] = case_210,
+        ["std.sync.waitgroup.add/negative"] = case_211,
+        ["std.sync.waitgroup.add/positive"] = case_212,
+        ["std.sync.waitgroup.done/underflow"] = case_213,
+        ["std.sync.waitgroup.wait/zero_returns"] = case_214,
+        ["std.time.sleep/zero"] = case_215,
     };
 }

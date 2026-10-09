@@ -16,6 +16,9 @@ export function parsePEM(pem:string):{format:'spki'|'pkcs8';data:Uint8Array<Arra
  if(m[1]==='RSA PUBLIC KEY')b=der(48,RSA_ALG,der(3,new Uint8Array([0]),b));
  if(m[1]==='RSA PRIVATE KEY'){b=der(48,new Uint8Array([2,1,0]),RSA_ALG,der(4,b));format='pkcs8';}
  if(m[1]==='CERTIFICATE'){const cert=sequence(b);if(cert.length!==3)invalid();const tbs=sequence(cert[0].raw);const index=tbs[0]?.tag===160?6:5;if(tbs.length<=index)invalid();b=tbs[index].raw;}
- sequence(b);return {format,data:b};
+ namedCurve(b,format);return {format,data:b};
 }
+const EC_ALG=Uint8Array.from([6,7,42,134,72,206,61,2,1]);
+// WebCrypto maps explicit EC domain parameters onto a named curve without checking all of them.
+function namedCurve(b:Uint8Array<ArrayBuffer>,format:'spki'|'pkcs8'):void{const parts=sequence(b);const id=parts[format==='spki'?0:1];if(id?.tag!==48)invalid();const alg=children(id.body);if(alg[0]&&alg[0].raw.length===EC_ALG.length&&alg[0].raw.every((x,i)=>x===EC_ALG[i])&&alg[1]?.tag!==6)invalid();}
 export function pem(format:'spki'|'pkcs8',b:Uint8Array):string{const label=format==='spki'?'PUBLIC KEY':'PRIVATE KEY';const s=b64(b);return '-----BEGIN '+label+'-----\n'+s.match(/.{1,64}/g)!.join('\n')+'\n-----END '+label+'-----\n';}

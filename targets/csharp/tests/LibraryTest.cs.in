@@ -55,7 +55,7 @@ static class LibraryTest
  {
   Check(Await(Generated.KeySuccess(null))[0]==7,"native deferred Close");Check(Await(Generated.GoClose(null))[0]==8,"native goroutine Close");Check(Await(Generated.BoundClose(null))[0]==9,"native bound deferred Close");
   var hook=typeof(Crypto).GetField("beforeWork",BindingFlags.NonPublic|BindingFlags.Static);using var started=new ManualResetEventSlim();using var release=new ManualResetEventSlim();Action<string> old=(Action<string>)hook.GetValue(null);
-  hook.SetValue(null,(Action<string>)(operation=>{if(operation=="rs_sign"){started.Set();Check(release.Wait(10000),"keywork release");}}));
+  hook.SetValue(null,(Action<string>)(operation=>{if(operation=="rs256_sign"){started.Set();Check(release.Wait(10000),"keywork release");}}));
   try
   {
    var options=Providers(new Callback.Registration("ready",r=>{r.Retain();_=Task.Run(()=>{Check(started.Wait(10000),"actual native sign acquired");r.Resolve(Array.Empty<byte>());});}),new Callback.Registration("closed",r=>{Check(started.IsSet&&!release.IsSet,"alias closed while native key acquired");release.Set();r.Resolve(Array.Empty<byte>());}));

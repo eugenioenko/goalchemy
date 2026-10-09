@@ -53,11 +53,16 @@ def string_input(v,limit=MAX):
 
 def public(k): return k.public_key() if hasattr(k,'private_bytes') else k
 
+CURVES={'secp256r1':(b'P-256',32),'secp384r1':(b'P-384',48),'secp521r1':(b'P-521',66)}
+GENERATE={'generate_p256':ec.SECP256R1,'generate_p384':ec.SECP384R1,'generate_p521':ec.SECP521R1}
+HASHES={'256':hashes.SHA256,'384':hashes.SHA384,'512':hashes.SHA512}
+ES_CURVES={'256':'secp256r1','384':'secp384r1','512':'secp521r1'}
+
 def valid(k):
     if isinstance(k,(rsa.RSAPrivateKey,rsa.RSAPublicKey)):
         p=public(k).public_numbers()
-        return k.key_size==2048 and p.e>=3 and p.e%2==1
-    return isinstance(k,(ec.EllipticCurvePrivateKey,ec.EllipticCurvePublicKey)) and isinstance(k.curve,ec.SECP256R1)
+        return k.key_size in (2048,3072,4096) and p.e>=3 and p.e%2==1
+    return isinstance(k,(ec.EllipticCurvePrivateKey,ec.EllipticCurvePublicKey)) and k.curve.name in CURVES
 
 def require(k,cls):
     if not isinstance(k,cls): raise Reject('crypto: invalid input or key')
@@ -68,8 +73,8 @@ def crypto_value(op,args):
         n=args[0]
         if type(n) is not int or n<0 or n>MAX: raise Reject('crypto: invalid input or key')
         return os.urandom(n)
-    if op=='generate_rsa2048': return rsa.generate_private_key(public_exponent=65537,key_size=2048)
-    if op=='generate_p256': return ec.generate_private_key(ec.SECP256R1())
+    if op in ('generate_rsa2048','generate_rsa4096'): return rsa.generate_private_key(public_exponent=65537,key_size=int(op[-4:]))
+    if op in GENERATE: return ec.generate_private_key(GENERATE[op]())
     if op=='import_pem':
         data=string_input(args[0],65536).strip()
         m=re.fullmatch(rb'-----BEGIN (PUBLIC KEY|PRIVATE KEY|RSA PUBLIC KEY|RSA PRIVATE KEY|CERTIFICATE)-----\r?\n([A-Za-z0-9+/=\r\n]+)-----END \1-----',data)
@@ -113,26 +118,35 @@ def crypto_value(op,args):
         p=public(k).public_numbers()
         enc=lambda n,width=None:base64.urlsafe_b64encode(n.to_bytes(width or (n.bit_length()+7)//8,'big')).rstrip(b'=')
         if isinstance(public(k),rsa.RSAPublicKey):return [b'RSA',b'',enc(p.n),enc(p.e),b'',b'']
-        return [b'EC',b'P-256',b'',b'',enc(p.x,32),enc(p.y,32)]
-    if op=='ecdh':return require(k,ec.EllipticCurvePrivateKey).exchange(ec.ECDH(),require(public(material(args[1])),ec.EllipticCurvePublicKey))
+        crv,width=CURVES[p.curve.name]
+        return [b'EC',crv,b'',b'',enc(p.x,width),enc(p.y,width)]
+    if op=='ecdh':
+        own=require(k,ec.EllipticCurvePrivateKey);peer=require(public(material(args[1])),ec.EllipticCurvePublicKey)
+        if own.curve.name!=peer.curve.name:raise Reject('crypto: invalid input or key')
+        return own.exchange(ec.ECDH(),peer)
     data=byte_input(args[1]);sig=byte_input(args[2]) if len(args)>2 else None
     if op=='rsaoaep_encrypt':
-        if len(data)>214:raise Reject('crypto: invalid input or key')
+        if len(data)>require(public(k),rsa.RSAPublicKey).key_size//8-42:raise Reject('crypto: invalid input or key')
         return require(public(k),rsa.RSAPublicKey).encrypt(data,padding.OAEP(mgf=padding.MGF1(hashes.SHA1()),algorithm=hashes.SHA1(),label=None))
     if op=='rsaoaep_decrypt':
-        if len(data)!=256:raise Reject('crypto: invalid input or key')
+        if len(data)!=require(k,rsa.RSAPrivateKey).key_size//8:raise Reject('crypto: invalid input or key')
         return require(k,rsa.RSAPrivateKey).decrypt(data,padding.OAEP(mgf=padding.MGF1(hashes.SHA1()),algorithm=hashes.SHA1(),label=None))
-    if op=='rs256_sign':return require(k,rsa.RSAPrivateKey).sign(data,padding.PKCS1v15(),hashes.SHA256())
-    if op=='es256_sign':
-        r,s=utils.decode_dss_signature(require(k,ec.EllipticCurvePrivateKey).sign(data,ec.ECDSA(hashes.SHA256())))
-        return r.to_bytes(32,'big')+s.to_bytes(32,'big')
-    if op=='rs256_verify':
-        if len(sig)!=256:raise Reject('crypto: invalid input or key')
-        verifier=require(public(k),rsa.RSAPublicKey);parameters=(padding.PKCS1v15(),hashes.SHA256())
-    elif op=='es256_verify':
-        if len(sig)!=64:raise Reject('crypto: invalid input or key')
-        sig=utils.encode_dss_signature(int.from_bytes(sig[:32],'big'),int.from_bytes(sig[32:],'big'));verifier=require(public(k),ec.EllipticCurvePublicKey);parameters=(ec.ECDSA(hashes.SHA256()),)
-    else:raise HostFault('unknown crypto operation')
+    family,bits,action=op[:2],op[2:5],op[6:]
+    if family not in ('rs','es') or bits not in HASHES or action not in ('sign','verify'):raise HostFault('unknown crypto operation')
+    digest=HASHES[bits]()
+    if family=='rs':
+        verifier=require(public(k),rsa.RSAPublicKey);parameters=(padding.PKCS1v15(),digest)
+        if action=='sign':return require(k,rsa.RSAPrivateKey).sign(data,*parameters)
+        if len(sig)!=verifier.key_size//8:raise Reject('crypto: invalid input or key')
+    else:
+        verifier=require(public(k),ec.EllipticCurvePublicKey)
+        if verifier.curve.name!=ES_CURVES[bits]:raise Reject('crypto: invalid input or key')
+        width=CURVES[verifier.curve.name][1];parameters=(ec.ECDSA(digest),)
+        if action=='sign':
+            r,s=utils.decode_dss_signature(require(k,ec.EllipticCurvePrivateKey).sign(data,*parameters))
+            return r.to_bytes(width,'big')+s.to_bytes(width,'big')
+        if len(sig)!=2*width:raise Reject('crypto: invalid input or key')
+        sig=utils.encode_dss_signature(int.from_bytes(sig[:width],'big'),int.from_bytes(sig[width:],'big'))
     try:verifier.verify(sig,data,*parameters);return True
     except InvalidSignature:return False
 
@@ -145,7 +159,7 @@ def crypto_call(t,op,args,kind):
         elif kind=='key':v=key(v)
         elif kind=='strings':v=slice_strings(v)
         t.rv=[v,None]
-    except (Reject,ValueError,InvalidTag,UnsupportedAlgorithm,binascii.Error) as e:
+    except (Reject,ValueError,InvalidTag,UnsupportedAlgorithm,NotImplementedError,binascii.Error) as e:
         message=str(e) if type(e) is Reject else 'crypto: invalid input or key'
         t.rv=[zero,std_errors_new(message.encode())]
     except BaseException as e:raise HostFault('crypto adapter fault') from e

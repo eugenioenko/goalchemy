@@ -1650,7 +1650,7 @@ Every entry lists:
 | c | experimental | A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads | OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API. |
 | csharp | experimental | .NET 8 SDK (C# 12) | .NET 8 built-ins for crypto (System.Security.Cryptography) and HTTP (HttpClient); IEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package with a content-hash lock, not the shared runtime. Host runtime controls acceleration. |
 | go | experimental | go1.25 | Go standard library only: crypto/* for crypto, net/http for HTTP, and hash/crc32.ChecksumIEEE for IEEE CRC32; host runtime controls acceleration. |
-| java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and P-256 imports that omit the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |
+| java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and EC private key imports, which derive the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |
 | python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration. |
 | rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration. |
 | swift | experimental | Swift 6.4.0 on Linux x86_64 | OpenSSL 3 libcrypto, zlib CRC32, and libcurl HTTP via a C module. All current output packages include these native prerequisites. |
@@ -1852,8 +1852,15 @@ Package crypto provides bounded native cryptographic capabilities.
 | `ECDH` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `ES256Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `ES256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES384Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES384Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES512Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `ES512Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `GenerateP256` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `GenerateP384` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `GenerateP521` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `GenerateRSA2048` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `GenerateRSA4096` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `HKDFSHA256` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `HMACSHA256` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `HMACSHA256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
@@ -1864,6 +1871,10 @@ Package crypto provides bounded native cryptographic capabilities.
 | `Key.PublicPEM` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `RS256Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `RS256Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS384Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS384Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS512Sign` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `RS512Verify` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `RSAOAEPDecrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `RSAOAEPEncrypt` | yes | yes | yes | yes | yes | yes | yes | yes |
 | `Random` | yes | yes | yes | yes | yes | yes | yes | yes |
@@ -1903,13 +1914,13 @@ AES-256-GCM encryption returning ciphertext followed by the 16-byte tag, without
 func ECDH(privateKey, publicKey *Key) ([]byte, error)
 ```
 
-The raw 32-byte P-256 ECDH shared secret (the x-coordinate), before any KDF.
+The raw ECDH shared secret (the x-coordinate) of two keys on the same NIST curve, before any KDF.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: The private key must be a P-256 private key; the public key may be any P-256 key (a private key uses its public half). The secret is 32 bytes.
-- **Errors**: A private key that is not a P-256 private key, or a public key that is not a P-256 key, returns nil and an error; so does a host ECDH failure. A nil or closed key on either side returns an error.
-- **Contract**: `lib.crypto.ecdh` 1.0.0
+- **Bounds**: The private key must be a P-256, P-384 or P-521 private key; the public key must be on the same curve (a private key uses its public half). The secret is 32, 48 or 66 bytes respectively.
+- **Errors**: A private key that is not an EC private key, or a public key that is not on the same curve, returns nil and an error; so does a host ECDH failure. A nil or closed key on either side returns an error.
+- **Contract**: `lib.crypto.ecdh` 1.1.0
 
 ### ES256Sign
 
@@ -1922,8 +1933,8 @@ An ECDSA P-256 SHA-256 (ES256) signature over data as raw 32-byte R followed by 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: nondeterministic
 - **Bounds**: Requires a P-256 private key. data is at most 64MiB; the signature is 64 bytes and randomized.
-- **Errors**: A non-P-256 or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.es256_sign` 1.0.0
+- **Errors**: A key that is not a P-256 private key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es256_sign` 1.1.0
 
 ### ES256Verify
 
@@ -1936,8 +1947,64 @@ Whether signature is a valid ES256 raw R||S signature of data.
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
 - **Bounds**: Requires a P-256 key (a private key uses its public half). data is at most 64MiB; signature is exactly 64 bytes.
-- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-P-256 key, data over 64MiB or a signature that is not 64 bytes returns false and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.es256_verify` 1.0.0
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A key that is not on P-256, data over 64MiB or a signature that is not 64 bytes returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es256_verify` 1.1.0
+
+### ES384Sign
+
+```go
+func ES384Sign(k *Key, data []byte) ([]byte, error)
+```
+
+An ECDSA P-384 SHA-384 (ES384) signature over data as raw 48-byte R followed by 48-byte S.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: nondeterministic
+- **Bounds**: Requires a P-384 private key. data is at most 64MiB; the signature is 96 bytes and randomized.
+- **Errors**: A non-P-384 or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es384_sign` 1.0.0
+
+### ES384Verify
+
+```go
+func ES384Verify(k *Key, data, sig []byte) (bool, error)
+```
+
+Whether signature is a valid ES384 raw R||S signature of data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires a P-384 key (a private key uses its public half). data is at most 64MiB; signature is exactly 96 bytes.
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-P-384 key, data over 64MiB or a signature that is not 96 bytes returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es384_verify` 1.0.0
+
+### ES512Sign
+
+```go
+func ES512Sign(k *Key, data []byte) ([]byte, error)
+```
+
+An ECDSA P-521 SHA-512 (ES512) signature over data as raw 66-byte R followed by 66-byte S.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: nondeterministic
+- **Bounds**: Requires a P-521 private key. data is at most 64MiB; the signature is 132 bytes and randomized.
+- **Errors**: A non-P-521 or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es512_sign` 1.0.0
+
+### ES512Verify
+
+```go
+func ES512Verify(k *Key, data, sig []byte) (bool, error)
+```
+
+Whether signature is a valid ES512 raw R||S signature of data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires a P-521 key (a private key uses its public half). data is at most 64MiB; signature is exactly 132 bytes.
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-P-521 key, data over 64MiB or a signature that is not 132 bytes returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.es512_verify` 1.0.0
 
 ### GenerateP256
 
@@ -1952,6 +2019,32 @@ A new random NIST P-256 private key handle.
 - **Errors**: A host key-generation failure returns a nil key and an error.
 - **Contract**: `lib.crypto.generate_p256` 1.0.0
 
+### GenerateP384
+
+```go
+func GenerateP384() (*Key, error)
+```
+
+A new random NIST P-384 private key handle.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: nondeterministic
+- **Errors**: A host key-generation failure returns a nil key and an error.
+- **Contract**: `lib.crypto.generate_p384` 1.0.0
+
+### GenerateP521
+
+```go
+func GenerateP521() (*Key, error)
+```
+
+A new random NIST P-521 private key handle.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: nondeterministic
+- **Errors**: A host key-generation failure returns a nil key and an error.
+- **Contract**: `lib.crypto.generate_p521` 1.0.0
+
 ### GenerateRSA2048
 
 ```go
@@ -1965,6 +2058,20 @@ A new random RSA-2048 private key handle.
 - **Bounds**: The modulus is 2048 bits.
 - **Errors**: A host key-generation failure returns a nil key and an error.
 - **Contract**: `lib.crypto.generate_rsa2048` 1.0.0
+
+### GenerateRSA4096
+
+```go
+func GenerateRSA4096() (*Key, error)
+```
+
+A new random RSA-4096 private key handle.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: nondeterministic
+- **Bounds**: The modulus is 4096 bits.
+- **Errors**: A host key-generation failure returns a nil key and an error.
+- **Contract**: `lib.crypto.generate_rsa4096` 1.0.0
 
 ### HKDFSHA256
 
@@ -2014,13 +2121,13 @@ Constant-time check that mac is the HMAC-SHA256 of data under key.
 func ImportPEM(data string) (*Key, error)
 ```
 
-A key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key.
+A key handle from exactly one unencrypted PEM block holding an RSA key or a NIST P-256, P-384 or P-521 key.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Input is at most 64KiB. Exactly one PEM block with no headers and no other content apart from surrounding whitespace. Accepted block types: PUBLIC KEY (SPKI), PRIVATE KEY (PKCS#8), RSA PUBLIC KEY and RSA PRIVATE KEY (PKCS#1), and CERTIFICATE, whose public key is used without any trust check. RSA keys must have a 2048-bit modulus and an odd exponent of at least 3; EC keys must be on P-256.
+- **Bounds**: Input is at most 64KiB. Exactly one PEM block with no headers and no other content apart from surrounding whitespace. Accepted block types: PUBLIC KEY (SPKI), PRIVATE KEY (PKCS#8), RSA PUBLIC KEY and RSA PRIVATE KEY (PKCS#1), and CERTIFICATE, whose public key is used without any trust check. RSA keys must have a 2048, 3072 or 4096-bit modulus and an odd exponent of at least 3; EC keys must be on the named P-256, P-384 or P-521 curve with a valid point.
 - **Errors**: Oversized input, malformed or multiple blocks, PEM headers, unsupported block types, encrypted keys, other key types or sizes, and inconsistent private keys return a nil key and an error.
-- **Contract**: `lib.crypto.import_pem` 1.0.0
+- **Contract**: `lib.crypto.import_pem` 1.1.0
 
 ### Key.Close
 
@@ -2045,9 +2152,9 @@ The private key as a PKCS#8 PRIVATE KEY PEM block.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Requires an RSA-2048 or P-256 private key.
+- **Bounds**: Requires a supported RSA or EC private key.
 - **Errors**: A public-only key returns an empty string and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.private_pem` 1.0.0
+- **Contract**: `lib.crypto.private_pem` 1.1.0
 
 ### Key.PublicJWK
 
@@ -2059,9 +2166,9 @@ The key's public JWK members as [kty, crv, n, e, x, y], with no JSON encoding.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Always six strings. RSA: kty RSA, crv empty, n and e as unpadded base64url big-endian bytes, x and y empty. P-256: kty EC, crv P-256, n and e empty, x and y as unpadded base64url 32-byte coordinates. No private members.
+- **Bounds**: Always six strings. RSA: kty RSA, crv empty, n and e as unpadded base64url big-endian bytes, x and y empty. EC: kty EC, crv P-256, P-384 or P-521, n and e empty, x and y as unpadded base64url coordinates of 32, 48 or 66 bytes. No private members.
 - **Errors**: A nil or closed key returns an error.
-- **Contract**: `lib.crypto.public_jwk` 1.0.0
+- **Contract**: `lib.crypto.public_jwk` 1.1.0
 
 ### Key.PublicPEM
 
@@ -2073,9 +2180,9 @@ The key's public half as a PKIX (SPKI) PUBLIC KEY PEM block.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Accepts an RSA-2048 or P-256 key, private or public.
+- **Bounds**: Accepts any supported RSA or EC key, private or public.
 - **Errors**: A nil or closed key returns an error.
-- **Contract**: `lib.crypto.public_pem` 1.0.0
+- **Contract**: `lib.crypto.public_pem` 1.1.0
 
 ### RS256Sign
 
@@ -2087,9 +2194,9 @@ An RSASSA-PKCS1-v1_5 SHA-256 (RS256) signature over data.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Requires an RSA-2048 private key. data is at most 64MiB; the signature is 256 bytes.
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus as a private key. data is at most 64MiB; the signature is as long as the modulus in bytes.
 - **Errors**: A non-RSA or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.rs256_sign` 1.0.0
+- **Contract**: `lib.crypto.rs256_sign` 1.1.0
 
 ### RS256Verify
 
@@ -2101,9 +2208,65 @@ Whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Requires an RSA key (a private key uses its public half). data is at most 64MiB; signature is exactly 256 bytes.
-- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-RSA key, data over 64MiB or a signature that is not 256 bytes returns false and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.rs256_verify` 1.0.0
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus (a private key uses its public half). data is at most 64MiB; signature is exactly as long as the modulus in bytes.
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-RSA key, data over 64MiB or a signature that is not the modulus length returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rs256_verify` 1.1.0
+
+### RS384Sign
+
+```go
+func RS384Sign(k *Key, data []byte) ([]byte, error)
+```
+
+An RSASSA-PKCS1-v1_5 SHA-384 (RS384) signature over data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus as a private key. data is at most 64MiB; the signature is as long as the modulus in bytes.
+- **Errors**: A non-RSA or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rs384_sign` 1.0.0
+
+### RS384Verify
+
+```go
+func RS384Verify(k *Key, data, sig []byte) (bool, error)
+```
+
+Whether signature is a valid RS384 (RSASSA-PKCS1-v1_5 SHA-384) signature of data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus (a private key uses its public half). data is at most 64MiB; signature is exactly as long as the modulus in bytes.
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-RSA key, data over 64MiB or a signature that is not the modulus length returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rs384_verify` 1.0.0
+
+### RS512Sign
+
+```go
+func RS512Sign(k *Key, data []byte) ([]byte, error)
+```
+
+An RSASSA-PKCS1-v1_5 SHA-512 (RS512) signature over data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus as a private key. data is at most 64MiB; the signature is as long as the modulus in bytes.
+- **Errors**: A non-RSA or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rs512_sign` 1.0.0
+
+### RS512Verify
+
+```go
+func RS512Verify(k *Key, data, sig []byte) (bool, error)
+```
+
+Whether signature is a valid RS512 (RSASSA-PKCS1-v1_5 SHA-512) signature of data.
+
+- **Gate**: `cooperative` (may suspend the calling task)
+- **Determinism**: deterministic
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus (a private key uses its public half). data is at most 64MiB; signature is exactly as long as the modulus in bytes.
+- **Errors**: A correctly sized signature that does not verify returns false, nil. A non-RSA key, data over 64MiB or a signature that is not the modulus length returns false and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rs512_verify` 1.0.0
 
 ### RSAOAEPDecrypt
 
@@ -2111,13 +2274,13 @@ Whether signature is a valid RS256 (RSASSA-PKCS1-v1_5 SHA-256) signature of data
 func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error)
 ```
 
-RSA-2048 OAEP decryption with SHA-1, MGF1-SHA1 and an empty label.
+RSA OAEP decryption with SHA-1, MGF1-SHA1 and an empty label.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: deterministic
-- **Bounds**: Requires an RSA private key. Ciphertext is exactly 256 bytes; plaintext is at most 214 bytes.
-- **Errors**: A non-RSA or public-only key, or ciphertext that is not 256 bytes, returns nil and an error. A padding or decryption failure returns nil and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.rsa_oaep_decrypt` 1.0.0
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus as a private key. Ciphertext is exactly the modulus length in bytes.
+- **Errors**: A non-RSA or public-only key, or ciphertext that is not the modulus length, returns nil and an error. A padding or decryption failure returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rsa_oaep_decrypt` 1.1.0
 
 ### RSAOAEPEncrypt
 
@@ -2125,13 +2288,13 @@ RSA-2048 OAEP decryption with SHA-1, MGF1-SHA1 and an empty label.
 func RSAOAEPEncrypt(k *Key, data []byte) ([]byte, error)
 ```
 
-RSA-2048 OAEP encryption with SHA-1, MGF1-SHA1 and an empty label.
+RSA OAEP encryption with SHA-1, MGF1-SHA1 and an empty label.
 
 - **Gate**: `cooperative` (may suspend the calling task)
 - **Determinism**: nondeterministic
-- **Bounds**: Requires an RSA key (a private key uses its public half). Plaintext is at most 214 bytes; the ciphertext is 256 bytes and randomized.
-- **Errors**: A non-RSA key or plaintext over 214 bytes returns nil and an error. A nil or closed key returns an error.
-- **Contract**: `lib.crypto.rsa_oaep_encrypt` 1.0.0
+- **Bounds**: Requires an RSA key with a 2048, 3072 or 4096-bit modulus (a private key uses its public half). Plaintext is at most the modulus length in bytes minus 42 (214 bytes for RSA-2048); the ciphertext is as long as the modulus and randomized.
+- **Errors**: A non-RSA key or plaintext over the limit returns nil and an error. A nil or closed key returns an error.
+- **Contract**: `lib.crypto.rsa_oaep_encrypt` 1.1.0
 
 ### Random
 

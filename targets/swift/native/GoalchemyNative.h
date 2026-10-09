@@ -10,13 +10,14 @@ int gcn_aes(int, const uint8_t *, const uint8_t *, const uint8_t *, size_t, cons
 void *gcn_key_generate(int);
 void *gcn_key_import(const uint8_t *, size_t);
 int gcn_key_kind(void *);
+int gcn_key_width(void *);
 int gcn_key_private(void *);
 void *gcn_key_retain(void *);
 void gcn_key_release(void *);
 int gcn_key_export(void *, int, uint8_t **, size_t *);
 int gcn_key_component(void *, int, uint8_t *, size_t *);
-int gcn_sign(int, void *, const uint8_t *, size_t, uint8_t *, size_t *);
-int gcn_verify(int, void *, const uint8_t *, size_t, const uint8_t *, size_t);
+int gcn_sign(int, int, void *, const uint8_t *, size_t, uint8_t *, size_t *);
+int gcn_verify(int, int, void *, const uint8_t *, size_t, const uint8_t *, size_t);
 int gcn_oaep(int, void *, const uint8_t *, size_t, uint8_t *, size_t *);
 int gcn_ecdh(void *, void *, uint8_t *, size_t *);
 uint32_t gcn_crc32(const uint8_t *, size_t);

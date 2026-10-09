@@ -53,7 +53,7 @@ def vectors():
  for malformed in (b'',b'prefix'+pub,pub+pub,pub+b'x',pub.replace(b'PUBLIC KEY',b'RSA PUBLIC KEY'),b'-----BEGIN PRIVATE KEY-----\n!\n-----END PRIVATE KEY-----'):
   invalid('import_pem',malformed)
  invalid('import_pem',rsa.generate_private_key(public_exponent=65537,key_size=1024).public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo))
- invalid('import_pem',ec.generate_private_key(ec.SECP384R1()).public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo))
+ invalid('import_pem',ec.generate_private_key(ec.SECP256K1()).public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo))
  def fixed_scalar(n):return ec.derive_private_key(n,ec.SECP256R1()).private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption())
  one=ok('import_pem',fixed_scalar(1));two=ok('import_pem',fixed_scalar(2));shared=ok('ecdh',one,two)
  # RFC5915's publicKey field is optional inside PKCS8. This fixed synthetic

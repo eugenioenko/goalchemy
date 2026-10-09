@@ -1221,6 +1221,44 @@ final class HarnessGen extends Codec {
     }
 
     static List<Object> case_169(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        Object[] rv = host(t -> { LibCryptoEs384Sign.libCryptoEs384Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
+    }
+
+    static List<Object> case_170(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        var v_signature = decBytes(h.let("signature"));
+        Object[] rv = host(t -> { LibCryptoEs384Verify.libCryptoEs384Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
+    }
+
+    static List<Object> case_171(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        Object[] rv = host(t -> { LibCryptoEs512Sign.libCryptoEs512Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
+    }
+
+    static List<Object> case_172(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        var v_signature = decBytes(h.let("signature"));
+        Object[] rv = host(t -> { LibCryptoEs512Verify.libCryptoEs512Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
+    }
+
+    static List<Object> case_173(Harness.H h) {
         var v_secret = decBytes(h.let("secret"));
         var v_salt = decBytes(h.let("salt"));
         var v_info = decBytes(h.let("info"));
@@ -1231,7 +1269,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_170(Harness.H h) {
+    static List<Object> case_174(Harness.H h) {
         var v_key = decBytes(h.let("key"));
         var v_data = decBytes(h.let("data"));
         Object[] rv = host(t -> { LibCryptoHmacSha256.libCryptoHmacSha256(t, v_key, v_data); });
@@ -1240,7 +1278,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_171(Harness.H h) {
+    static List<Object> case_175(Harness.H h) {
         var v_key = decBytes(h.let("key"));
         var v_data = decBytes(h.let("data"));
         var v_mac = decBytes(h.let("mac"));
@@ -1250,7 +1288,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
     }
 
-    static List<Object> case_172(Harness.H h) {
+    static List<Object> case_176(Harness.H h) {
         var v_data = decString(h.let("data"));
         Object[] rv = host(t -> { LibCryptoImportPem.libCryptoImportPem(t, v_data); });
         var r0 = rv[0];
@@ -1258,7 +1296,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encKey(r0), encError(r1)});
     }
 
-    static List<Object> case_173(Harness.H h) {
+    static List<Object> case_177(Harness.H h) {
         var v_key = (Native.Key)null;
         Object[] rv = host(t -> { LibCryptoPrivatePem.libCryptoPrivatePem(t, v_key); });
         var r0 = rv[0];
@@ -1266,7 +1304,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encString(r0), encError(r1)});
     }
 
-    static List<Object> case_174(Harness.H h) {
+    static List<Object> case_178(Harness.H h) {
         var v_key = (Native.Key)null;
         Object[] rv = host(t -> { LibCryptoPublicJwk.libCryptoPublicJwk(t, v_key); });
         var r0 = rv[0];
@@ -1274,7 +1312,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encString(e)), encError(r1)});
     }
 
-    static List<Object> case_175(Harness.H h) {
+    static List<Object> case_179(Harness.H h) {
         var v_key = (Native.Key)null;
         Object[] rv = host(t -> { LibCryptoPublicPem.libCryptoPublicPem(t, v_key); });
         var r0 = rv[0];
@@ -1282,7 +1320,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encString(r0), encError(r1)});
     }
 
-    static List<Object> case_176(Harness.H h) {
+    static List<Object> case_180(Harness.H h) {
         var v_n = decInt(h.let("n"), "i64");
         Object[] rv = host(t -> { LibCryptoRandom.libCryptoRandom(t, v_n); });
         var r0 = rv[0];
@@ -1290,7 +1328,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_177(Harness.H h) {
+    static List<Object> case_181(Harness.H h) {
         var v_key = (Native.Key)null;
         var v_data = decBytes(h.let("data"));
         Object[] rv = host(t -> { LibCryptoRs256Sign.libCryptoRs256Sign(t, v_key, v_data); });
@@ -1299,7 +1337,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_178(Harness.H h) {
+    static List<Object> case_182(Harness.H h) {
         var v_key = (Native.Key)null;
         var v_data = decBytes(h.let("data"));
         var v_signature = decBytes(h.let("signature"));
@@ -1309,7 +1347,45 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
     }
 
-    static List<Object> case_179(Harness.H h) {
+    static List<Object> case_183(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        Object[] rv = host(t -> { LibCryptoRs384Sign.libCryptoRs384Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
+    }
+
+    static List<Object> case_184(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        var v_signature = decBytes(h.let("signature"));
+        Object[] rv = host(t -> { LibCryptoRs384Verify.libCryptoRs384Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
+    }
+
+    static List<Object> case_185(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        Object[] rv = host(t -> { LibCryptoRs512Sign.libCryptoRs512Sign(t, v_key, v_data); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
+    }
+
+    static List<Object> case_186(Harness.H h) {
+        var v_key = (Native.Key)null;
+        var v_data = decBytes(h.let("data"));
+        var v_signature = decBytes(h.let("signature"));
+        Object[] rv = host(t -> { LibCryptoRs512Verify.libCryptoRs512Verify(t, v_key, v_data, v_signature); });
+        var r0 = rv[0];
+        var r1 = rv[1];
+        return Arrays.asList(new Object[] {encBool(r0), encError(r1)});
+    }
+
+    static List<Object> case_187(Harness.H h) {
         var v_key = (Native.Key)null;
         var v_data = decBytes(h.let("data"));
         Object[] rv = host(t -> { LibCryptoRsaOaepDecrypt.libCryptoRsaOaepDecrypt(t, v_key, v_data); });
@@ -1318,7 +1394,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_180(Harness.H h) {
+    static List<Object> case_188(Harness.H h) {
         var v_key = (Native.Key)null;
         var v_data = decBytes(h.let("data"));
         Object[] rv = host(t -> { LibCryptoRsaOaepEncrypt.libCryptoRsaOaepEncrypt(t, v_key, v_data); });
@@ -1327,7 +1403,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_181(Harness.H h) {
+    static List<Object> case_189(Harness.H h) {
         var v_data = decBytes(h.let("data"));
         Object[] rv = host(t -> { LibCryptoSha256.libCryptoSha256(t, v_data); });
         var r0 = rv[0];
@@ -1335,7 +1411,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_182(Harness.H h) {
+    static List<Object> case_190(Harness.H h) {
         var v_data = decString(h.let("data"));
         Object[] rv = (Object[]) (LibEncodingBase64Decode.libEncodingBase64Decode(v_data));
         var r0 = rv[0];
@@ -1343,7 +1419,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_183(Harness.H h) {
+    static List<Object> case_191(Harness.H h) {
         var v_data = decBytes(h.let("data"));
         Object[] rv = (Object[]) (LibEncodingBase64Encode.libEncodingBase64Encode(v_data));
         var r0 = rv[0];
@@ -1351,7 +1427,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encString(r0), encError(r1)});
     }
 
-    static List<Object> case_184(Harness.H h) {
+    static List<Object> case_192(Harness.H h) {
         var v_data = decString(h.let("data"));
         Object[] rv = (Object[]) (LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode(v_data));
         var r0 = rv[0];
@@ -1359,7 +1435,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encSlice(r0, e -> encInt(e, "u8")), encError(r1)});
     }
 
-    static List<Object> case_185(Harness.H h) {
+    static List<Object> case_193(Harness.H h) {
         var v_data = decBytes(h.let("data"));
         Object[] rv = (Object[]) (LibEncodingBase64UrlEncode.libEncodingBase64UrlEncode(v_data));
         var r0 = rv[0];
@@ -1367,7 +1443,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encString(r0), encError(r1)});
     }
 
-    static List<Object> case_186(Harness.H h) {
+    static List<Object> case_194(Harness.H h) {
         var v_ctx = StdContextBackground.stdContextBackground();
         var v_method = decString(h.let("method"));
         var v_url = decString(h.let("url"));
@@ -1383,40 +1459,40 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encInt(r0, "i64"), encSlice(r1, e -> encString(e)), encSlice(r2, e -> encInt(e, "u8")), encError(r3)});
     }
 
-    static List<Object> case_187(Harness.H h) {
+    static List<Object> case_195(Harness.H h) {
         var v_fns = decSlice(h.let("fns"), r -> (Fn) null, () -> null);
         Object[] rv = TaskSpawn.runIsolated(t -> { LibTaskAll.libTaskAll(t, v_fns); });
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_188(Harness.H h) {
+    static List<Object> case_196(Harness.H h) {
         var r0 = StdContextBackground.stdContextBackground();
         return Arrays.asList(new Object[] {encZero(r0)});
     }
 
-    static List<Object> case_189(Harness.H h) {
+    static List<Object> case_197(Harness.H h) {
         var r0 = StdContextCanceled.stdContextCanceled();
         return Arrays.asList(new Object[] {encError(r0)});
     }
 
-    static List<Object> case_190(Harness.H h) {
+    static List<Object> case_198(Harness.H h) {
         var r0 = StdContextDeadlineExceeded.stdContextDeadlineExceeded();
         return Arrays.asList(new Object[] {encError(r0)});
     }
 
-    static List<Object> case_191(Harness.H h) {
+    static List<Object> case_199(Harness.H h) {
         var v_ctx = StdContextBackground.stdContextBackground();
         var r0 = StdContextDone.stdContextContextDone(v_ctx);
         return Arrays.asList(new Object[] {encChan(r0, e -> encZero(e))});
     }
 
-    static List<Object> case_192(Harness.H h) {
+    static List<Object> case_200(Harness.H h) {
         var v_ctx = StdContextBackground.stdContextBackground();
         var r0 = StdContextErr.stdContextContextErr(v_ctx);
         return Arrays.asList(new Object[] {encError(r0)});
     }
 
-    static List<Object> case_193(Harness.H h) {
+    static List<Object> case_201(Harness.H h) {
         var v_parent = StdContextBackground.stdContextBackground();
         Object[] rv = (Object[]) (StdContextWithCancel.stdContextWithCancel(v_parent));
         var r0 = rv[0];
@@ -1424,7 +1500,7 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encZero(r0), encZero(r1)});
     }
 
-    static List<Object> case_194(Harness.H h) {
+    static List<Object> case_202(Harness.H h) {
         var v_parent = StdContextBackground.stdContextBackground();
         var v_d = decInt(h.let("d"), "i64");
         Object[] rv = (Object[]) (StdContextWithTimeout.stdContextWithTimeout(v_parent, v_d));
@@ -1433,83 +1509,83 @@ final class HarnessGen extends Codec {
         return Arrays.asList(new Object[] {encZero(r0), encZero(r1)});
     }
 
-    static List<Object> case_195(Harness.H h) {
+    static List<Object> case_203(Harness.H h) {
         var v_err = decError(h.let("err"));
         var v_target = decError(h.let("target"));
         var r0 = StdErrorsIs.stdErrorsIs(v_err, v_target);
         return Arrays.asList(new Object[] {encBool(r0)});
     }
 
-    static List<Object> case_196(Harness.H h) {
+    static List<Object> case_204(Harness.H h) {
         var v_err = decError(h.let("err"));
         var v_target = decError(h.let("target"));
         var r0 = StdErrorsIs.stdErrorsIs(v_err, v_target);
         return Arrays.asList(new Object[] {encBool(r0)});
     }
 
-    static List<Object> case_197(Harness.H h) {
+    static List<Object> case_205(Harness.H h) {
         var v_err = decError(h.let("err"));
         var v_target = v_err;
         var r0 = StdErrorsIs.stdErrorsIs(v_err, v_target);
         return Arrays.asList(new Object[] {encBool(r0)});
     }
 
-    static List<Object> case_198(Harness.H h) {
+    static List<Object> case_206(Harness.H h) {
         var v_text = decString(h.let("text"));
         var r0 = StdErrorsNew.stdErrorsNew(v_text);
         return Arrays.asList(new Object[] {encError(r0)});
     }
 
-    static List<Object> case_199(Harness.H h) {
+    static List<Object> case_207(Harness.H h) {
         var v_err = decError(h.let("err"));
         var r0 = StdErrorsUnwrap.stdErrorsUnwrap(v_err);
         return Arrays.asList(new Object[] {encError(r0)});
     }
 
-    static List<Object> case_200(Harness.H h) {
+    static List<Object> case_208(Harness.H h) {
         Object[] rv = TaskSpawn.runIsolated(t -> { StdRuntimeGosched.stdRuntimeGosched(t); });
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_201(Harness.H h) {
+    static List<Object> case_209(Harness.H h) {
         var v_m = new StdSyncMutexLock.Mutex();
         Object[] rv = TaskSpawn.runIsolated(t -> { StdSyncMutexLock.stdSyncMutexLock(t, v_m); });
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_202(Harness.H h) {
+    static List<Object> case_210(Harness.H h) {
         var v_m = new StdSyncMutexLock.Mutex();
         Object[] rv = TaskSpawn.runIsolated(t -> { StdSyncMutexLock.stdSyncMutexLock(t, v_m); StdSyncMutexUnlock.stdSyncMutexUnlock(v_m); });
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_203(Harness.H h) {
+    static List<Object> case_211(Harness.H h) {
         var v_wg = new StdSyncWaitgroupAdd.WaitGroup();
         var v_delta = decInt(h.let("delta"), "i64");
         StdSyncWaitgroupAdd.stdSyncWaitgroupAdd(v_wg, v_delta);
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_204(Harness.H h) {
+    static List<Object> case_212(Harness.H h) {
         var v_wg = new StdSyncWaitgroupAdd.WaitGroup();
         var v_delta = decInt(h.let("delta"), "i64");
         StdSyncWaitgroupAdd.stdSyncWaitgroupAdd(v_wg, v_delta);
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_205(Harness.H h) {
+    static List<Object> case_213(Harness.H h) {
         var v_wg = new StdSyncWaitgroupAdd.WaitGroup();
         StdSyncWaitgroupDone.stdSyncWaitgroupDone(v_wg);
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_206(Harness.H h) {
+    static List<Object> case_214(Harness.H h) {
         var v_wg = new StdSyncWaitgroupAdd.WaitGroup();
         Object[] rv = TaskSpawn.runIsolated(t -> { StdSyncWaitgroupWait.stdSyncWaitgroupWait(t, v_wg); });
         return Arrays.asList(new Object[] {});
     }
 
-    static List<Object> case_207(Harness.H h) {
+    static List<Object> case_215(Harness.H h) {
         var v_d = decInt(h.let("d"), "i64");
         Object[] rv = TaskSpawn.runIsolated(t -> { StdTimeSleep.stdTimeSleep(t, v_d); });
         return Arrays.asList(new Object[] {});
@@ -1687,44 +1763,52 @@ final class HarnessGen extends Codec {
         CASES.put("lib.crypto.ecdh/boundary_example", HarnessGen::case_166);
         CASES.put("lib.crypto.es256_sign/boundary_example", HarnessGen::case_167);
         CASES.put("lib.crypto.es256_verify/boundary_example", HarnessGen::case_168);
-        CASES.put("lib.crypto.hkdf_sha256/boundary_example", HarnessGen::case_169);
-        CASES.put("lib.crypto.hmac_sha256/boundary_example", HarnessGen::case_170);
-        CASES.put("lib.crypto.hmac_sha256_verify/boundary_example", HarnessGen::case_171);
-        CASES.put("lib.crypto.import_pem/boundary_example", HarnessGen::case_172);
-        CASES.put("lib.crypto.private_pem/boundary_example", HarnessGen::case_173);
-        CASES.put("lib.crypto.public_jwk/boundary_example", HarnessGen::case_174);
-        CASES.put("lib.crypto.public_pem/boundary_example", HarnessGen::case_175);
-        CASES.put("lib.crypto.random/boundary_example", HarnessGen::case_176);
-        CASES.put("lib.crypto.rs256_sign/boundary_example", HarnessGen::case_177);
-        CASES.put("lib.crypto.rs256_verify/boundary_example", HarnessGen::case_178);
-        CASES.put("lib.crypto.rsa_oaep_decrypt/boundary_example", HarnessGen::case_179);
-        CASES.put("lib.crypto.rsa_oaep_encrypt/boundary_example", HarnessGen::case_180);
-        CASES.put("lib.crypto.sha256/boundary_example", HarnessGen::case_181);
-        CASES.put("lib.encoding.base64_decode/boundary_example", HarnessGen::case_182);
-        CASES.put("lib.encoding.base64_encode/boundary_example", HarnessGen::case_183);
-        CASES.put("lib.encoding.base64_url_decode/boundary_example", HarnessGen::case_184);
-        CASES.put("lib.encoding.base64_url_encode/boundary_example", HarnessGen::case_185);
-        CASES.put("lib.http.do/boundary_example", HarnessGen::case_186);
-        CASES.put("lib.task.all/empty", HarnessGen::case_187);
-        CASES.put("std.context.background/root", HarnessGen::case_188);
-        CASES.put("std.context.canceled/message", HarnessGen::case_189);
-        CASES.put("std.context.deadline_exceeded/message", HarnessGen::case_190);
-        CASES.put("std.context.done/background", HarnessGen::case_191);
-        CASES.put("std.context.err/background", HarnessGen::case_192);
-        CASES.put("std.context.with_cancel/child", HarnessGen::case_193);
-        CASES.put("std.context.with_timeout/child", HarnessGen::case_194);
-        CASES.put("std.errors.is/distinct", HarnessGen::case_195);
-        CASES.put("std.errors.is/nils", HarnessGen::case_196);
-        CASES.put("std.errors.is/same", HarnessGen::case_197);
-        CASES.put("std.errors.new/message", HarnessGen::case_198);
-        CASES.put("std.errors.unwrap/plain", HarnessGen::case_199);
-        CASES.put("std.runtime.gosched/alone", HarnessGen::case_200);
-        CASES.put("std.sync.mutex.lock/unlocked", HarnessGen::case_201);
-        CASES.put("std.sync.mutex.unlock/lock_then_unlock", HarnessGen::case_202);
-        CASES.put("std.sync.waitgroup.add/negative", HarnessGen::case_203);
-        CASES.put("std.sync.waitgroup.add/positive", HarnessGen::case_204);
-        CASES.put("std.sync.waitgroup.done/underflow", HarnessGen::case_205);
-        CASES.put("std.sync.waitgroup.wait/zero_returns", HarnessGen::case_206);
-        CASES.put("std.time.sleep/zero", HarnessGen::case_207);
+        CASES.put("lib.crypto.es384_sign/boundary_example", HarnessGen::case_169);
+        CASES.put("lib.crypto.es384_verify/boundary_example", HarnessGen::case_170);
+        CASES.put("lib.crypto.es512_sign/boundary_example", HarnessGen::case_171);
+        CASES.put("lib.crypto.es512_verify/boundary_example", HarnessGen::case_172);
+        CASES.put("lib.crypto.hkdf_sha256/boundary_example", HarnessGen::case_173);
+        CASES.put("lib.crypto.hmac_sha256/boundary_example", HarnessGen::case_174);
+        CASES.put("lib.crypto.hmac_sha256_verify/boundary_example", HarnessGen::case_175);
+        CASES.put("lib.crypto.import_pem/boundary_example", HarnessGen::case_176);
+        CASES.put("lib.crypto.private_pem/boundary_example", HarnessGen::case_177);
+        CASES.put("lib.crypto.public_jwk/boundary_example", HarnessGen::case_178);
+        CASES.put("lib.crypto.public_pem/boundary_example", HarnessGen::case_179);
+        CASES.put("lib.crypto.random/boundary_example", HarnessGen::case_180);
+        CASES.put("lib.crypto.rs256_sign/boundary_example", HarnessGen::case_181);
+        CASES.put("lib.crypto.rs256_verify/boundary_example", HarnessGen::case_182);
+        CASES.put("lib.crypto.rs384_sign/boundary_example", HarnessGen::case_183);
+        CASES.put("lib.crypto.rs384_verify/boundary_example", HarnessGen::case_184);
+        CASES.put("lib.crypto.rs512_sign/boundary_example", HarnessGen::case_185);
+        CASES.put("lib.crypto.rs512_verify/boundary_example", HarnessGen::case_186);
+        CASES.put("lib.crypto.rsa_oaep_decrypt/boundary_example", HarnessGen::case_187);
+        CASES.put("lib.crypto.rsa_oaep_encrypt/boundary_example", HarnessGen::case_188);
+        CASES.put("lib.crypto.sha256/boundary_example", HarnessGen::case_189);
+        CASES.put("lib.encoding.base64_decode/boundary_example", HarnessGen::case_190);
+        CASES.put("lib.encoding.base64_encode/boundary_example", HarnessGen::case_191);
+        CASES.put("lib.encoding.base64_url_decode/boundary_example", HarnessGen::case_192);
+        CASES.put("lib.encoding.base64_url_encode/boundary_example", HarnessGen::case_193);
+        CASES.put("lib.http.do/boundary_example", HarnessGen::case_194);
+        CASES.put("lib.task.all/empty", HarnessGen::case_195);
+        CASES.put("std.context.background/root", HarnessGen::case_196);
+        CASES.put("std.context.canceled/message", HarnessGen::case_197);
+        CASES.put("std.context.deadline_exceeded/message", HarnessGen::case_198);
+        CASES.put("std.context.done/background", HarnessGen::case_199);
+        CASES.put("std.context.err/background", HarnessGen::case_200);
+        CASES.put("std.context.with_cancel/child", HarnessGen::case_201);
+        CASES.put("std.context.with_timeout/child", HarnessGen::case_202);
+        CASES.put("std.errors.is/distinct", HarnessGen::case_203);
+        CASES.put("std.errors.is/nils", HarnessGen::case_204);
+        CASES.put("std.errors.is/same", HarnessGen::case_205);
+        CASES.put("std.errors.new/message", HarnessGen::case_206);
+        CASES.put("std.errors.unwrap/plain", HarnessGen::case_207);
+        CASES.put("std.runtime.gosched/alone", HarnessGen::case_208);
+        CASES.put("std.sync.mutex.lock/unlocked", HarnessGen::case_209);
+        CASES.put("std.sync.mutex.unlock/lock_then_unlock", HarnessGen::case_210);
+        CASES.put("std.sync.waitgroup.add/negative", HarnessGen::case_211);
+        CASES.put("std.sync.waitgroup.add/positive", HarnessGen::case_212);
+        CASES.put("std.sync.waitgroup.done/underflow", HarnessGen::case_213);
+        CASES.put("std.sync.waitgroup.wait/zero_returns", HarnessGen::case_214);
+        CASES.put("std.time.sleep/zero", HarnessGen::case_215);
     }
 }

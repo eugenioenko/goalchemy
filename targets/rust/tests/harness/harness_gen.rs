@@ -1694,6 +1694,58 @@ fn case_168(h: &H) -> Vec<J> {
 }
 
 fn case_169(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es384_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_170(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es384_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_171(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es512_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_172(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_es512_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_173(h: &H) -> Vec<J> {
     let v_secret = dec_byte_slice(h.let_("secret"));
     let v_salt = dec_byte_slice(h.let_("salt"));
     let v_info = dec_byte_slice(h.let_("info"));
@@ -1709,7 +1761,7 @@ fn case_169(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_170(h: &H) -> Vec<J> {
+fn case_174(h: &H) -> Vec<J> {
     let v_key = dec_byte_slice(h.let_("key"));
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
@@ -1721,7 +1773,7 @@ fn case_170(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_171(h: &H) -> Vec<J> {
+fn case_175(h: &H) -> Vec<J> {
     let v_key = dec_byte_slice(h.let_("key"));
     let v_data = dec_byte_slice(h.let_("data"));
     let v_mac = dec_byte_slice(h.let_("mac"));
@@ -1735,7 +1787,7 @@ fn case_171(h: &H) -> Vec<J> {
     vec![enc_bool(&r0), enc_error(&r1)]
 }
 
-fn case_172(h: &H) -> Vec<J> {
+fn case_176(h: &H) -> Vec<J> {
     let v_data = dec_string(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1745,7 +1797,7 @@ fn case_172(h: &H) -> Vec<J> {
     vec![enc_native_key(&r0), enc_error(&r1)]
 }
 
-fn case_173(h: &H) -> Vec<J> {
+fn case_177(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let _roots = temp_root(&[v_key.clone()]);
     let a0 = v_key.clone();
@@ -1755,7 +1807,7 @@ fn case_173(h: &H) -> Vec<J> {
     vec![enc_string(&r0), enc_error(&r1)]
 }
 
-fn case_174(h: &H) -> Vec<J> {
+fn case_178(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let _roots = temp_root(&[v_key.clone()]);
     let a0 = v_key.clone();
@@ -1765,7 +1817,7 @@ fn case_174(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_string(e)), enc_error(&r1)]
 }
 
-fn case_175(h: &H) -> Vec<J> {
+fn case_179(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let _roots = temp_root(&[v_key.clone()]);
     let a0 = v_key.clone();
@@ -1775,7 +1827,7 @@ fn case_175(h: &H) -> Vec<J> {
     vec![enc_string(&r0), enc_error(&r1)]
 }
 
-fn case_176(h: &H) -> Vec<J> {
+fn case_180(h: &H) -> Vec<J> {
     let v_n = dec_int(h.let_("n"), "i64");
     let _roots = temp_root(&[v_n.clone()]);
     let a0 = v_n.clone();
@@ -1785,7 +1837,7 @@ fn case_176(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_177(h: &H) -> Vec<J> {
+fn case_181(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
@@ -1797,7 +1849,7 @@ fn case_177(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_178(h: &H) -> Vec<J> {
+fn case_182(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let v_data = dec_byte_slice(h.let_("data"));
     let v_signature = dec_byte_slice(h.let_("signature"));
@@ -1811,7 +1863,59 @@ fn case_178(h: &H) -> Vec<J> {
     vec![enc_bool(&r0), enc_error(&r1)]
 }
 
-fn case_179(h: &H) -> Vec<J> {
+fn case_183(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs384_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_184(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs384_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_185(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs512_sign(t, a0.clone(), a1.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
+}
+
+fn case_186(h: &H) -> Vec<J> {
+    let v_key = V::Nil;
+    let v_data = dec_byte_slice(h.let_("data"));
+    let v_signature = dec_byte_slice(h.let_("signature"));
+    let _roots = temp_root(&[v_key.clone(), v_data.clone(), v_signature.clone()]);
+    let a0 = v_key.clone();
+    let a1 = v_data.clone();
+    let a2 = v_signature.clone();
+    let rv = run_host_isolated(move |t: &Rc<Task>| { lib_crypto_rs512_verify(t, a0.clone(), a1.clone(), a2.clone()); });
+    let r0 = rv[0].clone();
+    let r1 = rv[1].clone();
+    vec![enc_bool(&r0), enc_error(&r1)]
+}
+
+fn case_187(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
@@ -1823,7 +1927,7 @@ fn case_179(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_180(h: &H) -> Vec<J> {
+fn case_188(h: &H) -> Vec<J> {
     let v_key = V::Nil;
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_key.clone(), v_data.clone()]);
@@ -1835,7 +1939,7 @@ fn case_180(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_181(h: &H) -> Vec<J> {
+fn case_189(h: &H) -> Vec<J> {
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1845,7 +1949,7 @@ fn case_181(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_182(h: &H) -> Vec<J> {
+fn case_190(h: &H) -> Vec<J> {
     let v_data = dec_string(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1855,7 +1959,7 @@ fn case_182(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_183(h: &H) -> Vec<J> {
+fn case_191(h: &H) -> Vec<J> {
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1865,7 +1969,7 @@ fn case_183(h: &H) -> Vec<J> {
     vec![enc_string(&r0), enc_error(&r1)]
 }
 
-fn case_184(h: &H) -> Vec<J> {
+fn case_192(h: &H) -> Vec<J> {
     let v_data = dec_string(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1875,7 +1979,7 @@ fn case_184(h: &H) -> Vec<J> {
     vec![enc_slice(&r0, &|e: &V| enc_int(e, "u8")), enc_error(&r1)]
 }
 
-fn case_185(h: &H) -> Vec<J> {
+fn case_193(h: &H) -> Vec<J> {
     let v_data = dec_byte_slice(h.let_("data"));
     let _roots = temp_root(&[v_data.clone()]);
     let a0 = v_data.clone();
@@ -1885,7 +1989,7 @@ fn case_185(h: &H) -> Vec<J> {
     vec![enc_string(&r0), enc_error(&r1)]
 }
 
-fn case_186(h: &H) -> Vec<J> {
+fn case_194(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let v_method = dec_string(h.let_("method"));
     let v_url = dec_string(h.let_("url"));
@@ -1909,7 +2013,7 @@ fn case_186(h: &H) -> Vec<J> {
     vec![enc_int(&r0, "i64"), enc_slice(&r1, &|e: &V| enc_string(e)), enc_slice(&r2, &|e: &V| enc_int(e, "u8")), enc_error(&r3)]
 }
 
-fn case_187(h: &H) -> Vec<J> {
+fn case_195(h: &H) -> Vec<J> {
     let v_fns = dec_slice(h.let_("fns"), &|r: &J| V::Nil, zero_nil);
     let _roots = temp_root(&[v_fns.clone()]);
     let a0 = v_fns.clone();
@@ -1917,25 +2021,25 @@ fn case_187(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_188(h: &H) -> Vec<J> {
+fn case_196(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_background();
     vec![enc_zero(&r0)]
 }
 
-fn case_189(h: &H) -> Vec<J> {
+fn case_197(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_canceled();
     vec![enc_error(&r0)]
 }
 
-fn case_190(h: &H) -> Vec<J> {
+fn case_198(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_deadline_exceeded();
     vec![enc_error(&r0)]
 }
 
-fn case_191(h: &H) -> Vec<J> {
+fn case_199(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -1943,7 +2047,7 @@ fn case_191(h: &H) -> Vec<J> {
     vec![enc_chan(&r0, &|e: &V| enc_zero(e))]
 }
 
-fn case_192(h: &H) -> Vec<J> {
+fn case_200(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -1951,7 +2055,7 @@ fn case_192(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_193(h: &H) -> Vec<J> {
+fn case_201(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let _roots = temp_root(&[v_parent.clone()]);
     let a0 = v_parent.clone();
@@ -1961,7 +2065,7 @@ fn case_193(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_194(h: &H) -> Vec<J> {
+fn case_202(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_parent.clone(), v_d.clone()]);
@@ -1973,7 +2077,7 @@ fn case_194(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_195(h: &H) -> Vec<J> {
+fn case_203(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -1983,7 +2087,7 @@ fn case_195(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_196(h: &H) -> Vec<J> {
+fn case_204(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -1993,7 +2097,7 @@ fn case_196(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_197(h: &H) -> Vec<J> {
+fn case_205(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = v_err.clone();
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -2003,7 +2107,7 @@ fn case_197(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_198(h: &H) -> Vec<J> {
+fn case_206(h: &H) -> Vec<J> {
     let v_text = dec_string(h.let_("text"));
     let _roots = temp_root(&[v_text.clone()]);
     let a0 = v_text.clone();
@@ -2011,7 +2115,7 @@ fn case_198(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_199(h: &H) -> Vec<J> {
+fn case_207(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let _roots = temp_root(&[v_err.clone()]);
     let a0 = v_err.clone();
@@ -2019,13 +2123,13 @@ fn case_199(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_200(h: &H) -> Vec<J> {
+fn case_208(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let rv = run_isolated(move |t: &Rc<Task>| { std_runtime_gosched(t); });
     vec![]
 }
 
-fn case_201(h: &H) -> Vec<J> {
+fn case_209(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -2033,7 +2137,7 @@ fn case_201(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_202(h: &H) -> Vec<J> {
+fn case_210(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -2041,7 +2145,7 @@ fn case_202(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_203(h: &H) -> Vec<J> {
+fn case_211(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -2051,7 +2155,7 @@ fn case_203(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_204(h: &H) -> Vec<J> {
+fn case_212(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -2061,7 +2165,7 @@ fn case_204(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_205(h: &H) -> Vec<J> {
+fn case_213(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -2069,7 +2173,7 @@ fn case_205(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_206(h: &H) -> Vec<J> {
+fn case_214(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -2077,7 +2181,7 @@ fn case_206(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_207(h: &H) -> Vec<J> {
+fn case_215(h: &H) -> Vec<J> {
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_d.clone()]);
     let a0 = v_d.clone();
@@ -2255,43 +2359,51 @@ pub static CASES: &[(&str, fn(&H) -> Vec<J>)] = &[
     ("lib.crypto.ecdh/boundary_example", case_166),
     ("lib.crypto.es256_sign/boundary_example", case_167),
     ("lib.crypto.es256_verify/boundary_example", case_168),
-    ("lib.crypto.hkdf_sha256/boundary_example", case_169),
-    ("lib.crypto.hmac_sha256/boundary_example", case_170),
-    ("lib.crypto.hmac_sha256_verify/boundary_example", case_171),
-    ("lib.crypto.import_pem/boundary_example", case_172),
-    ("lib.crypto.private_pem/boundary_example", case_173),
-    ("lib.crypto.public_jwk/boundary_example", case_174),
-    ("lib.crypto.public_pem/boundary_example", case_175),
-    ("lib.crypto.random/boundary_example", case_176),
-    ("lib.crypto.rs256_sign/boundary_example", case_177),
-    ("lib.crypto.rs256_verify/boundary_example", case_178),
-    ("lib.crypto.rsa_oaep_decrypt/boundary_example", case_179),
-    ("lib.crypto.rsa_oaep_encrypt/boundary_example", case_180),
-    ("lib.crypto.sha256/boundary_example", case_181),
-    ("lib.encoding.base64_decode/boundary_example", case_182),
-    ("lib.encoding.base64_encode/boundary_example", case_183),
-    ("lib.encoding.base64_url_decode/boundary_example", case_184),
-    ("lib.encoding.base64_url_encode/boundary_example", case_185),
-    ("lib.http.do/boundary_example", case_186),
-    ("lib.task.all/empty", case_187),
-    ("std.context.background/root", case_188),
-    ("std.context.canceled/message", case_189),
-    ("std.context.deadline_exceeded/message", case_190),
-    ("std.context.done/background", case_191),
-    ("std.context.err/background", case_192),
-    ("std.context.with_cancel/child", case_193),
-    ("std.context.with_timeout/child", case_194),
-    ("std.errors.is/distinct", case_195),
-    ("std.errors.is/nils", case_196),
-    ("std.errors.is/same", case_197),
-    ("std.errors.new/message", case_198),
-    ("std.errors.unwrap/plain", case_199),
-    ("std.runtime.gosched/alone", case_200),
-    ("std.sync.mutex.lock/unlocked", case_201),
-    ("std.sync.mutex.unlock/lock_then_unlock", case_202),
-    ("std.sync.waitgroup.add/negative", case_203),
-    ("std.sync.waitgroup.add/positive", case_204),
-    ("std.sync.waitgroup.done/underflow", case_205),
-    ("std.sync.waitgroup.wait/zero_returns", case_206),
-    ("std.time.sleep/zero", case_207),
+    ("lib.crypto.es384_sign/boundary_example", case_169),
+    ("lib.crypto.es384_verify/boundary_example", case_170),
+    ("lib.crypto.es512_sign/boundary_example", case_171),
+    ("lib.crypto.es512_verify/boundary_example", case_172),
+    ("lib.crypto.hkdf_sha256/boundary_example", case_173),
+    ("lib.crypto.hmac_sha256/boundary_example", case_174),
+    ("lib.crypto.hmac_sha256_verify/boundary_example", case_175),
+    ("lib.crypto.import_pem/boundary_example", case_176),
+    ("lib.crypto.private_pem/boundary_example", case_177),
+    ("lib.crypto.public_jwk/boundary_example", case_178),
+    ("lib.crypto.public_pem/boundary_example", case_179),
+    ("lib.crypto.random/boundary_example", case_180),
+    ("lib.crypto.rs256_sign/boundary_example", case_181),
+    ("lib.crypto.rs256_verify/boundary_example", case_182),
+    ("lib.crypto.rs384_sign/boundary_example", case_183),
+    ("lib.crypto.rs384_verify/boundary_example", case_184),
+    ("lib.crypto.rs512_sign/boundary_example", case_185),
+    ("lib.crypto.rs512_verify/boundary_example", case_186),
+    ("lib.crypto.rsa_oaep_decrypt/boundary_example", case_187),
+    ("lib.crypto.rsa_oaep_encrypt/boundary_example", case_188),
+    ("lib.crypto.sha256/boundary_example", case_189),
+    ("lib.encoding.base64_decode/boundary_example", case_190),
+    ("lib.encoding.base64_encode/boundary_example", case_191),
+    ("lib.encoding.base64_url_decode/boundary_example", case_192),
+    ("lib.encoding.base64_url_encode/boundary_example", case_193),
+    ("lib.http.do/boundary_example", case_194),
+    ("lib.task.all/empty", case_195),
+    ("std.context.background/root", case_196),
+    ("std.context.canceled/message", case_197),
+    ("std.context.deadline_exceeded/message", case_198),
+    ("std.context.done/background", case_199),
+    ("std.context.err/background", case_200),
+    ("std.context.with_cancel/child", case_201),
+    ("std.context.with_timeout/child", case_202),
+    ("std.errors.is/distinct", case_203),
+    ("std.errors.is/nils", case_204),
+    ("std.errors.is/same", case_205),
+    ("std.errors.new/message", case_206),
+    ("std.errors.unwrap/plain", case_207),
+    ("std.runtime.gosched/alone", case_208),
+    ("std.sync.mutex.lock/unlocked", case_209),
+    ("std.sync.mutex.unlock/lock_then_unlock", case_210),
+    ("std.sync.waitgroup.add/negative", case_211),
+    ("std.sync.waitgroup.add/positive", case_212),
+    ("std.sync.waitgroup.done/underflow", case_213),
+    ("std.sync.waitgroup.wait/zero_returns", case_214),
+    ("std.time.sleep/zero", case_215),
 ];

@@ -217,7 +217,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/task` | `All` (cooperative gate) |
-| `github.com/eugenioenko/goalchemy/lib/crypto` | `Key`, SHA-256, HMAC-SHA256, HKDF-SHA256, AES-256-GCM, RSA-2048 OAEP, RS256, ES256, P-256 ECDH, key generation, PEM and JWK |
+| `github.com/eugenioenko/goalchemy/lib/crypto` | `Key`, SHA-256, HMAC-SHA256, HKDF-SHA256, AES-256-GCM, RSA OAEP (2048, 3072 and 4096-bit), RS256/384/512, ES256/384/512, P-256/P-384/P-521 ECDH, key generation, PEM and JWK |
 | `github.com/eugenioenko/goalchemy/lib/encoding` | `Base64Encode`, `Base64Decode`, `Base64URLEncode`, `Base64URLDecode` |
 | `github.com/eugenioenko/goalchemy/lib/http` | `Do`, a bounded GET or POST exchange |
 | `github.com/eugenioenko/goalchemy/lib/clock` | `Unix`, host wall-clock seconds |

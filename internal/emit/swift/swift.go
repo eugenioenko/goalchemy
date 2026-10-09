@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/eugenioenko/goalchemy/internal/emit/artifact"
 	"github.com/eugenioenko/goalchemy/internal/ir"
@@ -30,6 +31,27 @@ type emitter struct {
 }
 
 func quote(s string) string { return strconv.Quote(s) }
+
+// swiftString spells valid UTF-8 as a Swift string literal.
+func swiftString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch {
+		case r == '\\' || r == '"':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r >= 0x20 && r < 0x7f:
+			b.WriteRune(r)
+		default:
+			fmt.Fprintf(&b, `\u{%x}`, r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
 func id(t *ir.Type) int {
 	if t == nil {
 		return -1
@@ -134,8 +156,14 @@ func (e *emitter) constant(c *ir.Const) string {
 		}
 		return fmt.Sprintf("GValue.integer(%d, %d, %t)", v, u.Int.Bits(), u.Int.Signed())
 	case constant.String:
+		s := constant.StringVal(c.Val)
+		// swiftc type-checks large byte-array literals slowly, so valid UTF-8
+		// uses a string literal, whose utf8 view holds the same bytes.
+		if utf8.ValidString(s) {
+			return "GValue.text(" + swiftString(s) + ")"
+		}
 		var bytes []string
-		for _, v := range []byte(constant.StringVal(c.Val)) {
+		for _, v := range []byte(s) {
 			bytes = append(bytes, strconv.Itoa(int(v)))
 		}
 		return "GValue.string([" + strings.Join(bytes, ",") + "])"

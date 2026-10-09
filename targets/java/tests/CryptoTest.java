@@ -30,21 +30,21 @@ public final class CryptoTest {
   byte[] cipher=Crypto.aes(new byte[32],new byte[12],new byte[16],new byte[0],true);
   eq(cipher,"cea7403d4d606b6e074ec5d3baf39d18d0d1c8a799996bf0265b98b5d48ab919","NISTAES");check(Arrays.equals(Crypto.aes(new byte[32],new byte[12],cipher,new byte[0],false),new byte[16]),"AESdecrypt");cipher[0]^=1;reject(()->Crypto.aes(new byte[32],new byte[12],cipher,new byte[0],false),"AESreject");
   for(boolean rsa:new boolean[]{true,false}){
-   Native.Material material=Crypto.generate(rsa);
+   Native.Material material=Crypto.generate(rsa?"rsa2048":"p256");
    try(Native.Lease own=material.acquire()){
     Native.Material imported=Crypto.importPEM(Crypto.privatePEM(own)),publicOnly=Crypto.importPEM(Crypto.publicPEM(own));
     try(Native.Lease a=imported.acquire();Native.Lease b=publicOnly.acquire()){
      check(Arrays.equals(own.publicKey.getEncoded(),a.publicKey.getEncoded()),"PEMidentity");check(Arrays.equals(Crypto.jwk(own),Crypto.jwk(a)),"JWKidentity");
-     byte[] sig=Crypto.sign(a,data,!rsa);check(Crypto.verify(b,data,sig,!rsa),"nativeJOSE");sig[0]^=1;check(!Crypto.verify(b,data,sig,!rsa),"signatureReject");
-     Signature independent=Signature.getInstance(rsa?"SHA256withRSA":"SHA256withECDSA");independent.initSign(own.privateKey);independent.update(data);byte[] nativeSig=independent.sign();check(Crypto.verify(b,data,rsa?nativeSig:Der.rawSignature(nativeSig),!rsa),"JCAtoAdapter");
-     independent.initVerify(own.publicKey);independent.update(data);byte[] adapterSig=Crypto.sign(a,data,!rsa);check(independent.verify(rsa?adapterSig:Der.derSignature(adapterSig)),"AdapterToJCA");
+     byte[] sig=Crypto.sign(a,data,rsa?"rs256":"es256");check(Crypto.verify(b,data,sig,rsa?"rs256":"es256"),"nativeJOSE");sig[0]^=1;check(!Crypto.verify(b,data,sig,rsa?"rs256":"es256"),"signatureReject");
+     Signature independent=Signature.getInstance(rsa?"SHA256withRSA":"SHA256withECDSA");independent.initSign(own.privateKey);independent.update(data);byte[] nativeSig=independent.sign();check(Crypto.verify(b,data,rsa?nativeSig:Der.rawSignature(nativeSig,32),rsa?"rs256":"es256"),"JCAtoAdapter");
+     independent.initVerify(own.publicKey);independent.update(data);byte[] adapterSig=Crypto.sign(a,data,rsa?"rs256":"es256");check(independent.verify(rsa?adapterSig:Der.derSignature(adapterSig)),"AdapterToJCA");
      if(rsa){
       Cipher oaep=Cipher.getInstance("RSA/ECB/OAEPPadding");OAEPParameterSpec spec=new OAEPParameterSpec("SHA-1","MGF1",MGF1ParameterSpec.SHA1,PSource.PSpecified.DEFAULT);oaep.init(Cipher.ENCRYPT_MODE,own.publicKey,spec);check(Arrays.equals(Crypto.rsa(a,oaep.doFinal(data),false),data),"JCAOAEPtoAdapter");oaep.init(Cipher.DECRYPT_MODE,own.privateKey,spec);check(Arrays.equals(oaep.doFinal(Crypto.rsa(b,data,true)),data),"AdapterOAEPtoJCA");reject(()->Crypto.rsa(b,new byte[215],true),"OAEPbound");
       RSAPublicKey publicKey=(RSAPublicKey)own.publicKey;Native.Material public1=Crypto.importPEM(pem("RSA PUBLIC KEY",Der.seq(Der.integer(publicKey.getModulus()),Der.integer(publicKey.getPublicExponent()))));try(Native.Lease p=public1.acquire()){check(Arrays.equals(Crypto.jwk(p),Crypto.jwk(own)),"PKCS1public");}finally{public1.close();}
       RSAPrivateCrtKey k=(RSAPrivateCrtKey)own.privateKey;byte[] pkcs1=Der.seq(Der.integer(java.math.BigInteger.ZERO),Der.integer(k.getModulus()),Der.integer(k.getPublicExponent()),Der.integer(k.getPrivateExponent()),Der.integer(k.getPrimeP()),Der.integer(k.getPrimeQ()),Der.integer(k.getPrimeExponentP()),Der.integer(k.getPrimeExponentQ()),Der.integer(k.getCrtCoefficient()));Native.Material p1=Crypto.importPEM(pem("RSA PRIVATE KEY",pkcs1));try(Native.Lease p=p1.acquire()){check(Arrays.equals(Crypto.jwk(p),Crypto.jwk(own)),"PKCS1private");}finally{p1.close();}
      }else{
-      Native.Material other=Crypto.generate(false);try(Native.Lease c=other.acquire()){check(Arrays.equals(Crypto.ecdh(a,c),Crypto.ecdh(c,b)),"ECDH32");}finally{other.close();}
-      Native.Material noQ=Crypto.importPEM(pem("PRIVATE KEY",own.privateKey.getEncoded()));try(Native.Lease q=noQ.acquire()){check(Arrays.equals(q.publicKey.getEncoded(),own.publicKey.getEncoded()),"standaloneOmittedQ");check(Crypto.verify(q,data,Crypto.sign(q,data,true),true),"omittedQsign");}finally{noQ.close();}
+      Native.Material other=Crypto.generate("p256");try(Native.Lease c=other.acquire()){check(Arrays.equals(Crypto.ecdh(a,c),Crypto.ecdh(c,b)),"ECDH32");}finally{other.close();}
+      Native.Material noQ=Crypto.importPEM(pem("PRIVATE KEY",own.privateKey.getEncoded()));try(Native.Lease q=noQ.acquire()){check(Arrays.equals(q.publicKey.getEncoded(),own.publicKey.getEncoded()),"standaloneOmittedQ");check(Crypto.verify(q,data,Crypto.sign(q,data,"es256"),"es256"),"omittedQsign");}finally{noQ.close();}
       byte[] point=new byte[65];point[0]=4;point[64]=1;byte[] mismatch=Der.privateWithPoint(own.privateKey.getEncoded(),point);reject(()->Crypto.importPEM(pem("PRIVATE KEY",mismatch)),"mismatchedQ");
      }
     }finally{imported.close();publicOnly.close();}
@@ -65,8 +65,8 @@ public final class CryptoTest {
    boolean ec=name.equals("ec");Native.Material material=Crypto.importPEM(Files.readString(dir.resolve(name+"-private.pem"))),certificate=Crypto.importPEM(Files.readString(dir.resolve(name+"-cert.pem")));
    try(Native.Lease own=material.acquire();Native.Lease cert=certificate.acquire()){
     check(Arrays.equals(own.publicKey.getEncoded(),cert.publicKey.getEncoded()),name+" actual certificate public identity");String[] j=Crypto.jwk(own);String canonical=ec?"{\"crv\":\""+j[1]+"\",\"kty\":\""+j[0]+"\",\"x\":\""+j[4]+"\",\"y\":\""+j[5]+"\"}":"{\"e\":\""+j[3]+"\",\"kty\":\""+j[0]+"\",\"n\":\""+j[2]+"\"}";check(Arrays.equals(canonical.getBytes(StandardCharsets.US_ASCII),prop(props,name+"-jwk")),name+" canonical Go JWK");
-    byte[] signature=prop(props,name+"-signature");check(Crypto.verify(cert,data,ec?Der.rawSignature(signature):signature,ec),name+" Go signature to Java");
-    byte[] signed=Crypto.sign(own,data,ec);Files.write(dir.resolve(name+"-java-signature.bin"),ec?Der.derSignature(signed):signed);
+    byte[] signature=prop(props,name+"-signature");check(Crypto.verify(cert,data,ec?Der.rawSignature(signature,32):signature,ec?"es256":"rs256"),name+" Go signature to Java");
+    byte[] signed=Crypto.sign(own,data,ec?"es256":"rs256");Files.write(dir.resolve(name+"-java-signature.bin"),ec?Der.derSignature(signed):signed);
     if(!ec){check(Arrays.equals(Crypto.rsa(own,prop(props,"rsa-cipher"),false),data),"Go OAEP to Java");Files.write(dir.resolve("rsa-java-cipher.bin"),Crypto.rsa(cert,data,true));}
     else{Native.Material peer=Crypto.importPEM(Files.readString(dir.resolve("ec-peer-public.pem")));try(Native.Lease other=peer.acquire()){byte[] secret=Crypto.ecdh(own,other);check(Arrays.equals(secret,prop(props,"ecdh")),"Go ECDH x coordinate");Files.write(dir.resolve("ecdh-java.bin"),secret);}finally{peer.close();}}
    }finally{material.close();certificate.close();}
@@ -74,7 +74,7 @@ public final class CryptoTest {
   byte[] derived=Crypto.hkdf(prop(props,"secret"),prop(props,"salt"),prop(props,"info"),42);check(Arrays.equals(derived,prop(props,"hkdf")),"Go native HKDF to Java BC");Files.write(dir.resolve("hkdf-java.bin"),derived);
   AlgorithmParameters params=AlgorithmParameters.getInstance("EC");params.init(new ECGenParameterSpec("secp256r1"));ECParameterSpec curve=params.getParameterSpec(ECParameterSpec.class);
   for(java.math.BigInteger scalar:new java.math.BigInteger[]{java.math.BigInteger.ZERO,curve.getOrder()}){PrivateKey invalid=KeyFactory.getInstance("EC").generatePrivate(new ECPrivateKeySpec(scalar,curve));reject(()->Crypto.importPEM(pem("PRIVATE KEY",invalid.getEncoded())),"EC scalar bound");}
-  KeyPairGenerator generator=KeyPairGenerator.getInstance("EC");generator.initialize(new ECGenParameterSpec("secp384r1"));byte[] invalidCurve=generator.generateKeyPair().getPrivate().getEncoded();reject(()->Crypto.importPEM(pem("PRIVATE KEY",invalidCurve)),"reject wrong curve");
+  byte[] invalidCurve=h("308184020100301006072a8648ce3d020106052b8104000a046d306b02010104201610d53f54bd50fbfa1fbe474a7d19a2a356fec331fd487b0cb3e9c1d66c50a3a1440342000441acc6c10fb0070c29eb644b730e6c056a2c002f14043f1d6dd07f78e883ce021fddef96872cd865dddc321bcd66c0a8937d09ae62c71d591fd3472c122fe2cf");reject(()->Crypto.importPEM(pem("PRIVATE KEY",invalidCurve)),"reject wrong curve");
  }
 
 }

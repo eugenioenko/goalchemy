@@ -121,7 +121,7 @@ enum GCrypto {
   }
   static func zero(_ op: String) -> GValue {
     if op.contains("verify") { return .bool(false) }
-    if op == "generate_rsa2048" || op == "generate_p256" || op == "import_pem" { return .nilValue }
+    if op.hasPrefix("generate_") || op == "import_pem" { return .nilValue }
     if op == "public_pem" || op == "private_pem" { return .text("") }
     if op == "public_jwk" {
       let elem =
@@ -278,8 +278,10 @@ enum GCrypto {
         throw GReject(decrypt ? "crypto: authentication failed" : "crypto: native operation failed")
       }
       return .bytes(Array(out.prefix(count)))
-    case "generate_rsa2048", "generate_p256":
-      guard let key = gcn_key_generate(op == "generate_rsa2048" ? 1 : 2) else {
+    case "generate_rsa2048", "generate_rsa4096", "generate_p256", "generate_p384", "generate_p521":
+      guard let kind = Int32(op.dropFirst(op.hasPrefix("generate_rsa") ? 12 : 10)),
+        let key = gcn_key_generate(kind)
+      else {
         throw GReject("crypto: key generation failed")
       }
       return .key(key)
@@ -312,8 +314,9 @@ enum GCrypto {
     case "public_jwk":
       let key = input.keys[0].1
       let k = gcn_key_kind(key)
+      let width = gcn_key_width(key)
       func component(_ index: Int32) throws -> String {
-        var bytes = [UInt8](repeating: 0, count: 256)
+        var bytes = [UInt8](repeating: 0, count: 512)
         var count = bytes.count
         let ok = bytes.withUnsafeMutableBufferPointer {
           gcn_key_component(key, index, $0.baseAddress, &count)
@@ -326,12 +329,16 @@ enum GCrypto {
       return .strings(
         k == 1
           ? ["RSA", "", try component(0), try component(1), "", ""]
-          : ["EC", "P-256", "", "", try component(2), try component(3)])
+          : [
+            "EC", width == 32 ? "P-256" : width == 48 ? "P-384" : "P-521", "", "", try component(2),
+            try component(3),
+          ])
     case "rsa_oaep_encrypt", "rsa_oaep_decrypt":
       let decrypt = op.hasSuffix("decrypt")
       let key = try kind(0, 1, decrypt)
-      try require(decrypt ? b[0].count == 256 : b[0].count <= 214)
-      var out = [UInt8](repeating: 0, count: 256)
+      let width = Int(gcn_key_width(key))
+      try require(decrypt ? b[0].count == width : b[0].count <= width - 42)
+      var out = [UInt8](repeating: 0, count: width)
       var count = out.count
       let ok = b[0].withUnsafeBufferPointer { d in
         out.withUnsafeMutableBufferPointer { o in
@@ -342,38 +349,45 @@ enum GCrypto {
         throw GReject(decrypt ? "crypto: decryption failed" : "crypto: native operation failed")
       }
       return .bytes(Array(out.prefix(count)))
-    case "rs256_sign", "es256_sign":
+    case "rs256_sign", "rs384_sign", "rs512_sign", "es256_sign", "es384_sign", "es512_sign",
+      "rs256_verify", "rs384_verify", "rs512_verify", "es256_verify", "es384_verify",
+      "es512_verify":
       let rsa = op.hasPrefix("rs")
-      let key = try kind(0, rsa ? 1 : 2, true)
-      var out = [UInt8](repeating: 0, count: 256)
+      let bits = Int32(op.dropFirst(2).prefix(3))!
+      let verify = op.hasSuffix("verify")
+      let key = try kind(0, rsa ? 1 : 2, !verify)
+      let width = Int(gcn_key_width(key))
+      if !rsa { try require(width == (bits == 256 ? 32 : bits == 384 ? 48 : 66)) }
+      if verify {
+        try require(b[1].count == (rsa ? width : 2 * width))
+        let ok = b[0].withUnsafeBufferPointer { d in
+          b[1].withUnsafeBufferPointer { s in
+            gcn_verify(rsa ? 1 : 2, bits, key, d.baseAddress, d.count, s.baseAddress, s.count)
+          }
+        }
+        return .boolean(ok == 1)
+      }
+      var out = [UInt8](repeating: 0, count: 512)
       var count = out.count
       let ok = b[0].withUnsafeBufferPointer { d in
         out.withUnsafeMutableBufferPointer { o in
-          gcn_sign(rsa ? 1 : 2, key, d.baseAddress, d.count, o.baseAddress, &count)
+          gcn_sign(rsa ? 1 : 2, bits, key, d.baseAddress, d.count, o.baseAddress, &count)
         }
       }
       try require(ok == 1)
       return .bytes(Array(out.prefix(count)))
-    case "rs256_verify", "es256_verify":
-      let rsa = op.hasPrefix("rs")
-      let key = try kind(0, rsa ? 1 : 2)
-      try require(b[1].count == (rsa ? 256 : 64))
-      let ok = b[0].withUnsafeBufferPointer { d in
-        b[1].withUnsafeBufferPointer { s in
-          gcn_verify(rsa ? 1 : 2, key, d.baseAddress, d.count, s.baseAddress, s.count)
-        }
-      }
-      return .boolean(ok == 1)
     case "ecdh":
       let privateKey = try kind(0, 2, true)
       let publicKey = try kind(1, 2)
-      var out = [UInt8](repeating: 0, count: 32)
+      let width = Int(gcn_key_width(privateKey))
+      try require(width == Int(gcn_key_width(publicKey)))
+      var out = [UInt8](repeating: 0, count: 66)
       var count = out.count
       let ok = out.withUnsafeMutableBufferPointer {
         gcn_ecdh(privateKey, publicKey, $0.baseAddress, &count)
       }
-      try require(ok == 1 && count == 32)
-      return .bytes(out)
+      try require(ok == 1 && count == width)
+      return .bytes(Array(out.prefix(count)))
     default: throw GReject("crypto: unknown operation")
     }
   }

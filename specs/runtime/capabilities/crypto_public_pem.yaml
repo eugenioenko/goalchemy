@@ -1,7 +1,7 @@
 {
   "id": "lib.crypto.public_pem",
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "crypto.Key.PublicPEM: the key's public half as a PKIX (SPKI) PUBLIC KEY PEM block.",
   "signature": {
     "source": "declaration",
@@ -35,7 +35,7 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Accepts an RSA-2048 or P-256 key, private or public.",
+    "bounds": "Accepts any supported RSA or EC key, private or public.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
