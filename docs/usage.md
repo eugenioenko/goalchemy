@@ -210,20 +210,28 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
 | `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
 | `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
+| `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 
 | `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
-| `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate) |
+| `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate); a separate type from `std/time.Duration` |
 | `github.com/eugenioenko/goalchemy/lib/runtime` | `Gosched` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/task` | `All` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/crypto` | `Key`, SHA-256, HMAC-SHA256, HKDF-SHA256, AES-256-GCM, RSA OAEP (2048, 3072 and 4096-bit), RS256/384/512, ES256/384/512, P-256/P-384/P-521 ECDH, key generation, PEM and JWK |
 | `github.com/eugenioenko/goalchemy/lib/encoding` | `Base64Encode`, `Base64Decode`, `Base64URLEncode`, `Base64URLDecode` |
 | `github.com/eugenioenko/goalchemy/lib/http` | `Do`, a bounded GET or POST exchange |
-| `github.com/eugenioenko/goalchemy/lib/clock` | `Unix`, host wall-clock seconds |
+| `github.com/eugenioenko/goalchemy/lib/clock` | `Unix` and `UnixNano`, host wall-clock seconds and nanoseconds |
 | `github.com/eugenioenko/goalchemy/lib/callback` | `Request`, a bounded call to a host-registered callback |
 
 The [runtime library reference](library.md) documents every function. For `lib/` it lists the gate, bounds, error behavior, per-target availability and native dependencies. It is generated from the `std/` and `lib/` sources and the contracts with `make spec-generate`.
+
+`std/time` differs from Go's `time` in these ways:
+
+- Every `Time` is UTC. `UTC` is the only `Location`; `Parse` applies a numeric offset and returns the UTC instant, so the original offset is not kept.
+- `Format` and `AppendFormat` accept only `RFC3339` and `RFC3339Nano` and panic on any other layout. `Parse` returns an error for any other layout. For these two layouts, `Parse` accepts and rejects the same inputs as Go, with the same error text.
+- `Now` has no monotonic reading, so `Since`, `Until` and `Sub` follow host clock adjustments. `Now` precision is the host clock's: milliseconds on TypeScript, microseconds or better elsewhere.
+- `Sleep` and scheduler timeouts stay in `lib/time`, whose `Duration` is a separate type; convert with `libtime.Duration(d)`.
 
 Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` or `"strings"` directly is rejected with a remedy naming its `std/` or `lib/` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
 

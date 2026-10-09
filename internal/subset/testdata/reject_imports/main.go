@@ -4,6 +4,7 @@ import (
 	"errors"  // want GCS002
 	"fmt"     // want GCS002
 	"strings" // want GCS002
+	"time"    // want GCS002
 	"unsafe"  // want GCS002
 
 	"github.com/eugenioenko/goalchemy/lib/sync"
@@ -14,6 +15,6 @@ func f() {} // want:-1 GCS001
 
 func main() {
 	var mu sync.Mutex
-	fmt.Println(strings.ToUpper("x"), unsafe.Sizeof(0), errors.New("x"))
+	fmt.Println(strings.ToUpper("x"), unsafe.Sizeof(0), errors.New("x"), time.Now())
 	_ = mu.TryLock // want GCS008
 }
