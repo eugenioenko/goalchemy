@@ -162,7 +162,7 @@ func (fl *fnLowerer) conv(v ir.Value, t *ir.Type, n ast.Node) ir.Value {
 	if vt == t {
 		return v
 	}
-	if c, ok := v.(*ir.Const); ok && c.Nil {
+	if c, ok := v.(*ir.Const); ok && c.Nil && (vt.IsInterface() || !t.IsInterface()) {
 		return &ir.Const{Type: t, Nil: true}
 	}
 	if t.IsInterface() {
