@@ -27,8 +27,10 @@ Why two importable roots:
 | [bytes](#stdbytes) | `github.com/eugenioenko/goalchemy/std/bytes` | Package bytes manipulates byte slices. |
 | [encoding/binary](#stdencodingbinary) | `github.com/eugenioenko/goalchemy/std/encoding/binary` | Package binary translates between unsigned integers and byte sequences, and encodes varints. |
 | [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
+| [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
+| [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
 | [sort](#stdsort) | `github.com/eugenioenko/goalchemy/std/sort` | Package sort sorts collections through the Len, Less, and Swap methods. |
-| [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms. |
+| [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms, and formats floating-point numbers. |
 | [strings](#stdstrings) | `github.com/eugenioenko/goalchemy/std/strings` | Package strings manipulates UTF-8 encoded strings. |
 | [time](#stdtime) | `github.com/eugenioenko/goalchemy/std/time` | Package time measures and displays time. |
 | [unicode](#stdunicode) | `github.com/eugenioenko/goalchemy/std/unicode` | Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain. |
@@ -571,6 +573,181 @@ func (e InvalidByteError) Error() string
 ```
 
 
+## std/errors
+
+```go
+import "github.com/eugenioenko/goalchemy/std/errors"
+```
+
+Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. As requires a target whose static type is a pointer to an interface type or to a type implementing error; the compiler checks it at the call site instead of using reflection.
+
+```go
+var ErrUnsupported = New("unsupported operation")
+```
+
+ErrUnsupported indicates that a requested operation cannot be performed, because it is unsupported.
+
+### As
+
+```go
+func As(err error, target any) bool
+```
+
+As finds the first error in err's tree that matches target, and if one is found, sets target to that error value and returns true. Otherwise, it returns false. An error matches if its concrete value is assignable to the value target points to, or if it has a method As(any) bool returning true. The compiler expands each call for the static type of target, which must be a pointer to an interface type or to a type implementing error. As panics if target is a nil pointer and err is not nil.
+
+### Is
+
+```go
+func Is(err, target error) bool
+```
+
+Is reports whether any error in err's tree matches target. The tree is err followed by a depth-first traversal of the errors returned by its Unwrap() error or Unwrap() []error methods. An error matches target if it is equal to target or has a method Is(error) bool returning true.
+
+### Join
+
+```go
+func Join(errs ...error) error
+```
+
+Join returns an error that wraps the given errors. Any nil error values are discarded. Join returns nil if every value in errs is nil. The error formats as the concatenation of the strings obtained by calling the Error method of each element of errs, with a newline between each string.
+
+### New
+
+```go
+func New(text string) error
+```
+
+New returns an error that formats as the given text. Each call to New returns a distinct error value even if the text is identical.
+
+### Unwrap
+
+```go
+func Unwrap(err error) error
+```
+
+Unwrap returns the result of calling the Unwrap method on err, if err's type contains an Unwrap method returning error. Otherwise, Unwrap returns nil. It does not unwrap errors returned by Join.
+
+
+## std/fmt
+
+```go
+import "github.com/eugenioenko/goalchemy/std/fmt"
+```
+
+Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. Without reflection, operands are formatted when they are nil, a boolean, integer, float or string of a predeclared type, a []byte, or a value whose type implements Formatter, GoStringer (for %#v), error or Stringer. Other operands, such as structs, maps and named basic types without methods, print as %!v(unsupported); the compiler rejects them when their static type is known. %T and the type names in bad-verb and extra-argument notes are known only for the supported basic types and print as ? otherwise. %p is unsupported. A nil pointer whose Error or String method panics prints as <nil> when the panic is a nil dereference.
+
+### Append
+
+```go
+func Append(b []byte, a ...any) []byte
+```
+
+Append formats using the default formats for its operands, appends the result to the byte slice, and returns the updated slice.
+
+### Appendf
+
+```go
+func Appendf(b []byte, format string, a ...any) []byte
+```
+
+Appendf formats according to a format specifier, appends the result to the byte slice, and returns the updated slice.
+
+### Appendln
+
+```go
+func Appendln(b []byte, a ...any) []byte
+```
+
+Appendln formats using the default formats for its operands, appends the result to the byte slice, and returns the updated slice.
+
+### Errorf
+
+```go
+func Errorf(format string, a ...any) error
+```
+
+Errorf formats according to a format specifier and returns the string as a value that satisfies error. If the format specifier includes a %w verb with an error operand, the returned error will implement an Unwrap method returning the operand. If there is more than one %w verb, the returned error will implement an Unwrap method returning a []error containing all the %w operands in the order they appear in the arguments. It is invalid to supply the %w verb with an operand that does not implement the error interface. The %w verb is otherwise a synonym for %v.
+
+### FormatString
+
+```go
+func FormatString(state State, verb rune) string
+```
+
+FormatString returns a string representing the fully qualified formatting directive captured by the State, followed by the argument verb.
+
+### Sprint
+
+```go
+func Sprint(a ...any) string
+```
+
+Sprint formats using the default formats for its operands and returns the resulting string. Spaces are added between operands when neither is a string.
+
+### Sprintf
+
+```go
+func Sprintf(format string, a ...any) string
+```
+
+Sprintf formats according to a format specifier and returns the resulting string.
+
+### Sprintln
+
+```go
+func Sprintln(a ...any) string
+```
+
+Sprintln formats using the default formats for its operands and returns the resulting string. Spaces are always added between operands and a newline is appended.
+
+### type Formatter
+
+```go
+type Formatter interface {
+	Format(f State, verb rune)
+}
+```
+
+Formatter is implemented by any value that has a Format method. The implementation controls how State and rune are interpreted.
+
+### type GoStringer
+
+```go
+type GoStringer interface {
+	GoString() string
+}
+```
+
+GoStringer is implemented by any value that has a GoString method, which defines the Go syntax for that value used by %#v.
+
+### type State
+
+```go
+type State interface {
+	// Write is the function to call to emit formatted output to be printed.
+	Write(b []byte) (n int, err error)
+	// Width returns the value of the width option and whether it has been set.
+	Width() (wid int, ok bool)
+	// Precision returns the value of the precision option and whether it has been set.
+	Precision() (prec int, ok bool)
+	// Flag reports whether the flag c, a character, has been set.
+	Flag(c int) bool
+}
+```
+
+State represents the printer state passed to custom formatters. It provides access to the output buffer and the format options.
+
+### type Stringer
+
+```go
+type Stringer interface {
+	String() string
+}
+```
+
+Stringer is implemented by any value that has a String method, which defines the native format for that value.
+
+
 ## std/sort
 
 ```go
@@ -738,7 +915,7 @@ func (x StringSlice) Swap(i, j int)
 import "github.com/eugenioenko/goalchemy/std/strconv"
 ```
 
-Package strconv converts between integers, Booleans, and their string forms.
+Package strconv converts between integers, Booleans, and their string forms, and formats floating-point numbers.
 
 ```go
 const IntSize = 64
@@ -758,6 +935,14 @@ var ErrSyntax = errors.New("invalid syntax")
 
 ErrSyntax indicates that a value does not have the right syntax for the target type.
 
+### AppendFloat
+
+```go
+func AppendFloat(dst []byte, f float64, fmt byte, prec, bitSize int) []byte
+```
+
+AppendFloat appends the string form of the floating-point number f, as generated by FormatFloat, to dst and returns the extended buffer.
+
 ### AppendInt
 
 ```go
@@ -765,6 +950,38 @@ func AppendInt(dst []byte, i int64, base int) []byte
 ```
 
 AppendInt appends the string form of i in the given base to dst.
+
+### AppendQuote
+
+```go
+func AppendQuote(dst []byte, s string) []byte
+```
+
+AppendQuote appends the double-quoted Go string literal of s to dst.
+
+### AppendQuoteRune
+
+```go
+func AppendQuoteRune(dst []byte, r rune) []byte
+```
+
+AppendQuoteRune appends the single-quoted character literal of r to dst.
+
+### AppendQuoteRuneToASCII
+
+```go
+func AppendQuoteRuneToASCII(dst []byte, r rune) []byte
+```
+
+AppendQuoteRuneToASCII appends the ASCII-only character literal of r to dst.
+
+### AppendQuoteToASCII
+
+```go
+func AppendQuoteToASCII(dst []byte, s string) []byte
+```
+
+AppendQuoteToASCII appends the ASCII-only quoted form of s to dst.
 
 ### AppendUint
 
@@ -782,6 +999,14 @@ func Atoi(s string) (int, error)
 
 Atoi parses a decimal int, accepting an optional sign.
 
+### CanBackquote
+
+```go
+func CanBackquote(s string) bool
+```
+
+CanBackquote reports whether s can be represented unchanged as a single-line backquoted string without control characters other than tab.
+
 ### FormatBool
 
 ```go
@@ -789,6 +1014,14 @@ func FormatBool(b bool) string
 ```
 
 FormatBool returns "true" or "false".
+
+### FormatFloat
+
+```go
+func FormatFloat(f float64, fmt byte, prec, bitSize int) string
+```
+
+FormatFloat converts the floating-point number f to a string, according to the format fmt and precision prec. It rounds the result assuming that the original was obtained from a floating-point value of bitSize bits (32 for float32, 64 for float64). The format fmt is one of 'b' (-ddddp±ddd), 'e' (-d.dddde±dd), 'E' (-d.ddddE±dd), 'f' (-ddd.dddd), 'g' ('e' for large exponents, 'f' otherwise), 'G' ('E' for large exponents, 'f' otherwise), 'x' (-0xd.ddddp±ddd) or 'X' (-0Xd.ddddP±ddd). The precision prec controls the number of digits (excluding the exponent) printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats. For 'e', 'E', 'f', 'x', and 'X', it is the number of digits after the decimal point. For 'g' and 'G' it is the maximum number of significant digits (trailing zeros are removed). The special precision -1 uses the smallest number of digits necessary such that ParseFloat will return f exactly.
 
 ### FormatInt
 
@@ -805,6 +1038,14 @@ func FormatUint(u uint64, base int) string
 ```
 
 FormatUint returns u in the given base, 2 to 36, using lowercase letters.
+
+### IsPrint
+
+```go
+func IsPrint(r rune) bool
+```
+
+IsPrint reports whether r is printable as defined by Go: letters, marks, numbers, punctuation, symbols and the ASCII space.
 
 ### Itoa
 
@@ -845,6 +1086,22 @@ func Quote(s string) string
 ```
 
 Quote returns s as a double-quoted Go string literal, escaping non-printable runes and invalid UTF-8 bytes.
+
+### QuoteRune
+
+```go
+func QuoteRune(r rune) string
+```
+
+QuoteRune returns r as a single-quoted Go character literal. An invalid rune is quoted as the Unicode replacement character.
+
+### QuoteRuneToASCII
+
+```go
+func QuoteRuneToASCII(r rune) string
+```
+
+QuoteRuneToASCII is like QuoteRune but escapes every non-ASCII rune.
 
 ### QuoteToASCII
 

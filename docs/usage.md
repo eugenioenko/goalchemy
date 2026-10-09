@@ -203,7 +203,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | Import | Provides |
 | --- | --- |
 | `github.com/eugenioenko/goalchemy/std/strings` | `Builder`, `Split`, `Join`, `Fields`, `Index`, `Contains`, `Trim*`, `Cut`, `Replace`, `NewReplacer`, `ToLower`/`ToUpper`, `EqualFold`, and more |
-| `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`, `Quote`, `NumError` |
+| `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`/`FormatFloat`, `Append*`, `Quote`/`QuoteRune` and their `ToASCII` forms, `CanBackquote`, `IsPrint`, `NumError` |
 | `github.com/eugenioenko/goalchemy/std/bytes` | `Buffer`, `Equal`, `Compare`, `Index`, `Split`, `Fields`, `TrimSpace`, and more |
 | `github.com/eugenioenko/goalchemy/std/sort` | `Sort`, `Stable`, `Ints`, `Strings`, `Search`, `Reverse` over `Len`/`Less`/`Swap` |
 | `github.com/eugenioenko/goalchemy/std/unicode` | `IsLetter`, `IsDigit`, `IsSpace`, `IsUpper`, `IsPrint`, `ToLower`, `ToUpper`, `SimpleFold`, and more |
@@ -211,8 +211,9 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
 | `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
 | `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
-
-| `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap` |
+| `github.com/eugenioenko/goalchemy/std/errors` | `New`, `Is`, `As`, `Unwrap`, `Join`, `ErrUnsupported`, including `Unwrap() []error` trees |
+| `github.com/eugenioenko/goalchemy/std/fmt` | `Sprintf`, `Sprint`, `Sprintln`, `Errorf` with one or more `%w`, `Append`/`Appendf`/`Appendln`, `Stringer`, `GoStringer`, `Formatter`, `State`, `FormatString` (see below) |
+| `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap`; the native layer under `std/errors`, whose `Is` does not follow `Unwrap() []error` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/time` | `Duration`, its unit constants, and `Sleep` (cooperative gate); a separate type from `std/time.Duration` |
@@ -233,7 +234,16 @@ The [runtime library reference](library.md) documents every function. For `lib/`
 - `Now` has no monotonic reading, so `Since`, `Until` and `Sub` follow host clock adjustments. `Now` precision is the host clock's: milliseconds on TypeScript, microseconds or better elsewhere.
 - `Sleep` takes a `std/time.Duration` and delegates to `lib/time.Sleep`. `lib/time.Duration`, used by `lib/context.WithTimeout`, is a separate type; convert with `libtime.Duration(d)`.
 
-Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"` or `"strings"` directly is rejected with a remedy naming its `std/` or `lib/` replacement; `errors.As`, `errors.Join`, and `fmt` are not available.
+`std/fmt` and `std/errors` work without reflection:
+
+- `fmt` formats operands that are nil, booleans, integers, floats and strings of predeclared types, `[]byte`, and values whose type implements `Formatter`, `GoStringer` (for `%#v`), `error` or `Stringer`. Verbs, flags, width, precision, argument indexes, and the `%!verb(...)`, `MISSING`, `BADINDEX` and `EXTRA` notes match Go for these operands. The compiler rejects other operand types, such as structs, maps, pointers without methods and named basic types without methods, when their static type is known (`GCS006`); behind an interface they print as `%!v(unsupported)`. Convert named basic types, as in `int(level)`, or give them a `String` method.
+- `%T` and the type names in bad-verb and `EXTRA` notes are known only for the basic types above and print as `?` otherwise. `%p` prints `%!p(unsupported)`.
+- A method that panics prints `%!v(PANIC=String method: ...)` as in Go, except that any nil pointer dereference prints `<nil>`, where Go does so only for a nil receiver.
+- `Sprint` treats only predeclared `string` operands as strings when deciding where to add spaces; Go also treats named string types as strings.
+- `errors.As` needs a target whose static type is a pointer to an interface type or to a type implementing `error`. The compiler expands each call for that type and rejects other targets, `errors.As` used as a function value, and `defer` or `go` of it (`GCS006`). A nil target pointer panics as in Go.
+- `fmt.Print`, `Printf` and `Println` are not available; use the `print` and `println` builtins with `fmt.Sprintf`.
+
+Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"`, `"strings"` or `"fmt"` directly is rejected with a remedy naming its `std/` or `lib/` replacement.
 
 ## Cooperative execution
 
