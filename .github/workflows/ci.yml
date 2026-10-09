@@ -67,6 +67,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
+      - name: Cache pinned Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: .toolchains/playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('ci/browser-tooling/package-lock.json') }}
       - name: Prepare pinned native and browser test dependencies
         run: bash scripts/ci-bootstrap.sh --with-browser-deps
       - name: Run selected checks
