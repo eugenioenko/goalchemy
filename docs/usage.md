@@ -97,18 +97,50 @@ IR dumps keep their diagnostic identifiers. Internal names are not a stable
 API across compiler versions. Neither naming mode promises a performance
 improvement.
 
+## Initialization guidance
+
+Prefer explicit constructors or setup functions for configuration, I/O, key
+generation and resource acquisition. They make dependencies, errors and cleanup
+visible to callers. Avoid hiding this work in `init()` or in package-level
+variables initialized by calls to setup functions.
+
+Small deterministic initialization remains supported. Goalchemy preserves Go's
+package-variable dependency ordering and `init()` functions in its central
+initialization routine. Splitting generated code into files does not remove
+those effects.
+
+The SDK-capable library boundary creates fresh source state and runs package
+initialization once per operation. An expensive initializer or externally
+visible side effect therefore repeats across calls. This differs from a native
+Go process, which initializes its packages once at startup. Consult the target's
+library-boundary documentation for its lifecycle; the legacy sequential C
+scalar/string API uses an explicit `goalchemy_init()` call.
+
 ## Output
 
 Each target directory contains the generated program, the runtime files it needs (one file per runtime function, plus shared representation files), a `README.md`, and `goalchemy.manifest.json`. The manifest records the source profile, compiler version, contract IDs, versions, and hashes, and every runtime and generated file. Output is deterministic for the same inputs.
 
-- **Go**: `main.go`, `go.mod`, `rt/`. Run with `go run .`. Line directives map positions back to the Goalchemy source.
-- **TypeScript**: sequential output has `main.ts` and `main.ts.map`; cooperative output adds portable `program.ts`, `program.ts.map`, and `host.ts`, with `main.ts` as its Node wrapper. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
-- **Python**: `main.py`, `rt/` (a package), and `main.py.lines`, which maps generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required. Cooperative output exposes synchronous `main.runHost()` with monotonic time, a calling-thread owner and cleanup-before-return; see [its lifecycle and recursion limits](python-host-operations.md).
-- **Java**: `Main.java`, `rt/`, `run.sh`, and `Main.java.lines` (generated lines to source positions). Run with `sh run.sh`, which compiles with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored). Cooperative output also exposes `Main.runHost()` for an explicit serialized monotonic executable drive that returns after cleanup; see [its lifecycle and executable-global limits](java-host-operations.md).
-- **C#**: `Main.cs`, `rt/`, `main.csproj`, `run.sh`, and `Main.cs.lines`. Run with `sh run.sh`, which compiles with the .NET 8 SDK's C# compiler and runs on .NET 8 (`DOTNET_ROOT` is honored); `dotnet run` also works. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
-- **Rust**: `src/main.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and `src/main.rs.lines`. Run std-only output with `sh run.sh` (plain `rustc`) or `cargo run --release`; native capability output builds with Cargo and maintained dependencies. The SDK package helper supplies its full dependency lock. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
-- **C**: `main.c`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and `main.c.lines`. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. Programs that use `lib/crypto` or `lib/http` also link OpenSSL (`-lssl -lcrypto`) and, for HTTP, libcurl through `pkg-config libcurl`. `CC`, `CFLAGS` and `LDLIBS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
-- **Swift**: `main.swift`, `rt/`, `run.sh`, `LICENSE`, and `main.swift.lines`. Run with `sh run.sh`, which builds a native C module and Swift executable. Requires Swift 6.4, OpenSSL 3, zlib, libcurl and pkg-config even for pure-logic programs. Linux x86_64 is the verified baseline; see [Swift setup, semantics and public libraries](swift-target.md).
+Program declarations are grouped by their original Go package. The manifest's
+`source_packages` records each included package's import path, dependencies and
+native source files. Shared representations and the central initializer remain
+separate from package-owned declarations. Native public entry points and library
+imports stay the same; this does not publish a separate native library for every
+Go package. Existing identifier prefixes and compact-name behavior are retained.
+
+Each source file has its own diagnostic map where source positions are available.
+When an output directory is reused successfully, Goalchemy removes obsolete files
+listed by its previous generated/runtime inventory and preserves unlisted caller
+files. Failed emission does not clean that inventory. IR-only output does not use
+native output inventories.
+
+- **Go**: `main.go`, `shared.go`, `pkg_*.go`, `go.mod`, `rt/`, all in the existing native package. Run with `go run .`. Line directives map positions back to the Goalchemy source.
+- **TypeScript**: native `pkg_*.ts` ESM modules and leaf `shared.ts`; sequential output has `main.ts`, while cooperative output adds portable `program.ts` and `host.ts`, with `main.ts` as its Node wrapper. Source files have individual `.ts.map` files. Both include `rt/` and `package.json`. Run with `node main.ts`, and add `--enable-source-maps` for source positions in stack traces. Cooperative `host.ts` exports Promise-based `runHost(host)` with real monotonic time and an explicit portable output/failure adapter; see [the bounded lifecycle and executable-global limits](typescript-host-operations.md).
+- **Python**: `main.py`, native `pkg_*.py` modules, leaf `_shared.py`, and `rt/` (a package). Individual `.py.lines` sidecars map generated lines to Goalchemy source positions. Run with `python3 main.py`; Python 3.10 or later is required. Cooperative output exposes synchronous `main.runHost()` with monotonic time, a calling-thread owner and cleanup-before-return; see [its lifecycle and recursion limits](python-host-operations.md).
+- **Java**: `Main.java`, source-package `pkg_*.java` holders, leaf `_GoalchemySupport.java`, `rt/`, `run.sh`, and per-file `.java.lines` sidecars (generated lines to source positions). Run with `sh run.sh`, which compiles the native source inventory with `javac` and runs on a Java 21 or later JDK (`JAVA_HOME` is honored). Cooperative output also exposes `Main.runHost()` for an explicit serialized monotonic executable drive that returns after cleanup; see [its lifecycle and executable-global limits](java-host-operations.md).
+- **C#**: `Main.cs`, source-package `pkg_*.cs` files and `shared.cs` declaring one native partial `GoProgram`, `rt/`, `main.csproj`, `run.sh`, and per-file `.cs.lines` sidecars. Run with `sh run.sh`, which compiles the generated/runtime inventory with the .NET 8 SDK's C# compiler (`DOTNET_ROOT` is honored); `dotnet run` also works. The project includes additional root source adapters. Cooperative output exposes Task-returning `GoProgram.runHost()` using a dedicated monotonic owner driver and serialized executable globals; see [its lifecycle and managed-recursion limits](csharp-host-operations.md).
+- **Rust**: `src/main.rs` (or `src/lib.rs` for libraries), native `src/pkg_*.rs` modules, `src/shared.rs`, `src/rt/`, `Cargo.toml`, `run.sh`, and per-file `.rs.lines` sidecars. Explicit module paths allow SDK adapters to rename the generated entry file. Run std-only output with `sh run.sh` (plain `rustc`) or `cargo run --release`; native capability output builds with Cargo and maintained dependencies. Cargo compiles explicit native targets; the SDK package helper supplies its full dependency lock. Cooperative output also exposes `run_host() -> Result<(), HostError>`, using a serialized dedicated monotonic owner and cleanup-before-return; see [Rust lifecycle and stack limits](rust-host-operations.md). Values live in a traced heap collected at safepoints; set `GOALCHEMY_HEAP_STATS=1` to print heap statistics at exit and `GOALCHEMY_GC_THRESHOLD=<n>` to collect more often.
+- **C**: `main.c`, package-owned `pkg_*.c` translation units, `shared.c`, declaration-only `goalchemy_internal.h`, `rt/` (`gx.h` and one `.c` file per runtime function), `run.sh`, and per-file `.c.lines` sidecars. The scripts compile the explicit generated/runtime inventory as separate native units. Run with `sh run.sh`, which builds with `cc -std=c17` and links the Boehm-Demers-Weiser collector (bdwgc 8.x with threads): `GOALCHEMY_BDWGC` may name an install prefix, otherwise `pkg-config bdw-gc` or `-lgc` is used. Programs that use `lib/crypto` or `lib/http` also link OpenSSL (`-lssl -lcrypto`) and, for HTTP, libcurl through `pkg-config libcurl`. `CC`, `CFLAGS` and `LDLIBS` are honored, so `CC=clang CFLAGS='-fsanitize=address,undefined'` builds a sanitized program.
+- **Swift**: `main.swift` (or `Generated.swift` for libraries), package-owned `pkg_*.swift` files, `shared.swift` with the canonical type table, `rt/`, `run.sh`, `LICENSE`, and per-file `.swift.lines` sidecars. Native scripts and SwiftPM explicitly list sources within one native module. Run with `sh run.sh`, which builds a native C module and Swift executable. Requires Swift 6.4, OpenSSL 3, zlib, libcurl and pkg-config even for pure-logic programs. Linux x86_64 is the verified baseline; see [Swift setup, semantics and public libraries](swift-target.md).
 
 ### Libraries
 

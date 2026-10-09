@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/eugenioenko/goalchemy/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,7 +56,7 @@ func TestNamingFlagsAndConfigOverride(t *testing.T) {
 					t.Fatalf("run output: %s%s", &stdout, &stderr)
 				}
 			}
-			source, err := os.ReadFile(filepath.Join(out, "main.go"))
+			source, err := testutil.GeneratedSource(out, ".go")
 			if err != nil {
 				t.Fatal(err)
 			}

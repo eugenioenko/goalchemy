@@ -11,8 +11,11 @@ type Program struct {
 	// Source identities and public export names are independent of this option.
 	CompactNames bool
 	Types        *Types
-	Funcs        []*Func
-	Globals      []*Global
+	// Packages preserves included source packages in dependency order. External
+	// capability packages remain runtime contracts rather than source owners.
+	Packages []Package
+	Funcs    []*Func
+	Globals  []*Global
 	// Init runs package initialization in dependency order.
 	Init *Func
 	// Main is the executable entry point, if any.
@@ -34,6 +37,14 @@ type Program struct {
 	SuspTypes   map[*Type]bool
 	SuspMethods map[string]bool
 	Fset        *token.FileSet
+}
+
+// Package describes an included source package independently of target layout.
+type Package struct {
+	Path    string   `json:"path"`
+	Name    string   `json:"name"`
+	Imports []string `json:"imports"`
+	Root    bool     `json:"root"`
 }
 
 // Extern describes a call target bound to an external capability contract.

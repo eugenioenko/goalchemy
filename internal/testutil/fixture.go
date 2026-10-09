@@ -5,6 +5,7 @@ package testutil
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -20,8 +21,34 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/frontend"
+	"github.com/eugenioenko/goalchemy/internal/link"
 	"github.com/eugenioenko/goalchemy/internal/subset"
 )
+
+// GeneratedSource reads native source artifacts listed by the build manifest.
+// It is for textual assertions; target runners build the actual native files.
+func GeneratedSource(out, extension string) ([]byte, error) {
+	data, err := os.ReadFile(filepath.Join(out, "goalchemy.manifest.json"))
+	if err != nil {
+		return nil, err
+	}
+	var manifest link.Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, err
+	}
+	var source bytes.Buffer
+	for _, name := range manifest.GeneratedFiles {
+		if filepath.Ext(name) != extension {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil {
+			return nil, err
+		}
+		source.Write(data)
+	}
+	return source.Bytes(), nil
+}
 
 var llvmVersion = regexp.MustCompile(`(?m)^LLVM_VERSION='([^']+)'$`)
 

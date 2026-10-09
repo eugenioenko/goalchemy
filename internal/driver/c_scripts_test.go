@@ -18,7 +18,6 @@ func TestCLibraryBuildWithOptionalRuntimeSources(t *testing.T) {
 			files := map[string]string{
 				"main.c":             "extern int support(void); int answer(void) { return support()+40; }\n",
 				"rt/types/support.c": "int support(void) { return 2; }\n",
-				"build.sh":           cLibBuild,
 			}
 			consumer := "extern int answer(void); int main(void) { return answer() == 42 ? 0 : 1; }\n"
 			if runtime {
@@ -26,6 +25,12 @@ func TestCLibraryBuildWithOptionalRuntimeSources(t *testing.T) {
 				consumer = "extern int answer(void); extern int optional(void); int main(void) { return answer() == 42 && optional() == 3 ? 0 : 1; }\n"
 			}
 			files["consumer.c"] = consumer
+			runtimeFiles := []string{"rt/types/support.c"}
+			if runtime {
+				runtimeFiles = append(runtimeFiles, "rt/runtime/optional.c")
+			}
+			files["build.sh"] = string(cBuildScript(true, []string{"main.c"}, runtimeFiles))
+			files["rt/types/caller.c"] = "caller source outside the managed inventory\n"
 			for path, source := range files {
 				target := filepath.Join(dir, path)
 				if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {

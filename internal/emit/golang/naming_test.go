@@ -18,6 +18,15 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
+// Join source only for assertions; native builds use the individual files.
+func emittedSource(out *golang.Output) string {
+	var source strings.Builder
+	for _, file := range out.Files {
+		source.Write(file.Source)
+	}
+	return source.String()
+}
+
 func buildNamingFixture(t *testing.T, source string) *driver.Result {
 	return buildNamingSources(t, map[string]string{"fixture.go": source})
 }
@@ -95,10 +104,10 @@ func TestNamingModes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(again.Source) != string(out.Source) {
+			if emittedSource(again) != emittedSource(out) {
 				t.Fatal("repeated emission changed generated names")
 			}
-			source := string(out.Source)
+			source := emittedSource(out)
 			for _, f := range res.IR.Funcs {
 				if f.MethodID != "" && !f.Wrapper || f.Closure && !f.MaySuspend {
 					continue
@@ -153,7 +162,7 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		source := string(out.Source)
+		source := emittedSource(out)
 		for _, name := range []string{"type State =", "func Export("} {
 			if !strings.Contains(source, name) {
 				t.Errorf("compact=%v public API missing %q", compact, name)
@@ -210,7 +219,7 @@ func TestLibraryDependencyAliasesStable(t *testing.T) {
 			t.Fatal(err)
 		}
 		var declarations []string
-		for _, line := range strings.Split(string(out.Source), "\n") {
+		for _, line := range strings.Split(emittedSource(out), "\n") {
 			if strings.HasPrefix(line, "func Export(") || strings.HasPrefix(line, "func ExportList(") || strings.HasPrefix(line, "func Wrap(") {
 				declarations = append(declarations, line)
 			}

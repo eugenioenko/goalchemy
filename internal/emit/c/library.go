@@ -79,9 +79,9 @@ static void gxc_poll(void) {
 			return
 		}
 		seen[u] = true
-		e.proto("static gx_V gxc_in_%s(const gxc_value *v)", e.names.Type(u, ""))
-		e.proto("static gxc_value gxc_out_%s(gx_V v)", e.names.Type(u, ""))
-		e.proto("static gxc_value gxc_out_body_%s(gx_V v)", e.names.Type(u, ""))
+		e.localProto("static gx_V gxc_in_%s(const gxc_value *v)", e.names.Type(u, ""))
+		e.localProto("static gxc_value gxc_out_%s(gx_V v)", e.names.Type(u, ""))
+		e.localProto("static gxc_value gxc_out_body_%s(gx_V v)", e.names.Type(u, ""))
 		switch u.Kind {
 		case ir.KStruct:
 			for _, f := range u.Fields {

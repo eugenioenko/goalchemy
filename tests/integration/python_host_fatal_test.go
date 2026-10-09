@@ -41,7 +41,7 @@ func TestGeneratedPythonHostFatalCleanup(t *testing.T) {
 			if ds := testutil.CompileGate(fixture, "python", out, "cooperative"); len(ds) > 0 {
 				t.Fatal(ds)
 			}
-			emitted, err := os.ReadFile(filepath.Join(out, "main.py"))
+			emitted, err := testutil.GeneratedSource(out, ".py")
 			if err != nil {
 				t.Fatal(err)
 			}

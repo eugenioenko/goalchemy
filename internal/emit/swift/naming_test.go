@@ -63,16 +63,20 @@ func TestNamingModes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(first.Source, second.Source) {
+			if !bytes.Equal(generatedSource(first), generatedSource(second)) {
 				t.Fatal("nondeterministic emission")
 			}
-			if !strings.Contains(string(first.Source), "Custom.crc32(") {
+			if !strings.Contains(string(generatedSource(first)), "Custom.crc32(") {
 				t.Fatal("declared runtime symbol ignored")
 			}
-			if !strings.Contains(string(first.Source), "task.owner.safepoint()") {
+			if !strings.Contains(string(generatedSource(first)), "task.owner.safepoint()") {
 				t.Fatal("source frames lack loop collection safepoints")
 			}
-			if len(first.Lines) == 0 {
+			mapped := false
+			for _, file := range first.Files {
+				mapped = mapped || len(file.Lines) > 0
+			}
+			if !mapped {
 				t.Fatal("missing source position map")
 			}
 			for i, f := range result.IR.Funcs {
@@ -80,7 +84,7 @@ func TestNamingModes(t *testing.T) {
 					t.Fatal("emission mutated IR function identity")
 				}
 			}
-			source := string(first.Source)
+			source := string(generatedSource(first))
 			if !compact && (!strings.Contains(source, "v_input") || !strings.Contains(source, "_calculate_")) {
 				t.Fatal("readable names absent")
 			}
@@ -139,7 +143,7 @@ func TestBulkByteEmission(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			source := string(output.Source)
+			source := string(generatedSource(output))
 			foundAppend := false
 			for _, line := range strings.Split(source, "\n") {
 				_, call, ok := strings.Cut(line, "GSlice.append(")
@@ -160,4 +164,12 @@ func TestBulkByteEmission(t *testing.T) {
 			}
 		})
 	}
+}
+
+func generatedSource(output *swiftemit.Output) []byte {
+	var source []byte
+	for _, file := range output.Files {
+		source = append(source, file.Source...)
+	}
+	return source
 }

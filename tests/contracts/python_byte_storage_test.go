@@ -24,7 +24,7 @@ func TestPythonByteStorage(t *testing.T) {
 	if ds := testutil.CompileGate("../language/testdata/byte_storage", "python", outDir, "sequential"); len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	src, err := os.ReadFile(filepath.Join(outDir, "main.py"))
+	src, err := testutil.GeneratedSource(outDir, ".py")
 	if err != nil {
 		t.Fatal(err)
 	}
