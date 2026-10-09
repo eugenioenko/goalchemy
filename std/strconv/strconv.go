@@ -1,4 +1,5 @@
-// Package strconv converts between integers, Booleans, and their string forms.
+// Package strconv converts between integers, Booleans, and their string
+// forms, and formats floating-point numbers.
 package strconv
 
 import (
@@ -275,32 +276,85 @@ func ParseInt(s string, base int, bitSize int) (int64, error) {
 
 // Quote returns s as a double-quoted Go string literal, escaping
 // non-printable runes and invalid UTF-8 bytes.
-func Quote(s string) string { return quote(s, false) }
+func Quote(s string) string { return string(appendQuotedWith(nil, s, '"', false)) }
+
+// AppendQuote appends the double-quoted Go string literal of s to dst.
+func AppendQuote(dst []byte, s string) []byte { return appendQuotedWith(dst, s, '"', false) }
 
 // QuoteToASCII is like Quote but escapes every non-ASCII rune.
-func QuoteToASCII(s string) string { return quote(s, true) }
+func QuoteToASCII(s string) string { return string(appendQuotedWith(nil, s, '"', true)) }
 
-func quote(s string, ascii bool) string {
-	out := make([]byte, 0, len(s)+2)
-	out = append(out, '"')
+// AppendQuoteToASCII appends the ASCII-only quoted form of s to dst.
+func AppendQuoteToASCII(dst []byte, s string) []byte { return appendQuotedWith(dst, s, '"', true) }
+
+// QuoteRune returns r as a single-quoted Go character literal. An invalid
+// rune is quoted as the Unicode replacement character.
+func QuoteRune(r rune) string { return string(appendQuotedRuneWith(nil, r, false)) }
+
+// AppendQuoteRune appends the single-quoted character literal of r to dst.
+func AppendQuoteRune(dst []byte, r rune) []byte { return appendQuotedRuneWith(dst, r, false) }
+
+// QuoteRuneToASCII is like QuoteRune but escapes every non-ASCII rune.
+func QuoteRuneToASCII(r rune) string { return string(appendQuotedRuneWith(nil, r, true)) }
+
+// AppendQuoteRuneToASCII appends the ASCII-only character literal of r to dst.
+func AppendQuoteRuneToASCII(dst []byte, r rune) []byte { return appendQuotedRuneWith(dst, r, true) }
+
+// CanBackquote reports whether s can be represented unchanged as a
+// single-line backquoted string without control characters other than tab.
+func CanBackquote(s string) bool {
+	for len(s) > 0 {
+		r, wid := utf8.DecodeRuneInString(s)
+		s = s[wid:]
+		if wid > 1 {
+			if r == '\ufeff' {
+				return false
+			}
+			continue
+		}
+		if r == utf8.RuneError {
+			return false
+		}
+		if (r < ' ' && r != '\t') || r == '`' || r == '\u007F' {
+			return false
+		}
+	}
+	return true
+}
+
+// IsPrint reports whether r is printable as defined by Go: letters, marks,
+// numbers, punctuation, symbols and the ASCII space.
+func IsPrint(r rune) bool { return unicode.IsPrint(r) }
+
+func appendQuotedWith(out []byte, s string, quote byte, ascii bool) []byte {
+	out = append(out, quote)
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == 0xFFFD && size == 1 {
+		if r == utf8.RuneError && size == 1 {
 			out = append(out, '\\', 'x', digits[s[i]>>4], digits[s[i]&15])
 			i++
 			continue
 		}
-		out = appendEscapedRune(out, r, ascii)
+		out = appendEscapedRune(out, r, quote, ascii)
 		i += size
 	}
-	return string(append(out, '"'))
+	return append(out, quote)
 }
 
-func appendEscapedRune(out []byte, r rune, ascii bool) []byte {
-	if r == '"' || r == '\\' {
-		return append(out, '\\', byte(r))
+func appendQuotedRuneWith(out []byte, r rune, ascii bool) []byte {
+	if !utf8.ValidRune(r) {
+		r = utf8.RuneError
 	}
-	if ascii && r < 0x80 && unicode.IsPrint(r) || !ascii && unicode.IsPrint(r) {
+	out = append(out, '\'')
+	out = appendEscapedRune(out, r, '\'', ascii)
+	return append(out, '\'')
+}
+
+func appendEscapedRune(out []byte, r rune, quote byte, ascii bool) []byte {
+	if r == rune(quote) || r == '\\' {
+		return utf8.AppendRune(append(out, '\\'), r)
+	}
+	if ascii && r < utf8.RuneSelf && unicode.IsPrint(r) || !ascii && unicode.IsPrint(r) {
 		return utf8.AppendRune(out, r)
 	}
 	switch r {
@@ -322,7 +376,10 @@ func appendEscapedRune(out []byte, r rune, ascii bool) []byte {
 	switch {
 	case r < ' ' || r == 0x7f:
 		return append(out, '\\', 'x', digits[byte(r)>>4], digits[byte(r)&15])
-	case r < 0x10000:
+	case !utf8.ValidRune(r):
+		r = 0xFFFD
+	}
+	if r < 0x10000 {
 		out = append(out, '\\', 'u')
 		for s := 12; s >= 0; s -= 4 {
 			out = append(out, digits[r>>uint(s)&15])
