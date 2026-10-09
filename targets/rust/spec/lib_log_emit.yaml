@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 6456a0cab37d993126706aa72895c347cc71a3f1419878b06ef1d845284ee9ca
 symbol: "lib_log_emit"
 implementation: runtime/lib_log_emit.rs
-implementation_hash: bcf6fbc1fc9535cb54d0aaa14be42559bf03ba1872e6c3abbd5dafb7e109ade8
+implementation_hash: 4d5a83084f1c8c8931330db9daf5604b6ab2e3997c67cd97ffe437f45181f9eb
 summary: "log.Emit: delivers one structured log record to the host log sink."
 suspension: never
 determinism: nondeterministic
