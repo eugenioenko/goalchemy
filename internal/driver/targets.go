@@ -41,7 +41,7 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 			return []diagnostics.Diagnostic{{Code: "GCE007", Severity: diagnostics.Error, Feature: "Go library boundary", Message: boundary.Error(), Remedy: "Use public struct value trees, primitive arrays/slices and a final error result; native pointers, maps, channels and arbitrary callbacks are outside this library ABI."}}
 		}
 		if o != nil {
-			_ = link.WriteFile(out, "main.go", o.Source)
+			_, _ = writeSourceArtifacts(out, o.Files)
 		}
 		return emitErr("GCE004", err.Error())
 	}
@@ -112,7 +112,8 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 			return emitErr("GCE005", err.Error())
 		}
 	}
-	if err := link.WriteFile(out, "main.go", o.Source); err != nil {
+	generated, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	if err := link.WriteFile(out, "go.mod", []byte("module goalchemyout\n\ngo 1.25\n")); err != nil {
@@ -125,7 +126,9 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 	if err := link.WriteFile(out, "README.md", []byte(readme("go", usage, "Requires Go 1.25 or later."))); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
-	if err := link.WriteManifest(out, res.Catalog, "go", refs, rtFiles, []string{"README.md", "go.mod", "main.go"}, res.Program); err != nil {
+	generated = append(generated, "README.md", "go.mod")
+	sort.Strings(generated)
+	if err := link.WriteManifest(out, res.Catalog, "go", refs, rtFiles, generated, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -148,10 +151,6 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 	if len(ds) > 0 {
 		return ds
 	}
-	rtFiles, err := link.CopyRuntime(res.Catalog, "typescript", files, out, "rt", false)
-	if err != nil {
-		return emitErr("GCE005", err.Error())
-	}
 	if res.IR.Library {
 		filtered := files[:0]
 		for _, f := range files {
@@ -160,14 +159,12 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 			}
 		}
 		files = filtered
-		kept := rtFiles[:0]
-		for _, f := range rtFiles {
-			if f != "rt/types/node_host.ts" {
-				kept = append(kept, f)
-			}
-		}
-		rtFiles = kept
-		_ = os.Remove(filepath.Join(out, "rt/types/node_host.ts"))
+	}
+	rtFiles, err := link.CopyRuntime(res.Catalog, "typescript", files, out, "rt", false)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	if res.IR.Library {
 		src, readErr := fs.ReadFile(res.Catalog.FS, "targets/typescript/runtime/library.ts")
 		if readErr != nil {
 			return emitErr("GCE005", readErr.Error())
@@ -186,31 +183,21 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		}
 		fmt.Fprintf(&index, "export * from \"./%s\";\n", f)
 	}
-	abs, _ := filepath.Abs(out)
-	if res.IR.Cooperative {
-		o.SourceMap.File = "program.ts"
-	}
-	smap, err := o.SourceMap.JSON(abs)
+	names, err := writeSourceArtifacts(out, o.Files)
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	gen := map[string][]byte{
-		"main.ts":      o.Source,
-		"main.ts.map":  smap,
 		"rt/index.ts":  []byte(index.String()),
 		"package.json": []byte("{\n  \"type\": \"module\",\n  \"private\": true,\n  \"engines\": {\"node\": \">=22.6\"}\n}\n"),
 		"README.md":    []byte(readme("typescript", "node main.ts", "Requires Node.js 22.6 or later (TypeScript type stripping); Node 22 needs --experimental-strip-types.")),
 	}
 	if res.IR.Library {
-		gen["main.ts"] = o.Source
 		gen["node.ts"] = []byte("// Node library entry: install standard-library CRC without executable I/O or process exit.\nimport \"./rt/types/node_checksum.ts\";\nexport * from \"./main.ts\";\n")
-		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["main.ts","node.ts","rt/**/*.ts"]}`)
+		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["*.ts","rt/**/*.ts"]}`)
 		gen["package.json"] = []byte(`{"name":"goalchemy-generated","version":"0.0.0","type":"module","private":true,"exports":{".":{"types":"./dist/main.d.ts","node":"./dist/node.js","browser":"./dist/main.js","default":"./dist/main.js"}},"files":["dist"],"engines":{"node":">=22.6"},"scripts":{"build":"tsc -p ."}}`)
 		gen["README.md"] = []byte(readme("typescript", "tsc -p . (TypeScript >=5.7)", "Portable Node/browser Promise library; Uint8Array bytes and bigint int64. Import the package to select the Node standard-library CRC adapter automatically, or import ./dist/node.js directly in Node. Browser/default package imports and direct ./dist/main.js imports use the portable CRC fallback. Hardware acceleration is determined by the host runtime and is not guaranteed."))
 	} else if res.IR.Cooperative {
-		gen["program.ts"] = []byte(strings.ReplaceAll(string(o.Source), "sourceMappingURL=main.ts.map", "sourceMappingURL=program.ts.map"))
-		gen["program.ts.map"] = smap
-		delete(gen, "main.ts.map")
 		run := "import { $run } from \"./program.ts\";\n$run();\n"
 		used := map[string]bool{}
 		for _, c := range o.Contracts {
@@ -222,7 +209,6 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		gen["main.ts"] = []byte("// Node executable entry.\nimport \"./rt/types/node_host.ts\";\n" + run)
 		gen["host.ts"] = []byte("// Portable Promise entry; executable globals are serialized, not library instances.\nexport { $runHost as runHost } from \"./program.ts\";\n")
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -230,7 +216,7 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "typescript", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "typescript", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -278,24 +264,11 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 		mod := strings.TrimSuffix(strings.ReplaceAll(f, "/", "."), ".py")
 		fmt.Fprintf(&index, "from .%s import *\n", mod)
 	}
-	abs, _ := filepath.Abs(out)
-	var lines strings.Builder
-	keys := make([]int, 0, len(o.Lines))
-	for k := range o.Lines {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		pos := o.Lines[k]
-		name := pos.Filename
-		if rel, err := filepath.Rel(abs, name); err == nil {
-			name = filepath.ToSlash(rel)
-		}
-		fmt.Fprintf(&lines, "%d\t%s:%d:%d\n", k, name, pos.Line, pos.Column)
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
 	}
 	gen := map[string][]byte{
-		"main.py":                o.Source,
-		"main.py.lines":          []byte(lines.String()),
 		"rt/__init__.py":         []byte(index.String()),
 		"rt/types/__init__.py":   []byte(""),
 		"rt/runtime/__init__.py": []byte(""),
@@ -304,7 +277,6 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 	if res.IR.Library {
 		gen["__init__.py"] = []byte("from .main import *\n")
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -312,7 +284,7 @@ func emitPython(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "python", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "python", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -322,23 +294,24 @@ func init() {
 	Register("java", emitJava)
 }
 
-const javaRun = `#!/bin/sh
-# Compiles and runs the program with a Java 21 or later JDK.
-set -e
-cd "$(dirname "$0")"
-if [ -n "$JAVA_HOME" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
-javac -nowarn -encoding UTF-8 -d classes Main.java rt/types/*.java rt/runtime/*.java
-exec java -cp classes Main
-`
-
-const javaLibraryBuild = `#!/bin/sh
-set -eu
-cd "$(dirname "$0")"
-if [ -n "${JAVA_HOME:-}" ]; then PATH="$JAVA_HOME/bin:$PATH"; fi
-mkdir -p classes
-javac -nowarn -encoding UTF-8 -d classes Generated.java rt/types/*.java rt/runtime/*.java
-jar --create --date=2026-01-01T00:00:00Z --file goalchemy-generated.jar -C classes .
-`
+// javaBuildScript compiles precisely the emitted native source inventory.
+// Caller adapters and obsolete sources are not globbed into the build.
+func javaBuildScript(library bool, generated, runtime []string) []byte {
+	var source strings.Builder
+	source.WriteString("#!/bin/sh\nset -eu\ncd \"$(dirname \"$0\")\"\nif [ -n \"${JAVA_HOME:-}\" ]; then PATH=\"$JAVA_HOME/bin:$PATH\"; fi\nmkdir -p classes\njavac -nowarn -encoding UTF-8 -d classes")
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".java") {
+			source.WriteString(" \\\n    '" + strings.ReplaceAll(name, "'", "'\\''") + "'")
+		}
+	}
+	source.WriteString("\n")
+	if library {
+		source.WriteString("jar --create --date=2026-01-01T00:00:00Z --file goalchemy-generated.jar -C classes .\n")
+	} else {
+		source.WriteString("exec java -cp classes Main\n")
+	}
+	return []byte(source.String())
+}
 
 func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := java.Emit(res.IR, symbols(res, "java"))
@@ -368,9 +341,11 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 				return emitErr("GCE005", err.Error())
 			}
 		}
-		source := []byte(strings.ReplaceAll(string(o.Source), "import rt.*;", "import io.goalchemy.runtime.*;"))
-		gen := map[string][]byte{"Generated.java": source, "Generated.java.lines": lineTable(o.Lines, out), "build.sh": []byte(javaLibraryBuild), "README.md": []byte(readme("java", "sh build.sh; import io.goalchemy.generated.Generated from goalchemy-generated.jar", "JDK21; serialized cancellable value operations; production crypto additionally requires declared BC1.86."))}
-		var names []string
+		names, err := writeSourceArtifacts(out, o.Files)
+		if err != nil {
+			return emitErr("GCE005", err.Error())
+		}
+		gen := map[string][]byte{"build.sh": javaBuildScript(true, names, rtFiles), "README.md": []byte(readme("java", "sh build.sh; import io.goalchemy.generated.Generated from goalchemy-generated.jar", "JDK21; serialized cancellable value operations; production crypto additionally requires declared BC1.86."))}
 		for name, data := range gen {
 			if err := link.WriteFile(out, name, data); err != nil {
 				return emitErr("GCE005", err.Error())
@@ -378,18 +353,16 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 			names = append(names, name)
 		}
 		sort.Strings(names)
-		if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+		if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 			return emitErr("GCE005", err.Error())
 		}
 		return nil
 	}
-	gen := map[string][]byte{
-		"Main.java":       o.Source,
-		"Main.java.lines": lineTable(o.Lines, out),
-		"run.sh":          []byte(javaRun),
-		"README.md":       []byte(readme("java", "sh run.sh", "Requires a Java 21 or later JDK.")),
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
 	}
-	var names []string
+	gen := map[string][]byte{"run.sh": javaBuildScript(false, names, rtFiles), "README.md": []byte(readme("java", "sh run.sh", "Requires a Java 21 or later JDK."))}
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -397,7 +370,7 @@ func emitJava(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "java", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -454,6 +427,7 @@ const csharpProject = `<Project Sdk="Microsoft.NET.Sdk">
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NoWarn>CS0162;CS0164;CS0168;CS0219;CS1718;CS8981</NoWarn>
   </PropertyGroup>
 </Project>
@@ -463,6 +437,32 @@ const csharpChecksumReference = `  <ItemGroup>
     <PackageReference Include="System.IO.Hashing" Version="[8.0.0]" />
   </ItemGroup>
 `
+
+// csharpSources lists native generated/runtime members without their maps.
+func csharpSources(generated, runtime []string) []string {
+	var sources []string
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".cs") {
+			sources = append(sources, name)
+		}
+	}
+	return sources
+}
+
+func csharpSourceProject(project string, sources []string) string {
+	escape := strings.NewReplacer("&", "&amp;", "\"", "&quot;", "<", "&lt;", ">", "&gt;")
+	var items strings.Builder
+	items.WriteString("  <ItemGroup>\n")
+	for _, source := range sources {
+		fmt.Fprintf(&items, "    <Compile Include=\"%s\" />\n", escape.Replace(source))
+	}
+	// Native adapters such as the SDK's TDF3.cs and executable HostRunner.cs
+	// remain ordinary root source members. Runtime members come only from the
+	// manifest inventory, and generated root members are not compiled twice.
+	fmt.Fprintf(&items, "    <Compile Include=\"*.cs\" Exclude=\"%s\" />\n", escape.Replace(strings.Join(sources, ";")))
+	items.WriteString("  </ItemGroup>\n")
+	return strings.Replace(project, "</Project>", items.String()+"</Project>", 1)
+}
 
 func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := csharp.Emit(res.IR, symbols(res, "csharp"))
@@ -480,6 +480,11 @@ func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
+	sources := csharpSources(names, rtFiles)
 	project := csharpProject
 	checksum := false
 	for _, ref := range refs {
@@ -488,6 +493,11 @@ func emitCSharp(res *Result, out string) []diagnostics.Diagnostic {
 		}
 	}
 	runScript := csharpRun
+	var arguments strings.Builder
+	for _, source := range sources {
+		arguments.WriteString(" \\\n    '" + strings.ReplaceAll(source, "'", "'\\''") + "'")
+	}
+	runScript = strings.Replace(runScript, " Main.cs rt/types/*.cs rt/runtime/*.cs", arguments.String(), 1)
 	if checksum {
 		project = strings.Replace(project, "</PropertyGroup>", "  <RestoreLockedMode>true</RestoreLockedMode>\n  </PropertyGroup>", 1)
 		project = strings.Replace(project, "</Project>", csharpChecksumReference+"</Project>", 1)
@@ -505,12 +515,11 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 	if res.IR.Library {
 		project = strings.Replace(project, "<OutputType>Exe</OutputType>", "<OutputType>Library</OutputType>", 1)
 	}
+	project = csharpSourceProject(project, sources)
 	gen := map[string][]byte{
-		"Main.cs":       o.Source,
-		"Main.cs.lines": lineTable(o.Lines, out),
-		"main.csproj":   []byte(project),
-		"run.sh":        []byte(runScript),
-		"README.md":     []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
+		"main.csproj": []byte(project),
+		"run.sh":      []byte(runScript),
+		"README.md":   []byte(readme("csharp", "sh run.sh", "Requires the .NET 8 SDK; dotnet run also works with main.csproj.")),
 	}
 	if res.IR.Library {
 		delete(gen, "run.sh")
@@ -525,7 +534,6 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 		gen["packages.lock.json"] = locked
 		gen["README.md"] = append(gen["README.md"], []byte("\nIEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package, restored against packages.lock.json. It is not part of the shared .NET runtime. Hardware acceleration is selected by the host and is not guaranteed. Library consumers should reference main.csproj to inherit the package dependency; assembly-only consumers must also reference System.IO.Hashing 8.0.0 and deploy its DLL.\n")...)
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -533,7 +541,7 @@ cp "$hashing" bin/System.IO.Hashing.dll`, 1)
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "csharp", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "csharp", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -555,6 +563,8 @@ const rustCargo = `[package]
 name = "goalchemy-out"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+autolib = false
 
 [[bin]]
 name = "main"
@@ -608,12 +618,10 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		fmt.Fprintf(&mod, "pub use %s::*;\n", name)
 	}
 	gen := map[string][]byte{
-		"src/main.rs":       o.Source,
-		"src/main.rs.lines": lineTable(o.Lines, out),
-		"src/rt/mod.rs":     []byte(mod.String()),
-		"Cargo.toml":        []byte(rustCargo),
-		"run.sh":            []byte(rustRun),
-		"README.md":         []byte(readme("rust", "sh run.sh", "Requires a stable Rust toolchain (edition 2021); cargo run --release also works.")),
+		"src/rt/mod.rs": []byte(mod.String()),
+		"Cargo.toml":    []byte(rustCargo),
+		"run.sh":        []byte(rustRun),
+		"README.md":     []byte(readme("rust", "sh run.sh", "Requires a stable Rust toolchain (edition 2021); cargo run --release also works.")),
 	}
 	native := res.IR.Library
 	for _, c := range o.Contracts {
@@ -626,15 +634,14 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		gen["run.sh"] = []byte("#!/bin/sh\nset -e\ncd \"$(dirname \"$0\")\"\ncargo run --release --quiet -- \"$@\"\n")
 	}
 	if res.IR.Library {
-		delete(gen, "src/main.rs")
-		delete(gen, "src/main.rs.lines")
 		delete(gen, "run.sh")
-		gen["src/lib.rs"] = o.Source
-		gen["src/lib.rs.lines"] = lineTable(o.Lines, out)
 		gen["Cargo.toml"] = []byte(strings.ReplaceAll(rustNativeCargo, "[[bin]]\nname = \"main\"\npath = \"src/main.rs\"", "[lib]\npath = \"src/lib.rs\""))
 		gen["README.md"] = []byte(readme("rust", "cargo build --release", "Owned typed Rust Result/Future library; use CallOptions and wait or await."))
 	}
-	var names []string
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -642,7 +649,7 @@ func emitRust(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "rust", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "rust", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -665,10 +672,7 @@ elif pkg-config --exists bdw-gc 2>/dev/null; then
 else
   gc=-lgc
 fi
-set -- main.c rt/types/*.c
-for source in rt/runtime/*.c; do
-  if [ -f "$source" ]; then set -- "$@" "$source"; fi
-done
+@GOALCHEMY_C_SOURCES@
 ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -w -Irt/types -o main "$@" $gc ${LDLIBS:-} -lpthread >&2
 exec ./main
 `
@@ -699,10 +703,7 @@ if [ -n "$GOALCHEMY_BDWGC" ]; then inc="-I$GOALCHEMY_BDWGC/include"
 elif pkg-config --exists bdw-gc 2>/dev/null; then inc=$(pkg-config --cflags bdw-gc); fi
 mkdir -p obj
 objects=""
-set -- main.c rt/types/*.c
-for source in rt/runtime/*.c; do
-  if [ -f "$source" ]; then set -- "$@" "$source"; fi
-done
+@GOALCHEMY_C_SOURCES@
 for f do
   object="obj/$(echo "$f" | tr / _).o"
   ${CC:-cc} -std=c17 ${CFLAGS:--O2} ${CPPFLAGS:-} -Irt/types $inc -c "$f" -o "$object"
@@ -717,6 +718,21 @@ if [ -f tdf3.c ]; then
 fi
 `
 
+func cBuildScript(library bool, generated, runtime []string) []byte {
+	script := cRun
+	if library {
+		script = cLibBuild
+	}
+	var sources strings.Builder
+	sources.WriteString("set --")
+	for _, name := range append(append([]string(nil), generated...), runtime...) {
+		if strings.HasSuffix(name, ".c") {
+			sources.WriteString(" \\\n    '" + strings.ReplaceAll(name, "'", "'\\''") + "'")
+		}
+	}
+	return []byte(strings.Replace(script, "@GOALCHEMY_C_SOURCES@", sources.String(), 1))
+}
+
 func emitC(res *Result, out string) []diagnostics.Diagnostic {
 	o, err := cemit.Emit(res.IR, symbols(res, "c"))
 	if err != nil {
@@ -730,13 +746,14 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 	if err != nil {
 		return emitErr("GCE005", err.Error())
 	}
+	names, err := writeSourceArtifacts(out, o.Files)
+	if err != nil {
+		return emitErr("GCE005", err.Error())
+	}
 	gen := map[string][]byte{
-		"main.c":       o.Source,
-		"main.c.lines": lineTable(o.Lines, out),
-		"README.md":    []byte(readme("c", "sh run.sh", "Requires a C17 compiler and the Boehm-Demers-Weiser collector (bdwgc 8.x with threads).")),
+		"README.md": []byte(readme("c", "sh run.sh", "Requires a C17 compiler and the Boehm-Demers-Weiser collector (bdwgc 8.x with threads).")),
 	}
 	if o.Header != nil {
-		gen["goalchemy.h"] = o.Header
 		for _, name := range []string{"library.h"} {
 			data, err := os.ReadFile(filepath.Join(out, "rt", "types", name))
 			if err != nil {
@@ -744,12 +761,11 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 			}
 			gen[name] = data
 		}
-		gen["build.sh"] = []byte(cLibBuild)
+		gen["build.sh"] = cBuildScript(true, names, rtFiles)
 		gen["README.md"] = []byte(readme("c", "sh build.sh", "Builds libgoalchemy.a; include goalchemy.h and link with bdwgc (-lgc) and -lpthread. Requires a C17 compiler and bdwgc 8.x with threads."))
 	} else {
-		gen["run.sh"] = []byte(strings.Replace(cRun, "${LDLIBS:-}", "${LDLIBS:-}"+cNativeLibs(o.Contracts), 1))
+		gen["run.sh"] = []byte(strings.Replace(string(cBuildScript(false, names, rtFiles)), "${LDLIBS:-}", "${LDLIBS:-}"+cNativeLibs(o.Contracts), 1))
 	}
-	var names []string
 	for name, data := range gen {
 		if err := link.WriteFile(out, name, data); err != nil {
 			return emitErr("GCE005", err.Error())
@@ -757,7 +773,7 @@ func emitC(res *Result, out string) []diagnostics.Diagnostic {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if err := link.WriteManifest(out, res.Catalog, "c", refs, rtFiles, names, res.Program); err != nil {
+	if err := link.WriteManifest(out, res.Catalog, "c", refs, rtFiles, names, res.Program, o.Packages...); err != nil {
 		return emitErr("GCE005", err.Error())
 	}
 	return nil
@@ -767,6 +783,8 @@ const rustNativeCargo = `[package]
 name = "goalchemy-generated"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+autolib = false
 rust-version = "1.88"
 license = "Apache-2.0"
 [features]

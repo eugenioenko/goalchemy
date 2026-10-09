@@ -24,7 +24,7 @@ func TestCByteStorage(t *testing.T) {
 	if ds := testutil.CompileGate("../language/testdata/byte_storage", "c", outDir, "sequential"); len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	src, err := os.ReadFile(filepath.Join(outDir, "main.c"))
+	src, err := testutil.GeneratedSource(outDir, ".c")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestCByteStorage(t *testing.T) {
 			t.Errorf("emitted byte program lacks %q", want)
 		}
 	}
-	match := regexp.MustCompile(`static gx_V z_([A-Za-z0-9_]+)\(void\) \{ return gx_byte_array\(4\); \}`).FindSubmatch(src)
+	match := regexp.MustCompile(`gx_V z_([A-Za-z0-9_]+)\(void\) \{ return gx_byte_array\(4\); \}`).FindSubmatch(src)
 	if match == nil {
 		t.Fatal("missing emitted byte zero helper")
 	}
@@ -67,7 +67,11 @@ int main(void) {
     return 0;
 }
 `, id)
-	updated := strings.Replace(string(src), "int main(void)", "static int original_main(void)", 1) + check
+	main, err := os.ReadFile(filepath.Join(outDir, "main.c"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := strings.Replace(string(main), "int main(void)", "static int original_main(void)", 1) + check
 	if err := os.WriteFile(filepath.Join(outDir, "main.c"), []byte(updated), 0600); err != nil {
 		t.Fatal(err)
 	}

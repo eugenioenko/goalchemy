@@ -156,15 +156,12 @@ func (e *emitter) library() (string, error) {
 		}
 	}
 	b.WriteString("    return rt.LibraryFailure('source')\n\ndef _library_reset():\n")
-	var names []string
 	for _, g := range e.p.Globals {
-		names = append(names, e.names.Symbol(g.Sym))
-	}
-	if len(names) > 0 {
-		fmt.Fprintf(&b, "    global %s\n", strings.Join(names, ", "))
-	}
-	for _, g := range e.p.Globals {
-		fmt.Fprintf(&b, "    %s = %s\n", e.names.Symbol(g.Sym), e.zero(g.Type))
+		slot := e.symbol(g.Sym)
+		if g.AddrTaken && !g.Type.IsAggregate() {
+			slot += ".v"
+		}
+		fmt.Fprintf(&b, "    %s = %s\n", slot, e.zero(g.Type))
 	}
 	b.WriteString("    rt.library_clear_refs()\n\n")
 	used := map[string]bool{}
@@ -191,11 +188,11 @@ func (e *emitter) library() (string, error) {
 			}
 			return ""
 		}())
-		init := e.names.Symbol(e.p.Init.Sym) + "()"
+		init := e.symbol(e.p.Init.Sym) + "()"
 		if !e.p.Init.MaySuspend {
 			init = "rt.sync(lambda: (" + init + ", [])[1])"
 		}
-		call := e.names.Symbol(f.Sym) + "(" + strings.Join(as, ", ") + ")"
+		call := e.symbol(f.Sym) + "(" + strings.Join(as, ", ") + ")"
 		if !f.MaySuspend {
 			if len(f.Sig.Results) == 0 {
 				call = "rt.sync(lambda: (" + call + ", [])[1])"

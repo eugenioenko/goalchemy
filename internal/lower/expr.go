@@ -670,7 +670,13 @@ func (fl *fnLowerer) fillComposite(lit *ast.CompositeLit, p *ir.Place) {
 func (fl *fnLowerer) funcLit(lit *ast.FuncLit) ir.Value {
 	fl.litN++
 	sig := fl.info.TypeOf(lit).(*types.Signature)
-	f := fl.l.addFunc(&ir.Func{Closure: true, Pkg: fl.f.Pkg, Pos: lit.Pos(),
+	owner := fl.f.Pkg
+	// Package initializer closures are lowered inside the central Init function,
+	// but their declarations still belong to the currently initialized package.
+	if owner == "" && fl.p != nil {
+		owner = fl.p.PkgPath
+	}
+	f := fl.l.addFunc(&ir.Func{Closure: true, Pkg: owner, Pos: lit.Pos(),
 		Name: fl.f.Name + "$" + itoa(fl.litN), Sym: fl.l.sym(fl.f.Sym + "_func" + itoa(fl.litN)),
 		Sig: fl.typ(sig)})
 	child := fl.l.newFn(fl.p, f)

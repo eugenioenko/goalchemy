@@ -41,7 +41,7 @@ func TestGeneratedCSharpHostFatalCleanup(t *testing.T) {
 			if ds := testutil.CompileGate(fixture, "csharp", out, "cooperative"); len(ds) > 0 {
 				t.Fatal(ds)
 			}
-			emitted, err := os.ReadFile(filepath.Join(out, "Main.cs"))
+			emitted, err := testutil.GeneratedSource(out, ".cs")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -71,7 +71,7 @@ func TestGeneratedCSharpHostFatalCleanup(t *testing.T) {
 				t.Fatal(err)
 			}
 			inject(filepath.Join(out, "run.sh"), "-optimize+", "-main:FatalConsumer -optimize+")
-			inject(filepath.Join(out, "run.sh"), "Main.cs rt/types", "Main.cs FatalConsumer.cs rt/types")
+			inject(filepath.Join(out, "run.sh"), "-out:bin/main.dll $refs", "-out:bin/main.dll $refs FatalConsumer.cs rt/runtime/TestOnlyFatal.cs")
 			ctx, stop := context.WithTimeout(context.Background(), 60*time.Second)
 			defer stop()
 			cmd := exec.CommandContext(ctx, "sh", "run.sh")

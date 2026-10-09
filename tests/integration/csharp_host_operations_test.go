@@ -159,7 +159,7 @@ public static class HostConsumer{
 		t.Fatal(err)
 	}
 	inject(filepath.Join(out, "run.sh"), "-optimize+", "-main:HostConsumer -optimize+")
-	inject(filepath.Join(out, "run.sh"), "Main.cs rt/types", "Main.cs HostConsumer.cs rt/types")
+	inject(filepath.Join(out, "run.sh"), "-out:bin/main.dll $refs", "-out:bin/main.dll $refs HostConsumer.cs rt/runtime/TestOnlyTransport.cs")
 	actual := run()
 	want := "init 1\nmain 2\ntrue\ntrue true\nsource progress\ntransport returned\ncancel progress\ntrue\ntrue true\ninit 3\nmain 4\ntrue\ntrue true\nsource progress\ntransport returned\ncancel progress\ntrue\ntrue true\nPASS emitted C# host frames/repeated init/HTTP/TLS/cancellation/cleanup\n"
 	if actual != want {

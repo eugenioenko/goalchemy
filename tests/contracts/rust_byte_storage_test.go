@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/goalchemy/internal/driver"
+	"github.com/eugenioenko/goalchemy/internal/link"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
@@ -34,7 +36,7 @@ func TestRustByteStorage(t *testing.T) {
 	if ds := testutil.CompileGate("../language/testdata/byte_storage", "rust", outDir, "sequential"); len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	src, err := os.ReadFile(filepath.Join(outDir, "src", "main.rs"))
+	src, err := testutil.GeneratedSource(outDir, ".rs")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,9 +52,34 @@ func TestRustByteStorage(t *testing.T) {
 		t.Fatal("missing emitted native byte-array zero helper")
 	}
 	id := string(match[1])
+	data, err := os.ReadFile(filepath.Join(outDir, "goalchemy.manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest link.Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	helperModule := ""
+	for _, name := range manifest.GeneratedFiles {
+		if filepath.Ext(name) != ".rs" {
+			continue
+		}
+		file, err := os.ReadFile(filepath.Join(outDir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(file), string(match[0])) {
+			helperModule = strings.TrimSuffix(filepath.Base(name), ".rs")
+		}
+	}
+	if helperModule == "" {
+		t.Fatal("missing native helper module")
+	}
 	check := fmt.Sprintf(`
 #[test]
 fn emitted_byte_helpers() {
+    use %[2]s::{z_%[1]s,c_%[1]s,eq_%[1]s,k_%[1]s,set_%[1]s};
     let a = z_%[1]s();
     let alias = slice_array(a.clone(), V::Nil, V::Nil, V::Nil, false);
     assert!(matches!(alias, V::ByteSlice(..)));
@@ -70,8 +97,13 @@ fn emitted_byte_helpers() {
     assert!(eq_%[1]s(&a, &b));
     assert!(matches!(key, Key::Bytes(v) if v.as_ref() == &[255, 0, 0, 0]));
 }
-`, id)
-	if err := os.WriteFile(filepath.Join(outDir, "src", "main.rs"), append(src, []byte(check)...), 0600); err != nil {
+`, id, helperModule)
+	entry := filepath.Join(outDir, "src", "main.rs")
+	main, err := os.ReadFile(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(entry, append(main, []byte(check)...), 0600); err != nil {
 		t.Fatal(err)
 	}
 	build := exec.Command("rustc", "--edition", "2021", "-Awarnings", "--test", "-C", "opt-level=1", "-o", "byte_helpers", "src/main.rs")

@@ -468,7 +468,7 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	sig := l.ts.Of(types.NewSignatureType(nil, nil, nil, types.NewTuple(params...), msig.Results(), msig.Variadic()))
 	name := t.String() + "." + m.Name()
 	f := l.addFunc(&ir.Func{Name: name, Sym: l.sym("wrap_" + sanitize(t.String()) + "_" + m.Name()), Sig: sig,
-		Wrapper: true, MethodID: m.Id(), RecvType: t})
+		Pkg: l.receiverPackage(t, m), Wrapper: true, MethodID: m.Id(), RecvType: t})
 	l.wrappers[key] = f
 	fl := l.newFn(nil, f)
 	fl.start()
@@ -545,6 +545,25 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	fl.term(&ir.Return{})
 	fl.finish()
 	return f
+}
+
+// receiverPackage keeps receiver adapters with their source type, including
+// promoted methods whose implementation belongs to an imported package.
+func (l *Lowerer) receiverPackage(t *ir.Type, method *types.Func) string {
+	if t.Kind == ir.KPointer {
+		t = t.Elem
+	}
+	if t.Kind == ir.KNamed && t.Pkg != "" {
+		for _, p := range l.prog.Source {
+			if p.PkgPath == t.Pkg {
+				return t.Pkg
+			}
+		}
+	}
+	if p := l.pkgs[method.Pkg()]; p != nil {
+		return p.PkgPath
+	}
+	return ""
 }
 
 // externWrapper creates a function value wrapper for an external capability.

@@ -60,6 +60,14 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 	for _, p := range prog.Source {
 		l.pkgs[p.Types] = p
 		l.alias(p.PkgPath, p.Name)
+		pkg := ir.Package{Path: p.PkgPath, Name: p.Name, Root: l.root(p), Imports: []string{}}
+		for imported := range p.Imports {
+			if prog.IsSource(imported) {
+				pkg.Imports = append(pkg.Imports, imported)
+			}
+		}
+		sort.Strings(pkg.Imports)
+		l.out.Packages = append(l.out.Packages, pkg)
 	}
 	for _, p := range prog.Source {
 		l.declare(p)
@@ -285,6 +293,16 @@ func (l *Lowerer) analyze(p *packages.Package) {
 		case *ast.SelectorExpr:
 			if sel := info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal && !sel.Indirect() {
 				markAddr(x.X)
+			} else if sel == nil {
+				// Package-qualified source globals have no field selection.
+				// Their address needs the same stable storage as a local
+				// package identifier in targets without native lvalues.
+				if v, ok := info.Uses[x.Sel].(*types.Var); ok {
+					if g, ok := l.globals[v]; ok {
+						l.boxed[v] = true
+						g.AddrTaken = true
+					}
+				}
 			}
 		case *ast.IndexExpr:
 			if t := info.TypeOf(x.X); t != nil {

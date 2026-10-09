@@ -24,7 +24,7 @@ func TestCSharpByteStorage(t *testing.T) {
 	if ds := testutil.CompileGate("../language/testdata/byte_storage", "csharp", outDir, "sequential"); len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	src, err := os.ReadFile(filepath.Join(outDir, "Main.cs"))
+	src, err := testutil.GeneratedSource(outDir, ".cs")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestCSharpByteStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	runText := strings.Replace(string(run), "-optimize+", "-main:ByteStorageTest -optimize+", 1)
-	runText = strings.Replace(runText, "Main.cs rt/types", "Main.cs ByteStorageTest.cs rt/types", 1)
+	runText = strings.Replace(runText, "-out:bin/main.dll $refs", "-out:bin/main.dll $refs ByteStorageTest.cs", 1)
 	if err := os.WriteFile(filepath.Join(outDir, "run.sh"), []byte(runText), 0600); err != nil {
 		t.Fatal(err)
 	}

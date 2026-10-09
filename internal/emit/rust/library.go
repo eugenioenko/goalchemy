@@ -222,7 +222,7 @@ func (e *emitter) library() (string, error) {
 	}
 	sort.Slice(errorTypes, func(i, j int) bool { return errorTypes[i].ID < errorTypes[j].ID })
 	for _, t := range errorTypes {
-		fmt.Fprintf(&b, "if is_type(v, &td_%s) { let x=unboxed(v); let mut err=LibraryError::from_bytes(ErrorKind::Source,format_panic_value(v));\n", e.names.Type(t, ""))
+		fmt.Fprintf(&b, "if is_type(v, %s) { let x=unboxed(v); let mut err=LibraryError::from_bytes(ErrorKind::Source,format_panic_value(v));\n", e.td(t))
 		for i, f := range t.Elem.U().Fields {
 			switch f.Type.U().Kind {
 			case ir.KString:
@@ -271,13 +271,13 @@ func (e *emitter) library() (string, error) {
 		}
 		ps = append(ps, "options: CallOptions")
 		fmt.Fprintf(&b, "pub fn %s(%s) -> Operation<%s> {\nOperation::submit(options, move |options| {\nlibrary_owner(%d, init_zero_globals, options, |ctx| {\n", name, strings.Join(ps, ","), result, len(e.p.Globals))
-		init := fmt.Sprintf("f_%s()", e.names.Symbol(e.p.Init.Sym))
+		init := fmt.Sprintf("%s()", e.symbol(e.p.Init.Sym, "f_"))
 		if !e.p.Init.MaySuspend {
-			init = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![],0)", e.names.Symbol(e.p.Init.Sym))
+			init = fmt.Sprintf("sync_frame(func(-1,%s,vec![]),vec![],0)", e.symbol(e.p.Init.Sym, "w_"))
 		}
-		call := fmt.Sprintf("f_%s(%s)", e.names.Symbol(f.Sym), strings.Join(args, ","))
+		call := fmt.Sprintf("%s(%s)", e.symbol(f.Sym, "f_"), strings.Join(args, ","))
 		if !f.MaySuspend {
-			call = fmt.Sprintf("sync_frame(func(-1,w_%s,vec![]),vec![%s],%d)", e.names.Symbol(f.Sym), strings.Join(args, ","), len(f.Sig.Results))
+			call = fmt.Sprintf("sync_frame(func(-1,%s,vec![]),vec![%s],%d)", e.symbol(f.Sym, "w_"), strings.Join(args, ","), len(f.Sig.Results))
 		}
 		fmt.Fprintf(&b, "library_sequence(%s, move || %s)\n}, |rv| {\n", init, call)
 		if hasError {

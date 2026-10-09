@@ -88,10 +88,10 @@ func TestNamingModes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(again.Source) != string(out.Source) {
+			if generatedSource(again) != generatedSource(out) {
 				t.Fatal("repeated emission changed generated names")
 			}
-			source := string(out.Source)
+			source := generatedSource(out)
 			for _, f := range res.IR.Funcs {
 				if !strings.Contains(source, naming.Symbol(res.IR, f.Sym)+"(") {
 					t.Errorf("missing emitted function %s", f.Name)
@@ -143,7 +143,7 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		source := string(out.Source)
+		source := generatedSource(out)
 		for _, name := range []string{"pub struct State", "pub Clone: i64", "pub Label: Vec<u8>", "pub fn Export("} {
 			if !strings.Contains(source, name) {
 				t.Errorf("compact=%v public API missing %q", compact, name)
@@ -186,7 +186,7 @@ func TestLibraryAnonymousPublicNameCollision(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, name := range []string{publicName, publicName + "_"} {
-			if !strings.Contains(string(out.Source), "pub struct "+name+" {") {
+			if !strings.Contains(generatedSource(out), "pub struct "+name+" {") {
 				t.Errorf("compact=%v missing distinct public struct %s", compact, name)
 			}
 		}
@@ -219,4 +219,12 @@ func TestLibraryReservedPublicFunctions(t *testing.T) {
 			}
 		}
 	}
+}
+
+func generatedSource(output *rust.Output) string {
+	var source strings.Builder
+	for _, file := range output.Files {
+		source.Write(file.Source)
+	}
+	return source.String()
 }

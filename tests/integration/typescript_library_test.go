@@ -60,7 +60,7 @@ func KeyRace(ctx context.Context)([]byte,error){key,e:=crypto.GenerateRSA2048();
 	if err := os.WriteFile(filepath.Join(out, "library-suite.ts"), suite, 0600); err != nil {
 		t.Fatal(err)
 	}
-	config := `{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["main.ts","rt/**/*.ts","library-suite.ts"]}`
+	config := `{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["*.ts","rt/**/*.ts"]}`
 	if err := os.WriteFile(filepath.Join(out, "tsconfig.json"), []byte(config), 0600); err != nil {
 		t.Fatal(err)
 	}
