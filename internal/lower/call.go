@@ -20,6 +20,9 @@ func (fl *fnLowerer) callExpr(e *ast.CallExpr) []ir.Value {
 			return fl.builtin(e, b.Name())
 		}
 	}
+	if out, ok := fl.intrinsic(e); ok {
+		return out
+	}
 	c := fl.prepareCall(e, false)
 	sig := fl.info.TypeOf(fun).Underlying().(*types.Signature)
 	var out []ir.Value
