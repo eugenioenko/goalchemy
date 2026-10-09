@@ -455,6 +455,12 @@ func TestUnixClockIndependentOfVirtualScheduler(t *testing.T) {
 	if got < min(before, after) || got > max(before, after) {
 		t.Fatalf("Unix followed virtual clock: %d", got)
 	}
+	beforeNano := time.Now().UnixNano()
+	gotNano := LibClockUnixNano()
+	afterNano := time.Now().UnixNano()
+	if gotNano < beforeNano || gotNano > afterNano {
+		t.Fatalf("UnixNano followed virtual clock: %d", gotNano)
+	}
 }
 
 func TestHTTPRequestTimeoutIncludesSubmissionDelay(t *testing.T) {

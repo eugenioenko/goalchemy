@@ -1719,6 +1719,7 @@ Package clock provides wall time, independent of Goalchemy virtual time.
 | Function | c | csharp | go | java | python | rust | swift | typescript |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | `Unix` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `UnixNano` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Unix
 
@@ -1731,6 +1732,19 @@ The host wall-clock time in UTC seconds since the Unix epoch.
 - **Gate**: `sequential` (never suspends)
 - **Determinism**: nondeterministic
 - **Contract**: `lib.clock.unix` 1.0.0
+
+### UnixNano
+
+```go
+func UnixNano() int64
+```
+
+The host wall-clock time in UTC nanoseconds since the Unix epoch.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: Precision is the host clock resolution: milliseconds where only a millisecond clock exists, such as JavaScript Date.now, otherwise microseconds or nanoseconds.
+- **Contract**: `lib.clock.unix_nano` 1.0.0
 
 ## context
 

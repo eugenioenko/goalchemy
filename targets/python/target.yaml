@@ -140,6 +140,7 @@ functions:
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_url_encode, implementation: runtime/lib_encoding_base64_url_encode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_url_encode({0})"}
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_url_decode, implementation: runtime/lib_encoding_base64_url_decode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_url_decode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.lib_clock_unix, implementation: runtime/lib_clock_unix.py, harness: "rt.lib_clock_unix()"}
+  - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: rt.lib_clock_unix_nano, implementation: runtime/lib_clock_unix_nano.py, harness: "rt.lib_clock_unix_nano()"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.lib_http_do, implementation: runtime/lib_http_do.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: rt.lib_callback_request, implementation: runtime/lib_callback_request.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_callback_request(t,{0},{1},{2})"}
 

@@ -756,6 +756,11 @@ functions:
   symbol: GNative.lib_clock_unix
   implementation: runtime/lib_clock_unix.swift
   harness: 'native: GNative.lib_clock_unix({args}, {types})'
+- id: lib.clock.unix_nano
+  contract_version: 1.0.0
+  symbol: GNative.lib_clock_unix_nano
+  implementation: runtime/lib_clock_unix_nano.swift
+  harness: 'native: GNative.lib_clock_unix_nano({args}, {types})'
 - id: lib.http.do
   contract_version: 1.0.0
   symbol: GNative.lib_http_do

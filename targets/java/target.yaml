@@ -141,6 +141,7 @@ functions:
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: LibEncodingBase64UrlEncode.libEncodingBase64UrlEncode, implementation: runtime/LibEncodingBase64UrlEncode.java, requires: [std.errors.new], harness: "LibEncodingBase64UrlEncode.libEncodingBase64UrlEncode({0})"}
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode, implementation: runtime/LibEncodingBase64UrlDecode.java, requires: [std.errors.new, lib.encoding.base64_decode], harness: "LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: LibClockUnix.libClockUnix, implementation: runtime/LibClockUnix.java, harness: "LibClockUnix.libClockUnix()"}
+  - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: LibClockUnixNano.libClockUnixNano, implementation: runtime/LibClockUnixNano.java, harness: "LibClockUnixNano.libClockUnixNano()"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: LibCallbackRequest.libCallbackRequest, implementation: runtime/LibCallbackRequest.java, requires: [std.context.err], harness: "host: LibCallbackRequest.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: LibHttpDo.libHttpDo, implementation: runtime/LibHttpDo.java, requires: [std.context.err], harness: "host: LibHttpDo.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
 
