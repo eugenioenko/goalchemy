@@ -110,19 +110,30 @@ functions:
   - {id: lib.crypto.aes256_gcm_encrypt, contract_version: 1.0.0, symbol: rt.LibCryptoAES256GCMEncrypt, implementation: runtime/lib_crypto_aes256_gcm_encrypt.go, requires: [lib.crypto.close]}
   - {id: lib.crypto.aes256_gcm_decrypt, contract_version: 1.0.0, symbol: rt.LibCryptoAES256GCMDecrypt, implementation: runtime/lib_crypto_aes256_gcm_decrypt.go, requires: [lib.crypto.close]}
   - {id: lib.crypto.generate_rsa2048, contract_version: 1.0.0, symbol: rt.LibCryptoGenerateRSA2048, implementation: runtime/lib_crypto_generate_rsa2048.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.generate_rsa4096, contract_version: 1.0.0, symbol: rt.LibCryptoGenerateRSA4096, implementation: runtime/lib_crypto_generate_rsa4096.go, requires: [lib.crypto.close]}
   - {id: lib.crypto.generate_p256, contract_version: 1.0.0, symbol: rt.LibCryptoGenerateP256, implementation: runtime/lib_crypto_generate_p256.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.import_pem, contract_version: 1.0.0, symbol: rt.LibCryptoImportPEM, implementation: runtime/lib_crypto_import_pem.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.generate_p384, contract_version: 1.0.0, symbol: rt.LibCryptoGenerateP384, implementation: runtime/lib_crypto_generate_p384.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.generate_p521, contract_version: 1.0.0, symbol: rt.LibCryptoGenerateP521, implementation: runtime/lib_crypto_generate_p521.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.import_pem, contract_version: 1.1.0, symbol: rt.LibCryptoImportPEM, implementation: runtime/lib_crypto_import_pem.go, requires: [lib.crypto.close]}
   - {id: lib.crypto.close, contract_version: 1.0.0, symbol: rt.LibCryptoClose, implementation: runtime/lib_crypto_close.go}
-  - {id: lib.crypto.public_pem, contract_version: 1.0.0, symbol: rt.LibCryptoPublicPEM, implementation: runtime/lib_crypto_public_pem.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.private_pem, contract_version: 1.0.0, symbol: rt.LibCryptoPrivatePEM, implementation: runtime/lib_crypto_private_pem.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.public_jwk, contract_version: 1.0.0, symbol: rt.LibCryptoPublicJWK, implementation: runtime/lib_crypto_public_jwk.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.rsa_oaep_encrypt, contract_version: 1.0.0, symbol: rt.LibCryptoRSAOAEPEncrypt, implementation: runtime/lib_crypto_rsa_oaep_encrypt.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.rsa_oaep_decrypt, contract_version: 1.0.0, symbol: rt.LibCryptoRSAOAEPDecrypt, implementation: runtime/lib_crypto_rsa_oaep_decrypt.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.rs256_sign, contract_version: 1.0.0, symbol: rt.LibCryptoRS256Sign, implementation: runtime/lib_crypto_rs256_sign.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.rs256_verify, contract_version: 1.0.0, symbol: rt.LibCryptoRS256Verify, implementation: runtime/lib_crypto_rs256_verify.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.es256_sign, contract_version: 1.0.0, symbol: rt.LibCryptoES256Sign, implementation: runtime/lib_crypto_es256_sign.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.es256_verify, contract_version: 1.0.0, symbol: rt.LibCryptoES256Verify, implementation: runtime/lib_crypto_es256_verify.go, requires: [lib.crypto.close]}
-  - {id: lib.crypto.ecdh, contract_version: 1.0.0, symbol: rt.LibCryptoECDH, implementation: runtime/lib_crypto_ecdh.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.public_pem, contract_version: 1.1.0, symbol: rt.LibCryptoPublicPEM, implementation: runtime/lib_crypto_public_pem.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.private_pem, contract_version: 1.1.0, symbol: rt.LibCryptoPrivatePEM, implementation: runtime/lib_crypto_private_pem.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.public_jwk, contract_version: 1.1.0, symbol: rt.LibCryptoPublicJWK, implementation: runtime/lib_crypto_public_jwk.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rsa_oaep_encrypt, contract_version: 1.1.0, symbol: rt.LibCryptoRSAOAEPEncrypt, implementation: runtime/lib_crypto_rsa_oaep_encrypt.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rsa_oaep_decrypt, contract_version: 1.1.0, symbol: rt.LibCryptoRSAOAEPDecrypt, implementation: runtime/lib_crypto_rsa_oaep_decrypt.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs256_sign, contract_version: 1.1.0, symbol: rt.LibCryptoRS256Sign, implementation: runtime/lib_crypto_rs256_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs384_sign, contract_version: 1.0.0, symbol: rt.LibCryptoRS384Sign, implementation: runtime/lib_crypto_rs384_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs512_sign, contract_version: 1.0.0, symbol: rt.LibCryptoRS512Sign, implementation: runtime/lib_crypto_rs512_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs256_verify, contract_version: 1.1.0, symbol: rt.LibCryptoRS256Verify, implementation: runtime/lib_crypto_rs256_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs384_verify, contract_version: 1.0.0, symbol: rt.LibCryptoRS384Verify, implementation: runtime/lib_crypto_rs384_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.rs512_verify, contract_version: 1.0.0, symbol: rt.LibCryptoRS512Verify, implementation: runtime/lib_crypto_rs512_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es256_sign, contract_version: 1.1.0, symbol: rt.LibCryptoES256Sign, implementation: runtime/lib_crypto_es256_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es384_sign, contract_version: 1.0.0, symbol: rt.LibCryptoES384Sign, implementation: runtime/lib_crypto_es384_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es512_sign, contract_version: 1.0.0, symbol: rt.LibCryptoES512Sign, implementation: runtime/lib_crypto_es512_sign.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es256_verify, contract_version: 1.1.0, symbol: rt.LibCryptoES256Verify, implementation: runtime/lib_crypto_es256_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es384_verify, contract_version: 1.0.0, symbol: rt.LibCryptoES384Verify, implementation: runtime/lib_crypto_es384_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.es512_verify, contract_version: 1.0.0, symbol: rt.LibCryptoES512Verify, implementation: runtime/lib_crypto_es512_verify.go, requires: [lib.crypto.close]}
+  - {id: lib.crypto.ecdh, contract_version: 1.1.0, symbol: rt.LibCryptoECDH, implementation: runtime/lib_crypto_ecdh.go, requires: [lib.crypto.close]}
   - {id: lib.encoding.base64_encode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64Encode, implementation: runtime/lib_encoding_base64_encode.go}
   - {id: lib.encoding.base64_decode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64Decode, implementation: runtime/lib_encoding_base64_decode.go}
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64URLEncode, implementation: runtime/lib_encoding_base64_url_encode.go}

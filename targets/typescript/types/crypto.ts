@@ -2,6 +2,12 @@
 import { invalid, bounded, size, DeclaredFailure, b64, unb64, MAX_BYTES } from './native.ts';
 import { parsePEM, pem } from './der.ts';
 export type KeyUse='oaep'|'sign'|'ecdh';
+export type Hash='SHA-256'|'SHA-384'|'SHA-512';
+export type Algorithm='RS256'|'RS384'|'RS512'|'ES256'|'ES384'|'ES512';
+const CURVES:Record<string,number>={'P-256':32,'P-384':48,'P-521':66};
+const ALGORITHMS:Record<Algorithm,{hash:Hash;crv?:string}>={RS256:{hash:'SHA-256'},RS384:{hash:'SHA-384'},RS512:{hash:'SHA-512'},ES256:{hash:'SHA-256',crv:'P-256'},ES384:{hash:'SHA-384',crv:'P-384'},ES512:{hash:'SHA-512',crv:'P-521'}};
+/** Fixed coordinate width of an EC key or modulus width of an RSA key, in bytes. */
+export function width(j:JsonWebKey):number{return j.kty==='EC'?CURVES[j.crv!]:unb64(j.n!,true,512).length;}
 export class NativeKey {
   private jwk:JsonWebKey|null;
   private cache=new Map<string,Promise<CryptoKey>>();
@@ -10,12 +16,12 @@ export class NativeKey {
   private waiters:(()=>void)[]=[];
   readonly family:'RSA'|'EC';
   constructor(jwk:JsonWebKey){validateJWK(jwk);this.jwk={...jwk};this.family=jwk.kty as 'RSA'|'EC';}
-  acquire():{jwk:JsonWebKey; release:()=>void; key:(use:KeyUse,privateKey:boolean)=>Promise<CryptoKey>}{
+  acquire():{jwk:JsonWebKey; release:()=>void; key:(use:KeyUse,privateKey:boolean,hash?:Hash)=>Promise<CryptoKey>}{
     if(this.closing||this.jwk===null)invalid('crypto: key is closed');const jwk=this.jwk;this.leases++;let released=false;
-    return {jwk,release:()=>{if(released)return;released=true;if(--this.leases===0&&this.closing)this.drop();},key:(use,priv)=>{
+    return {jwk,release:()=>{if(released)return;released=true;if(--this.leases===0&&this.closing)this.drop();},key:(use,priv,hash='SHA-256')=>{
       if((priv&&!jwk.d)||(use==='ecdh'&&this.family!=='EC')||(use==='oaep'&&this.family!=='RSA'))invalid();
-      const id=use+':'+priv;let p=this.cache.get(id);if(!p){const copy={...jwk};delete copy.alg;delete copy.key_ops;copy.ext=true;if(!priv)for(const n of ['d','p','q','dp','dq','qi'] as const)delete copy[n];
-        const alg=this.family==='RSA'?{name:use==='oaep'?'RSA-OAEP':'RSASSA-PKCS1-v1_5',hash:use==='oaep'?'SHA-1':'SHA-256'}:{name:use==='ecdh'?'ECDH':'ECDSA',namedCurve:'P-256'};
+      const id=use+':'+priv+':'+hash;let p=this.cache.get(id);if(!p){const copy={...jwk};delete copy.alg;delete copy.key_ops;copy.ext=true;if(!priv)for(const n of ['d','p','q','dp','dq','qi'] as const)delete copy[n];
+        const alg=this.family==='RSA'?{name:use==='oaep'?'RSA-OAEP':'RSASSA-PKCS1-v1_5',hash:use==='oaep'?'SHA-1':hash}:{name:use==='ecdh'?'ECDH':'ECDSA',namedCurve:jwk.crv!};
         const uses:KeyUsage[]=use==='ecdh'?(priv?['deriveBits']:[]):use==='oaep'?(priv?['decrypt']:['encrypt']):(priv?['sign']:['verify']);
         p=crypto.subtle.importKey('jwk',copy,alg,true,uses);this.cache.set(id,p);
       }return p;
@@ -27,14 +33,15 @@ export class NativeKey {
   state():{closed:boolean;leases:number;retained:boolean}{return {closed:this.closing,leases:this.leases,retained:this.jwk!==null};}
 }
 function validateJWK(j:JsonWebKey):void{
- if(j.kty==='RSA'){if(!j.n||!j.e)invalid();const n=unb64(j.n,true,256),e=unb64(j.e,true,8);if(n.length!==256||!(n[0]&128)||e.length===0)invalid();let v=0n;for(const b of e)v=v*256n+BigInt(b);if(v<3n||v>2147483647n||(v&1n)===0n)invalid();}
- else if(j.kty==='EC'){if(j.crv!=='P-256'||!j.x||!j.y||unb64(j.x,true,32).length!==32||unb64(j.y,true,32).length!==32||(j.d&&unb64(j.d,true,32).length!==32))invalid();}else invalid();
+ if(j.kty==='RSA'){if(!j.n||!j.e)invalid();const n=unb64(j.n,true,512),e=unb64(j.e,true,8);if(![256,384,512].includes(n.length)||!(n[0]&128)||e.length===0)invalid();let v=0n;for(const b of e)v=v*256n+BigInt(b);if(v<3n||v>2147483647n||(v&1n)===0n)invalid();}
+ else if(j.kty==='EC'){const n=CURVES[j.crv??''];if(!n||!j.x||!j.y||unb64(j.x,true,n).length!==n||unb64(j.y,true,n).length!==n||(j.d&&unb64(j.d,true,n).length!==n))invalid();}else invalid();
 }
-export async function generate(family:'RSA'|'EC'):Promise<NativeKey>{const pair=await crypto.subtle.generateKey(family==='RSA'?{name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'}:{name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);return new NativeKey(await crypto.subtle.exportKey('jwk',pair.privateKey));}
-export async function importPEM(s:string):Promise<NativeKey>{const p=parsePEM(s);for(const alg of [{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},{name:'ECDSA',namedCurve:'P-256'}]){try{const key=await crypto.subtle.importKey(p.format,p.data,alg,true,[p.format==='pkcs8'?'sign':'verify']);return new NativeKey(await crypto.subtle.exportKey('jwk',key));}catch(e){if(e instanceof DeclaredFailure)throw e;if(!(e instanceof DOMException))throw e;}}invalid();}
+export type Generated='RSA2048'|'RSA4096'|'P256'|'P384'|'P521';
+export async function generate(kind:Generated):Promise<NativeKey>{const pair=await crypto.subtle.generateKey(kind.startsWith('RSA')?{name:'RSASSA-PKCS1-v1_5',modulusLength:Number(kind.slice(3)),publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'}:{name:'ECDSA',namedCurve:'P-'+kind.slice(1)},true,['sign','verify']);return new NativeKey(await crypto.subtle.exportKey('jwk',pair.privateKey));}
+export async function importPEM(s:string):Promise<NativeKey>{const p=parsePEM(s);for(const alg of [{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},...Object.keys(CURVES).map(namedCurve=>({name:'ECDSA',namedCurve}))]){try{const key=await crypto.subtle.importKey(p.format,p.data,alg,true,[p.format==='pkcs8'?'sign':'verify']);return new NativeKey(await crypto.subtle.exportKey('jwk',key));}catch(e){if(e instanceof DeclaredFailure)throw e;if(!(e instanceof DOMException))throw e;}}invalid();}
 export async function publicPEM(lease:ReturnType<NativeKey['acquire']>):Promise<string>{const key=await lease.key('sign',false);return pem('spki',new Uint8Array(await crypto.subtle.exportKey('spki',key)));}
 export async function privatePEM(lease:ReturnType<NativeKey['acquire']>):Promise<string>{const key=await lease.key('sign',true);return pem('pkcs8',new Uint8Array(await crypto.subtle.exportKey('pkcs8',key)));}
-export function publicJWK(lease:ReturnType<NativeKey['acquire']>):string[]{const j=lease.jwk;return j.kty==='RSA'?['RSA','',j.n!,j.e!,'','']:['EC','P-256','','',j.x!,j.y!];}
+export function publicJWK(lease:ReturnType<NativeKey['acquire']>):string[]{const j=lease.jwk;return j.kty==='RSA'?['RSA','',j.n!,j.e!,'','']:['EC',j.crv!,'','',j.x!,j.y!];}
 export async function digest(data:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{bounded(data);return new Uint8Array(await crypto.subtle.digest('SHA-256',data));}
 export function random(n:bigint|number):Uint8Array{const out=new Uint8Array(size(n));for(let i=0;i<out.length;i+=65536)crypto.getRandomValues(out.subarray(i,Math.min(i+65536,out.length)));return out;}
 async function hmacKey(key:Uint8Array<ArrayBuffer>,use:KeyUsage):Promise<CryptoKey>{bounded(key);return crypto.subtle.importKey('raw',key.length?key:new Uint8Array(64),{name:'HMAC',hash:'SHA-256'},false,[use]);}
@@ -42,8 +49,9 @@ export async function hmac(key:Uint8Array<ArrayBuffer>,data:Uint8Array<ArrayBuff
 export async function hmacVerify(key:Uint8Array<ArrayBuffer>,data:Uint8Array<ArrayBuffer>,mac:Uint8Array<ArrayBuffer>):Promise<boolean>{bounded(key,data);if(mac.length!==32)invalid();return crypto.subtle.verify('HMAC',await hmacKey(key,'verify'),mac,data);}
 export async function hkdf(secret:Uint8Array<ArrayBuffer>,salt:Uint8Array<ArrayBuffer>,info:Uint8Array<ArrayBuffer>,n:bigint|number):Promise<Uint8Array<ArrayBuffer>>{bounded(secret,salt,info);const len=size(n,8160);if(!len)return new Uint8Array();const key=await crypto.subtle.importKey('raw',secret,'HKDF',false,['deriveBits']);return new Uint8Array(await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt,info},key,len*8));}
 export async function aes(decrypt:boolean,key:Uint8Array<ArrayBuffer>,nonce:Uint8Array<ArrayBuffer>,data:Uint8Array<ArrayBuffer>,aad:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{if(key.length!==32||nonce.length!==12||aad.length>MAX_BYTES||data.length>(decrypt?MAX_BYTES+16:MAX_BYTES)||(decrypt&&data.length<16))invalid();const use=decrypt?'decrypt':'encrypt';const k=await crypto.subtle.importKey('raw',key,'AES-GCM',false,[use]);return new Uint8Array(await crypto.subtle[use]({name:'AES-GCM',iv:nonce,additionalData:aad,tagLength:128},k,data));}
-export async function rsa(decrypt:boolean,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{if(lease.jwk.kty!=='RSA'||(decrypt?data.length!==256:data.length>214))invalid();const k=await lease.key('oaep',decrypt);return new Uint8Array(await crypto.subtle[decrypt?'decrypt':'encrypt']({name:'RSA-OAEP',label:new Uint8Array()},k,data));}
-export async function sign(ec:boolean,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{bounded(data);if(lease.jwk.kty!==(ec?'EC':'RSA'))invalid();const k=await lease.key('sign',true);const result=new Uint8Array(await crypto.subtle.sign(ec?{name:'ECDSA',hash:'SHA-256'}:'RSASSA-PKCS1-v1_5',k,data));if(result.length!==(ec?64:256))invalid();return result;}
-export async function verify(ec:boolean,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>,signature:Uint8Array<ArrayBuffer>):Promise<boolean>{bounded(data);if(lease.jwk.kty!==(ec?'EC':'RSA')||signature.length!==(ec?64:256))invalid();return crypto.subtle.verify(ec?{name:'ECDSA',hash:'SHA-256'}:'RSASSA-PKCS1-v1_5',await lease.key('sign',false),signature,data);}
-export async function ecdh(a:ReturnType<NativeKey['acquire']>,b:ReturnType<NativeKey['acquire']>):Promise<Uint8Array<ArrayBuffer>>{const priv=await a.key('ecdh',true),pub=await b.key('ecdh',false);return new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:pub},priv,256));}
+export async function rsa(decrypt:boolean,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{if(lease.jwk.kty!=='RSA')invalid();const n=width(lease.jwk);if(decrypt?data.length!==n:data.length>n-42)invalid();const k=await lease.key('oaep',decrypt);return new Uint8Array(await crypto.subtle[decrypt?'decrypt':'encrypt']({name:'RSA-OAEP',label:new Uint8Array()},k,data));}
+function signer(alg:Algorithm,lease:ReturnType<NativeKey['acquire']>):{hash:Hash;n:number;params:AlgorithmIdentifier|EcdsaParams}{const {hash,crv}=ALGORITHMS[alg];const j=lease.jwk;if(j.kty!==(crv?'EC':'RSA')||(crv&&j.crv!==crv))invalid();const n=width(j);return {hash,n:crv?2*n:n,params:crv?{name:'ECDSA',hash}:'RSASSA-PKCS1-v1_5'};}
+export async function sign(alg:Algorithm,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>):Promise<Uint8Array<ArrayBuffer>>{bounded(data);const s=signer(alg,lease);const k=await lease.key('sign',true,s.hash);const result=new Uint8Array(await crypto.subtle.sign(s.params,k,data));if(result.length!==s.n)invalid();return result;}
+export async function verify(alg:Algorithm,lease:ReturnType<NativeKey['acquire']>,data:Uint8Array<ArrayBuffer>,signature:Uint8Array<ArrayBuffer>):Promise<boolean>{bounded(data);const s=signer(alg,lease);if(signature.length!==s.n)invalid();return crypto.subtle.verify(s.params,await lease.key('sign',false,s.hash),signature,data);}
+export async function ecdh(a:ReturnType<NativeKey['acquire']>,b:ReturnType<NativeKey['acquire']>):Promise<Uint8Array<ArrayBuffer>>{if(a.jwk.kty!=='EC'||b.jwk.kty!=='EC'||a.jwk.crv!==b.jwk.crv)invalid();const priv=await a.key('ecdh',true),pub=await b.key('ecdh',false);return new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:pub},priv,8*width(a.jwk)));}
 export function declaredCryptoError(e:unknown):string|null{if(e instanceof DeclaredFailure)return e.message;if(e instanceof DOMException&&['OperationError','DataError','InvalidAccessError','NotSupportedError','SyntaxError'].includes(e.name))return 'crypto: operation failed';return null;}

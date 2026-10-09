@@ -29,12 +29,12 @@ public final class Der {
     public static byte[] integer(java.math.BigInteger n){return value(2,n.toByteArray());}
     public static final byte[] RSA_ALGORITHM=java.util.HexFormat.of().parseHex("300d06092a864886f70d0101010500");
     public static final byte[] EC_ALGORITHM=java.util.HexFormat.of().parseHex("301306072a8648ce3d020106082a8648ce3d030107");
-    public static byte[] rawSignature(byte[] der)throws Native.Reject {
-        if(der.length>72)throw invalid();Node root=one(der);if(root.tag!=48)throw invalid();Node[] parts=root.children();if(parts.length!=2)throw invalid();byte[] result=new byte[64];
-        for(int j=0;j<2;j++){Node part=parts[j];byte[] b=part.content;if(part.tag!=2||b.length==0||b.length>33||(b[0]&128)!=0||b.length>1&&b[0]==0&&(b[1]&128)==0)throw invalid();int start=b.length==33?1:0;if(start==1&&b[0]!=0)throw invalid();System.arraycopy(b,start,result,(j+1)*32-(b.length-start),b.length-start);}
+    public static byte[] rawSignature(byte[] der,int width)throws Native.Reject {
+        if(der.length>2*width+9)throw invalid();Node root=one(der);if(root.tag!=48)throw invalid();Node[] parts=root.children();if(parts.length!=2)throw invalid();byte[] result=new byte[2*width];
+        for(int j=0;j<2;j++){Node part=parts[j];byte[] b=part.content;if(part.tag!=2||b.length==0||b.length>width+1||(b[0]&128)!=0||b.length>1&&b[0]==0&&(b[1]&128)==0)throw invalid();int start=b.length==width+1?1:0;if(start==1&&b[0]!=0)throw invalid();System.arraycopy(b,start,result,(j+1)*width-(b.length-start),b.length-start);}
         return result;
     }
-    public static byte[] derSignature(byte[] raw)throws Native.Reject {if(raw.length!=64)throw invalid();return seq(integer(new java.math.BigInteger(1,Arrays.copyOfRange(raw,0,32))),integer(new java.math.BigInteger(1,Arrays.copyOfRange(raw,32,64))));}
+    public static byte[] derSignature(byte[] raw)throws Native.Reject {int n=raw.length/2;if(raw.length==0||raw.length%2!=0)throw invalid();return seq(integer(new java.math.BigInteger(1,Arrays.copyOfRange(raw,0,n))),integer(new java.math.BigInteger(1,Arrays.copyOfRange(raw,n,2*n))));}
     public static byte[] privateWithPoint(byte[] pkcs8,byte[] point)throws Native.Reject {
         Node root=one(pkcs8);Node[] outer=root.children();if(root.tag!=48||outer.length<3||outer[2].tag!=4)throw invalid();
         Node inner=one(outer[2].content);if(inner.tag!=48)throw invalid();Node[] fields=inner.children();var content=new ByteArrayOutputStream();for(Node n:fields)if(n.tag!=161)content.writeBytes(n.encoded());
@@ -42,7 +42,7 @@ public final class Der {
     }
     public static byte[] includedPoint(byte[] pkcs8)throws Native.Reject {
         Node root=one(pkcs8);Node[] outer=root.children();if(root.tag!=48||outer.length<3||outer[2].tag!=4)throw invalid();Node inner=one(outer[2].content);if(inner.tag!=48)throw invalid();byte[] point=null;
-        for(Node n:inner.children())if(n.tag==161){if(point!=null)throw invalid();Node bits=one(n.content);if(bits.tag!=3||bits.content.length!=66||bits.content[0]!=0||bits.content[1]!=4)throw invalid();point=Arrays.copyOfRange(bits.content,1,66);}
+        for(Node n:inner.children())if(n.tag==161){if(point!=null)throw invalid();Node bits=one(n.content);if(bits.tag!=3||bits.content.length<2||bits.content[0]!=0||bits.content[1]!=4)throw invalid();point=Arrays.copyOfRange(bits.content,1,bits.content.length);}
         return point;
     }
 }

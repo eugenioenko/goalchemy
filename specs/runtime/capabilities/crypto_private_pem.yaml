@@ -1,7 +1,7 @@
 {
   "id": "lib.crypto.private_pem",
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "crypto.Key.PrivatePEM: the private key as a PKCS#8 PRIVATE KEY PEM block.",
   "signature": {
     "source": "declaration",
@@ -35,7 +35,7 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Requires an RSA-2048 or P-256 private key.",
+    "bounds": "Requires a supported RSA or EC private key.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",

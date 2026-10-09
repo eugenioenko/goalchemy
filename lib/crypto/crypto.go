@@ -15,6 +15,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -33,7 +34,7 @@ const MaxPEMBytes = 64 << 10
 var invalid = errors.New("crypto: invalid input or key")
 var closed = errors.New("crypto: key is closed")
 
-// Key is an opaque RSA-2048 or P-256 key. Aliases share Close state. Native
+// Key is an opaque RSA (2048, 3072 or 4096-bit) or NIST P-256, P-384 or P-521 key. Aliases share Close state. Native
 // operations retain a snapshot under a read lock (ECDH snapshots its private
 // input before reading its public input); Close waits for reads, drops
 // references, and is idempotent. It cannot guarantee erasure of host copies.
@@ -179,9 +180,22 @@ func AES256GCMDecrypt(key, nonce, data, aad []byte) ([]byte, error) {
 	return out, nil
 }
 
+func generateRSA(bits int) (*Key, error) {
+	k, err := rsa.GenerateKey(rand.Reader, bits)
+	if err != nil {
+		return nil, err
+	}
+	return &Key{value: k}, nil
+}
+
 // GenerateRSA2048 returns a new random RSA-2048 private key.
-func GenerateRSA2048() (*Key, error) {
-	k, err := rsa.GenerateKey(rand.Reader, 2048)
+func GenerateRSA2048() (*Key, error) { return generateRSA(2048) }
+
+// GenerateRSA4096 returns a new random RSA-4096 private key.
+func GenerateRSA4096() (*Key, error) { return generateRSA(4096) }
+
+func generateEC(c elliptic.Curve) (*Key, error) {
+	k, err := ecdsa.GenerateKey(c, rand.Reader)
 	if err != nil {
 		return nil, err
 	}
@@ -189,12 +203,25 @@ func GenerateRSA2048() (*Key, error) {
 }
 
 // GenerateP256 returns a new random P-256 private key.
-func GenerateP256() (*Key, error) {
-	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, err
+func GenerateP256() (*Key, error) { return generateEC(elliptic.P256()) }
+
+// GenerateP384 returns a new random P-384 private key.
+func GenerateP384() (*Key, error) { return generateEC(elliptic.P384()) }
+
+// GenerateP521 returns a new random P-521 private key.
+func GenerateP521() (*Key, error) { return generateEC(elliptic.P521()) }
+
+// coordinate returns the fixed field-element width of a supported curve, or 0.
+func coordinate(c elliptic.Curve) int {
+	switch c {
+	case elliptic.P256():
+		return 32
+	case elliptic.P384():
+		return 48
+	case elliptic.P521():
+		return 66
 	}
-	return &Key{value: k}, nil
+	return 0
 }
 func public(v any) any {
 	switch k := v.(type) {
@@ -210,15 +237,19 @@ func valid(v any) bool {
 	case *rsa.PrivateKey:
 		return k.Validate() == nil && valid(&k.PublicKey)
 	case *rsa.PublicKey:
-		return k.N != nil && k.N.Sign() > 0 && k.N.BitLen() == 2048 && k.E >= 3 && k.E%2 == 1
-	case *ecdsa.PrivateKey:
-		if k.D == nil || k.D.Sign() <= 0 || k.D.Cmp(elliptic.P256().Params().N) >= 0 || !valid(&k.PublicKey) {
+		if k.N == nil || k.N.Sign() <= 0 || k.E < 3 || k.E%2 != 1 {
 			return false
 		}
-		x, y := elliptic.P256().ScalarBaseMult(k.D.Bytes())
+		bits := k.N.BitLen()
+		return bits == 2048 || bits == 3072 || bits == 4096
+	case *ecdsa.PrivateKey:
+		if !valid(&k.PublicKey) || k.D == nil || k.D.Sign() <= 0 || k.D.Cmp(k.Curve.Params().N) >= 0 {
+			return false
+		}
+		x, y := k.Curve.ScalarBaseMult(k.D.Bytes())
 		return x.Cmp(k.X) == 0 && y.Cmp(k.Y) == 0
 	case *ecdsa.PublicKey:
-		return k.Curve == elliptic.P256() && k.X != nil && k.Y != nil && k.Curve.IsOnCurve(k.X, k.Y)
+		return coordinate(k.Curve) != 0 && k.X != nil && k.Y != nil && k.Curve.IsOnCurve(k.X, k.Y)
 	}
 	return false
 }
@@ -316,12 +347,13 @@ func (k *Key) PublicJWK() ([]string, error) {
 	case *rsa.PublicKey:
 		return []string{"RSA", "", enc(p.N.Bytes()), enc(big.NewInt(int64(p.E)).Bytes()), "", ""}, nil
 	case *ecdsa.PublicKey:
-		return []string{"EC", "P-256", "", "", enc(p.X.FillBytes(make([]byte, 32))), enc(p.Y.FillBytes(make([]byte, 32)))}, nil
+		n := coordinate(p.Curve)
+		return []string{"EC", p.Curve.Params().Name, "", "", enc(p.X.FillBytes(make([]byte, n))), enc(p.Y.FillBytes(make([]byte, n)))}, nil
 	}
 	return nil, invalid
 }
 
-// RSAOAEPEncrypt encrypts with RSA-2048 OAEP using SHA-1, MGF1-SHA1 and an empty label.
+// RSAOAEPEncrypt encrypts with RSA OAEP using SHA-1, MGF1-SHA1 and an empty label.
 func RSAOAEPEncrypt(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -329,13 +361,13 @@ func RSAOAEPEncrypt(k *Key, data []byte) ([]byte, error) {
 	}
 	defer done()
 	p, ok := public(v).(*rsa.PublicKey)
-	if !ok || len(data) > 214 {
+	if !ok || len(data) > p.Size()-2*sha1.Size-2 {
 		return nil, invalid
 	}
 	return rsa.EncryptOAEP(sha1.New(), rand.Reader, p, data, nil)
 }
 
-// RSAOAEPDecrypt decrypts RSA-2048 OAEP using SHA-1, MGF1-SHA1 and an empty label.
+// RSAOAEPDecrypt decrypts RSA OAEP using SHA-1, MGF1-SHA1 and an empty label.
 func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
@@ -343,7 +375,7 @@ func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error) {
 	}
 	defer done()
 	p, ok := v.(*rsa.PrivateKey)
-	if !ok || len(data) != 256 {
+	if !ok || len(data) != p.Size() {
 		return nil, invalid
 	}
 	out, err := rsa.DecryptOAEP(sha1.New(), rand.Reader, p, data, nil)
@@ -353,8 +385,20 @@ func RSAOAEPDecrypt(k *Key, data []byte) ([]byte, error) {
 	return out, nil
 }
 
-// RS256Sign returns an RSASSA-PKCS1-v1_5 SHA-256 signature over data.
-func RS256Sign(k *Key, data []byte) ([]byte, error) {
+func digest(h stdcrypto.Hash, data []byte) []byte {
+	switch h {
+	case stdcrypto.SHA384:
+		d := sha512.Sum384(data)
+		return d[:]
+	case stdcrypto.SHA512:
+		d := sha512.Sum512(data)
+		return d[:]
+	}
+	d := sha256.Sum256(data)
+	return d[:]
+}
+
+func rsSign(k *Key, h stdcrypto.Hash, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
 		return nil, err
@@ -364,63 +408,113 @@ func RS256Sign(k *Key, data []byte) ([]byte, error) {
 	if !ok || !bounded(data) {
 		return nil, invalid
 	}
-	h := sha256.Sum256(data)
-	return rsa.SignPKCS1v15(rand.Reader, p, stdcrypto.SHA256, h[:])
+	return rsa.SignPKCS1v15(rand.Reader, p, h, digest(h, data))
 }
 
-// RS256Verify reports whether sig is a valid RS256 signature of data.
-func RS256Verify(k *Key, data, sig []byte) (bool, error) {
+func rsVerify(k *Key, h stdcrypto.Hash, data, sig []byte) (bool, error) {
 	v, done, err := k.read()
 	if err != nil {
 		return false, err
 	}
 	defer done()
 	p, ok := public(v).(*rsa.PublicKey)
-	if !ok || !bounded(data) || len(sig) != 256 {
+	if !ok || !bounded(data) || len(sig) != p.Size() {
 		return false, invalid
 	}
-	h := sha256.Sum256(data)
-	return rsa.VerifyPKCS1v15(p, stdcrypto.SHA256, h[:], sig) == nil, nil
+	return rsa.VerifyPKCS1v15(p, h, digest(h, data), sig) == nil, nil
 }
 
-// ES256Sign returns an ECDSA P-256 SHA-256 signature over data as raw 32-byte R and S.
-func ES256Sign(k *Key, data []byte) ([]byte, error) {
+// RS256Sign returns an RSASSA-PKCS1-v1_5 SHA-256 signature over data.
+func RS256Sign(k *Key, data []byte) ([]byte, error) { return rsSign(k, stdcrypto.SHA256, data) }
+
+// RS256Verify reports whether sig is a valid RS256 signature of data.
+func RS256Verify(k *Key, data, sig []byte) (bool, error) {
+	return rsVerify(k, stdcrypto.SHA256, data, sig)
+}
+
+// RS384Sign returns an RSASSA-PKCS1-v1_5 SHA-384 signature over data.
+func RS384Sign(k *Key, data []byte) ([]byte, error) { return rsSign(k, stdcrypto.SHA384, data) }
+
+// RS384Verify reports whether sig is a valid RS384 signature of data.
+func RS384Verify(k *Key, data, sig []byte) (bool, error) {
+	return rsVerify(k, stdcrypto.SHA384, data, sig)
+}
+
+// RS512Sign returns an RSASSA-PKCS1-v1_5 SHA-512 signature over data.
+func RS512Sign(k *Key, data []byte) ([]byte, error) { return rsSign(k, stdcrypto.SHA512, data) }
+
+// RS512Verify reports whether sig is a valid RS512 signature of data.
+func RS512Verify(k *Key, data, sig []byte) (bool, error) {
+	return rsVerify(k, stdcrypto.SHA512, data, sig)
+}
+
+func esSign(k *Key, c elliptic.Curve, h stdcrypto.Hash, data []byte) ([]byte, error) {
 	v, done, err := k.read()
 	if err != nil {
 		return nil, err
 	}
 	defer done()
 	p, ok := v.(*ecdsa.PrivateKey)
-	if !ok || !bounded(data) {
+	if !ok || p.Curve != c || !bounded(data) {
 		return nil, invalid
 	}
-	h := sha256.Sum256(data)
-	r, s, err := ecdsa.Sign(rand.Reader, p, h[:])
+	r, s, err := ecdsa.Sign(rand.Reader, p, digest(h, data))
 	if err != nil {
 		return nil, err
 	}
-	out := make([]byte, 64)
-	r.FillBytes(out[:32])
-	s.FillBytes(out[32:])
+	n := coordinate(c)
+	out := make([]byte, 2*n)
+	r.FillBytes(out[:n])
+	s.FillBytes(out[n:])
 	return out, nil
 }
 
-// ES256Verify reports whether sig is a valid raw R||S ES256 signature of data.
-func ES256Verify(k *Key, data, sig []byte) (bool, error) {
+func esVerify(k *Key, c elliptic.Curve, h stdcrypto.Hash, data, sig []byte) (bool, error) {
 	v, done, err := k.read()
 	if err != nil {
 		return false, err
 	}
 	defer done()
 	p, ok := public(v).(*ecdsa.PublicKey)
-	if !ok || !bounded(data) || len(sig) != 64 {
+	n := coordinate(c)
+	if !ok || p.Curve != c || !bounded(data) || len(sig) != 2*n {
 		return false, invalid
 	}
-	h := sha256.Sum256(data)
-	return ecdsa.Verify(p, h[:], new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:])), nil
+	return ecdsa.Verify(p, digest(h, data), new(big.Int).SetBytes(sig[:n]), new(big.Int).SetBytes(sig[n:])), nil
 }
 
-// ECDH returns the 32-byte P-256 x-coordinate shared secret before any KDF.
+// ES256Sign returns an ECDSA P-256 SHA-256 signature over data as raw 32-byte R and S.
+func ES256Sign(k *Key, data []byte) ([]byte, error) {
+	return esSign(k, elliptic.P256(), stdcrypto.SHA256, data)
+}
+
+// ES256Verify reports whether sig is a valid raw R||S ES256 signature of data.
+func ES256Verify(k *Key, data, sig []byte) (bool, error) {
+	return esVerify(k, elliptic.P256(), stdcrypto.SHA256, data, sig)
+}
+
+// ES384Sign returns an ECDSA P-384 SHA-384 signature over data as raw 48-byte R and S.
+func ES384Sign(k *Key, data []byte) ([]byte, error) {
+	return esSign(k, elliptic.P384(), stdcrypto.SHA384, data)
+}
+
+// ES384Verify reports whether sig is a valid raw R||S ES384 signature of data.
+func ES384Verify(k *Key, data, sig []byte) (bool, error) {
+	return esVerify(k, elliptic.P384(), stdcrypto.SHA384, data, sig)
+}
+
+// ES512Sign returns an ECDSA P-521 SHA-512 signature over data as raw 66-byte R and S.
+func ES512Sign(k *Key, data []byte) ([]byte, error) {
+	return esSign(k, elliptic.P521(), stdcrypto.SHA512, data)
+}
+
+// ES512Verify reports whether sig is a valid raw R||S ES512 signature of data.
+func ES512Verify(k *Key, data, sig []byte) (bool, error) {
+	return esVerify(k, elliptic.P521(), stdcrypto.SHA512, data, sig)
+}
+
+// ECDH returns the x-coordinate shared secret of two keys on the same NIST
+// curve before any KDF: 32 bytes for P-256, 48 for P-384 and 66 for P-521.
 func ECDH(privateKey, publicKey *Key) ([]byte, error) {
 	// Acquire and convert independently, avoiding double-lock/deadlock when aliased.
 	v, done, err := privateKey.read()
@@ -443,7 +537,7 @@ func ECDH(privateKey, publicKey *Key) ([]byte, error) {
 	}
 	defer done()
 	q, ok := public(v).(*ecdsa.PublicKey)
-	if !ok {
+	if !ok || q.Curve != p.Curve {
 		return nil, invalid
 	}
 	pub, err := q.ECDH()

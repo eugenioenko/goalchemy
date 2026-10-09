@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 3b0651ad5c93165df8d6b3f5ffbdd71aaac9d2f63b8c57c2caa0bed9bc54985d
 symbol: "R.libCryptoGenerateP256"
 implementation: runtime/LibCryptoGenerateP256.cs
-implementation_hash: 19dff7a675a3006413c3699171dcafe56a56e5ab2948e553266be6eced2b89f2
+implementation_hash: 2734d4cbb6cbdcfd4923d18d21358b0d5c90775bce19dd6e871ff040c2ee28e8
 summary: "crypto.GenerateP256: a new random NIST P-256 private key handle."
 suspension: may
 determinism: nondeterministic

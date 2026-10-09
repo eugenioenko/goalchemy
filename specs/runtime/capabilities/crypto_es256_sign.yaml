@@ -1,7 +1,7 @@
 {
   "id": "lib.crypto.es256_sign",
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "crypto.ES256Sign: an ECDSA P-256 SHA-256 (ES256) signature over data as raw 32-byte R followed by 32-byte S.",
   "signature": {
     "source": "declaration",
@@ -45,7 +45,7 @@
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
     "aliasing": "Outputs are independently owned. Keys are aliased opaque handles; Close prevents new acquisitions. In-flight operations may retain key snapshots through completion.",
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
-    "errors": "A non-P-256 or public-only key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.",
+    "errors": "A key that is not a P-256 private key, or data over 64MiB, returns nil and an error. A nil or closed key returns an error.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
     "observations": "Native Go stdlib capability; shared JSON/protocol construction remains outside this boundary."
   },

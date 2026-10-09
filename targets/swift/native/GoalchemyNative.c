@@ -37,18 +37,29 @@ int gcn_aes(int decrypt,const uint8_t *key,const uint8_t *iv,const uint8_t *data
     }
 done:EVP_CIPHER_CTX_free(ctx);return ok;
 }
+/* kind is an RSA modulus size in bits (2048 or 4096) or an EC curve size (256, 384 or 521). */
 void *gcn_key_generate(int kind) {
-    EVP_PKEY *key=NULL;EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new_id(kind==1 ? EVP_PKEY_RSA:EVP_PKEY_EC,NULL);if(!ctx)return NULL;
+    int rsa=kind>=2048;EVP_PKEY *key=NULL;EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new_id(rsa ? EVP_PKEY_RSA:EVP_PKEY_EC,NULL);if(!ctx)return NULL;
     int ok=EVP_PKEY_keygen_init(ctx)>0;
-    if(ok)ok=kind==1 ? EVP_PKEY_CTX_set_rsa_keygen_bits(ctx,2048)>0:EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx,NID_X9_62_prime256v1)>0;
+    if(ok)ok=rsa ? EVP_PKEY_CTX_set_rsa_keygen_bits(ctx,kind)>0:EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx,kind==384 ? NID_secp384r1:kind==521 ? NID_secp521r1:NID_X9_62_prime256v1)>0;
     if(ok)ok=EVP_PKEY_keygen(ctx,&key)>0;EVP_PKEY_CTX_free(ctx);if(!ok){EVP_PKEY_free(key);key=NULL;}return key;
+}
+/* OpenSSL names explicit parameters that resemble a named curve, so the encoding is checked too. */
+static int gcn_ec_width(EVP_PKEY *key) {
+    char group[80],encoding[32];size_t n=0;if(!EVP_PKEY_is_a(key,"EC") || EVP_PKEY_get_utf8_string_param(key,OSSL_PKEY_PARAM_GROUP_NAME,group,sizeof(group),&n)<=0)return 0;
+    if(EVP_PKEY_get_utf8_string_param(key,OSSL_PKEY_PARAM_EC_ENCODING,encoding,sizeof(encoding),&n)<=0 || strcmp(encoding,OSSL_PKEY_EC_ENCODING_GROUP))return 0;
+    if(!strcmp(group,"prime256v1") || !strcmp(group,"P-256"))return 32;
+    if(!strcmp(group,"secp384r1") || !strcmp(group,"P-384"))return 48;
+    if(!strcmp(group,"secp521r1") || !strcmp(group,"P-521"))return 66;
+    return 0;
 }
 int gcn_key_kind(void *raw) {
     EVP_PKEY *key=raw;if(!key)return 0;
-    if(EVP_PKEY_is_a(key,"RSA") && EVP_PKEY_get_bits(key)==2048)return 1;
-    if(EVP_PKEY_is_a(key,"EC")){char group[80];size_t n=0;if(EVP_PKEY_get_utf8_string_param(key,OSSL_PKEY_PARAM_GROUP_NAME,group,sizeof(group),&n)>0 && (!strcmp(group,"prime256v1") || !strcmp(group,"P-256")))return 2;}
-    return 0;
+    if(EVP_PKEY_is_a(key,"RSA")){int bits=EVP_PKEY_get_bits(key);return bits==2048 || bits==3072 || bits==4096;}
+    return gcn_ec_width(key) ? 2:0;
 }
+/* RSA modulus or EC coordinate width in bytes. */
+int gcn_key_width(void *raw) { EVP_PKEY *key=raw;return gcn_key_kind(key)==1 ? EVP_PKEY_get_size(key):gcn_ec_width(key); }
 int gcn_key_private(void *raw) { EVP_PKEY *key=raw;BIGNUM *bn=NULL;int ok=EVP_PKEY_get_bn_param(key,gcn_key_kind(key)==1 ? OSSL_PKEY_PARAM_RSA_D:OSSL_PKEY_PARAM_PRIV_KEY,&bn)>0;BN_clear_free(bn);return ok; }
 static int gcn_no_password(char *buffer,int size,int write,void *user) { (void)buffer;(void)size;(void)write;(void)user;return 0; }
 void *gcn_key_import(const uint8_t *data,size_t n) {
@@ -73,19 +84,20 @@ int gcn_key_export(void *key,int private,uint8_t **out,size_t *n) {
 int gcn_key_component(void *key,int component,uint8_t *out,size_t *n) {
     const char *name=component==0 ? OSSL_PKEY_PARAM_RSA_N:component==1 ? OSSL_PKEY_PARAM_RSA_E:component==2 ? OSSL_PKEY_PARAM_EC_PUB_X:OSSL_PKEY_PARAM_EC_PUB_Y;
     BIGNUM *bn=NULL;if(EVP_PKEY_get_bn_param(key,name,&bn)!=1)return 0;
-    int length=component>=2 ? 32:BN_num_bytes(bn);int ok=*n>=(size_t)length && BN_bn2binpad(bn,out,length)==length;*n=(size_t)length;BN_free(bn);return ok;
+    int length=component>=2 ? gcn_ec_width(key):BN_num_bytes(bn);int ok=*n>=(size_t)length && BN_bn2binpad(bn,out,length)==length;*n=(size_t)length;BN_free(bn);return ok;
 }
-int gcn_sign(int alg,void *key,const uint8_t *data,size_t n,uint8_t *out,size_t *size) {
-    EVP_MD_CTX *ctx=EVP_MD_CTX_new();size_t length=512;uint8_t signature[512];int ok=0;if(!ctx)return 0;
-    if(EVP_DigestSignInit(ctx,NULL,EVP_sha256(),NULL,key)!=1 || EVP_DigestSign(ctx,signature,&length,data,n)!=1)goto done;
+static const EVP_MD *gcn_hash(int bits) { return bits==384 ? EVP_sha384():bits==512 ? EVP_sha512():EVP_sha256(); }
+int gcn_sign(int alg,int bits,void *key,const uint8_t *data,size_t n,uint8_t *out,size_t *size) {
+    EVP_MD_CTX *ctx=EVP_MD_CTX_new();size_t length=512;uint8_t signature[512];int ok=0,width=gcn_ec_width(key);if(!ctx)return 0;
+    if(EVP_DigestSignInit(ctx,NULL,gcn_hash(bits),NULL,key)!=1 || EVP_DigestSign(ctx,signature,&length,data,n)!=1)goto done;
     if(alg==1){if(*size<length)goto done;memcpy(out,signature,length);*size=length;ok=1;}
-    else {const unsigned char *p=signature;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&p,(long)length);if(!sig)goto done;const BIGNUM *r,*s;ECDSA_SIG_get0(sig,&r,&s);ok=*size>=64 && BN_bn2binpad(r,out,32)==32 && BN_bn2binpad(s,out+32,32)==32;*size=64;ECDSA_SIG_free(sig);}
+    else {const unsigned char *p=signature;ECDSA_SIG *sig=d2i_ECDSA_SIG(NULL,&p,(long)length);if(!sig)goto done;const BIGNUM *r,*s;ECDSA_SIG_get0(sig,&r,&s);ok=width && *size>=(size_t)(2*width) && BN_bn2binpad(r,out,width)==width && BN_bn2binpad(s,out+width,width)==width;*size=(size_t)(2*width);ECDSA_SIG_free(sig);}
 done:EVP_MD_CTX_free(ctx);return ok;
 }
-int gcn_verify(int alg,void *key,const uint8_t *data,size_t n,const uint8_t *signature,size_t size) {
-    uint8_t der[80];const uint8_t *sig=signature;size_t length=size;
-    if(alg==2){if(size!=64)return -1;ECDSA_SIG *es=ECDSA_SIG_new();BIGNUM *r=BN_bin2bn(signature,32,NULL),*s=BN_bin2bn(signature+32,32,NULL);if(!es || !r || !s){ECDSA_SIG_free(es);BN_free(r);BN_free(s);return -1;}ECDSA_SIG_set0(es,r,s);unsigned char *p=der;int len=i2d_ECDSA_SIG(es,&p);ECDSA_SIG_free(es);if(len<=0 || len>80)return -1;sig=der;length=(size_t)len;}
-    EVP_MD_CTX *ctx=EVP_MD_CTX_new();if(!ctx)return -1;int ok=EVP_DigestVerifyInit(ctx,NULL,EVP_sha256(),NULL,key)==1 ? EVP_DigestVerify(ctx,sig,length,data,n):-1;EVP_MD_CTX_free(ctx);return ok==1 ? 1:ok==0 ? 0:-1;
+int gcn_verify(int alg,int bits,void *key,const uint8_t *data,size_t n,const uint8_t *signature,size_t size) {
+    uint8_t der[160];const uint8_t *sig=signature;size_t length=size;
+    if(alg==2){int width=gcn_ec_width(key);if(!width || size!=(size_t)(2*width))return -1;ECDSA_SIG *es=ECDSA_SIG_new();BIGNUM *r=BN_bin2bn(signature,width,NULL),*s=BN_bin2bn(signature+width,width,NULL);if(!es || !r || !s){ECDSA_SIG_free(es);BN_free(r);BN_free(s);return -1;}ECDSA_SIG_set0(es,r,s);if(i2d_ECDSA_SIG(es,NULL)>(int)sizeof(der)){ECDSA_SIG_free(es);return -1;}unsigned char *p=der;int len=i2d_ECDSA_SIG(es,&p);ECDSA_SIG_free(es);if(len<=0)return -1;sig=der;length=(size_t)len;}
+    EVP_MD_CTX *ctx=EVP_MD_CTX_new();if(!ctx)return -1;int ok=EVP_DigestVerifyInit(ctx,NULL,gcn_hash(bits),NULL,key)==1 ? EVP_DigestVerify(ctx,sig,length,data,n):-1;EVP_MD_CTX_free(ctx);return ok==1 ? 1:ok==0 ? 0:-1;
 }
 int gcn_oaep(int decrypt,void *key,const uint8_t *data,size_t n,uint8_t *out,size_t *size) {
     EVP_PKEY_CTX *ctx=EVP_PKEY_CTX_new(key,NULL);if(!ctx)return 0;int ok=decrypt ? EVP_PKEY_decrypt_init(ctx)>0:EVP_PKEY_encrypt_init(ctx)>0;

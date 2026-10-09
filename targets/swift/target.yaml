@@ -554,6 +554,13 @@ functions:
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_generate_rsa2048({args}, {types})'
+- id: lib.crypto.generate_rsa4096
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_generate_rsa4096
+  implementation: runtime/lib_crypto_generate_rsa4096.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_generate_rsa4096({args}, {types})'
 - id: lib.crypto.generate_p256
   contract_version: 1.0.0
   symbol: GNative.lib_crypto_generate_p256
@@ -561,83 +568,153 @@ functions:
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_generate_p256({args}, {types})'
-- id: lib.crypto.import_pem
+- id: lib.crypto.generate_p384
   contract_version: 1.0.0
+  symbol: GNative.lib_crypto_generate_p384
+  implementation: runtime/lib_crypto_generate_p384.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_generate_p384({args}, {types})'
+- id: lib.crypto.generate_p521
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_generate_p521
+  implementation: runtime/lib_crypto_generate_p521.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_generate_p521({args}, {types})'
+- id: lib.crypto.import_pem
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_import_pem
   implementation: runtime/lib_crypto_import_pem.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_import_pem({args}, {types})'
 - id: lib.crypto.public_pem
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_public_pem
   implementation: runtime/lib_crypto_public_pem.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_public_pem({args}, {types})'
 - id: lib.crypto.private_pem
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_private_pem
   implementation: runtime/lib_crypto_private_pem.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_private_pem({args}, {types})'
 - id: lib.crypto.public_jwk
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_public_jwk
   implementation: runtime/lib_crypto_public_jwk.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_public_jwk({args}, {types})'
 - id: lib.crypto.ecdh
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_ecdh
   implementation: runtime/lib_crypto_ecdh.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_ecdh({args}, {types})'
 - id: lib.crypto.rsa_oaep_encrypt
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_rsa_oaep_encrypt
   implementation: runtime/lib_crypto_rsa_oaep_encrypt.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_rsa_oaep_encrypt({args}, {types})'
 - id: lib.crypto.rsa_oaep_decrypt
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_rsa_oaep_decrypt
   implementation: runtime/lib_crypto_rsa_oaep_decrypt.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_rsa_oaep_decrypt({args}, {types})'
 - id: lib.crypto.rs256_sign
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_rs256_sign
   implementation: runtime/lib_crypto_rs256_sign.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_rs256_sign({args}, {types})'
-- id: lib.crypto.rs256_verify
+- id: lib.crypto.rs384_sign
   contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs384_sign
+  implementation: runtime/lib_crypto_rs384_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs384_sign({args}, {types})'
+- id: lib.crypto.rs512_sign
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs512_sign
+  implementation: runtime/lib_crypto_rs512_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs512_sign({args}, {types})'
+- id: lib.crypto.rs256_verify
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_rs256_verify
   implementation: runtime/lib_crypto_rs256_verify.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_rs256_verify({args}, {types})'
-- id: lib.crypto.es256_sign
+- id: lib.crypto.rs384_verify
   contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs384_verify
+  implementation: runtime/lib_crypto_rs384_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs384_verify({args}, {types})'
+- id: lib.crypto.rs512_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_rs512_verify
+  implementation: runtime/lib_crypto_rs512_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_rs512_verify({args}, {types})'
+- id: lib.crypto.es256_sign
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_es256_sign
   implementation: runtime/lib_crypto_es256_sign.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_es256_sign({args}, {types})'
-- id: lib.crypto.es256_verify
+- id: lib.crypto.es384_sign
   contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es384_sign
+  implementation: runtime/lib_crypto_es384_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es384_sign({args}, {types})'
+- id: lib.crypto.es512_sign
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es512_sign
+  implementation: runtime/lib_crypto_es512_sign.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es512_sign({args}, {types})'
+- id: lib.crypto.es256_verify
+  contract_version: 1.1.0
   symbol: GNative.lib_crypto_es256_verify
   implementation: runtime/lib_crypto_es256_verify.swift
   requires:
   - lib.crypto.close
   harness: 'native: GNative.lib_crypto_es256_verify({args}, {types})'
+- id: lib.crypto.es384_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es384_verify
+  implementation: runtime/lib_crypto_es384_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es384_verify({args}, {types})'
+- id: lib.crypto.es512_verify
+  contract_version: 1.0.0
+  symbol: GNative.lib_crypto_es512_verify
+  implementation: runtime/lib_crypto_es512_verify.swift
+  requires:
+  - lib.crypto.close
+  harness: 'native: GNative.lib_crypto_es512_verify({args}, {types})'
 - id: lib.crypto.close
   contract_version: 1.0.0
   symbol: GNative.lib_crypto_close

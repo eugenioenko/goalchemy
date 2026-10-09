@@ -5,7 +5,7 @@ contract_version: 1.0.0
 contract_hash: 8eee4bbf336bef0c6e853fd63519e973774223379e0b18beff9d9135a80ea665
 symbol: "R.libCryptoGenerateRsa2048"
 implementation: runtime/LibCryptoGenerateRsa2048.cs
-implementation_hash: eafea3bb0f87aae9026ed53a1caafa5369e2080ecd242e12ab53ee121cdd7de8
+implementation_hash: cb389d3230777f2459144dffd25a522e0965a2b51500ed370ac89e7e6a011eb7
 summary: "crypto.GenerateRSA2048: a new random RSA-2048 private key handle."
 suspension: may
 determinism: nondeterministic

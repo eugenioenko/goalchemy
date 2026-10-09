@@ -1029,6 +1029,40 @@ export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {
     const r1:any=rv[1];
     return [encBool(r0), encError(r1)];
   },
+  "lib.crypto.es384_sign/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoEs384Sign(t,v_key,v_data); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encSlice(r0, (e: any) => encInt(e)), encError(r1)];
+  },
+  "lib.crypto.es384_verify/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const v_signature = decSlice(h.let("signature"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoEs384Verify(t,v_key,v_data,v_signature); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encBool(r0), encError(r1)];
+  },
+  "lib.crypto.es512_sign/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoEs512Sign(t,v_key,v_data); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encSlice(r0, (e: any) => encInt(e)), encError(r1)];
+  },
+  "lib.crypto.es512_verify/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const v_signature = decSlice(h.let("signature"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoEs512Verify(t,v_key,v_data,v_signature); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encBool(r0), encError(r1)];
+  },
   "lib.crypto.hkdf_sha256/boundary_example": async (h: H) => {
     const v_secret = decSlice(h.let("secret"), (r: any) => (decInt(r, "u8") as number), true);
     const v_salt = decSlice(h.let("salt"), (r: any) => (decInt(r, "u8") as number), true);
@@ -1104,6 +1138,40 @@ export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {
     const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
     const v_signature = decSlice(h.let("signature"), (r: any) => (decInt(r, "u8") as number), true);
     const rv = await harnessHost((t:any)=>{ rt.libCryptoRs256Verify(t,v_key,v_data,v_signature); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encBool(r0), encError(r1)];
+  },
+  "lib.crypto.rs384_sign/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoRs384Sign(t,v_key,v_data); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encSlice(r0, (e: any) => encInt(e)), encError(r1)];
+  },
+  "lib.crypto.rs384_verify/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const v_signature = decSlice(h.let("signature"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoRs384Verify(t,v_key,v_data,v_signature); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encBool(r0), encError(r1)];
+  },
+  "lib.crypto.rs512_sign/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoRs512Sign(t,v_key,v_data); });
+    const r0:any=rv[0];
+    const r1:any=rv[1];
+    return [encSlice(r0, (e: any) => encInt(e)), encError(r1)];
+  },
+  "lib.crypto.rs512_verify/boundary_example": async (h: H) => {
+    const v_key = decKey(h.let("key"));
+    const v_data = decSlice(h.let("data"), (r: any) => (decInt(r, "u8") as number), true);
+    const v_signature = decSlice(h.let("signature"), (r: any) => (decInt(r, "u8") as number), true);
+    const rv = await harnessHost((t:any)=>{ rt.libCryptoRs512Verify(t,v_key,v_data,v_signature); });
     const r0:any=rv[0];
     const r1:any=rv[1];
     return [encBool(r0), encError(r1)];

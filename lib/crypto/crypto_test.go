@@ -270,13 +270,98 @@ func TestP256InterchangeAndECDH(t *testing.T) {
 	if _, e := RS256Sign(k, msg); e == nil {
 		t.Fatal("wrong key type")
 	}
-	bigger, e := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	smaller, e := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 	if e != nil {
 		t.Fatal(e)
 	}
-	der, _ := x509.MarshalPKIXPublicKey(&bigger.PublicKey)
+	der, _ := x509.MarshalPKIXPublicKey(&smaller.PublicKey)
 	if _, e := ImportPEM(string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))); e == nil {
-		t.Fatal("P384 accepted")
+		t.Fatal("P224 accepted")
+	}
+}
+
+func TestLargerKeysAndAlgorithms(t *testing.T) {
+	msg := []byte("abc")
+	p384, e := GenerateP384()
+	if e != nil {
+		t.Fatal(e)
+	}
+	p521, e := GenerateP521()
+	if e != nil {
+		t.Fatal(e)
+	}
+	r4096, e := GenerateRSA4096()
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, c := range []struct {
+		name   string
+		key    *Key
+		sign   func(*Key, []byte) ([]byte, error)
+		verify func(*Key, []byte, []byte) (bool, error)
+		size   int
+	}{
+		{"ES384", p384, ES384Sign, ES384Verify, 96},
+		{"ES512", p521, ES512Sign, ES512Verify, 132},
+		{"RS256", r4096, RS256Sign, RS256Verify, 512},
+		{"RS384", r4096, RS384Sign, RS384Verify, 512},
+		{"RS512", r4096, RS512Sign, RS512Verify, 512},
+	} {
+		sig, e := c.sign(c.key, msg)
+		if e != nil || len(sig) != c.size {
+			t.Fatalf("%s sign: %d bytes, %v", c.name, len(sig), e)
+		}
+		if ok, e := c.verify(c.key, msg, sig); !ok || e != nil {
+			t.Fatalf("%s verify: %v", c.name, e)
+		}
+		sig[len(sig)-1] ^= 1
+		if ok, e := c.verify(c.key, msg, sig); ok || e != nil {
+			t.Fatalf("%s accepted a changed signature: %v", c.name, e)
+		}
+		if _, e := c.verify(c.key, msg, sig[1:]); e == nil {
+			t.Fatalf("%s accepted a short signature", c.name)
+		}
+	}
+	if _, e := ES384Sign(p521, msg); e == nil {
+		t.Fatal("ES384 signed with P-521")
+	}
+	if _, e := ES256Sign(p384, msg); e == nil {
+		t.Fatal("ES256 signed with P-384")
+	}
+	if _, e := ECDH(p384, p521); e == nil {
+		t.Fatal("ECDH across curves")
+	}
+	for _, c := range []struct {
+		key  *Key
+		size int
+	}{{p384, 48}, {p521, 66}} {
+		secret, e := ECDH(c.key, c.key)
+		if e != nil || len(secret) != c.size {
+			t.Fatalf("ECDH: %d bytes, %v", len(secret), e)
+		}
+	}
+	if _, e := RSAOAEPEncrypt(r4096, make([]byte, 471)); e == nil {
+		t.Fatal("OAEP over 470 bytes")
+	}
+	cipher, e := RSAOAEPEncrypt(r4096, make([]byte, 470))
+	if e != nil || len(cipher) != 512 {
+		t.Fatalf("OAEP: %d bytes, %v", len(cipher), e)
+	}
+	if plain, e := RSAOAEPDecrypt(r4096, cipher); e != nil || len(plain) != 470 {
+		t.Fatalf("OAEP decrypt: %v", e)
+	}
+	jwk, e := p521.PublicJWK()
+	if e != nil || jwk[1] != "P-521" || len(jwk[4]) != 88 || len(jwk[5]) != 88 {
+		t.Fatalf("P-521 JWK %v: %v", jwk, e)
+	}
+	for _, k := range []*Key{p384, p521, r4096} {
+		private, e := k.PrivatePEM()
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e := ImportPEM(private); e != nil {
+			t.Fatal(e)
+		}
 	}
 }
 func TestRandomAndOwnership(t *testing.T) {

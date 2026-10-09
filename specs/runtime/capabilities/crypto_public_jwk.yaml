@@ -1,7 +1,7 @@
 {
   "id": "lib.crypto.public_jwk",
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "crypto.Key.PublicJWK: the key's public JWK members as [kty, crv, n, e, x, y], with no JSON encoding.",
   "signature": {
     "source": "declaration",
@@ -35,7 +35,7 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Always six strings. RSA: kty RSA, crv empty, n and e as unpadded base64url big-endian bytes, x and y empty. P-256: kty EC, crv P-256, n and e empty, x and y as unpadded base64url 32-byte coordinates. No private members.",
+    "bounds": "Always six strings. RSA: kty RSA, crv empty, n and e as unpadded base64url big-endian bytes, x and y empty. EC: kty EC, crv P-256, P-384 or P-521, n and e empty, x and y as unpadded base64url coordinates of 32, 48 or 66 bytes. No private members.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",

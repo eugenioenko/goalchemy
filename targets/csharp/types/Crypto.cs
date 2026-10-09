@@ -22,17 +22,19 @@ public static class Crypto
         else try{cipher.Decrypt(nonce,data.AsSpan(0,result.Length),data.AsSpan(result.Length,16),result,aad);}catch(AuthenticationTagMismatchException){throw new Native.Reject("crypto: authentication failed");}
         return result;
     }
-    static void validate(RSA rsa){var p=rsa.ExportParameters(false);if(rsa.KeySize!=2048||p.Exponent==null||p.Exponent.Length>256)throw invalid();var n=new System.Numerics.BigInteger(p.Exponent,true,true);if(n<3||n.IsEven)throw invalid();}
+    static readonly Dictionary<string,(int width,string crv)> curves=new(){["1.2.840.10045.3.1.7"]=(32,"P-256"),["1.3.132.0.34"]=(48,"P-384"),["1.3.132.0.35"]=(66,"P-521")};
+    static (int width,string crv) curve(ECCurve c){if(c.Oid?.Value is string oid&&curves.TryGetValue(oid,out var found))return found;throw invalid();}
+    static void validate(RSA rsa){var p=rsa.ExportParameters(false);if(rsa.KeySize is not (2048 or 3072 or 4096)||p.Exponent==null||p.Exponent.Length>256)throw invalid();var n=new System.Numerics.BigInteger(p.Exponent,true,true);if(n<3||n.IsEven)throw invalid();}
     static void validate(ECDsa ec)
     {
-        var p=ec.ExportParameters(false);if(p.Curve.Oid.Value!="1.2.840.10045.3.1.7"||p.Q.X?.Length!=32||p.Q.Y?.Length!=32)throw invalid();
+        var p=ec.ExportParameters(false);int n=curve(p.Curve).width;if(p.Q.X?.Length!=n||p.Q.Y?.Length!=n)throw invalid();
         // OpenSSL validates the point through native ECDH.
-        using var own=ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);using var peer=ECDiffieHellman.Create(p);try{var value=own.DeriveRawSecretAgreement(peer.PublicKey);if(value.Length!=32)throw invalid();}catch(CryptographicException){throw invalid();}
+        using var own=ECDiffieHellman.Create(ECCurve.CreateFromValue(p.Curve.Oid.Value!));using var peer=ECDiffieHellman.Create(p);try{var value=own.DeriveRawSecretAgreement(peer.PublicKey);if(value.Length!=n)throw invalid();}catch(CryptographicException){throw invalid();}
     }
-    public static Native.Material generate(bool rsa)
+    public static Native.Material generate(string kind)
     {
-        if(rsa){using var key=RSA.Create(2048);return new(key.ExportSubjectPublicKeyInfo(),key.ExportPkcs8PrivateKey(),false);}
-        using var ec=ECDsa.Create(ECCurve.NamedCurves.nistP256);return new(ec.ExportSubjectPublicKeyInfo(),ec.ExportPkcs8PrivateKey(),true);
+        if(kind.StartsWith("rsa",StringComparison.Ordinal)){using var key=RSA.Create(int.Parse(kind.Substring(3)));return new(key.ExportSubjectPublicKeyInfo(),key.ExportPkcs8PrivateKey(),false);}
+        using var ec=ECDsa.Create(kind switch{"p256"=>ECCurve.NamedCurves.nistP256,"p384"=>ECCurve.NamedCurves.nistP384,_=>ECCurve.NamedCurves.nistP521});return new(ec.ExportSubjectPublicKeyInfo(),ec.ExportPkcs8PrivateKey(),true);
     }
     public static Native.Material importPEM(string binary)
     {
@@ -61,14 +63,14 @@ public static class Crypto
                 if(privateKey)ec.ImportPkcs8PrivateKey(der,out int used);else ec.ImportSubjectPublicKeyInfo(der,out int used);validate(ec);
                 if(privateKey)
                 {
-                    var p=ec.ExportParameters(true);using var derived=ECDsa.Create(new ECParameters{Curve=ECCurve.NamedCurves.nistP256,D=p.D});var q=derived.ExportParameters(false).Q;
+                    var p=ec.ExportParameters(true);using var derived=ECDsa.Create(new ECParameters{Curve=ECCurve.CreateFromValue(p.Curve.Oid.Value!),D=p.D});var q=derived.ExportParameters(false).Q;
                     if(!CryptographicOperations.FixedTimeEquals(p.Q.X,q.X)||!CryptographicOperations.FixedTimeEquals(p.Q.Y,q.Y))throw invalid();
                     var sig=ec.SignData(new byte[]{1,2,3},HashAlgorithmName.SHA256,DSASignatureFormat.IeeeP1363FixedFieldConcatenation);if(!ec.VerifyData(new byte[]{1,2,3},sig,HashAlgorithmName.SHA256,DSASignatureFormat.IeeeP1363FixedFieldConcatenation))throw invalid();
                 }
                 return new(ec.ExportSubjectPublicKeyInfo(),privateKey?ec.ExportPkcs8PrivateKey():null,true);
             }
         }
-        catch(CryptographicException){throw invalid();}catch(ArgumentException){throw invalid();}
+        catch(CryptographicException){throw invalid();}catch(ArgumentException){throw invalid();}catch(PlatformNotSupportedException){throw invalid();}
     }
     static RSA rsaKey(Native.Lease key,bool privateKey)
     {if(key.ec||privateKey&&key.privateDer==null)throw invalid();var rsa=RSA.Create();try{if(privateKey)rsa.ImportPkcs8PrivateKey(key.privateDer,out _);else rsa.ImportSubjectPublicKeyInfo(key.publicDer,out _);return rsa;}catch{rsa.Dispose();throw;}}
@@ -79,15 +81,19 @@ public static class Crypto
     public static string privatePEM(Native.Lease key){if(key.privateDer==null)throw invalid();return pem("PRIVATE KEY",key.privateDer);}
     public static string b64url(byte[] value)=>Convert.ToBase64String(value).TrimEnd('=').Replace('+','-').Replace('/','_');
     public static string[] jwk(Native.Lease key)
-    {if(key.ec){using var ec=ecKey(key,false);var p=ec.ExportParameters(false);return new[]{"EC","P-256","","",b64url(p.Q.X),b64url(p.Q.Y)};}using var rsa=rsaKey(key,false);var r=rsa.ExportParameters(false);return new[]{"RSA","",b64url(r.Modulus),b64url(r.Exponent),"",""};}
+    {if(key.ec){using var ec=ecKey(key,false);var p=ec.ExportParameters(false);return new[]{"EC",curve(p.Curve).crv,"","",b64url(p.Q.X!),b64url(p.Q.Y!)};}using var rsa=rsaKey(key,false);var r=rsa.ExportParameters(false);return new[]{"RSA","",b64url(r.Modulus),b64url(r.Exponent),"",""};}
     public static byte[] rsa(Native.Lease key,byte[] data,bool encrypt)
-    {if(encrypt&&data.Length>214||!encrypt&&data.Length!=256)throw invalid();using var rsa=rsaKey(key,!encrypt);try{return encrypt?rsa.Encrypt(data,RSAEncryptionPadding.OaepSHA1):rsa.Decrypt(data,RSAEncryptionPadding.OaepSHA1);}catch(CryptographicException){throw new Native.Reject("crypto: decryption failed");}}
-    public static byte[] sign(Native.Lease key,byte[] data,bool ec)
-    {bounded(data);if(ec){using var k=ecKey(key,true);return k.SignData(data,HashAlgorithmName.SHA256,DSASignatureFormat.IeeeP1363FixedFieldConcatenation);}using var r=rsaKey(key,true);return r.SignData(data,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);}
-    public static bool verify(Native.Lease key,byte[] data,byte[] sig,bool ec)
-    {bounded(data);if(sig.Length!=(ec?64:256))throw invalid();if(ec){using var k=ecKey(key,false);return k.VerifyData(data,sig,HashAlgorithmName.SHA256,DSASignatureFormat.IeeeP1363FixedFieldConcatenation);}using var r=rsaKey(key,false);return r.VerifyData(data,sig,HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1);}
+    {using var rsa=rsaKey(key,!encrypt);int n=rsa.KeySize/8;if(encrypt&&data.Length>n-42||!encrypt&&data.Length!=n)throw invalid();try{return encrypt?rsa.Encrypt(data,RSAEncryptionPadding.OaepSHA1):rsa.Decrypt(data,RSAEncryptionPadding.OaepSHA1);}catch(CryptographicException){throw new Native.Reject("crypto: decryption failed");}}
+    /// JOSE algorithm such as "rs384" or "es512": its hash, checking the EC curve width.
+    static HashAlgorithmName hash(string alg)=>alg.Substring(2) switch{"256"=>HashAlgorithmName.SHA256,"384"=>HashAlgorithmName.SHA384,_=>HashAlgorithmName.SHA512};
+    static ECDsa esKey(Native.Lease key,string alg,bool privateKey)
+    {var k=ecKey(key,privateKey);if(curve(k.ExportParameters(false).Curve).width!=(alg=="es256"?32:alg=="es384"?48:66)){k.Dispose();throw invalid();}return k;}
+    public static byte[] sign(Native.Lease key,byte[] data,string alg)
+    {bounded(data);if(alg.StartsWith("es",StringComparison.Ordinal)){using var k=esKey(key,alg,true);return k.SignData(data,hash(alg),DSASignatureFormat.IeeeP1363FixedFieldConcatenation);}using var r=rsaKey(key,true);return r.SignData(data,hash(alg),RSASignaturePadding.Pkcs1);}
+    public static bool verify(Native.Lease key,byte[] data,byte[] sig,string alg)
+    {bounded(data);if(alg.StartsWith("es",StringComparison.Ordinal)){using var k=esKey(key,alg,false);if(sig.Length!=2*curve(k.ExportParameters(false).Curve).width)throw invalid();return k.VerifyData(data,sig,hash(alg),DSASignatureFormat.IeeeP1363FixedFieldConcatenation);}using var r=rsaKey(key,false);if(sig.Length!=r.KeySize/8)throw invalid();return r.VerifyData(data,sig,hash(alg),RSASignaturePadding.Pkcs1);}
     public static byte[] ecdh(Native.Lease own,Native.Lease peer)
-    {if(!own.ec||!peer.ec||own.privateDer==null)throw invalid();using var a=ECDiffieHellman.Create();a.ImportPkcs8PrivateKey(own.privateDer,out _);using var b=ECDiffieHellman.Create();b.ImportSubjectPublicKeyInfo(peer.publicDer,out _);var secret=a.DeriveRawSecretAgreement(b.PublicKey);if(secret.Length!=32)throw new HostFault("native ECDH coordinate width");return secret;}
+    {if(!own.ec||!peer.ec||own.privateDer==null)throw invalid();using var a=ECDiffieHellman.Create();a.ImportPkcs8PrivateKey(own.privateDer,out _);using var b=ECDiffieHellman.Create();b.ImportSubjectPublicKeyInfo(peer.publicDer,out _);int n=curve(a.ExportParameters(false).Curve).width;if(n!=curve(b.ExportParameters(false).Curve).width)throw invalid();var secret=a.DeriveRawSecretAgreement(b.PublicKey);if(secret.Length!=n)throw new HostFault("native ECDH coordinate width");return secret;}
     public static void execute(GoTask task,string operation,Native.Key[] keys,object[] arguments,object[] zero,string output)
     {
         var leases=new Native.Lease[keys.Length];bool submitted=false;
@@ -101,7 +107,7 @@ public static class Crypto
                 {
                     "random"=>random((long)owned[0]),"sha"=>sha((byte[])owned[0]),"hmac"=>hmac((byte[])owned[0],(byte[])owned[1]),"hmac_verify"=>hmacVerify((byte[])owned[0],(byte[])owned[1],(byte[])owned[2]),"hkdf"=>hkdf((byte[])owned[0],(byte[])owned[1],(byte[])owned[2],(long)owned[3]),
                     "aes_encrypt" or "aes_decrypt"=>aes((byte[])owned[0],(byte[])owned[1],(byte[])owned[2],(byte[])owned[3],operation=="aes_encrypt"),"rsa_encrypt" or "rsa_decrypt"=>rsa(leases[0],(byte[])owned[0],operation=="rsa_encrypt"),
-                    "rs_sign" or "es_sign"=>sign(leases[0],(byte[])owned[0],operation=="es_sign"),"rs_verify" or "es_verify"=>verify(leases[0],(byte[])owned[0],(byte[])owned[1],operation=="es_verify"),"ecdh"=>ecdh(leases[0],leases[1]),"public_pem"=>publicPEM(leases[0]),"private_pem"=>privatePEM(leases[0]),"jwk"=>jwk(leases[0]),"generate_rsa" or "generate_ec"=>state.stage(generate(operation=="generate_rsa")),"import"=>state.stage(importPEM((string)owned[0])),_=>throw new HostFault("unknown native crypto operation")
+                    "rs256_sign" or "rs384_sign" or "rs512_sign" or "es256_sign" or "es384_sign" or "es512_sign"=>sign(leases[0],(byte[])owned[0],operation.Substring(0,5)),"rs256_verify" or "rs384_verify" or "rs512_verify" or "es256_verify" or "es384_verify" or "es512_verify"=>verify(leases[0],(byte[])owned[0],(byte[])owned[1],operation.Substring(0,5)),"ecdh"=>ecdh(leases[0],leases[1]),"public_pem"=>publicPEM(leases[0]),"private_pem"=>privatePEM(leases[0]),"jwk"=>jwk(leases[0]),"generate_rsa2048" or "generate_rsa4096" or "generate_p256" or "generate_p384" or "generate_p521"=>state.stage(generate(operation.Substring(9))),"import"=>state.stage(importPEM((string)owned[0])),_=>throw new HostFault("unknown native crypto operation")
                 };return new object[]{value};
             },wire=>{try{object value=output switch{"bytes"=>Native.slice((byte[])wire[0]),"strings"=>Native.strings(Array.ConvertAll((object[])wire[0], v => (string)v)),"key"=>Native.transfer(state,(long)wire[0]),_=>wire[0]};return new object[]{value,null};}catch(Native.Reject e){return Native.failure(zero,e.Message);}},leases);
             submitted=true;

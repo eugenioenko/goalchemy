@@ -1,8 +1,8 @@
 {
   "id": "lib.crypto.import_pem",
   "schema_version": 1,
-  "version": "1.0.0",
-  "summary": "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA-2048 or P-256 key.",
+  "version": "1.1.0",
+  "summary": "crypto.ImportPEM: a key handle from exactly one unencrypted PEM block holding an RSA key or a NIST P-256, P-384 or P-521 key.",
   "signature": {
     "source": "declaration",
     "symbol": "github.com/eugenioenko/goalchemy/lib/crypto.ImportPEM",
@@ -35,7 +35,7 @@
   "behavior": {
     "zero": "Zero key handles are invalid. Empty byte inputs are permitted unless an operation requires a fixed size.",
     "nil": "Nil byte slices are empty. Nil keys/HTTP contexts return an error; Close accepts nil.",
-    "bounds": "Input is at most 64KiB. Exactly one PEM block with no headers and no other content apart from surrounding whitespace. Accepted block types: PUBLIC KEY (SPKI), PRIVATE KEY (PKCS#8), RSA PUBLIC KEY and RSA PRIVATE KEY (PKCS#1), and CERTIFICATE, whose public key is used without any trust check. RSA keys must have a 2048-bit modulus and an odd exponent of at least 3; EC keys must be on P-256.",
+    "bounds": "Input is at most 64KiB. Exactly one PEM block with no headers and no other content apart from surrounding whitespace. Accepted block types: PUBLIC KEY (SPKI), PRIVATE KEY (PKCS#8), RSA PUBLIC KEY and RSA PRIVATE KEY (PKCS#1), and CERTIFICATE, whose public key is used without any trust check. RSA keys must have a 2048, 3072 or 4096-bit modulus and an odd exponent of at least 3; EC keys must be on the named P-256, P-384 or P-521 curve with a valid point.",
     "conversions": "Not applicable.",
     "overflow": "Not applicable.",
     "mutations": "Input bytes and header slices are not mutated. Close invalidates aliases of its key.",
