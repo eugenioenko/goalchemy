@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"strings"
 
+	"github.com/eugenioenko/goalchemy/internal/catalog"
 	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 	"github.com/eugenioenko/goalchemy/internal/frontend"
 
@@ -43,6 +44,8 @@ type checker struct {
 	reported map[types.Object]bool
 	typeMemo map[types.Type]string
 	seenPos  map[string]bool
+	// called holds callee identifiers of direct errors.As calls.
+	called map[*ast.Ident]bool
 }
 
 func Check(prog *frontend.Program, opts Options) []diagnostics.Diagnostic {
@@ -56,7 +59,8 @@ func Check(prog *frontend.Program, opts Options) []diagnostics.Diagnostic {
 		opts.ExternalPackage = func(string) bool { return false }
 	}
 	c := &checker{opts: opts, fset: prog.Fset, prog: prog,
-		reported: map[types.Object]bool{}, typeMemo: map[types.Type]string{}, seenPos: map[string]bool{}}
+		reported: map[types.Object]bool{}, typeMemo: map[types.Type]string{}, seenPos: map[string]bool{},
+		called: map[*ast.Ident]bool{}}
 	for _, p := range prog.Source {
 		if p.TypesInfo == nil {
 			continue
@@ -136,7 +140,7 @@ func (c *checker) file(f *ast.File) {
 
 // replacement maps standard packages to the Goalchemy root that replaces them.
 var replacement = map[string]string{
-	"sync": "lib", "errors": "lib", "context": "lib", "runtime": "lib",
+	"sync": "lib", "context": "lib", "runtime": "lib", "errors": "std", "fmt": "std",
 	"strconv": "std", "strings": "std", "bytes": "std", "sort": "std", "unicode": "std",
 	"unicode/utf8": "std", "encoding/hex": "std", "encoding/binary": "std",
 }
@@ -239,6 +243,9 @@ func (c *checker) walk(root ast.Node) {
 			}
 		case *ast.GoStmt:
 			c.cooperative(n, "go statement")
+			c.deferredIntrinsic(n.Call, "go")
+		case *ast.DeferStmt:
+			c.deferredIntrinsic(n.Call, "defer")
 		case *ast.SelectStmt:
 			c.cooperative(n, "select statement")
 		case *ast.SendStmt:
@@ -395,6 +402,12 @@ func (c *checker) ident(id *ast.Ident) {
 	case *types.Nil:
 		return
 	}
+	if catalog.IsErrorsAs(obj) {
+		if !c.called[id] {
+			c.unsupported(id, "GCS006", "errors.As used as a function value", "Call errors.As directly with a pointer target.")
+		}
+		return
+	}
 	if obj.Pkg() != nil && !c.prog.IsSource(obj.Pkg().Path()) {
 		if !c.opts.External(obj) {
 			c.report(id, "GCS008", "external symbol "+objName(obj),
@@ -476,6 +489,7 @@ func (c *checker) call(n *ast.CallExpr) bool {
 		}
 		return true
 	}
+	c.libraryCall(n, fun)
 	id, _ := fun.(*ast.Ident)
 	if id == nil {
 		return true

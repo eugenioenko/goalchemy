@@ -82,7 +82,7 @@ The `go get` makes Goalchemy's packages resolvable from your module. Source modu
 
 The Go standard library is replaced by packages that keep the standard names, so code still reads and runs as ordinary Go:
 
-- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `time`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
+- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `time`, `errors`, `fmt`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
 - [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `checksum`, `clock`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
 
 The [runtime library reference](docs/library.md) explains the split and documents every function.
@@ -95,9 +95,7 @@ These are the gaps most SDKs and programs hit today, in priority order. Each lan
 
 | Addition | Root | Notes |
 | --- | --- | --- |
-| `fmt`: `Sprint`, `Sprintf`, `Errorf` with `%w` | `std/` | String formatting and wrapped errors. |
 | `fmt`: `Print`, `Println` | `lib/` | Writes to stdout through a small host capability. |
-| `errors.As`, `errors.Join` | `std/` or `lib/` | Typed and joined errors for SDK error handling. |
 | `os.Getenv` | `lib/` | Reports "not set" where the host has no environment, such as browsers. |
 | Logging hook | `lib/` | Lets an SDK emit log records that the host application routes to its own logger. |
 | `os.ReadFile`, `os.WriteFile` | `lib/` | Returns an error where the host has no file system, such as browsers. |

@@ -1258,12 +1258,12 @@ func (fe *fnEmitter) instr(in ir.Instr) {
 		fe.w("{\nvar %s bool\n%s, %s = %s.(%s)\n", ok, fe.val(i.Dst), ok, fe.val(i.X), e.typ(i.T))
 		args := []string{fe.val(i.X), strconv.Quote(ir.TypeString(i.X.IRType())), strconv.Quote(ir.TypeString(i.T))}
 		if i.T.IsInterface() {
+			args = append(args, "(*"+e.typ(i.T)+")(nil)")
 			for _, m := range i.T.U().Methods {
 				args = append(args, strconv.Quote(e.methodName(m.ID, m.Name)), strconv.Quote(m.Name))
 			}
-			if len(i.T.U().Methods) == 0 {
-				args = append(args, "[]string{}...")
-			}
+		} else {
+			args = append(args, "nil")
 		}
 		fe.w("if !%s {\nrt.PanicAssert(%s)\n}\n}\n", ok, strings.Join(args, ", "))
 	case *ir.Call:

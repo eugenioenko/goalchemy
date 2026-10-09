@@ -162,7 +162,7 @@ func (fl *fnLowerer) conv(v ir.Value, t *ir.Type, n ast.Node) ir.Value {
 	if vt == t {
 		return v
 	}
-	if c, ok := v.(*ir.Const); ok && c.Nil {
+	if c, ok := v.(*ir.Const); ok && c.Nil && (vt.IsInterface() || !t.IsInterface()) {
 		return &ir.Const{Type: t, Nil: true}
 	}
 	if t.IsInterface() {
@@ -441,7 +441,7 @@ func (fl *fnLowerer) selector(x *ast.SelectorExpr) ir.Value {
 		t := fl.typeOf(x)
 		dst := fl.temp(t)
 		if iface {
-			fl.emit(&ir.MakeIfaceBound{At: at(x), Dst: dst, Recv: recv, Method: m.Id()})
+			fl.emit(&ir.MakeIfaceBound{At: at(x), Dst: dst, Recv: recv, Method: ir.MethodID(m)})
 		} else {
 			var fn *ir.Func
 			if ext := fl.l.extern(m); ext != nil {

@@ -20,6 +20,9 @@ func (fl *fnLowerer) callExpr(e *ast.CallExpr) []ir.Value {
 			return fl.builtin(e, b.Name())
 		}
 	}
+	if out, ok := fl.intrinsic(e); ok {
+		return out
+	}
 	c := fl.prepareCall(e, false)
 	sig := fl.info.TypeOf(fun).Underlying().(*types.Signature)
 	var out []ir.Value
@@ -53,11 +56,11 @@ func (fl *fnLowerer) prepareCall(e *ast.CallExpr, deferMode bool) *ir.Call {
 			if iface {
 				if deferMode {
 					bound := fl.temp(fl.typ(sig))
-					fl.emit(&ir.MakeIfaceBound{At: at(f), Dst: bound, Recv: recv, Method: m.Id()})
+					fl.emit(&ir.MakeIfaceBound{At: at(f), Dst: bound, Recv: recv, Method: ir.MethodID(m)})
 					c.Kind, c.Fn, c.Args = ir.CallValue, bound, args
 					return c
 				}
-				c.Kind, c.Recv, c.Method, c.Args = ir.CallInterface, recv, m.Id(), args
+				c.Kind, c.Recv, c.Method, c.Args = ir.CallInterface, recv, ir.MethodID(m), args
 				return c
 			}
 			c.Kind, c.Func, c.Args = ir.CallStatic, fl.l.declared(m), append([]ir.Value{recv}, args...)
@@ -449,7 +452,7 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 			return l.declared(m)
 		}
 	}
-	key := t.Go.String() + "|" + m.Id() + "|" + itoa(len(path))
+	key := t.Go.String() + "|" + ir.MethodID(m) + "|" + itoa(len(path))
 	if methodExpr {
 		key += "|expr"
 	}
@@ -468,7 +471,7 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	sig := l.ts.Of(types.NewSignatureType(nil, nil, nil, types.NewTuple(params...), msig.Results(), msig.Variadic()))
 	name := t.String() + "." + m.Name()
 	f := l.addFunc(&ir.Func{Name: name, Sym: l.sym("wrap_" + sanitize(t.String()) + "_" + m.Name()), Sig: sig,
-		Pkg: l.receiverPackage(t, m), Wrapper: true, MethodID: m.Id(), RecvType: t})
+		Pkg: l.receiverPackage(t, m), Wrapper: true, MethodID: ir.MethodID(m), RecvType: t})
 	l.wrappers[key] = f
 	fl := l.newFn(nil, f)
 	fl.start()
@@ -523,7 +526,7 @@ func (l *Lowerer) wrapper(t *ir.Type, sel *types.Selection, methodExpr bool) *ir
 	}
 	c := &ir.Call{Dsts: append([]*ir.Local(nil), f.Results...), Args: args}
 	if iface {
-		c.Kind, c.Recv, c.Method = ir.CallInterface, rv, m.Id()
+		c.Kind, c.Recv, c.Method = ir.CallInterface, rv, ir.MethodID(m)
 	} else {
 		if ext := l.extern(m); ext != nil {
 			c.Kind, c.Extern = ir.CallExtern, ext

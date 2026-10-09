@@ -2,6 +2,7 @@ package strconv_test
 
 import (
 	"math"
+	"math/rand"
 	stdstrconv "strconv"
 	"testing"
 	"unicode/utf8"
@@ -107,5 +108,58 @@ func TestQuoteAssignedRunes(t *testing.T) {
 	}
 	if bad > 0 {
 		t.Errorf("Quote differs from std on %d code points (first %U)", bad, first)
+	}
+}
+
+func TestQuoteRuneMatchesStd(t *testing.T) {
+	runes := []rune{0, 'a', '\'', '"', '\\', '\n', 0x7f, 0xa0, 0xad, 'é', '日', 0x1F600, 0xFEFF, 0xD800, 0x10FFFF, 0x110000, -1, utf8.RuneError}
+	for _, r := range runes {
+		if g, w := strconv.QuoteRune(r), stdstrconv.QuoteRune(r); g != w {
+			t.Errorf("QuoteRune(%U) = %s want %s", r, g, w)
+		}
+		if g, w := strconv.QuoteRuneToASCII(r), stdstrconv.QuoteRuneToASCII(r); g != w {
+			t.Errorf("QuoteRuneToASCII(%U) = %s want %s", r, g, w)
+		}
+	}
+	for _, s := range []string{"", "abc", "a\tb", "a\nb", "a`b", "\x7f", "\xff", "é", "\ufeff", "日本"} {
+		if g, w := strconv.CanBackquote(s), stdstrconv.CanBackquote(s); g != w {
+			t.Errorf("CanBackquote(%q) = %v want %v", s, g, w)
+		}
+	}
+	if g, w := string(strconv.AppendQuote([]byte("x"), "y\n")), string(stdstrconv.AppendQuote([]byte("x"), "y\n")); g != w {
+		t.Errorf("AppendQuote = %s want %s", g, w)
+	}
+}
+
+var floatInputs = []float64{
+	0, 1, -1, 0.1, 0.2, 0.3, 1.0 / 3, 2.0 / 3, 100, 1e6, 1e20, 1e21, 1e-4, 1e-5, 1e-7, 123456789, 1234567890123456789,
+	0.000001234, 5e-324, 1e-323, 2.2250738585072014e-308, 2.225073858507201e-308, 1.7976931348623157e308,
+	3.4028234663852886e38, 1.401298464324817e-45, 1.1754943508222875e-38, 0.5, 1.5, 2.5, 3.5, 0.125, 1e23, 8.41e21,
+	5.0e-1, 4.35, 0.05, 0.15, 0.25, 0.35, 123.456, 9.999999999999999e22, math.Pi, math.E, 299792458, 6.02214076e23,
+	math.Inf(1), math.Inf(-1), math.NaN(), math.Copysign(0, -1), -1.5e-300, 1 << 53, 1<<53 + 1, 1 << 63, 4503599627370496.5,
+}
+
+func TestFormatFloatMatchesStd(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+	inputs := append([]float64(nil), floatInputs...)
+	for i := 0; i < 3000; i++ {
+		inputs = append(inputs, math.Float64frombits(r.Uint64()), float64(math.Float32frombits(r.Uint32())),
+			float64(r.Int63n(1000000))/1000, r.NormFloat64()*math.Pow(10, float64(r.Intn(40)-20)))
+	}
+	for _, f := range inputs {
+		for _, fmt := range []byte{'e', 'E', 'f', 'g', 'G', 'b', 'x', 'X', 'v'} {
+			for _, prec := range []int{-1, 0, 1, 2, 3, 5, 6, 10, 17, 20, 40} {
+				for _, bits := range []int{32, 64} {
+					g := strconv.FormatFloat(f, fmt, prec, bits)
+					w := stdstrconv.FormatFloat(f, fmt, prec, bits)
+					if g != w {
+						t.Fatalf("FormatFloat(%v, %q, %d, %d) = %s want %s", f, fmt, prec, bits, g, w)
+					}
+				}
+			}
+		}
+	}
+	if g, w := string(strconv.AppendFloat([]byte("x"), 1.5, 'g', -1, 64)), "x1.5"; g != w {
+		t.Errorf("AppendFloat = %s want %s", g, w)
 	}
 }

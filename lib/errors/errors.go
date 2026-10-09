@@ -14,3 +14,7 @@ func Is(err, target error) bool { return errors.Is(err, target) }
 
 // Unwrap returns the result of err's Unwrap method, or nil.
 func Unwrap(err error) error { return errors.Unwrap(err) }
+
+// As is the native implementation behind std/errors.As. The compiler expands
+// calls to either for the static type of target; it is not a capability.
+func As(err error, target any) bool { return errors.As(err, target) }

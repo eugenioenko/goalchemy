@@ -209,7 +209,7 @@ func (l *Lowerer) declare(p *packages.Package) {
 				}
 				irf := &ir.Func{Name: name, Sym: l.sym(symBase), Pkg: p.PkgPath, Sig: l.funcSig(sig), Pos: d.Pos()}
 				if recvT != nil {
-					irf.MethodID = obj.Id()
+					irf.MethodID = ir.MethodID(obj)
 					irf.RecvType = recvT
 				}
 				l.addFunc(irf)
@@ -459,7 +459,7 @@ func (l *Lowerer) methodSet(t *ir.Type) []*ir.MethodEntry {
 	for i := 0; i < ms.Len(); i++ {
 		sel := ms.At(i)
 		fn := sel.Obj().(*types.Func)
-		t.MethodSet = append(t.MethodSet, &ir.MethodEntry{ID: fn.Id(), Name: fn.Name(), Func: l.methodFunc(t, sel)})
+		t.MethodSet = append(t.MethodSet, &ir.MethodEntry{ID: ir.MethodID(fn), Name: fn.Name(), Func: l.methodFunc(t, sel)})
 	}
 	sort.Slice(t.MethodSet, func(i, j int) bool { return t.MethodSet[i].ID < t.MethodSet[j].ID })
 	return t.MethodSet

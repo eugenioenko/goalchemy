@@ -19,11 +19,11 @@ features:
   - {id: maps, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [maps_basic, map_iteration, composite_keys]}
   - {id: embedding_promotion, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [methods_embed, embed_iface]}
   - {id: pointers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [pointers, globals_addr, trees_recursive]}
-  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [interfaces, variadic_any, runtime_panics]}
+  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [interfaces, variadic_any, runtime_panics, assert_method_signature]}
   - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [control_flow, switch_forms]}
   - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [defer_recover, runtime_panics, panic_custom]}
-  - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [errors_values]}
-  - {id: std_packages, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [std_packages, std_time]}
+  - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [errors_values, std_fmt_errors]}
+  - {id: std_packages, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [std_packages, std_time, std_fmt_errors]}
   - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [eval_order]}
   - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
   - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
@@ -35,5 +35,6 @@ features:
   - {id: floating_point, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [floats, floats_panic32, floats_panic64, floats_panic_named32, floats_panic_named64]}
   - {id: floating_point_channels, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_floats]}
   - {id: complex_numbers, gate: rejected, status: rejected, targets: [], fixtures: [reject_complex]}
+  - {id: reflection_dependent_library_calls, gate: rejected, status: rejected, targets: [], fixtures: [reject_fmt_operand, reject_errors_as]}
   - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}
   - {id: goroutines_in_sequential, gate: rejected, status: rejected, targets: [], fixtures: [reject_goroutine]}

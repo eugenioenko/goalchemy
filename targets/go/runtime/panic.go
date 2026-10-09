@@ -66,22 +66,45 @@ func badKey(v reflect.Value) reflect.Type {
 }
 
 // PanicAssert panics for a failed type assertion of x (static type iface) to
-// target. Missing lists the target's interface methods as goName/srcName
-// pairs, or is nil for a concrete target.
-func PanicAssert(x any, iface, target string, methods ...string) {
+// target. For an interface target, want is a nil pointer to the target type
+// and methods lists its methods as goName/srcName pairs; a method with the
+// right name but another signature is missing, as in Go.
+func PanicAssert(x any, iface, target string, want any, methods ...string) {
 	if x == nil {
 		panic(&TypeAssertionError{"interface conversion: " + iface + " is nil, not " + target})
 	}
 	dyn := TypeName(reflect.TypeOf(x))
-	if methods != nil {
+	if want != nil {
 		t := reflect.TypeOf(x)
+		it := reflect.TypeOf(want).Elem()
 		for i := 0; i+1 < len(methods); i += 2 {
-			if _, ok := t.MethodByName(methods[i]); !ok {
+			m, ok := t.MethodByName(methods[i])
+			im, _ := it.MethodByName(methods[i])
+			if !ok || !sameMethod(m.Type, im.Type) {
 				panic(&TypeAssertionError{"interface conversion: " + dyn + " is not " + target + ": missing method " + methods[i+1]})
 			}
 		}
 	}
 	panic(&TypeAssertionError{"interface conversion: " + iface + " is " + dyn + ", not " + target})
+}
+
+// sameMethod reports whether method type m, whose first input is the
+// receiver, has interface method type im.
+func sameMethod(m, im reflect.Type) bool {
+	if im == nil || m.NumIn() != im.NumIn()+1 || m.NumOut() != im.NumOut() || m.IsVariadic() != im.IsVariadic() {
+		return false
+	}
+	for i := 0; i < im.NumIn(); i++ {
+		if m.In(i+1) != im.In(i) {
+			return false
+		}
+	}
+	for i := 0; i < im.NumOut(); i++ {
+		if m.Out(i) != im.Out(i) {
+			return false
+		}
+	}
+	return true
 }
 
 var names = map[reflect.Type]string{}
