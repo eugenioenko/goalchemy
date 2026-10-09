@@ -29,6 +29,7 @@ Why two importable roots:
 | [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
 | [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
 | [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
+| [log/slog](#stdlogslog) | `github.com/eugenioenko/goalchemy/std/log/slog` | Package slog provides structured logging with Go's log/slog API. |
 | [sort](#stdsort) | `github.com/eugenioenko/goalchemy/std/sort` | Package sort sorts collections through the Len, Less, and Swap methods. |
 | [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms, and formats floating-point numbers. |
 | [strings](#stdstrings) | `github.com/eugenioenko/goalchemy/std/strings` | Package strings manipulates UTF-8 encoded strings. |
@@ -43,6 +44,7 @@ Why two importable roots:
 | [lib/encoding](#encoding) | `github.com/eugenioenko/goalchemy/lib/encoding` | Package encoding provides canonical RFC 4648 base64 encodings. |
 | [lib/errors](#errors) | `github.com/eugenioenko/goalchemy/lib/errors` | Package errors provides Goalchemy's error values. |
 | [lib/http](#http) | `github.com/eugenioenko/goalchemy/lib/http` | Package http provides bounded HTTP exchanges, retaining TLS verification and returning redirect responses without following them. |
+| [lib/log](#log) | `github.com/eugenioenko/goalchemy/lib/log` | Package log routes structured log records from Goalchemy programs to a sink the host application installs. |
 | [lib/runtime](#runtime) | `github.com/eugenioenko/goalchemy/lib/runtime` | Package runtime provides Goalchemy's scheduler controls. |
 | [lib/sync](#sync) | `github.com/eugenioenko/goalchemy/lib/sync` | Package sync provides Goalchemy's synchronization primitives. |
 | [lib/task](#task) | `github.com/eugenioenko/goalchemy/lib/task` | Package task provides structured waiting for Goalchemy programs. |
@@ -746,6 +748,877 @@ type Stringer interface {
 ```
 
 Stringer is implemented by any value that has a String method, which defines the native format for that value.
+
+
+## std/log/slog
+
+```go
+import "github.com/eugenioenko/goalchemy/std/log/slog"
+```
+
+Package slog provides structured logging with Go's log/slog API. Records from the default logger and from NewHostHandler go to a sink the host application installs, rendered like slog.TextHandler without the time; without a sink, records at LevelWarn and above are written to standard error. Values are rendered through std/fmt, source locations are not recorded, and there is no TextHandler or JSONHandler.
+
+```go
+const (
+	TimeKey    = "time"
+	LevelKey   = "level"
+	MessageKey = "msg"
+	SourceKey  = "source"
+)
+```
+
+Keys for the built-in attributes.
+
+### Debug
+
+```go
+func Debug(msg string, args ...any)
+```
+
+Debug calls Logger.Debug on the default logger.
+
+### DebugContext
+
+```go
+func DebugContext(ctx context.Context, msg string, args ...any)
+```
+
+DebugContext calls Logger.DebugContext on the default logger.
+
+### Error
+
+```go
+func Error(msg string, args ...any)
+```
+
+Error calls Logger.Error on the default logger.
+
+### ErrorContext
+
+```go
+func ErrorContext(ctx context.Context, msg string, args ...any)
+```
+
+ErrorContext calls Logger.ErrorContext on the default logger.
+
+### Info
+
+```go
+func Info(msg string, args ...any)
+```
+
+Info calls Logger.Info on the default logger.
+
+### InfoContext
+
+```go
+func InfoContext(ctx context.Context, msg string, args ...any)
+```
+
+InfoContext calls Logger.InfoContext on the default logger.
+
+### Log
+
+```go
+func Log(ctx context.Context, level Level, msg string, args ...any)
+```
+
+Log calls Logger.Log on the default logger.
+
+### LogAttrs
+
+```go
+func LogAttrs(ctx context.Context, level Level, msg string, attrs ...Attr)
+```
+
+LogAttrs calls Logger.LogAttrs on the default logger.
+
+### SetDefault
+
+```go
+func SetDefault(l *Logger)
+```
+
+SetDefault makes l the default Logger.
+
+### Warn
+
+```go
+func Warn(msg string, args ...any)
+```
+
+Warn calls Logger.Warn on the default logger.
+
+### WarnContext
+
+```go
+func WarnContext(ctx context.Context, msg string, args ...any)
+```
+
+WarnContext calls Logger.WarnContext on the default logger.
+
+### type Attr
+
+```go
+type Attr struct {
+	Key   string
+	Value Value
+}
+```
+
+An Attr is a key-value pair.
+
+### Any
+
+```go
+func Any(key string, value any) Attr
+```
+
+Any returns an Attr for value, as AnyValue converts it.
+
+### Bool
+
+```go
+func Bool(key string, v bool) Attr
+```
+
+Bool returns an Attr for a bool.
+
+### Duration
+
+```go
+func Duration(key string, v time.Duration) Attr
+```
+
+Duration returns an Attr for a time.Duration.
+
+### Float64
+
+```go
+func Float64(key string, v float64) Attr
+```
+
+Float64 returns an Attr for a float64.
+
+### Group
+
+```go
+func Group(key string, args ...any) Attr
+```
+
+Group returns an Attr for a group of attributes built from alternating keys and values, as in Logger.Log.
+
+### GroupAttrs
+
+```go
+func GroupAttrs(key string, attrs ...Attr) Attr
+```
+
+GroupAttrs returns an Attr for a group of attrs.
+
+### Int
+
+```go
+func Int(key string, value int) Attr
+```
+
+Int returns an Attr for an int, stored as an int64.
+
+### Int64
+
+```go
+func Int64(key string, value int64) Attr
+```
+
+Int64 returns an Attr for an int64.
+
+### String
+
+```go
+func String(key, value string) Attr
+```
+
+String returns an Attr for a string value.
+
+### Time
+
+```go
+func Time(key string, v time.Time) Attr
+```
+
+Time returns an Attr for a time.Time.
+
+### Uint64
+
+```go
+func Uint64(key string, v uint64) Attr
+```
+
+Uint64 returns an Attr for a uint64.
+
+### Attr.Equal
+
+```go
+func (a Attr) Equal(b Attr) bool
+```
+
+Equal reports whether a and b have equal keys and values.
+
+### Attr.String
+
+```go
+func (a Attr) String() string
+```
+
+String returns key=value.
+
+### type Handler
+
+```go
+type Handler interface {
+	Enabled(context.Context, Level) bool
+	Handle(context.Context, Record) error
+	WithAttrs(attrs []Attr) Handler
+	WithGroup(name string) Handler
+}
+```
+
+A Handler handles log records produced by a Logger.
+
+```go
+var DiscardHandler Handler = discardHandler{}
+```
+
+DiscardHandler discards all log output.
+
+### type HandlerOptions
+
+```go
+type HandlerOptions struct {
+	// AddSource is ignored: source locations are not recorded.
+	AddSource bool
+	// Level is the minimum level to handle. If nil, the host application's
+	// minimum level alone decides.
+	Level Leveler
+	// ReplaceAttr is called to rewrite each non-group attribute before it is
+	// rendered, as in log/slog.
+	ReplaceAttr func(groups []string, a Attr) Attr
+}
+```
+
+HandlerOptions are options for the host handler.
+
+### type HostHandler
+
+```go
+type HostHandler struct {
+}
+```
+
+HostHandler sends records to the host application's log sink. It renders attributes like log/slog's TextHandler: group names prefix keys with ".", and the sink receives the key/value pairs and the rendered line, which omits the time.
+
+### NewHostHandler
+
+```go
+func NewHostHandler(opts *HandlerOptions) *HostHandler
+```
+
+NewHostHandler creates a HostHandler with opts, or with default options if opts is nil.
+
+### HostHandler.Enabled
+
+```go
+func (h *HostHandler) Enabled(_ context.Context, level Level) bool
+```
+
+Enabled reports whether both the handler's level and the host sink accept level.
+
+### HostHandler.Handle
+
+```go
+func (h *HostHandler) Handle(_ context.Context, r Record) error
+```
+
+Handle renders r and sends it to the host sink.
+
+### HostHandler.WithAttrs
+
+```go
+func (h *HostHandler) WithAttrs(attrs []Attr) Handler
+```
+
+WithAttrs returns a HostHandler whose records include attrs.
+
+### HostHandler.WithGroup
+
+```go
+func (h *HostHandler) WithGroup(name string) Handler
+```
+
+WithGroup returns a HostHandler that qualifies later keys with name.
+
+### type Kind
+
+```go
+type Kind int
+```
+
+Kind is the kind of a Value.
+
+```go
+const (
+	KindAny Kind = iota
+	KindBool
+	KindDuration
+	KindFloat64
+	KindInt64
+	KindString
+	KindTime
+	KindUint64
+	KindGroup
+	KindLogValuer
+)
+```
+
+The kinds of Values.
+
+### Kind.String
+
+```go
+func (k Kind) String() string
+```
+
+### type Level
+
+```go
+type Level int
+```
+
+A Level is the importance or severity of a log event.
+
+```go
+const (
+	LevelDebug Level = -4
+	LevelInfo  Level = 0
+	LevelWarn  Level = 4
+	LevelError Level = 8
+)
+```
+
+Names for common levels.
+
+### Level.AppendText
+
+```go
+func (l Level) AppendText(b []byte) ([]byte, error)
+```
+
+AppendText appends the level's name to b.
+
+### Level.Level
+
+```go
+func (l Level) Level() Level
+```
+
+Level returns l, so a Level is a Leveler.
+
+### Level.MarshalText
+
+```go
+func (l Level) MarshalText() ([]byte, error)
+```
+
+MarshalText returns the level's name.
+
+### Level.String
+
+```go
+func (l Level) String() string
+```
+
+String returns a name for the level, such as "WARN" or "INFO+2".
+
+### Level.UnmarshalText
+
+```go
+func (l *Level) UnmarshalText(data []byte) error
+```
+
+UnmarshalText parses a level name produced by String, ignoring case.
+
+### type LevelVar
+
+```go
+type LevelVar struct {
+}
+```
+
+A LevelVar is a Level variable that can change while handlers use it.
+
+### LevelVar.Level
+
+```go
+func (v *LevelVar) Level() Level
+```
+
+Level returns v's level.
+
+### LevelVar.MarshalText
+
+```go
+func (v *LevelVar) MarshalText() ([]byte, error)
+```
+
+MarshalText returns the name of v's level.
+
+### LevelVar.Set
+
+```go
+func (v *LevelVar) Set(l Level)
+```
+
+Set sets v's level to l.
+
+### LevelVar.String
+
+```go
+func (v *LevelVar) String() string
+```
+
+String returns "LevelVar(" + the level name + ")".
+
+### LevelVar.UnmarshalText
+
+```go
+func (v *LevelVar) UnmarshalText(data []byte) error
+```
+
+UnmarshalText sets v's level from a level name.
+
+### type Leveler
+
+```go
+type Leveler interface {
+	Level() Level
+}
+```
+
+A Leveler provides a Level value.
+
+### type LogValuer
+
+```go
+type LogValuer interface {
+	LogValue() Value
+}
+```
+
+A LogValuer is any Go value that can convert itself into a Value for logging.
+
+### type Logger
+
+```go
+type Logger struct {
+}
+```
+
+A Logger records structured information about each call to its Log, Debug, Info, Warn and Error methods and passes it to a Handler.
+
+### Default
+
+```go
+func Default() *Logger
+```
+
+Default returns the default Logger, which sends records to the host application's log sink.
+
+### New
+
+```go
+func New(h Handler) *Logger
+```
+
+New creates a new Logger with the given non-nil Handler.
+
+### With
+
+```go
+func With(args ...any) *Logger
+```
+
+With calls Logger.With on the default logger.
+
+### Logger.Debug
+
+```go
+func (l *Logger) Debug(msg string, args ...any)
+```
+
+Debug logs at LevelDebug.
+
+### Logger.DebugContext
+
+```go
+func (l *Logger) DebugContext(ctx context.Context, msg string, args ...any)
+```
+
+DebugContext logs at LevelDebug with the given context.
+
+### Logger.Enabled
+
+```go
+func (l *Logger) Enabled(ctx context.Context, level Level) bool
+```
+
+Enabled reports whether l emits log records at the given level.
+
+### Logger.Error
+
+```go
+func (l *Logger) Error(msg string, args ...any)
+```
+
+Error logs at LevelError.
+
+### Logger.ErrorContext
+
+```go
+func (l *Logger) ErrorContext(ctx context.Context, msg string, args ...any)
+```
+
+ErrorContext logs at LevelError with the given context.
+
+### Logger.Handler
+
+```go
+func (l *Logger) Handler() Handler
+```
+
+Handler returns l's Handler.
+
+### Logger.Info
+
+```go
+func (l *Logger) Info(msg string, args ...any)
+```
+
+Info logs at LevelInfo.
+
+### Logger.InfoContext
+
+```go
+func (l *Logger) InfoContext(ctx context.Context, msg string, args ...any)
+```
+
+InfoContext logs at LevelInfo with the given context.
+
+### Logger.Log
+
+```go
+func (l *Logger) Log(ctx context.Context, level Level, msg string, args ...any)
+```
+
+Log emits a log record with the current time and the given level and message. args are alternating keys and values, or Attrs.
+
+### Logger.LogAttrs
+
+```go
+func (l *Logger) LogAttrs(ctx context.Context, level Level, msg string, attrs ...Attr)
+```
+
+LogAttrs is a more efficient version of Logger.Log that accepts only Attrs.
+
+### Logger.Warn
+
+```go
+func (l *Logger) Warn(msg string, args ...any)
+```
+
+Warn logs at LevelWarn.
+
+### Logger.WarnContext
+
+```go
+func (l *Logger) WarnContext(ctx context.Context, msg string, args ...any)
+```
+
+WarnContext logs at LevelWarn with the given context.
+
+### Logger.With
+
+```go
+func (l *Logger) With(args ...any) *Logger
+```
+
+With returns a Logger that includes the given attributes in each output.
+
+### Logger.WithGroup
+
+```go
+func (l *Logger) WithGroup(name string) *Logger
+```
+
+WithGroup returns a Logger that starts a group, if name is non-empty.
+
+### type Record
+
+```go
+type Record struct {
+	// Time is when the record was created; the zero time is omitted.
+	Time time.Time
+	// Message is the log message.
+	Message string
+	// Level is the level of the event.
+	Level Level
+	// PC is always zero: source locations are not recorded.
+	PC int
+	// contains filtered or unexported fields
+}
+```
+
+A Record holds information about a log event.
+
+### NewRecord
+
+```go
+func NewRecord(t time.Time, level Level, msg string, pc int) Record
+```
+
+NewRecord creates a Record from the given arguments. Use Record.AddAttrs to add attributes. pc is kept for source compatibility and is ignored.
+
+### Record.Add
+
+```go
+func (r *Record) Add(args ...any)
+```
+
+Add converts args to Attrs as Logger.Log does and appends them to the Record's list, omitting empty groups.
+
+### Record.AddAttrs
+
+```go
+func (r *Record) AddAttrs(attrs ...Attr)
+```
+
+AddAttrs appends the given Attrs to the Record's list, omitting empty groups.
+
+### Record.Attrs
+
+```go
+func (r Record) Attrs(f func(Attr) bool)
+```
+
+Attrs calls f on each Attr in the Record. Iteration stops if f returns false.
+
+### Record.Clone
+
+```go
+func (r Record) Clone() Record
+```
+
+Clone returns a copy of the record whose attributes are not shared.
+
+### Record.NumAttrs
+
+```go
+func (r Record) NumAttrs() int
+```
+
+NumAttrs returns the number of attributes in the Record.
+
+### type Value
+
+```go
+type Value struct {
+}
+```
+
+A Value can represent any Go value without allocating for the common kinds.
+
+### AnyValue
+
+```go
+func AnyValue(v any) Value
+```
+
+AnyValue returns a Value for v, using the kind that matches v's type.
+
+### BoolValue
+
+```go
+func BoolValue(v bool) Value
+```
+
+BoolValue returns a Value for a bool.
+
+### DurationValue
+
+```go
+func DurationValue(v time.Duration) Value
+```
+
+DurationValue returns a Value for a time.Duration.
+
+### Float64Value
+
+```go
+func Float64Value(v float64) Value
+```
+
+Float64Value returns a Value for a floating-point number.
+
+### GroupValue
+
+```go
+func GroupValue(as ...Attr) Value
+```
+
+GroupValue returns a new Value for a list of Attrs, omitting empty groups.
+
+### Int64Value
+
+```go
+func Int64Value(v int64) Value
+```
+
+Int64Value returns a Value for an int64.
+
+### IntValue
+
+```go
+func IntValue(v int) Value
+```
+
+IntValue returns a Value for an int.
+
+### StringValue
+
+```go
+func StringValue(value string) Value
+```
+
+StringValue returns a Value for a string.
+
+### TimeValue
+
+```go
+func TimeValue(v time.Time) Value
+```
+
+TimeValue returns a Value for a time.Time.
+
+### Uint64Value
+
+```go
+func Uint64Value(v uint64) Value
+```
+
+Uint64Value returns a Value for a uint64.
+
+### Value.Any
+
+```go
+func (v Value) Any() any
+```
+
+Any returns v's value as an any.
+
+### Value.Bool
+
+```go
+func (v Value) Bool() bool
+```
+
+Bool returns v's value as a bool. It panics if v is not a bool.
+
+### Value.Duration
+
+```go
+func (v Value) Duration() time.Duration
+```
+
+Duration returns v's value as a time.Duration. It panics if v is not a time.Duration.
+
+### Value.Equal
+
+```go
+func (v Value) Equal(w Value) bool
+```
+
+Equal reports whether v and w represent the same Go value.
+
+### Value.Float64
+
+```go
+func (v Value) Float64() float64
+```
+
+Float64 returns v's value as a float64. It panics if v is not a float64.
+
+### Value.Group
+
+```go
+func (v Value) Group() []Attr
+```
+
+Group returns v's value as a []Attr. It panics if v's Kind is not KindGroup.
+
+### Value.Int64
+
+```go
+func (v Value) Int64() int64
+```
+
+Int64 returns v's value as an int64. It panics if v is not a signed integer.
+
+### Value.Kind
+
+```go
+func (v Value) Kind() Kind
+```
+
+Kind returns v's Kind.
+
+### Value.LogValuer
+
+```go
+func (v Value) LogValuer() LogValuer
+```
+
+LogValuer returns v's value as a LogValuer. It panics if v is not a LogValuer.
+
+### Value.Resolve
+
+```go
+func (v Value) Resolve() (rv Value)
+```
+
+Resolve repeatedly calls LogValue on v while it implements LogValuer, and returns the result. A LogValue panic resolves to an error value.
+
+### Value.String
+
+```go
+func (v Value) String() string
+```
+
+String returns v's value as a string, formatted like fmt.Sprint.
+
+### Value.Time
+
+```go
+func (v Value) Time() time.Time
+```
+
+Time returns v's value as a time.Time. It panics if v is not a time.Time.
+
+### Value.Uint64
+
+```go
+func (v Value) Uint64() uint64
+```
+
+Uint64 returns v's value as a uint64. It panics if v is not an unsigned integer.
 
 
 ## std/sort
@@ -3310,6 +4183,47 @@ One bounded HTTP GET or POST exchange that keeps TLS verification and does not f
 - **Bounds**: GET/POST only; GET has empty body. URL<=8192 bytes, request/reply body<=64MiB, header bytes<=64KiB, timeoutMillis=1..300000. Header input alternates name/value; odd length, invalid tokens, control bytes and framing/hop/proxy headers are rejected.
 - **Errors**: Transport, context cancellation/deadline and limit failures return zero status/nil headers/nil body and error. Non-2xx and redirects return ordinary responses.
 - **Contract**: `lib.http.do` 1.0.0
+
+## log
+
+```go
+import "github.com/eugenioenko/goalchemy/lib/log"
+```
+
+Package log routes structured log records from Goalchemy programs to a sink the host application installs.
+
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `Emit` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `Enabled` | yes | yes | yes | yes | yes | yes | yes | yes |
+
+### Emit
+
+```go
+func Emit(level int, unixNano int64, message string, attrs []string, text string)
+```
+
+Delivers one structured log record to the host log sink.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: attrs holds key/value pairs; an odd final element is ignored. Group names are already joined to keys with '.'.
+- **Errors**: No error result. Exceptions or panics raised by a host sink are discarded.
+- **Contract**: `lib.log.emit` 1.0.0
+
+### Enabled
+
+```go
+func Enabled(level int) bool
+```
+
+Reports whether the host log sink accepts records at a level.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: Levels follow log/slog: -4 debug, 0 info, 4 warn, 8 error; any int is valid. The result is level >= the host's minimum level.
+- **Errors**: No error result.
+- **Contract**: `lib.log.enabled` 1.0.0
 
 ## runtime
 

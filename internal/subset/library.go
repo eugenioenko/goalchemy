@@ -9,7 +9,10 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/ir"
 )
 
-const fmtPackage = catalog.StdModule + "fmt"
+const (
+	fmtPackage  = catalog.StdModule + "fmt"
+	slogPackage = catalog.StdModule + "log/slog"
+)
 
 func calleeIdent(fun ast.Expr) *ast.Ident {
 	switch f := ast.Unparen(fun).(type) {
@@ -22,8 +25,8 @@ func calleeIdent(fun ast.Expr) *ast.Ident {
 }
 
 // libraryCall checks standard library calls that Go implements with
-// reflection: errors.As targets and fmt operands must have static types the
-// compiler and std/fmt can handle without it.
+// reflection: errors.As targets, fmt operands and slog values must have static
+// types the compiler and std/fmt can handle without it.
 func (c *checker) libraryCall(n *ast.CallExpr, fun ast.Expr) {
 	id := calleeIdent(fun)
 	if id == nil {
@@ -41,6 +44,16 @@ func (c *checker) libraryCall(n *ast.CallExpr, fun ast.Expr) {
 		params := fn.Signature().Params()
 		for _, a := range n.Args[min(params.Len()-1, len(n.Args)):] {
 			c.fmtOperand(a)
+		}
+	case fn.Pkg().Path() == slogPackage:
+		params := fn.Signature().Params()
+		switch {
+		case fn.Signature().Variadic() && !n.Ellipsis.IsValid() && types.Identical(params.At(params.Len()-1).Type(), anySlice):
+			for _, a := range n.Args[min(params.Len()-1, len(n.Args)):] {
+				c.slogOperand(a)
+			}
+		case fn.Signature().Recv() == nil && (fn.Name() == "Any" && len(n.Args) == 2 || fn.Name() == "AnyValue" && len(n.Args) == 1):
+			c.slogOperand(n.Args[len(n.Args)-1])
 		}
 	}
 }
@@ -89,10 +102,34 @@ var stringerInterface = types.NewInterfaceType([]*types.Func{
 		types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])), false)),
 }, nil).Complete()
 
+var anySlice = types.NewSlice(types.Universe.Lookup("any").Type())
+
+// slogOperand rejects log/slog values that std/log/slog would render
+// through std/fmt but std/fmt cannot format.
+func (c *checker) slogOperand(a ast.Expr) {
+	tv, ok := c.info.Types[a]
+	if !ok || tv.Type == nil {
+		return
+	}
+	if hasMethod(tv.Type, "LogValue") || hasMethod(tv.Type, "MarshalText") {
+		return
+	}
+	if s, ok := types.Unalias(tv.Type).(*types.Slice); ok {
+		if n, ok := types.Unalias(s.Elem()).(*types.Named); ok && n.Obj().Name() == "Attr" && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == slogPackage {
+			return
+		}
+	}
+	c.operand(a, "slog value", "std/log/slog renders basic types, []byte, interfaces, and values with an Error, String, LogValue or MarshalText method without reflection")
+}
+
 // fmtOperand rejects operands std/fmt cannot format without reflection:
 // values other than basic types, []byte, interfaces, and types with an
 // Error, String, GoString or Format method.
 func (c *checker) fmtOperand(a ast.Expr) {
+	c.operand(a, "fmt operand", "std/fmt formats basic types, []byte, interfaces, and values with an Error or String method without reflection")
+}
+
+func (c *checker) operand(a ast.Expr, what, why string) {
 	tv, ok := c.info.Types[a]
 	if !ok || tv.Type == nil || tv.IsNil() {
 		return
@@ -114,8 +151,8 @@ func (c *checker) fmtOperand(a ast.Expr) {
 			return
 		}
 	}
-	c.report(a, "GCS006", "fmt operand of type "+typeName(t),
-		"fmt operand of type "+typeName(t)+" is not supported: std/fmt formats basic types, []byte, interfaces, and values with an Error or String method without reflection",
+	c.report(a, "GCS006", what+" of type "+typeName(t),
+		what+" of type "+typeName(t)+" is not supported: "+why,
 		"Convert named basic types to their basic type, such as int(x), or give the type a String() string method.")
 }
 
