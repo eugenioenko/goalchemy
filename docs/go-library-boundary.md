@@ -62,3 +62,8 @@ containing private fields or opaque/pointer/interface state are outside the
 bounded export ABI and become LibraryError with Kind `unsupported_error`.
 The shared SDK façade always converts declared failures to its supported public
 Failure record before reaching this boundary.
+
+Logging: when a library uses `std/log/slog`, the output bundles the native
+`goalchemyout/cap/log` package. Hosts call `log.SetHandler(handler, level)`,
+or pass `log.Slog(logger)` to route records to a `*slog.Logger`. See
+[the logging section of the usage guide](usage.md).

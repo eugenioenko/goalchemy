@@ -51,6 +51,15 @@ host_fault. Supported public source error structs appear as owned `fields`.
 Unexpected submission/cleanup faults become host_fault without leaking native
 messages. This reusable driver does not exit the importing process.
 
+## Logging
+
+`std/log/slog` records reach the host through `setLogHandler(handler, level)`,
+exported with the `LogRecord` and `LogHandler` types. The handler receives
+decoded strings, `[key, value]` attribute pairs and the rendered `text`. Passing
+`null` restores the default: records at warn and above are written to the
+runtime's stderr, or to `console.error` in browsers and other portable hosts.
+See [the logging section of the usage guide](usage.md).
+
 ## Providers and native keys
 
 Callback receives `(signal, copiedRequest, settle)` and returns a Promise, a

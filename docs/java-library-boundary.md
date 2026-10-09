@@ -80,6 +80,13 @@ Errors distinguish `source`, `canceled`, `source_panic`, `host_fault` and
 stderr/report/exit behavior. Unexpected adapter/linkage/cleanup failures remain
 host faults; they are not disguised as invalid crypto inputs.
 
+## Logging
+
+`std/log/slog` records reach the host through
+`io.goalchemy.runtime.Log.setHandler(handler, level)`. `Log.systemLogger()`
+forwards records to the `System.Logger` named `goalchemy`. A null handler
+restores standard error at warn and above. See [the logging section of the usage guide](usage.md).
+
 ## Native implementations
 
 JDK 21 JCA supplies SecureRandom, SHA-256, HmacSHA256, AES/GCM, RSA OAEP with

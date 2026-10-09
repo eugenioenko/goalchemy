@@ -157,6 +157,12 @@ without blocking source scheduling. A canceled, failed or panicking call
 retires pending host work and waits for cleanup acknowledgement before
 publishing its result or error.
 
+## Logging
+
+`std/log/slog` records reach the host through the module's
+`setLogHandler(_:level:)`, which receives `GoalchemyLogRecord` values. `nil`
+restores standard error at warn and above. See [the logging section of the usage guide](usage.md).
+
 ## Verification
 
 Swift joins target discovery, the feature matrix, corpus/examples, both naming
