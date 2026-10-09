@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/harness.py, tests/harness/codec.py, rt_index.py]
   generated: tests/harness/harness_gen.py
   command: [python3, targets/python/tests/harness/harness.py]
-support_files: [types/float.py, types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py, types/library.py]
+support_files: [types/float.py, types/integer.py, types/panic.py, types/iface.py, types/ref.py, types/slice.py, types/map.py, types/print.py, types/bounds.py, types/utf8.py, types/program.py, types/library.py, types/log.py]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.round_float", implementation: runtime/float_convert.py}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.float_add_<k>", implementation: runtime/float_add.py, harness: "rt.float_add_{T.kind}({0}, {1})"}
@@ -141,6 +141,8 @@ functions:
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.lib_encoding_base64_url_decode, implementation: runtime/lib_encoding_base64_url_decode.py, requires: [lib.crypto.close], harness: "rt.lib_encoding_base64_url_decode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.lib_clock_unix, implementation: runtime/lib_clock_unix.py, harness: "rt.lib_clock_unix()"}
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: rt.lib_clock_unix_nano, implementation: runtime/lib_clock_unix_nano.py, harness: "rt.lib_clock_unix_nano()"}
+  - {id: lib.log.enabled, contract_version: 1.0.0, symbol: rt.lib_log_enabled, implementation: runtime/lib_log_enabled.py, harness: "rt.lib_log_enabled({0})"}
+  - {id: lib.log.emit, contract_version: 1.0.0, symbol: rt.lib_log_emit, implementation: runtime/lib_log_emit.py}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.lib_http_do, implementation: runtime/lib_http_do.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: rt.lib_callback_request, implementation: runtime/lib_callback_request.py, requires: [lib.crypto.close, std.context.err], harness: "host: rt.lib_callback_request(t,{0},{1},{2})"}
 

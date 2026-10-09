@@ -1,0 +1,16 @@
+package probe
+
+import (
+	"github.com/eugenioenko/goalchemy/lib/context"
+	"github.com/eugenioenko/goalchemy/std/errors"
+	"github.com/eugenioenko/goalchemy/std/log/slog"
+)
+
+func Work(ctx context.Context, n int) (int, error) {
+	l := slog.Default().With("sdk", "probe")
+	l.Debug("start", "n", n)
+	l.Info("info", "unicode", "héllo wörld")
+	l.WithGroup("kas").Warn("retry", "url", "https://kas", "attempt", 2)
+	slog.ErrorContext(ctx, "failed", "err", errors.New("boom"))
+	return n * 2, nil
+}

@@ -45,7 +45,7 @@ func (e *emitter) library() (string, error) {
 	}
 	used := map[string]bool{}
 	reserved := map[string]bool{}
-	for _, name := range strings.Fields("V H Key Code Func TypeDesc PanicObj GoPanicPayload ErrorKind LibraryError Cancellation ProviderRequest ProviderError Provider CallOptions Operation HostFault HostFatal SourceStackFatal HostWire HostRecord HostMailbox HostToken HostBoundary HostPending Step Results Frame Task Timer Sched Obj Heap Deferred FrData Fr TempRoots KeyIndex Entry GoMap MapIter EntryReservation SourceGuard Waiter WaiterData Chan Mutex WaitGroup ContextHook Context ContextHookHandle BlockedPayload HostError Vec Rc Cell RefCell Option Result String Some None Ok Err") {
+	for _, name := range strings.Fields("V H Key Code Func TypeDesc PanicObj GoPanicPayload ErrorKind LibraryError Cancellation ProviderRequest ProviderError Provider CallOptions Operation HostFault HostFatal SourceStackFatal HostWire HostRecord HostMailbox HostToken HostBoundary HostPending Step Results Frame Task Timer Sched Obj Heap Deferred FrData Fr TempRoots KeyIndex Entry GoMap MapIter EntryReservation SourceGuard Waiter WaiterData Chan Mutex WaitGroup ContextHook Context ContextHookHandle BlockedPayload HostError Vec Rc Cell RefCell Option Result String Some None Ok Err LogRecord LogHandler") {
 		reserved[name] = true
 	}
 	for _, f := range e.p.Exports {
@@ -213,7 +213,7 @@ func (e *emitter) library() (string, error) {
 			convert(t)
 		}
 	}
-	b.WriteString("pub use rt::{Operation, CallOptions, LibraryError, ErrorKind, Cancellation, Provider, ProviderRequest, ProviderError, HostWire};\nfn source_failure(v: &V) -> LibraryError {\nif veq(v,&context_canceled()) {return LibraryError::new(ErrorKind::Canceled,\"context canceled\");}\nif veq(v,&context_deadline_exceeded()) {return LibraryError::new(ErrorKind::DeadlineExceeded,\"context deadline exceeded\");}\n")
+	b.WriteString("pub use rt::{Operation, CallOptions, LibraryError, ErrorKind, Cancellation, Provider, ProviderRequest, ProviderError, HostWire, set_log_handler, LogRecord, LogHandler};\nfn source_failure(v: &V) -> LibraryError {\nif veq(v,&context_canceled()) {return LibraryError::new(ErrorKind::Canceled,\"context canceled\");}\nif veq(v,&context_deadline_exceeded()) {return LibraryError::new(ErrorKind::DeadlineExceeded,\"context deadline exceeded\");}\n")
 	var errorTypes []*ir.Type
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KPointer && t.Elem.U().Kind == ir.KStruct && libraryValue(t.Elem, map[*ir.Type]bool{}) && e.tds[t] {

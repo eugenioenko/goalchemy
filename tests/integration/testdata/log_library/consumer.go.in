@@ -1,0 +1,30 @@
+package consumer
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	g "goalchemyout"
+	"goalchemyout/cap/log"
+)
+
+func TestLogLibrary(t *testing.T) {
+	var got []log.Record
+	log.SetHandler(func(r log.Record) { got = append(got, r) }, -4)
+	defer log.SetHandler(nil, log.DefaultLevel)
+	if n, err := g.Work(context.Background(), 3); err != nil || n != 6 {
+		t.Fatal(n, err)
+	}
+	if len(got) != 4 || got[0].Level != -4 || got[0].Text != "level=DEBUG msg=start sdk=probe n=3" ||
+		got[1].Text != "level=INFO msg=info sdk=probe unicode=\"héllo wörld\"" || got[1].Attrs[3] != "héllo wörld" ||
+		got[2].Level != 4 || got[2].Message != "retry" || got[2].Attrs[2] != "kas.url" || got[2].Attrs[3] != "https://kas" ||
+		got[3].Text != "level=ERROR msg=failed err=boom" || time.Since(got[3].Time) > time.Minute {
+		t.Fatalf("%+v", got)
+	}
+	got = nil
+	log.SetHandler(func(r log.Record) { got = append(got, r) }, 4)
+	if _, err := g.Work(context.Background(), 1); err != nil || len(got) != 2 || got[0].Message != "retry" || got[1].Level != 8 {
+		t.Fatalf("%+v %v", got, err)
+	}
+}

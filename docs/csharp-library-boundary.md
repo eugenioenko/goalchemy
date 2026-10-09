@@ -91,6 +91,13 @@ launch rejection. Existing C# host, byte and target-scoped language/conformance
 checks preserve executable behavior. This boundary does not complete Python,
 Rust, C or the seven-target SDK delivery goal.
 
+## Logging
+
+`std/log/slog` records reach the host through `Rt.Log.SetHandler(handler, level)`,
+an `Action<Log.Record>`. `Log.TraceHandler()` writes records to
+`System.Diagnostics.Trace`. A null handler restores standard error at warn and
+above. See [the logging section of the usage guide](usage.md).
+
 ## IEEE CRC32 package dependency
 
 Libraries that link `lib/checksum.CRC32IEEE` add the official Microsoft

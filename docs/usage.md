@@ -213,6 +213,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 | `github.com/eugenioenko/goalchemy/std/errors` | `New`, `Is`, `As`, `Unwrap`, `Join`, `ErrUnsupported`, including `Unwrap() []error` trees |
 | `github.com/eugenioenko/goalchemy/std/fmt` | `Sprintf`, `Sprint`, `Sprintln`, `Errorf` with one or more `%w`, `Append`/`Appendf`/`Appendln`, `Stringer`, `GoStringer`, `Formatter`, `State`, `FormatString` (see below) |
+| `github.com/eugenioenko/goalchemy/std/log/slog` | `Logger`, `Default`/`SetDefault`, `New`, `Debug`/`Info`/`Warn`/`Error`, their `Context` forms, `Log`/`LogAttrs`, `With`/`WithGroup`, `Attr`, `Value`, `Level`, `LevelVar`, `Record`, `Handler`, `HandlerOptions`, `LogValuer`, `DiscardHandler` and `NewHostHandler` (see below) |
 | `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap`; the native layer under `std/errors`, whose `Is` does not follow `Unwrap() []error` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
 | `github.com/eugenioenko/goalchemy/lib/context` | `Context`, `CancelFunc`, `Background`, `WithCancel`, `WithTimeout`, `Canceled`, `DeadlineExceeded`, and the `Done` and `Err` methods (cooperative gate) |
@@ -223,6 +224,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/lib/encoding` | `Base64Encode`, `Base64Decode`, `Base64URLEncode`, `Base64URLDecode` |
 | `github.com/eugenioenko/goalchemy/lib/http` | `Do`, a bounded GET or POST exchange |
 | `github.com/eugenioenko/goalchemy/lib/clock` | `Unix` and `UnixNano`, host wall-clock seconds and nanoseconds |
+| `github.com/eugenioenko/goalchemy/lib/log` | `Enabled` and `Emit`, the host log sink behind `std/log/slog` |
 | `github.com/eugenioenko/goalchemy/lib/callback` | `Request`, a bounded call to a host-registered callback |
 
 The [runtime library reference](library.md) documents every function. For `lib/` it lists the gate, bounds, error behavior, per-target availability and native dependencies. It is generated from the `std/` and `lib/` sources and the contracts with `make spec-generate`.
@@ -242,6 +244,29 @@ The [runtime library reference](library.md) documents every function. For `lib/`
 - `Sprint` treats only predeclared `string` operands as strings when deciding where to add spaces; Go also treats named string types as strings.
 - `errors.As` needs a target whose static type is a pointer to an interface type or to a type implementing `error`. The compiler expands each call for that type and rejects other targets, `errors.As` used as a function value, and `defer` or `go` of it (`GCS006`). A nil target pointer panics as in Go.
 - `fmt.Print`, `Printf` and `Println` are not available; use the `print` and `println` builtins with `fmt.Sprintf`.
+
+`std/log/slog` follows Go's `log/slog` API, and the host application decides where records go:
+
+- The default logger, and any logger built with `slog.NewHostHandler`, sends records to the host log sink. A record goes out when it passes the handler's `HandlerOptions.Level`, if set, and the host's minimum level. Until the host installs a sink, that minimum is `LevelWarn` and records are written to standard error, so libraries are quiet by default.
+- Records are rendered like `slog.TextHandler` without the `time` attribute, for example `level=WARN msg=retry kas=https://kas attempt=2`. The sink also receives the level, message, Unix time in nanoseconds and the attributes as key/value strings, with group names joined to keys by `.`.
+- Values are rendered through `std/fmt`, so the `fmt` operand rules above apply. The compiler rejects attribute values of unsupported static types, unless they implement `LogValuer` or `MarshalText` (`GCS006`).
+- Source locations are not recorded: `HandlerOptions.AddSource` is ignored, `Record.PC` is an `int` that is always zero, and `NewRecord` takes an `int` for its unused `pc` argument. `ReplaceAttr` is not called for `time`, which the host handler does not render.
+- There is no `TextHandler` or `JSONHandler`, because there is no `io.Writer`; implement `Handler` for custom output. Handlers take a `lib/context.Context`, which the default methods fill with `context.Background()`.
+
+Hosts install a sink before calling into a library. The handler runs synchronously on the calling thread and must not block or call back into the library; exceptions and panics it raises are discarded. Levels follow `log/slog`: -4 debug, 0 info, 4 warn, 8 error.
+
+| Target | Install a sink | Record |
+| --- | --- | --- |
+| Go | `log.SetHandler(func(log.Record), level)` from `goalchemyout/cap/log`; `log.Slog(*slog.Logger)` adapts a Go logger | `Level`, `Time`, `Message`, `Attrs` (key/value pairs), `Text` |
+| TypeScript | `setLogHandler(record => ..., level)` exported by the library | `level`, `unixNano`, `time`, `message`, `attrs` (`[key, value]` pairs), `text` |
+| Python | `set_log_handler(handler, level)` exported by the library; `logging_handler(logger)` forwards to the `logging` logger `goalchemy` | `LogRecord` with `level`, `unix_nano`, `time`, `message`, `attrs`, `text` |
+| Java | `io.goalchemy.runtime.Log.setHandler(record -> ..., level)`; `Log.systemLogger()` forwards to `System.Logger` `goalchemy` | `Log.Record` with `level()`, `unixNano()`, `time()`, `message()`, `attrs()`, `text()` |
+| C# | `Rt.Log.SetHandler(record => ..., level)`; `Log.TraceHandler()` writes to `System.Diagnostics.Trace` | `Log.Record` with `Level`, `UnixNano`, `Time`, `Message`, `Attrs`, `Text` |
+| Rust | `set_log_handler(Some(Arc::new(\|r: &LogRecord\| ...)), level)` exported by the crate | `LogRecord` with `level`, `unix_nano`, `time()`, `message`, `attrs`, `text` |
+| C | `gxc_set_log_handler(handler, state, level)` in `goalchemy.h` | `gxc_log_record` with lengths and NUL-terminated copies, freed when the handler returns |
+| Swift | `setLogHandler({ record in ... }, level:)` exported by the module | `GoalchemyLogRecord` with `level`, `unixNano`, `time`, `message`, `attrs`, `text` |
+
+Passing a null handler (`nil`, `None`, `NULL`) restores the default standard error sink at `LevelWarn`. Strings reach the handler decoded as UTF-8, with invalid sequences replaced; C receives the raw bytes.
 
 Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"`, `"strings"` or `"fmt"` directly is rejected with a remedy naming its `std/` or `lib/` replacement.
 

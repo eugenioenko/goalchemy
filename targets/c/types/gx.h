@@ -479,6 +479,10 @@ gx_V gx_lib_encoding_base64_url_encode(gx_V v);
 gx_V gx_lib_encoding_base64_url_decode(gx_V v);
 gx_V gx_lib_clock_unix(void);
 gx_V gx_lib_clock_unix_nano(void);
+gx_V gx_lib_log_enabled(gx_V level);
+void gx_lib_log_emit(gx_V level, gx_V unix_nano, gx_V message, gx_V attrs, gx_V text);
+bool gx_log_enabled(int64_t level);
+void gx_log_emit(int64_t level, int64_t unix_nano, gx_V message, gx_V attrs, gx_V text);
 void gx_lib_http_do(gx_Task *,gx_V,gx_V,gx_V,gx_V,gx_V,gx_V,gx_V);
 void gx_lib_callback_request(gx_Task *,gx_V,gx_V,gx_V);
 

@@ -2352,21 +2352,57 @@ static J *case_194(H *h) {
     return out;
 }
 
-static void prim_195(gx_Task *t, void *arg) {
-    gx_V *a = arg;
-    gx_lib_task_all(t, a[0]);
-}
-
 static J *case_195(H *h) {
-    gx_V v_fns = codec_21(h_let(h, "fns"));
-    gx_V a[] = {v_fns};
-    gx_V rv[8];
-    gx_run_isolated(prim_195, a, rv);
+    gx_V v_level = dec_int(h_let(h, "level"));
+    gx_V a[] = {v_level};
+    gx_V r0 = gx_lib_log_enabled(a[0]);
     J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
     return out;
 }
 
 static J *case_196(H *h) {
+    gx_V v_level = dec_int(h_let(h, "level"));
+    gx_V a[] = {v_level};
+    gx_V r0 = gx_lib_log_enabled(a[0]);
+    J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
+    return out;
+}
+
+static J *case_197(H *h) {
+    gx_V v_level = dec_int(h_let(h, "level"));
+    gx_V a[] = {v_level};
+    gx_V r0 = gx_lib_log_enabled(a[0]);
+    J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
+    return out;
+}
+
+static J *case_198(H *h) {
+    gx_V v_level = dec_int(h_let(h, "level"));
+    gx_V a[] = {v_level};
+    gx_V r0 = gx_lib_log_enabled(a[0]);
+    J *out = j_new(J_ARR);
+    j_push(out, enc_bool(r0));
+    return out;
+}
+
+static void prim_199(gx_Task *t, void *arg) {
+    gx_V *a = arg;
+    gx_lib_task_all(t, a[0]);
+}
+
+static J *case_199(H *h) {
+    gx_V v_fns = codec_21(h_let(h, "fns"));
+    gx_V a[] = {v_fns};
+    gx_V rv[8];
+    gx_run_isolated(prim_199, a, rv);
+    J *out = j_new(J_ARR);
+    return out;
+}
+
+static J *case_200(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_background();
     J *out = j_new(J_ARR);
@@ -2374,7 +2410,7 @@ static J *case_196(H *h) {
     return out;
 }
 
-static J *case_197(H *h) {
+static J *case_201(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_canceled();
     J *out = j_new(J_ARR);
@@ -2382,7 +2418,7 @@ static J *case_197(H *h) {
     return out;
 }
 
-static J *case_198(H *h) {
+static J *case_202(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V r0 = gx_std_context_deadline_exceeded();
     J *out = j_new(J_ARR);
@@ -2390,7 +2426,7 @@ static J *case_198(H *h) {
     return out;
 }
 
-static J *case_199(H *h) {
+static J *case_203(H *h) {
     gx_V v_ctx = codec_20(h_let(h, "ctx"));
     gx_V a[] = {v_ctx};
     gx_V r0 = gx_std_context_context_done(a[0]);
@@ -2399,7 +2435,7 @@ static J *case_199(H *h) {
     return out;
 }
 
-static J *case_200(H *h) {
+static J *case_204(H *h) {
     gx_V v_ctx = codec_20(h_let(h, "ctx"));
     gx_V a[] = {v_ctx};
     gx_V r0 = gx_std_context_context_err(a[0]);
@@ -2408,7 +2444,7 @@ static J *case_200(H *h) {
     return out;
 }
 
-static J *case_201(H *h) {
+static J *case_205(H *h) {
     gx_V v_parent = codec_20(h_let(h, "parent"));
     gx_V a[] = {v_parent};
     gx_V rt = gx_std_context_with_cancel(a[0]);
@@ -2420,7 +2456,7 @@ static J *case_201(H *h) {
     return out;
 }
 
-static J *case_202(H *h) {
+static J *case_206(H *h) {
     gx_V v_parent = codec_20(h_let(h, "parent"));
     gx_V v_d = dec_int(h_let(h, "d"));
     gx_V a[] = {v_parent, v_d};
@@ -2433,7 +2469,7 @@ static J *case_202(H *h) {
     return out;
 }
 
-static J *case_203(H *h) {
+static J *case_207(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = dec_error(h_let(h, "target"));
     gx_V a[] = {v_err, v_target};
@@ -2443,7 +2479,7 @@ static J *case_203(H *h) {
     return out;
 }
 
-static J *case_204(H *h) {
+static J *case_208(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = dec_error(h_let(h, "target"));
     gx_V a[] = {v_err, v_target};
@@ -2453,7 +2489,7 @@ static J *case_204(H *h) {
     return out;
 }
 
-static J *case_205(H *h) {
+static J *case_209(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V v_target = v_err;
     gx_V a[] = {v_err, v_target};
@@ -2463,7 +2499,7 @@ static J *case_205(H *h) {
     return out;
 }
 
-static J *case_206(H *h) {
+static J *case_210(H *h) {
     gx_V v_text = dec_string(h_let(h, "text"));
     gx_V a[] = {v_text};
     gx_V r0 = gx_std_errors_new(a[0]);
@@ -2472,7 +2508,7 @@ static J *case_206(H *h) {
     return out;
 }
 
-static J *case_207(H *h) {
+static J *case_211(H *h) {
     gx_V v_err = dec_error(h_let(h, "err"));
     gx_V a[] = {v_err};
     gx_V r0 = gx_std_errors_unwrap(a[0]);
@@ -2481,48 +2517,48 @@ static J *case_207(H *h) {
     return out;
 }
 
-static void prim_208(gx_Task *t, void *arg) {
+static void prim_212(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_runtime_gosched(t);
 }
 
-static J *case_208(H *h) {
+static J *case_212(H *h) {
     gx_V a[] = {gx_nil()};
     gx_V rv[8];
-    gx_run_isolated(prim_208, a, rv);
+    gx_run_isolated(prim_212, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
-static void prim_209(gx_Task *t, void *arg) {
+static void prim_213(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_sync_mutex_lock(t, a[0]);
 }
 
-static J *case_209(H *h) {
+static J *case_213(H *h) {
     gx_V v_m = codec_23(h_let(h, "m"));
     gx_V a[] = {v_m};
     gx_V rv[8];
-    gx_run_isolated(prim_209, a, rv);
+    gx_run_isolated(prim_213, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
-static void prim_210(gx_Task *t, void *arg) {
+static void prim_214(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_sync_mutex_lock(t, a[0]); gx_std_sync_mutex_unlock(a[0]);
 }
 
-static J *case_210(H *h) {
+static J *case_214(H *h) {
     gx_V v_m = codec_23(h_let(h, "m"));
     gx_V a[] = {v_m};
     gx_V rv[8];
-    gx_run_isolated(prim_210, a, rv);
+    gx_run_isolated(prim_214, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
-static J *case_211(H *h) {
+static J *case_215(H *h) {
     gx_V v_wg = codec_24(h_let(h, "wg"));
     gx_V v_delta = dec_int(h_let(h, "delta"));
     gx_V a[] = {v_wg, v_delta};
@@ -2531,7 +2567,7 @@ static J *case_211(H *h) {
     return out;
 }
 
-static J *case_212(H *h) {
+static J *case_216(H *h) {
     gx_V v_wg = codec_24(h_let(h, "wg"));
     gx_V v_delta = dec_int(h_let(h, "delta"));
     gx_V a[] = {v_wg, v_delta};
@@ -2540,7 +2576,7 @@ static J *case_212(H *h) {
     return out;
 }
 
-static J *case_213(H *h) {
+static J *case_217(H *h) {
     gx_V v_wg = codec_24(h_let(h, "wg"));
     gx_V a[] = {v_wg};
     gx_std_sync_waitgroup_done(a[0]);
@@ -2548,30 +2584,30 @@ static J *case_213(H *h) {
     return out;
 }
 
-static void prim_214(gx_Task *t, void *arg) {
+static void prim_218(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_sync_waitgroup_wait(t, a[0]);
 }
 
-static J *case_214(H *h) {
+static J *case_218(H *h) {
     gx_V v_wg = codec_24(h_let(h, "wg"));
     gx_V a[] = {v_wg};
     gx_V rv[8];
-    gx_run_isolated(prim_214, a, rv);
+    gx_run_isolated(prim_218, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
 
-static void prim_215(gx_Task *t, void *arg) {
+static void prim_219(gx_Task *t, void *arg) {
     gx_V *a = arg;
     gx_std_time_sleep(t, a[0]);
 }
 
-static J *case_215(H *h) {
+static J *case_219(H *h) {
     gx_V v_d = dec_int(h_let(h, "d"));
     gx_V a[] = {v_d};
     gx_V rv[8];
-    gx_run_isolated(prim_215, a, rv);
+    gx_run_isolated(prim_219, a, rv);
     J *out = j_new(J_ARR);
     return out;
 }
@@ -2772,27 +2808,31 @@ const Case CASES[] = {
     {"lib.encoding.base64_url_decode/boundary_example", case_192},
     {"lib.encoding.base64_url_encode/boundary_example", case_193},
     {"lib.http.do/boundary_example", case_194},
-    {"lib.task.all/empty", case_195},
-    {"std.context.background/root", case_196},
-    {"std.context.canceled/message", case_197},
-    {"std.context.deadline_exceeded/message", case_198},
-    {"std.context.done/background", case_199},
-    {"std.context.err/background", case_200},
-    {"std.context.with_cancel/child", case_201},
-    {"std.context.with_timeout/child", case_202},
-    {"std.errors.is/distinct", case_203},
-    {"std.errors.is/nils", case_204},
-    {"std.errors.is/same", case_205},
-    {"std.errors.new/message", case_206},
-    {"std.errors.unwrap/plain", case_207},
-    {"std.runtime.gosched/alone", case_208},
-    {"std.sync.mutex.lock/unlocked", case_209},
-    {"std.sync.mutex.unlock/lock_then_unlock", case_210},
-    {"std.sync.waitgroup.add/negative", case_211},
-    {"std.sync.waitgroup.add/positive", case_212},
-    {"std.sync.waitgroup.done/underflow", case_213},
-    {"std.sync.waitgroup.wait/zero_returns", case_214},
-    {"std.time.sleep/zero", case_215},
+    {"lib.log.enabled/debug_disabled_by_default", case_195},
+    {"lib.log.enabled/error_enabled_by_default", case_196},
+    {"lib.log.enabled/info_disabled_by_default", case_197},
+    {"lib.log.enabled/warn_enabled_by_default", case_198},
+    {"lib.task.all/empty", case_199},
+    {"std.context.background/root", case_200},
+    {"std.context.canceled/message", case_201},
+    {"std.context.deadline_exceeded/message", case_202},
+    {"std.context.done/background", case_203},
+    {"std.context.err/background", case_204},
+    {"std.context.with_cancel/child", case_205},
+    {"std.context.with_timeout/child", case_206},
+    {"std.errors.is/distinct", case_207},
+    {"std.errors.is/nils", case_208},
+    {"std.errors.is/same", case_209},
+    {"std.errors.new/message", case_210},
+    {"std.errors.unwrap/plain", case_211},
+    {"std.runtime.gosched/alone", case_212},
+    {"std.sync.mutex.lock/unlocked", case_213},
+    {"std.sync.mutex.unlock/lock_then_unlock", case_214},
+    {"std.sync.waitgroup.add/negative", case_215},
+    {"std.sync.waitgroup.add/positive", case_216},
+    {"std.sync.waitgroup.done/underflow", case_217},
+    {"std.sync.waitgroup.wait/zero_returns", case_218},
+    {"std.time.sleep/zero", case_219},
 };
 
-const size_t NCASES = 216;
+const size_t NCASES = 220;

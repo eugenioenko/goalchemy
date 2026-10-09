@@ -68,7 +68,7 @@ const typeScriptPackageLibraryConsumer = `
 function assert(ok: unknown,message: string): asserts ok { if(!ok)throw new Error(message); }
 function same(bytes:Uint8Array|null|undefined,want:number[]):boolean { return bytes!==null&&bytes!==undefined&&bytes.length===want.length&&want.every((n,i)=>bytes[i]===n); }
 const order="order-var/order-init/state-var/state-init/api-var/api-init";
-assert(Object.keys(g).sort().join(',')==='ErrorGlobal,Export,LibraryError','stable public exports');
+assert(Object.keys(g).sort().join(',')==='ErrorGlobal,Export,LibraryError,setLogHandler','stable public exports');
 const input:g.Value={Count:2n,Bytes:new Uint8Array([7]),Order:'caller'};
 const first=await g.Export(input);
 assert(first.Count===29n&&first.Order===order&&same(first.Bytes,[3,255,128]),'package init/global closure/promoted method');

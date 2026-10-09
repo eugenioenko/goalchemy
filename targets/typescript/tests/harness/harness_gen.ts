@@ -1234,6 +1234,26 @@ export const cases: Record<string, (h: H) => unknown[] | Promise<unknown[]>> = {
     const r3:any=rv[3];
     return [encInt(r0), encSlice(r1, (e: any) => encString(e)), encSlice(r2, (e: any) => encInt(e)), encError(r3)];
   },
+  "lib.log.enabled/debug_disabled_by_default": (h: H) => {
+    const v_level = (decInt(h.let("level"), "i64") as bigint);
+    const r0 = rt.libLogEnabled(v_level);
+    return [encBool(r0)];
+  },
+  "lib.log.enabled/error_enabled_by_default": (h: H) => {
+    const v_level = (decInt(h.let("level"), "i64") as bigint);
+    const r0 = rt.libLogEnabled(v_level);
+    return [encBool(r0)];
+  },
+  "lib.log.enabled/info_disabled_by_default": (h: H) => {
+    const v_level = (decInt(h.let("level"), "i64") as bigint);
+    const r0 = rt.libLogEnabled(v_level);
+    return [encBool(r0)];
+  },
+  "lib.log.enabled/warn_enabled_by_default": (h: H) => {
+    const v_level = (decInt(h.let("level"), "i64") as bigint);
+    const r0 = rt.libLogEnabled(v_level);
+    return [encBool(r0)];
+  },
   "lib.task.all/empty": (h: H) => {
     const v_fns = decSlice(h.let("fns"), (r: any) => null, false);
     const rv = rt.runIsolated((t: any) => { rt.libTaskAll(t, v_fns); });

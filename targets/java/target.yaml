@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/Harness.java, tests/harness/Codec.java, tests/harness/Json.java, tests/harness/run.sh]
   generated: tests/harness/HarnessGen.java
   command: [sh, targets/java/tests/harness/run.sh]
-support_files: [types/Floats.java, types/Bounds.java, types/Box.java, types/Cell.java, types/Fn.java, types/GoMap.java, types/GoPanic.java, types/Ints.java, types/Out.java, types/Panics.java, types/Program.java, types/Ref.java, types/Slice.java, types/TypeDesc.java, types/Utf8.java, types/Native.java, types/Crypto.java, types/Der.java, types/Callback.java, runtime/Library.java, runtime/StdErrorsNew.java, runtime/StdContextWithCancel.java, runtime/TaskSpawn.java, runtime/StdContextErr.java, runtime/ChanMake.java, runtime/ChanClose.java]
+support_files: [types/Floats.java, types/Bounds.java, types/Box.java, types/Cell.java, types/Fn.java, types/GoMap.java, types/GoPanic.java, types/Ints.java, types/Out.java, types/Panics.java, types/Program.java, types/Ref.java, types/Slice.java, types/TypeDesc.java, types/Utf8.java, types/Native.java, types/Crypto.java, types/Der.java, types/Callback.java, types/Log.java, runtime/Library.java, runtime/StdErrorsNew.java, runtime/StdContextWithCancel.java, runtime/TaskSpawn.java, runtime/StdContextErr.java, runtime/ChanMake.java, runtime/ChanClose.java]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "FloatConvert.round", implementation: runtime/FloatConvert.java}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "FloatAdd.floatAdd_<k>", implementation: runtime/FloatAdd.java, harness: "FloatAdd.floatAdd_{T.kind}({0}, {1})"}
@@ -142,6 +142,8 @@ functions:
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode, implementation: runtime/LibEncodingBase64UrlDecode.java, requires: [std.errors.new, lib.encoding.base64_decode], harness: "LibEncodingBase64UrlDecode.libEncodingBase64UrlDecode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: LibClockUnix.libClockUnix, implementation: runtime/LibClockUnix.java, harness: "LibClockUnix.libClockUnix()"}
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: LibClockUnixNano.libClockUnixNano, implementation: runtime/LibClockUnixNano.java, harness: "LibClockUnixNano.libClockUnixNano()"}
+  - {id: lib.log.enabled, contract_version: 1.0.0, symbol: LibLogEnabled.libLogEnabled, implementation: runtime/LibLogEnabled.java, harness: "LibLogEnabled.libLogEnabled({0})"}
+  - {id: lib.log.emit, contract_version: 1.0.0, symbol: LibLogEmit.libLogEmit, implementation: runtime/LibLogEmit.java}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: LibCallbackRequest.libCallbackRequest, implementation: runtime/LibCallbackRequest.java, requires: [std.context.err], harness: "host: LibCallbackRequest.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: LibHttpDo.libHttpDo, implementation: runtime/LibHttpDo.java, requires: [std.context.err], harness: "host: LibHttpDo.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
 

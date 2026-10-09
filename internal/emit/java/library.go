@@ -52,7 +52,7 @@ func (e *emitter) library() (string, error) {
 	roots := map[string]bool{}
 	used := map[string]bool{}
 	reserved := map[string]bool{}
-	for _, name := range strings.Fields("Generated Library Callback Native TaskSpawn Program Box Slice Ref Cell Fn TypeDesc Bounds Ints Floats Out Utf8 Desc GoMap GoPanic FatalPanic Panics Channel StdContextErr StdContextWithCancel EnvFn Object String Long Boolean Float Double Void Integer Math System Throwable RuntimeException") {
+	for _, name := range strings.Fields("Generated Library Callback Log Native TaskSpawn Program Box Slice Ref Cell Fn TypeDesc Bounds Ints Floats Out Utf8 Desc GoMap GoPanic FatalPanic Panics Channel StdContextErr StdContextWithCancel EnvFn Object String Long Boolean Float Double Void Integer Math System Throwable RuntimeException") {
 		reserved[name] = true
 	}
 	for _, symbol := range e.symbols {

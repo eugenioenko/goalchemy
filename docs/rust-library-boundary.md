@@ -81,3 +81,10 @@ of source capability use. Native-only module reexports follow feature guards,
 so pure library exports also build with disabled default features. Std-only
 executables/capabilities remain available; default native SDK bindings are
 unchanged. An independent pure byte Echo consumer verifies both feature modes.
+
+## Logging
+
+`std/log/slog` records reach the host through the crate's
+`set_log_handler(Some(handler), level)`, where the handler is a `LogHandler`
+(`Arc<dyn Fn(&LogRecord) + Send + Sync>`). Handler panics are discarded. `None`
+restores standard error at warn and above. See [the logging section of the usage guide](usage.md).

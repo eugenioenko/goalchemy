@@ -1431,128 +1431,152 @@ def case_194(h):
 
 
 def case_195(h):
+    v_level = dec_int(h.let("level"), "i64")
+    r0 = rt.lib_log_enabled(v_level)
+    return [enc_bool(r0)]
+
+
+def case_196(h):
+    v_level = dec_int(h.let("level"), "i64")
+    r0 = rt.lib_log_enabled(v_level)
+    return [enc_bool(r0)]
+
+
+def case_197(h):
+    v_level = dec_int(h.let("level"), "i64")
+    r0 = rt.lib_log_enabled(v_level)
+    return [enc_bool(r0)]
+
+
+def case_198(h):
+    v_level = dec_int(h.let("level"), "i64")
+    r0 = rt.lib_log_enabled(v_level)
+    return [enc_bool(r0)]
+
+
+def case_199(h):
     v_fns = dec_slice(h.let("fns"), lambda r: None, lambda: None, False)
     rv = rt.run_isolated(lambda t: rt.lib_task_all(t, v_fns))
     return []
 
 
-def case_196(h):
+def case_200(h):
     r0 = rt.std_context_background()
     return [enc_zero(r0)]
 
 
-def case_197(h):
+def case_201(h):
     r0 = rt.std_context_canceled()
     return [enc_error(r0)]
 
 
-def case_198(h):
+def case_202(h):
     r0 = rt.std_context_deadline_exceeded()
     return [enc_error(r0)]
 
 
-def case_199(h):
+def case_203(h):
     v_ctx = rt.std_context_background()
     r0 = rt.std_context_context_done(v_ctx)
     return [enc_chan(r0, lambda e: enc_zero(e))]
 
 
-def case_200(h):
+def case_204(h):
     v_ctx = rt.std_context_background()
     r0 = rt.std_context_context_err(v_ctx)
     return [enc_error(r0)]
 
 
-def case_201(h):
+def case_205(h):
     v_parent = rt.std_context_background()
     r0, r1 = rt.std_context_with_cancel(v_parent)
     return [enc_zero(r0), enc_zero(r1)]
 
 
-def case_202(h):
+def case_206(h):
     v_parent = rt.std_context_background()
     v_d = dec_int(h.let("d"), "i64")
     r0, r1 = rt.std_context_with_timeout(v_parent, v_d)
     return [enc_zero(r0), enc_zero(r1)]
 
 
-def case_203(h):
+def case_207(h):
     v_err = dec_error(h.let("err"))
     v_target = dec_error(h.let("target"))
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_204(h):
+def case_208(h):
     v_err = dec_error(h.let("err"))
     v_target = dec_error(h.let("target"))
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_205(h):
+def case_209(h):
     v_err = dec_error(h.let("err"))
     v_target = v_err
     r0 = rt.std_errors_is(v_err, v_target)
     return [enc_bool(r0)]
 
 
-def case_206(h):
+def case_210(h):
     v_text = dec_string(h.let("text"))
     r0 = rt.std_errors_new(v_text)
     return [enc_error(r0)]
 
 
-def case_207(h):
+def case_211(h):
     v_err = dec_error(h.let("err"))
     r0 = rt.std_errors_unwrap(v_err)
     return [enc_error(r0)]
 
 
-def case_208(h):
+def case_212(h):
     rv = rt.run_isolated(lambda t: rt.std_runtime_gosched(t))
     return []
 
 
-def case_209(h):
+def case_213(h):
     v_m = rt.Mutex()
     rv = rt.run_isolated(lambda t: rt.std_sync_mutex_lock(t, v_m))
     return []
 
 
-def case_210(h):
+def case_214(h):
     v_m = rt.Mutex()
     rv = rt.run_isolated(lambda t: (rt.std_sync_mutex_lock(t, v_m), rt.std_sync_mutex_unlock(v_m)))
     return []
 
 
-def case_211(h):
+def case_215(h):
     v_wg = rt.WaitGroup()
     v_delta = dec_int(h.let("delta"), "i64")
     rt.std_sync_waitgroup_add(v_wg, v_delta)
     return []
 
 
-def case_212(h):
+def case_216(h):
     v_wg = rt.WaitGroup()
     v_delta = dec_int(h.let("delta"), "i64")
     rt.std_sync_waitgroup_add(v_wg, v_delta)
     return []
 
 
-def case_213(h):
+def case_217(h):
     v_wg = rt.WaitGroup()
     rt.std_sync_waitgroup_done(v_wg)
     return []
 
 
-def case_214(h):
+def case_218(h):
     v_wg = rt.WaitGroup()
     rv = rt.run_isolated(lambda t: rt.std_sync_waitgroup_wait(t, v_wg))
     return []
 
 
-def case_215(h):
+def case_219(h):
     v_d = dec_int(h.let("d"), "i64")
     rv = rt.run_isolated(lambda t: rt.std_time_sleep(t, v_d))
     return []
@@ -1754,25 +1778,29 @@ CASES = {
     "lib.encoding.base64_url_decode/boundary_example": case_192,
     "lib.encoding.base64_url_encode/boundary_example": case_193,
     "lib.http.do/boundary_example": case_194,
-    "lib.task.all/empty": case_195,
-    "std.context.background/root": case_196,
-    "std.context.canceled/message": case_197,
-    "std.context.deadline_exceeded/message": case_198,
-    "std.context.done/background": case_199,
-    "std.context.err/background": case_200,
-    "std.context.with_cancel/child": case_201,
-    "std.context.with_timeout/child": case_202,
-    "std.errors.is/distinct": case_203,
-    "std.errors.is/nils": case_204,
-    "std.errors.is/same": case_205,
-    "std.errors.new/message": case_206,
-    "std.errors.unwrap/plain": case_207,
-    "std.runtime.gosched/alone": case_208,
-    "std.sync.mutex.lock/unlocked": case_209,
-    "std.sync.mutex.unlock/lock_then_unlock": case_210,
-    "std.sync.waitgroup.add/negative": case_211,
-    "std.sync.waitgroup.add/positive": case_212,
-    "std.sync.waitgroup.done/underflow": case_213,
-    "std.sync.waitgroup.wait/zero_returns": case_214,
-    "std.time.sleep/zero": case_215,
+    "lib.log.enabled/debug_disabled_by_default": case_195,
+    "lib.log.enabled/error_enabled_by_default": case_196,
+    "lib.log.enabled/info_disabled_by_default": case_197,
+    "lib.log.enabled/warn_enabled_by_default": case_198,
+    "lib.task.all/empty": case_199,
+    "std.context.background/root": case_200,
+    "std.context.canceled/message": case_201,
+    "std.context.deadline_exceeded/message": case_202,
+    "std.context.done/background": case_203,
+    "std.context.err/background": case_204,
+    "std.context.with_cancel/child": case_205,
+    "std.context.with_timeout/child": case_206,
+    "std.errors.is/distinct": case_207,
+    "std.errors.is/nils": case_208,
+    "std.errors.is/same": case_209,
+    "std.errors.new/message": case_210,
+    "std.errors.unwrap/plain": case_211,
+    "std.runtime.gosched/alone": case_212,
+    "std.sync.mutex.lock/unlocked": case_213,
+    "std.sync.mutex.unlock/lock_then_unlock": case_214,
+    "std.sync.waitgroup.add/negative": case_215,
+    "std.sync.waitgroup.add/positive": case_216,
+    "std.sync.waitgroup.done/underflow": case_217,
+    "std.sync.waitgroup.wait/zero_returns": case_218,
+    "std.time.sleep/zero": case_219,
 }

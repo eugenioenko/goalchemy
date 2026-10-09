@@ -1,0 +1,121 @@
+{
+  "id": "lib.log.enabled",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "log.Enabled: reports whether the host log sink accepts records at a level.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/log.Enabled",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "level",
+        "type": "int"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "enabled",
+        "type": "bool"
+      }
+    ]
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "Level 0 is slog's info level, which the default sink does not accept.",
+    "nil": "Not applicable.",
+    "bounds": "Levels follow log/slog: -4 debug, 0 info, 4 warn, 8 error; any int is valid. The result is level >= the host's minimum level.",
+    "conversions": "Not applicable.",
+    "overflow": "Not applicable.",
+    "mutations": "Not applicable.",
+    "aliasing": "Not applicable.",
+    "allocation": "Not applicable.",
+    "errors": "No error result.",
+    "panics": "No deliberate panic.",
+    "observations": "The host application sets the minimum level when it installs a sink; before that it is 4 (warn). The answer may change between calls when the host installs another sink."
+  },
+  "notes": "Backs the Enabled method of std/log/slog's host handler, which is checked before a record is formatted. Native acceptance tests in lib/log.",
+  "cases": [
+    {
+      "name": "debug_disabled_by_default",
+      "types": {},
+      "let": [
+        {
+          "name": "level",
+          "type": "int",
+          "value": "-4"
+        }
+      ],
+      "call": [
+        "level"
+      ],
+      "expect": {
+        "results": [
+          "false"
+        ]
+      }
+    },
+    {
+      "name": "info_disabled_by_default",
+      "types": {},
+      "let": [
+        {
+          "name": "level",
+          "type": "int",
+          "value": "0"
+        }
+      ],
+      "call": [
+        "level"
+      ],
+      "expect": {
+        "results": [
+          "false"
+        ]
+      }
+    },
+    {
+      "name": "warn_enabled_by_default",
+      "types": {},
+      "let": [
+        {
+          "name": "level",
+          "type": "int",
+          "value": "4"
+        }
+      ],
+      "call": [
+        "level"
+      ],
+      "expect": {
+        "results": [
+          "true"
+        ]
+      }
+    },
+    {
+      "name": "error_enabled_by_default",
+      "types": {},
+      "let": [
+        {
+          "name": "level",
+          "type": "int",
+          "value": "8"
+        }
+      ],
+      "call": [
+        "level"
+      ],
+      "expect": {
+        "results": [
+          "true"
+        ]
+      }
+    }
+  ],
+  "native_tests": [
+    "lib/log/log_test.go"
+  ]
+}

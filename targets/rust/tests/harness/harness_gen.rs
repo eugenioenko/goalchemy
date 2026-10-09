@@ -2014,6 +2014,38 @@ fn case_194(h: &H) -> Vec<J> {
 }
 
 fn case_195(h: &H) -> Vec<J> {
+    let v_level = dec_int(h.let_("level"), "i64");
+    let _roots = temp_root(&[v_level.clone()]);
+    let a0 = v_level.clone();
+    let r0 = lib_log_enabled(a0.clone());
+    vec![enc_bool(&r0)]
+}
+
+fn case_196(h: &H) -> Vec<J> {
+    let v_level = dec_int(h.let_("level"), "i64");
+    let _roots = temp_root(&[v_level.clone()]);
+    let a0 = v_level.clone();
+    let r0 = lib_log_enabled(a0.clone());
+    vec![enc_bool(&r0)]
+}
+
+fn case_197(h: &H) -> Vec<J> {
+    let v_level = dec_int(h.let_("level"), "i64");
+    let _roots = temp_root(&[v_level.clone()]);
+    let a0 = v_level.clone();
+    let r0 = lib_log_enabled(a0.clone());
+    vec![enc_bool(&r0)]
+}
+
+fn case_198(h: &H) -> Vec<J> {
+    let v_level = dec_int(h.let_("level"), "i64");
+    let _roots = temp_root(&[v_level.clone()]);
+    let a0 = v_level.clone();
+    let r0 = lib_log_enabled(a0.clone());
+    vec![enc_bool(&r0)]
+}
+
+fn case_199(h: &H) -> Vec<J> {
     let v_fns = dec_slice(h.let_("fns"), &|r: &J| V::Nil, zero_nil);
     let _roots = temp_root(&[v_fns.clone()]);
     let a0 = v_fns.clone();
@@ -2021,25 +2053,25 @@ fn case_195(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_196(h: &H) -> Vec<J> {
+fn case_200(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_background();
     vec![enc_zero(&r0)]
 }
 
-fn case_197(h: &H) -> Vec<J> {
+fn case_201(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_canceled();
     vec![enc_error(&r0)]
 }
 
-fn case_198(h: &H) -> Vec<J> {
+fn case_202(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let r0 = std_context_deadline_exceeded();
     vec![enc_error(&r0)]
 }
 
-fn case_199(h: &H) -> Vec<J> {
+fn case_203(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -2047,7 +2079,7 @@ fn case_199(h: &H) -> Vec<J> {
     vec![enc_chan(&r0, &|e: &V| enc_zero(e))]
 }
 
-fn case_200(h: &H) -> Vec<J> {
+fn case_204(h: &H) -> Vec<J> {
     let v_ctx = std_context_background();
     let _roots = temp_root(&[v_ctx.clone()]);
     let a0 = v_ctx.clone();
@@ -2055,7 +2087,7 @@ fn case_200(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_201(h: &H) -> Vec<J> {
+fn case_205(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let _roots = temp_root(&[v_parent.clone()]);
     let a0 = v_parent.clone();
@@ -2065,7 +2097,7 @@ fn case_201(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_202(h: &H) -> Vec<J> {
+fn case_206(h: &H) -> Vec<J> {
     let v_parent = std_context_background();
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_parent.clone(), v_d.clone()]);
@@ -2077,7 +2109,7 @@ fn case_202(h: &H) -> Vec<J> {
     vec![enc_zero(&r0), enc_zero(&r1)]
 }
 
-fn case_203(h: &H) -> Vec<J> {
+fn case_207(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -2087,7 +2119,7 @@ fn case_203(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_204(h: &H) -> Vec<J> {
+fn case_208(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = dec_error(h.let_("target"));
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -2097,7 +2129,7 @@ fn case_204(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_205(h: &H) -> Vec<J> {
+fn case_209(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let v_target = v_err.clone();
     let _roots = temp_root(&[v_err.clone(), v_target.clone()]);
@@ -2107,7 +2139,7 @@ fn case_205(h: &H) -> Vec<J> {
     vec![enc_bool(&r0)]
 }
 
-fn case_206(h: &H) -> Vec<J> {
+fn case_210(h: &H) -> Vec<J> {
     let v_text = dec_string(h.let_("text"));
     let _roots = temp_root(&[v_text.clone()]);
     let a0 = v_text.clone();
@@ -2115,7 +2147,7 @@ fn case_206(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_207(h: &H) -> Vec<J> {
+fn case_211(h: &H) -> Vec<J> {
     let v_err = dec_error(h.let_("err"));
     let _roots = temp_root(&[v_err.clone()]);
     let a0 = v_err.clone();
@@ -2123,13 +2155,13 @@ fn case_207(h: &H) -> Vec<J> {
     vec![enc_error(&r0)]
 }
 
-fn case_208(h: &H) -> Vec<J> {
+fn case_212(h: &H) -> Vec<J> {
     let _roots = temp_root(&[]);
     let rv = run_isolated(move |t: &Rc<Task>| { std_runtime_gosched(t); });
     vec![]
 }
 
-fn case_209(h: &H) -> Vec<J> {
+fn case_213(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -2137,7 +2169,7 @@ fn case_209(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_210(h: &H) -> Vec<J> {
+fn case_214(h: &H) -> Vec<J> {
     let v_m = new_mutex();
     let _roots = temp_root(&[v_m.clone()]);
     let a0 = v_m.clone();
@@ -2145,7 +2177,7 @@ fn case_210(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_211(h: &H) -> Vec<J> {
+fn case_215(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -2155,7 +2187,7 @@ fn case_211(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_212(h: &H) -> Vec<J> {
+fn case_216(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let v_delta = dec_int(h.let_("delta"), "i64");
     let _roots = temp_root(&[v_wg.clone(), v_delta.clone()]);
@@ -2165,7 +2197,7 @@ fn case_212(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_213(h: &H) -> Vec<J> {
+fn case_217(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -2173,7 +2205,7 @@ fn case_213(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_214(h: &H) -> Vec<J> {
+fn case_218(h: &H) -> Vec<J> {
     let v_wg = new_waitgroup();
     let _roots = temp_root(&[v_wg.clone()]);
     let a0 = v_wg.clone();
@@ -2181,7 +2213,7 @@ fn case_214(h: &H) -> Vec<J> {
     vec![]
 }
 
-fn case_215(h: &H) -> Vec<J> {
+fn case_219(h: &H) -> Vec<J> {
     let v_d = dec_int(h.let_("d"), "i64");
     let _roots = temp_root(&[v_d.clone()]);
     let a0 = v_d.clone();
@@ -2385,25 +2417,29 @@ pub static CASES: &[(&str, fn(&H) -> Vec<J>)] = &[
     ("lib.encoding.base64_url_decode/boundary_example", case_192),
     ("lib.encoding.base64_url_encode/boundary_example", case_193),
     ("lib.http.do/boundary_example", case_194),
-    ("lib.task.all/empty", case_195),
-    ("std.context.background/root", case_196),
-    ("std.context.canceled/message", case_197),
-    ("std.context.deadline_exceeded/message", case_198),
-    ("std.context.done/background", case_199),
-    ("std.context.err/background", case_200),
-    ("std.context.with_cancel/child", case_201),
-    ("std.context.with_timeout/child", case_202),
-    ("std.errors.is/distinct", case_203),
-    ("std.errors.is/nils", case_204),
-    ("std.errors.is/same", case_205),
-    ("std.errors.new/message", case_206),
-    ("std.errors.unwrap/plain", case_207),
-    ("std.runtime.gosched/alone", case_208),
-    ("std.sync.mutex.lock/unlocked", case_209),
-    ("std.sync.mutex.unlock/lock_then_unlock", case_210),
-    ("std.sync.waitgroup.add/negative", case_211),
-    ("std.sync.waitgroup.add/positive", case_212),
-    ("std.sync.waitgroup.done/underflow", case_213),
-    ("std.sync.waitgroup.wait/zero_returns", case_214),
-    ("std.time.sleep/zero", case_215),
+    ("lib.log.enabled/debug_disabled_by_default", case_195),
+    ("lib.log.enabled/error_enabled_by_default", case_196),
+    ("lib.log.enabled/info_disabled_by_default", case_197),
+    ("lib.log.enabled/warn_enabled_by_default", case_198),
+    ("lib.task.all/empty", case_199),
+    ("std.context.background/root", case_200),
+    ("std.context.canceled/message", case_201),
+    ("std.context.deadline_exceeded/message", case_202),
+    ("std.context.done/background", case_203),
+    ("std.context.err/background", case_204),
+    ("std.context.with_cancel/child", case_205),
+    ("std.context.with_timeout/child", case_206),
+    ("std.errors.is/distinct", case_207),
+    ("std.errors.is/nils", case_208),
+    ("std.errors.is/same", case_209),
+    ("std.errors.new/message", case_210),
+    ("std.errors.unwrap/plain", case_211),
+    ("std.runtime.gosched/alone", case_212),
+    ("std.sync.mutex.lock/unlocked", case_213),
+    ("std.sync.mutex.unlock/lock_then_unlock", case_214),
+    ("std.sync.waitgroup.add/negative", case_215),
+    ("std.sync.waitgroup.add/positive", case_216),
+    ("std.sync.waitgroup.done/underflow", case_217),
+    ("std.sync.waitgroup.wait/zero_returns", case_218),
+    ("std.time.sleep/zero", case_219),
 ];
