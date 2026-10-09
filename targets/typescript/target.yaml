@@ -105,6 +105,7 @@ functions:
   - {id: lib.task.all, contract_version: 1.0.0, symbol: rt.libTaskAll, implementation: runtime/lib_task_all.ts, requires: [core.task.spawn], harness: "await: rt.libTaskAll(t, {0})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: rt.libCallbackRequest, implementation: runtime/lib_callback_request.ts, requires: [std.context.err], harness: "host: rt.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.libClockUnix, implementation: runtime/lib_clock_unix.ts, harness: "rt.libClockUnix()"}
+  - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: rt.libClockUnixNano, implementation: runtime/lib_clock_unix_nano.ts, harness: "rt.libClockUnixNano()"}
   - {id: lib.crypto.aes256_gcm_decrypt, contract_version: 1.0.0, symbol: rt.libCryptoAes256GcmDecrypt, implementation: runtime/lib_crypto_aes256_gcm_decrypt.ts, requires: [lib.crypto.close], harness: "host: rt.libCryptoAes256GcmDecrypt(t,{0},{1},{2},{3})"}
   - {id: lib.crypto.aes256_gcm_encrypt, contract_version: 1.0.0, symbol: rt.libCryptoAes256GcmEncrypt, implementation: runtime/lib_crypto_aes256_gcm_encrypt.ts, requires: [lib.crypto.close], harness: "host: rt.libCryptoAes256GcmEncrypt(t,{0},{1},{2},{3})"}
   - {id: lib.crypto.close, contract_version: 1.0.0, symbol: rt.libCryptoClose, implementation: runtime/lib_crypto_close.ts, requires: [core.task.spawn], harness: "host: rt.libCryptoClose(t,{0})"}

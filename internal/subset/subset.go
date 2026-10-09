@@ -115,6 +115,10 @@ func (c *checker) file(f *ast.File) {
 		case path == "unsafe":
 			c.report(imp, "GCS002", "import unsafe", "package unsafe is rejected", "Remove unsafe operations.")
 		case c.prog.IsSource(path), c.opts.ExternalPackage(path):
+		case path == "time":
+			c.report(imp, "GCS002", "import time",
+				"import \"time\" is outside github.com/eugenioenko/goalchemy/std and github.com/eugenioenko/goalchemy/lib",
+				"Import \"github.com/eugenioenko/goalchemy/std/time\" for Time, Duration, Now, Format and Parse, and \"github.com/eugenioenko/goalchemy/lib/time\" for Sleep and scheduler durations.")
 		case replacement[path] != "":
 			c.report(imp, "GCS002", "import "+path,
 				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/%s", path, replacement[path]),
@@ -132,7 +136,7 @@ func (c *checker) file(f *ast.File) {
 
 // replacement maps standard packages to the Goalchemy root that replaces them.
 var replacement = map[string]string{
-	"sync": "lib", "errors": "lib", "context": "lib", "time": "lib", "runtime": "lib",
+	"sync": "lib", "errors": "lib", "context": "lib", "runtime": "lib",
 	"strconv": "std", "strings": "std", "bytes": "std", "sort": "std", "unicode": "std",
 	"unicode/utf8": "std", "encoding/hex": "std", "encoding/binary": "std",
 }

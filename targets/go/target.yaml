@@ -139,6 +139,7 @@ functions:
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64URLEncode, implementation: runtime/lib_encoding_base64_url_encode.go}
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.LibEncodingBase64URLDecode, implementation: runtime/lib_encoding_base64_url_decode.go}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: rt.LibClockUnix, implementation: runtime/lib_clock_unix.go}
+  - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: rt.LibClockUnixNano, implementation: runtime/lib_clock_unix_nano.go}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.LibHTTPDo, implementation: runtime/lib_http_do.go, requires: [std.context.err], harness: "await: rt.LibHTTPDo(t, {0}, {1}, {2}, {3}, {4}, {5}, {6})"}
   - {id: lib.crypto.hmac_sha256_verify, contract_version: 1.0.0, symbol: rt.LibCryptoHMACSHA256Verify, implementation: runtime/lib_crypto_hmac_sha256_verify.go, requires: [lib.crypto.close]}
 

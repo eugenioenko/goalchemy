@@ -321,6 +321,10 @@ enum GNative {
     case "std.context.canceled": return [canceledError]
     case "std.context.deadline_exceeded": return [deadlineError]
     case "lib.clock.unix": return [.int(Int64(Date().timeIntervalSince1970))]
+    case "lib.clock.unix_nano":
+      var ts = timespec()
+      guard clock_gettime(CLOCK_REALTIME, &ts) == 0 else { throw GFault("UTC clock failure") }
+      return [.int(Int64(ts.tv_sec) * 1_000_000_000 + Int64(ts.tv_nsec))]
     default:
       if contract.hasPrefix("lib.encoding.") { return try encoding(contract, args) }
       if contract == "lib.checksum.crc32_ieee" { return [try GCrypto.crc32(args[0])] }

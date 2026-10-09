@@ -1,0 +1,39 @@
+{
+  "id": "lib.clock.unix_nano",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "clock.UnixNano: the host wall-clock time in UTC nanoseconds since the Unix epoch.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/clock.UnixNano",
+    "type_parameters": [],
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "nanoseconds",
+        "type": "int64"
+      }
+    ]
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "UTC Unix nanoseconds since 1970.",
+    "nil": "Not applicable.",
+    "bounds": "Precision is the host clock resolution: milliseconds where only a millisecond clock exists, such as JavaScript Date.now, otherwise microseconds or nanoseconds.",
+    "conversions": "Not applicable.",
+    "overflow": "Representable until 2262; later instants are outside the int64 range.",
+    "mutations": "Not applicable.",
+    "aliasing": "Not applicable.",
+    "allocation": "Not applicable.",
+    "errors": "Not applicable.",
+    "panics": "No deliberate panic. A host clock failure is a host fault.",
+    "observations": "Host wall clock, independent of virtual scheduler clock; may move backward. Backs std/time.Now; never lib/time virtual time."
+  },
+  "notes": "Native acceptance tests in lib/clock.",
+  "cases": [],
+  "native_tests": [
+    "lib/clock/clock_test.go"
+  ]
+}

@@ -30,6 +30,7 @@ Why two importable roots:
 | [sort](#stdsort) | `github.com/eugenioenko/goalchemy/std/sort` | Package sort sorts collections through the Len, Less, and Swap methods. |
 | [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms. |
 | [strings](#stdstrings) | `github.com/eugenioenko/goalchemy/std/strings` | Package strings manipulates UTF-8 encoded strings. |
+| [time](#stdtime) | `github.com/eugenioenko/goalchemy/std/time` | Package time measures and displays time. |
 | [unicode](#stdunicode) | `github.com/eugenioenko/goalchemy/std/unicode` | Package unicode classifies runes and maps their case using the Unicode tables of the reference Go toolchain. |
 | [unicode/utf8](#stdunicodeutf8) | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | Package utf8 encodes and decodes UTF-8 text. |
 | [lib/callback](#callback) | `github.com/eugenioenko/goalchemy/lib/callback` | Package callback declares a bounded asynchronous host callback capability. |
@@ -1353,6 +1354,572 @@ func (r *Replacer) Replace(s string) string
 Replace returns s with all replacements performed.
 
 
+## std/time
+
+```go
+import "github.com/eugenioenko/goalchemy/std/time"
+```
+
+Package time measures and displays time. Times are always UTC and carry no monotonic reading: Now reads the host wall clock, and Format and Parse accept only the RFC3339 and RFC3339Nano layouts.
+
+```go
+const (
+	Nanosecond  Duration = 1
+	Microsecond          = 1000 * Nanosecond
+	Millisecond          = 1000 * Microsecond
+	Second               = 1000 * Millisecond
+	Minute               = 60 * Second
+	Hour                 = 60 * Minute
+)
+```
+
+Common durations.
+
+```go
+const (
+	RFC3339     = "2006-01-02T15:04:05Z07:00"
+	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+)
+```
+
+Layouts accepted by Format and Parse.
+
+### Sleep
+
+```go
+func Sleep(d Duration)
+```
+
+Sleep suspends the calling task for at least d of scheduler time, like lib/time.Sleep (cooperative gate).
+
+### type Duration
+
+```go
+type Duration int64
+```
+
+A Duration is the elapsed time between two instants as an int64 nanosecond count. Sleep accepts it directly; it is a distinct type from lib/time.Duration, so convert explicitly when calling lib/time or lib/context APIs.
+
+### ParseDuration
+
+```go
+func ParseDuration(s string) (Duration, error)
+```
+
+ParseDuration parses a duration string such as "300ms", "-1.5h" or "2h45m". Valid units are "ns", "us" (or "µs"), "ms", "s", "m" and "h".
+
+### Since
+
+```go
+func Since(t Time) Duration
+```
+
+Since returns the time elapsed since t; it is Now().Sub(t).
+
+### Until
+
+```go
+func Until(t Time) Duration
+```
+
+Until returns the duration until t; it is t.Sub(Now()).
+
+### Duration.Abs
+
+```go
+func (d Duration) Abs() Duration
+```
+
+Abs returns the absolute value of d, mapping the minimum Duration to the maximum.
+
+### Duration.Hours
+
+```go
+func (d Duration) Hours() float64
+```
+
+Hours returns the duration as a floating-point number of hours.
+
+### Duration.Microseconds
+
+```go
+func (d Duration) Microseconds() int64
+```
+
+Microseconds returns the duration as an integer microsecond count.
+
+### Duration.Milliseconds
+
+```go
+func (d Duration) Milliseconds() int64
+```
+
+Milliseconds returns the duration as an integer millisecond count.
+
+### Duration.Minutes
+
+```go
+func (d Duration) Minutes() float64
+```
+
+Minutes returns the duration as a floating-point number of minutes.
+
+### Duration.Nanoseconds
+
+```go
+func (d Duration) Nanoseconds() int64
+```
+
+Nanoseconds returns the duration as an integer nanosecond count.
+
+### Duration.Round
+
+```go
+func (d Duration) Round(m Duration) Duration
+```
+
+Round returns d rounded to the nearest multiple of m, halfway values away from zero, saturating on overflow. If m <= 0, it returns d unchanged.
+
+### Duration.Seconds
+
+```go
+func (d Duration) Seconds() float64
+```
+
+Seconds returns the duration as a floating-point number of seconds.
+
+### Duration.String
+
+```go
+func (d Duration) String() string
+```
+
+String returns the duration in the form "72h3m0.5s", with leading zero units omitted and sub-second durations in smaller units such as "1.2ms".
+
+### Duration.Truncate
+
+```go
+func (d Duration) Truncate(m Duration) Duration
+```
+
+Truncate returns d rounded toward zero to a multiple of m. If m <= 0, it returns d unchanged.
+
+### type Location
+
+```go
+type Location struct {
+}
+```
+
+A Location names a time zone. Only UTC exists.
+
+```go
+var UTC *Location = &utcLoc
+```
+
+UTC is Coordinated Universal Time, the location of every Time.
+
+### Location.String
+
+```go
+func (l *Location) String() string
+```
+
+String returns the location name.
+
+### type Month
+
+```go
+type Month int
+```
+
+A Month specifies a month of the year (January = 1, ...).
+
+```go
+const (
+	January Month = 1 + iota
+	February
+	March
+	April
+	May
+	June
+	July
+	August
+	September
+	October
+	November
+	December
+)
+```
+
+Months of the year.
+
+### Month.String
+
+```go
+func (m Month) String() string
+```
+
+String returns the English name of the month ("January", "February", ...).
+
+### type ParseError
+
+```go
+type ParseError struct {
+	Layout     string
+	Value      string
+	LayoutElem string
+	ValueElem  string
+	Message    string
+}
+```
+
+ParseError describes a problem parsing a time string.
+
+### ParseError.Error
+
+```go
+func (e *ParseError) Error() string
+```
+
+Error returns the string representation of a ParseError.
+
+### type Time
+
+```go
+type Time struct {
+}
+```
+
+A Time is an instant with nanosecond precision, always in UTC. The zero value is January 1, year 1, 00:00:00 UTC.
+
+### Date
+
+```go
+func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time
+```
+
+Date returns the Time for the given date and time of day. Values outside their usual ranges are normalized, as in Go; loc must be non-nil.
+
+### Now
+
+```go
+func Now() Time
+```
+
+Now returns the current host wall-clock time. It has no monotonic reading, so Since and Sub follow host clock adjustments.
+
+### Parse
+
+```go
+func Parse(layout, value string) (Time, error)
+```
+
+Parse parses value in layout, which must be RFC3339 or RFC3339Nano, and returns the instant in UTC: a numeric offset is applied, then dropped. Both layouts accept and reject the same inputs as Go, with the same errors.
+
+### Unix
+
+```go
+func Unix(sec int64, nsec int64) Time
+```
+
+Unix returns the Time corresponding to sec seconds and nsec nanoseconds since January 1, 1970 UTC. nsec may be outside [0, 999999999].
+
+### UnixMicro
+
+```go
+func UnixMicro(usec int64) Time
+```
+
+UnixMicro returns the Time corresponding to usec microseconds since the Unix epoch.
+
+### UnixMilli
+
+```go
+func UnixMilli(msec int64) Time
+```
+
+UnixMilli returns the Time corresponding to msec milliseconds since the Unix epoch.
+
+### Time.Add
+
+```go
+func (t Time) Add(d Duration) Time
+```
+
+Add returns t+d. Results beyond the representable range saturate.
+
+### Time.AddDate
+
+```go
+func (t Time) AddDate(years int, months int, days int) Time
+```
+
+AddDate returns t with the given numbers of years, months and days added, normalized like Date.
+
+### Time.After
+
+```go
+func (t Time) After(u Time) bool
+```
+
+After reports whether t is after u.
+
+### Time.AppendFormat
+
+```go
+func (t Time) AppendFormat(b []byte, layout string) []byte
+```
+
+AppendFormat is like Format but appends to b.
+
+### Time.Before
+
+```go
+func (t Time) Before(u Time) bool
+```
+
+Before reports whether t is before u.
+
+### Time.Clock
+
+```go
+func (t Time) Clock() (int, int, int)
+```
+
+Clock returns the hour, minute and second within the day of t.
+
+### Time.Compare
+
+```go
+func (t Time) Compare(u Time) int
+```
+
+Compare returns -1 if t is before u, 0 if they are equal, and +1 if t is after u.
+
+### Time.Date
+
+```go
+func (t Time) Date() (int, Month, int)
+```
+
+Date returns the year, month and day of t.
+
+### Time.Day
+
+```go
+func (t Time) Day() int
+```
+
+Day returns the day of the month of t.
+
+### Time.Equal
+
+```go
+func (t Time) Equal(u Time) bool
+```
+
+Equal reports whether t and u are the same instant.
+
+### Time.Format
+
+```go
+func (t Time) Format(layout string) string
+```
+
+Format returns t in layout, which must be RFC3339 or RFC3339Nano; any other layout panics. The offset is always written as Z.
+
+### Time.Hour
+
+```go
+func (t Time) Hour() int
+```
+
+Hour returns the hour within the day of t, in [0, 23].
+
+### Time.In
+
+```go
+func (t Time) In(loc *Location) Time
+```
+
+In returns t; only UTC exists. It panics if loc is nil.
+
+### Time.IsZero
+
+```go
+func (t Time) IsZero() bool
+```
+
+IsZero reports whether t is the zero time, January 1, year 1, 00:00:00 UTC.
+
+### Time.Location
+
+```go
+func (t Time) Location() *Location
+```
+
+Location returns UTC.
+
+### Time.Minute
+
+```go
+func (t Time) Minute() int
+```
+
+Minute returns the minute within the hour of t, in [0, 59].
+
+### Time.Month
+
+```go
+func (t Time) Month() Month
+```
+
+Month returns the month of the year of t.
+
+### Time.Nanosecond
+
+```go
+func (t Time) Nanosecond() int
+```
+
+Nanosecond returns the nanosecond offset within the second, in [0, 999999999].
+
+### Time.Round
+
+```go
+func (t Time) Round(d Duration) Time
+```
+
+Round returns t rounded to the nearest multiple of d since the zero time, rounding halfway values up.
+
+### Time.Second
+
+```go
+func (t Time) Second() int
+```
+
+Second returns the second within the minute of t, in [0, 59].
+
+### Time.String
+
+```go
+func (t Time) String() string
+```
+
+String returns t formatted as "2006-01-02 15:04:05.999999999 +0000 UTC".
+
+### Time.Sub
+
+```go
+func (t Time) Sub(u Time) Duration
+```
+
+Sub returns t-u, saturating at the minimum or maximum Duration.
+
+### Time.Truncate
+
+```go
+func (t Time) Truncate(d Duration) Time
+```
+
+Truncate returns t rounded down to a multiple of d since the zero time.
+
+### Time.UTC
+
+```go
+func (t Time) UTC() Time
+```
+
+UTC returns t; every Time is already in UTC.
+
+### Time.Unix
+
+```go
+func (t Time) Unix() int64
+```
+
+Unix returns t as seconds since January 1, 1970 UTC.
+
+### Time.UnixMicro
+
+```go
+func (t Time) UnixMicro() int64
+```
+
+UnixMicro returns t as microseconds since January 1, 1970 UTC.
+
+### Time.UnixMilli
+
+```go
+func (t Time) UnixMilli() int64
+```
+
+UnixMilli returns t as milliseconds since January 1, 1970 UTC.
+
+### Time.UnixNano
+
+```go
+func (t Time) UnixNano() int64
+```
+
+UnixNano returns t as nanoseconds since January 1, 1970 UTC. The result overflows outside the years 1678 to 2262.
+
+### Time.Weekday
+
+```go
+func (t Time) Weekday() Weekday
+```
+
+Weekday returns the day of the week of t.
+
+### Time.Year
+
+```go
+func (t Time) Year() int
+```
+
+Year returns the year of t.
+
+### Time.YearDay
+
+```go
+func (t Time) YearDay() int
+```
+
+YearDay returns the day of the year of t, in [1, 365] or [1, 366] in leap years.
+
+### type Weekday
+
+```go
+type Weekday int
+```
+
+A Weekday specifies a day of the week (Sunday = 0, ...).
+
+```go
+const (
+	Sunday Weekday = iota
+	Monday
+	Tuesday
+	Wednesday
+	Thursday
+	Friday
+	Saturday
+)
+```
+
+Days of the week.
+
+### Weekday.String
+
+```go
+func (d Weekday) String() string
+```
+
+String returns the English name of the day ("Sunday", "Monday", ...).
+
+
 ## std/unicode
 
 ```go
@@ -1719,6 +2286,7 @@ Package clock provides wall time, independent of Goalchemy virtual time.
 | Function | c | csharp | go | java | python | rust | swift | typescript |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | `Unix` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `UnixNano` | yes | yes | yes | yes | yes | yes | yes | yes |
 
 ### Unix
 
@@ -1731,6 +2299,19 @@ The host wall-clock time in UTC seconds since the Unix epoch.
 - **Gate**: `sequential` (never suspends)
 - **Determinism**: nondeterministic
 - **Contract**: `lib.clock.unix` 1.0.0
+
+### UnixNano
+
+```go
+func UnixNano() int64
+```
+
+The host wall-clock time in UTC nanoseconds since the Unix epoch.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: Precision is the host clock resolution: milliseconds where only a millisecond clock exists, such as JavaScript Date.now, otherwise microseconds or nanoseconds.
+- **Contract**: `lib.clock.unix_nano` 1.0.0
 
 ## context
 
