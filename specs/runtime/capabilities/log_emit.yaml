@@ -1,0 +1,55 @@
+{
+  "id": "lib.log.emit",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "log.Emit: delivers one structured log record to the host log sink.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/log.Emit",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "level",
+        "type": "int"
+      },
+      {
+        "name": "unix_nano",
+        "type": "int64"
+      },
+      {
+        "name": "message",
+        "type": "string"
+      },
+      {
+        "name": "attrs",
+        "type": "[]string"
+      },
+      {
+        "name": "text",
+        "type": "string"
+      }
+    ],
+    "outputs": []
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "An empty message and nil attrs are delivered as a record without attributes.",
+    "nil": "Nil attrs is an empty attribute list.",
+    "bounds": "attrs holds key/value pairs; an odd final element is ignored. Group names are already joined to keys with '.'.",
+    "conversions": "Strings are byte sequences; hosts decode them as UTF-8 for native logging APIs, replacing invalid sequences. text is written to standard error unchanged as bytes.",
+    "overflow": "Not applicable.",
+    "mutations": "attrs and its backing storage are not modified.",
+    "aliasing": "The sink receives copies; no reference to attrs escapes the call.",
+    "allocation": "Hosts allocate the record they pass to the sink.",
+    "errors": "No error result. Exceptions or panics raised by a host sink are discarded.",
+    "panics": "No deliberate panic.",
+    "observations": "The sink runs synchronously on the calling thread and must not block. Without an installed sink, text and a newline are written to standard error. The caller checks lib.log.enabled first; emit itself does not filter by level."
+  },
+  "notes": "text is the record rendered like log/slog's TextHandler without the time attribute, so every target's default output is identical. Native acceptance tests in lib/log.",
+  "cases": [],
+  "native_tests": [
+    "lib/log/log_test.go"
+  ]
+}

@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/main.c, tests/harness/json.c, tests/harness/json.h, tests/harness/codec.c, tests/harness/codec.h, tests/harness/run.sh]
   generated: tests/harness/harness_gen.c
   command: [sh, targets/c/tests/harness/run.sh]
-support_files: [types/float.c, types/native.h, types/library.c, types/library.h, types/bounds.c, types/func.c, types/gx.h, types/ints.c, types/map.c, types/panic.c, types/program.c, types/sched.c, types/utf8.c, types/value.c]
+support_files: [types/float.c, types/native.h, types/library.c, types/library.h, types/bounds.c, types/func.c, types/gx.h, types/ints.c, types/map.c, types/panic.c, types/program.c, types/sched.c, types/utf8.c, types/value.c, types/log.c]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "gx_float_convert", implementation: runtime/float_convert.c}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "gx_float_add_<k>", implementation: runtime/float_add.c, harness: "gx_float_add_{T.kind}({0}, {1})"}
@@ -142,6 +142,8 @@ functions:
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: gx_lib_encoding_base64_url_decode, implementation: runtime/lib_encoding_base64_url_decode.c, requires: [lib.crypto.close], harness: "gx_lib_encoding_base64_url_decode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: gx_lib_clock_unix, implementation: runtime/lib_clock_unix.c, harness: "gx_lib_clock_unix()"}
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: gx_lib_clock_unix_nano, implementation: runtime/lib_clock_unix_nano.c, harness: "gx_lib_clock_unix_nano()"}
+  - {id: lib.log.enabled, contract_version: 1.0.0, symbol: gx_lib_log_enabled, implementation: runtime/lib_log_enabled.c, harness: "gx_lib_log_enabled({0})"}
+  - {id: lib.log.emit, contract_version: 1.0.0, symbol: gx_lib_log_emit, implementation: runtime/lib_log_emit.c}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: gx_lib_http_do, implementation: runtime/lib_http_do.c, requires: [lib.crypto.close, std.context.err], harness: "await: gx_lib_http_do(t,{0},{1},{2},{3},{4},{5},{6})"}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: gx_lib_callback_request, implementation: runtime/lib_callback_request.c, requires: [lib.crypto.close, std.context.err], harness: "await: gx_lib_callback_request(t,{0},{1},{2})"}
 

@@ -79,7 +79,7 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 	bundled := map[string]bool{}
 	for _, ref := range refs {
 		parts := strings.Split(ref.ID, ".")
-		if len(parts) != 3 || parts[0] != "lib" || (parts[1] != "crypto" && parts[1] != "encoding" && parts[1] != "clock" && parts[1] != "http") {
+		if len(parts) != 3 || parts[0] != "lib" || (parts[1] != "crypto" && parts[1] != "encoding" && parts[1] != "clock" && parts[1] != "http" && parts[1] != "log") {
 			continue
 		}
 		pkg := parts[1]

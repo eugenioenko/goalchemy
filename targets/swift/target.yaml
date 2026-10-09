@@ -68,6 +68,7 @@ support_files:
 - types/Crypto.swift
 - types/HTTP.swift
 - types/Library.swift
+- types/Log.swift
 - types/Native.swift
 - types/Numeric.swift
 - types/Program.swift
@@ -761,6 +762,15 @@ functions:
   symbol: GNative.lib_clock_unix_nano
   implementation: runtime/lib_clock_unix_nano.swift
   harness: 'native: GNative.lib_clock_unix_nano({args}, {types})'
+- id: lib.log.enabled
+  contract_version: 1.0.0
+  symbol: GNative.lib_log_enabled
+  implementation: runtime/lib_log_enabled.swift
+  harness: 'native: GNative.lib_log_enabled({args}, {types})'
+- id: lib.log.emit
+  contract_version: 1.0.0
+  symbol: GNative.lib_log_emit
+  implementation: runtime/lib_log_emit.swift
 - id: lib.http.do
   contract_version: 1.0.0
   symbol: GNative.lib_http_do

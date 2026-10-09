@@ -149,6 +149,7 @@ func (e *emitter) library() (string, error) {
 			convert(t.Elem)
 		}
 	}
+	b.WriteString("set_log_handler = rt.set_log_handler\nlogging_handler = rt.logging_handler\nLogRecord = rt.LogRecord\n\n")
 	b.WriteString("def _source_failure(err):\n    if err is None: return None\n")
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KPointer && t.Elem.U().Kind == ir.KStruct && libraryValue(t.Elem, map[*ir.Type]bool{}) && e.tds[t] != "" {

@@ -39,4 +39,25 @@ void gxc_value_free(gxc_value *value);
 void gxc_error_free(gxc_error *error);
 int gxc_value_copy(gxc_value *destination, const gxc_value *source);
 const gxc_value *gxc_field(const gxc_value *value, const char *name);
+/* One std/log/slog record. Levels follow log/slog: -4 debug, 0 info, 4 warn,
+ * 8 error. Strings are UTF-8 bytes with lengths and a terminating NUL; attrs
+ * holds attr_count key/value pairs as 2*attr_count strings, with group names
+ * joined to keys by ".". text is the record rendered like slog's TextHandler
+ * without the time. Everything is freed when the handler returns. */
+typedef struct gxc_log_record {
+    int64_t level;
+    int64_t unix_nano;
+    const char *message;
+    size_t message_length;
+    const char *const *attrs;
+    const size_t *attr_lengths;
+    size_t attr_count;
+    const char *text;
+    size_t text_length;
+} gxc_log_record;
+typedef void (*gxc_log_handler)(void *state, const gxc_log_record *record);
+/* Routes records at level and above to handler, synchronously on the source
+ * owner's thread; the handler must not call into the library. A NULL handler
+ * restores the default: text written to standard error at level 4 and above. */
+void gxc_set_log_handler(gxc_log_handler handler, void *state, int64_t level);
 #endif

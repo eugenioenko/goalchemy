@@ -38,13 +38,13 @@ func (e *emitter) library() (string, error) {
 	e.use("std.context.with_cancel")
 	e.use("std.context.err")
 	var b strings.Builder
-	b.WriteString("export { LibraryError } from './rt/runtime/library.ts';\nexport type { CallOptions, Callback, Settlement } from './rt/runtime/library.ts';\n")
+	b.WriteString("export { LibraryError } from './rt/runtime/library.ts';\nexport type { CallOptions, Callback, Settlement } from './rt/runtime/library.ts';\nexport { setLogHandler } from './rt/types/log.ts';\nexport type { LogRecord, LogHandler } from './rt/types/log.ts';\n")
 	roots := map[string]bool{}
 	for _, f := range e.p.Exports {
 		roots[f.Pkg] = true
 	}
 	names := map[*ir.Type]string{}
-	used := map[string]bool{"LibraryError": true, "CallOptions": true, "Callback": true}
+	used := map[string]bool{"LibraryError": true, "CallOptions": true, "Callback": true, "LogRecord": true, "LogHandler": true}
 	for _, t := range e.p.Types.All {
 		if t.Kind == ir.KNamed && roots[t.Pkg] && token.IsExported(t.Obj) && libraryValue(t, map[*ir.Type]bool{}) {
 			if used[t.Obj] {

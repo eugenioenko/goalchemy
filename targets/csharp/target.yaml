@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/Harness.cs, tests/harness/Codec.cs, tests/harness/run.sh]
   generated: tests/harness/HarnessGen.cs
   command: [sh, targets/csharp/tests/harness/run.sh]
-support_files: [types/Floats.cs, types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs, types/Native.cs, types/Crypto.cs, types/Callback.cs, runtime/Library.cs, runtime/TaskSpawn.cs, runtime/StdContextErr.cs, runtime/StdContextWithCancel.cs, runtime/ChanMake.cs, runtime/ChanClose.cs, runtime/StdErrorsNew.cs]
+support_files: [types/Floats.cs, types/Bounds.cs, types/Box.cs, types/Fn.cs, types/GoMap.cs, types/GoPanic.cs, types/Ints.cs, types/KeyList.cs, types/Out.cs, types/Panics.cs, types/Program.cs, types/Ref.cs, types/Slice.cs, types/TypeDesc.cs, types/Usings.cs, types/Utf8.cs, types/Native.cs, types/Crypto.cs, types/Callback.cs, types/Log.cs, runtime/Library.cs, runtime/TaskSpawn.cs, runtime/StdContextErr.cs, runtime/StdContextWithCancel.cs, runtime/ChanMake.cs, runtime/ChanClose.cs, runtime/StdErrorsNew.cs]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "R.round", implementation: runtime/FloatConvert.cs}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "R.floatAdd_<k>", implementation: runtime/FloatAdd.cs, harness: "R.floatAdd_{T.kind}({0}, {1})"}
@@ -142,6 +142,8 @@ functions:
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: R.libEncodingBase64UrlDecode, implementation: runtime/LibEncodingBase64UrlDecode.cs, requires: [std.errors.new, lib.encoding.base64_decode], harness: "R.libEncodingBase64UrlDecode({0})"}
   - {id: lib.clock.unix, contract_version: 1.0.0, symbol: R.libClockUnix, implementation: runtime/LibClockUnix.cs, harness: "R.libClockUnix()"}
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: R.libClockUnixNano, implementation: runtime/LibClockUnixNano.cs, harness: "R.libClockUnixNano()"}
+  - {id: lib.log.enabled, contract_version: 1.0.0, symbol: R.libLogEnabled, implementation: runtime/LibLogEnabled.cs, harness: "R.libLogEnabled({0})"}
+  - {id: lib.log.emit, contract_version: 1.0.0, symbol: R.libLogEmit, implementation: runtime/LibLogEmit.cs}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: R.libCallbackRequest, implementation: runtime/LibCallbackRequest.cs, requires: [std.context.err], harness: "host: R.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: R.libHttpDo, implementation: runtime/LibHttpDo.cs, requires: [std.context.err], harness: "host: R.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
 

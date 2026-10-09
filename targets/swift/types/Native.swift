@@ -325,6 +325,10 @@ enum GNative {
       var ts = timespec()
       guard clock_gettime(CLOCK_REALTIME, &ts) == 0 else { throw GFault("UTC clock failure") }
       return [.int(Int64(ts.tv_sec) * 1_000_000_000 + Int64(ts.tv_nsec))]
+    case "lib.log.enabled": return [.bool(GLog.enabled(args[0].intValue))]
+    case "lib.log.emit":
+      GLog.emit(args)
+      return []
     default:
       if contract.hasPrefix("lib.encoding.") { return try encoding(contract, args) }
       if contract == "lib.checksum.crc32_ieee" { return [try GCrypto.crc32(args[0])] }
