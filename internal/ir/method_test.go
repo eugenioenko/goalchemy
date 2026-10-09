@@ -13,10 +13,12 @@ import (
 func TestMethodIDSeparatesWellKnownSignatures(t *testing.T) {
 	src := `package p
 
+type text = string
+
 type one struct{}
 
 func (one) Unwrap() error { return nil }
-func (one) Error() string { return "" }
+func (one) Error() text   { return "" }
 func (one) Is(error) bool { return false }
 func (one) As(any) bool   { return false }
 func (one) Read() int     { return 0 }

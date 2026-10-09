@@ -38,10 +38,7 @@ func wellKnown(name string, sig *types.Signature) (canonical, known bool) {
 		if params.Len() != 1 || sig.Variadic() || results.Len() != 1 || !isBasic(results.At(0).Type(), types.Bool) {
 			return false, true
 		}
-		i, ok := params.At(0).Type().(*types.Interface)
-		if a, isAlias := params.At(0).Type().(*types.Alias); isAlias {
-			i, ok = types.Unalias(a).(*types.Interface)
-		}
+		i, ok := types.Unalias(params.At(0).Type()).(*types.Interface)
 		return ok && i.Empty(), true
 	case "Format":
 		if params.Len() != 2 || sig.Variadic() || results.Len() != 0 || !isBasic(params.At(1).Type(), types.Int32) {
@@ -54,7 +51,7 @@ func wellKnown(name string, sig *types.Signature) (canonical, known bool) {
 }
 
 func isBasic(t types.Type, kind types.BasicKind) bool {
-	b, ok := t.(*types.Basic)
+	b, ok := types.Unalias(t).(*types.Basic)
 	return ok && b.Kind() == kind
 }
 

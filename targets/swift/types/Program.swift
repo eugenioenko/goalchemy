@@ -224,7 +224,7 @@ final class GInterface: GManaged {
       message =
         missing.map {
           "interface conversion: " + name + " is not " + target.name + ": missing method "
-            + $0.components(separatedBy: ".").last!
+            + $0.components(separatedBy: "#").first!.components(separatedBy: ".").last!
         } ?? "interface conversion: " + GTypes.table[source].name + " is " + name + ", not "
         + target.name
     } else {
