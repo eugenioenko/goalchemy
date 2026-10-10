@@ -8,4 +8,4 @@ if ! pkg-config --exists libcurl 2>/dev/null; then
  fi
 fi
 GX_NATIVE_CFLAGS=$(pkg-config --cflags libcurl)
-GX_NATIVE_LIBS="$(pkg-config --libs libcurl) -lssl -lcrypto"
+GX_NATIVE_LIBS="$(pkg-config --libs libcurl) -lz -lssl -lcrypto"

@@ -33,6 +33,7 @@ jobs:
           - {name: Integration 2 of 4, suite: integration, shard: 1}
           - {name: Integration 3 of 4, suite: integration, shard: 2}
           - {name: Integration 4 of 4, suite: integration, shard: 3}
+          - {name: Examples and reproducible output all targets, suite: examples}
           - {name: Float differential all targets, suite: floats}
           - {name: Naming modes all targets, suite: naming}
           - {name: Runtime conformance all targets, suite: runtime}

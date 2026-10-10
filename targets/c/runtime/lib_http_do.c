@@ -6,11 +6,13 @@
 #include <ctype.h>
 #include <strings.h>
 #include <limits.h>
+#include <zlib.h>
 typedef struct http_work {
  gx_HostToken token;pthread_t thread;bool started;atomic_bool canceled;
  char *method,*url;struct curl_slist *headers;uint8_t *input;size_t input_len,max;
  int64_t timeout_ms;uint8_t *body,*header_data;size_t body_len,header_len;
- const char *error;uint64_t status;CURL *easy;size_t response_start;bool automatic_gzip,decoded;
+ const char *error;uint64_t status;size_t response_start;bool automatic_gzip,decoded;
+ z_stream z;bool z_active,z_done;
 } http_work;
 static pthread_once_t curl_once=PTHREAD_ONCE_INIT;
 static CURLcode curl_init_status;
@@ -18,21 +20,38 @@ static void initialize_curl(void) {curl_init_status=curl_global_init(CURL_GLOBAL
 static void http_zero(gx_Task *t,gx_V err) {gx_V out[4]={gx_int(0),gx_nil_slice(),gx_nil_byte_slice(),err};gx_set_rv(t,4,out);}
 static void *native_alloc(size_t n) {return malloc(n?n:1);}
 static char *text_snapshot(gx_V v) {char *p=native_alloc((size_t)v.l+1);if(!p)return NULL;if(v.l)memcpy(p,gx_sbytes(v),v.l);p[v.l]=0;return p;}
+static bool body_append(http_work *w,const uint8_t *data,size_t n) {
+ if(n>w->max-w->body_len){w->error="http: response body exceeds limit";return false;}
+ uint8_t *p=realloc(w->body,w->body_len+n+1);if(!p){w->error="host_fault: HTTP body allocation";return false;}w->body=p;memcpy(p+w->body_len,data,n);w->body_len+=n;return true;
+}
+static void gzip_end(http_work *w) {if(w->z_active){inflateEnd(&w->z);w->z_active=false;}}
+/* Decoding happens here rather than in libcurl: whether CURLOPT_HTTP_CONTENT_DECODING
+ * set from the header callback takes effect differs between libcurl 7.x and 8.x. */
+static bool gzip_append(http_work *w,const uint8_t *data,size_t n) {
+ if(!w->z_active){memset(&w->z,0,sizeof w->z);if(inflateInit2(&w->z,16+MAX_WBITS)!=Z_OK){w->error="host_fault: HTTP gzip initialization";return false;}w->z_active=true;w->z_done=false;}
+ uint8_t out[16384];w->z.next_in=(Bytef *)data;w->z.avail_in=(uInt)n;
+ do{
+  if(w->z_done){if(!w->z.avail_in)break;if(inflateReset(&w->z)!=Z_OK){w->error="http: transport failure";return false;}w->z_done=false;}
+  w->z.next_out=out;w->z.avail_out=sizeof out;int r=inflate(&w->z,Z_NO_FLUSH);size_t got=sizeof out-w->z.avail_out;
+  if(got&&!body_append(w,out,got))return false;
+  if(r==Z_STREAM_END)w->z_done=true;else if(r==Z_BUF_ERROR&&!got)break;else if(r!=Z_OK&&r!=Z_BUF_ERROR){w->error="http: transport failure";return false;}
+ }while(w->z.avail_in||!w->z.avail_out);
+ return true;
+}
 static size_t body_write(char *data,size_t a,size_t b,void *arg) {
  http_work *w=arg;if(a&&b>SIZE_MAX/a){w->error="http: response body exceeds limit";return 0;}size_t n=a*b;
- if(n>w->max-w->body_len){w->error="http: response body exceeds limit";return 0;}
- uint8_t *p=realloc(w->body,w->body_len+n+1);if(!p){w->error="host_fault: HTTP body allocation";return 0;}w->body=p;memcpy(p+w->body_len,data,n);w->body_len+=n;return n;
+ if(n>UINT_MAX){w->error="http: transport failure";return 0;}
+ return (w->decoded?gzip_append(w,(const uint8_t *)data,n):body_append(w,(const uint8_t *)data,n))?n:0;
 }
 static size_t header_write(char *data,size_t a,size_t b,void *arg) {
  http_work *w=arg;if(a&&b>SIZE_MAX/a)return 0;size_t n=a*b;
  if(n>65536-w->header_len){w->error="http: response headers exceed limit";return 0;}
  uint8_t *p=realloc(w->header_data,w->header_len+n+1);if(!p){w->error="host_fault: HTTP header allocation";return 0;}w->header_data=p;
- if(n>=5&&!memcmp(data,"HTTP/",5)){w->response_start=w->header_len;w->decoded=false;}
+ if(n>=5&&!memcmp(data,"HTTP/",5)){w->response_start=w->header_len;w->decoded=false;gzip_end(w);}
  memcpy(p+w->header_len,data,n);w->header_len+=n;
  if((n==2&&data[0]=='\r'&&data[1]=='\n')||(n==1&&data[0]=='\n')){
-  /* libcurl builds its encoding stack before the header callback. Select
-   * decoding before any body callback, matching Go's gzip-only automatic
-   * mode; explicit Accept-Encoding and Range leave the wire body intact. */
+  /* Go's automatic mode decodes gzip only; explicit Accept-Encoding and Range
+   * leave the wire body intact. */
   bool gzip=false;size_t start=w->response_start;
   for(size_t i=start;i<w->header_len;i++)if(p[i]=='\n'){
    size_t end=i;if(end>start&&p[end-1]=='\r')end--;
@@ -42,7 +61,6 @@ static size_t header_write(char *data,size_t a,size_t b,void *arg) {
    }start=i+1;
   }
   w->decoded=w->automatic_gzip&&gzip;
-  if(curl_easy_setopt(w->easy,CURLOPT_HTTP_CONTENT_DECODING,w->decoded?1L:0L)!=CURLE_OK){w->error="host_fault: HTTP decoding option";return 0;}
  }
  return n;
 }
@@ -53,7 +71,7 @@ static void *http_thread(void *arg) {
  http_work *w=arg;CURL *easy=NULL;CURLM *multi=NULL;CURLcode code=CURLE_OK;bool acquisition=false;
  pthread_once(&curl_once,initialize_curl);
  if(curl_init_status!=CURLE_OK){w->error="host_fault: libcurl initialization";goto release;}
- easy=curl_easy_init();w->easy=easy;multi=curl_multi_init();if(!easy||!multi){w->error="host_fault: libcurl acquisition";goto release;}
+ easy=curl_easy_init();multi=curl_multi_init();if(!easy||!multi){w->error="host_fault: libcurl acquisition";goto release;}
  #define SET(option,value) do{if(curl_easy_setopt(easy,option,value)!=CURLE_OK){w->error="host_fault: libcurl option";goto release;}}while(0)
  SET(CURLOPT_URL,w->url);SET(CURLOPT_CUSTOMREQUEST,w->method);SET(CURLOPT_HTTPHEADER,w->headers);
  SET(CURLOPT_HTTP_CONTENT_DECODING,0L);if(w->automatic_gzip)SET(CURLOPT_ACCEPT_ENCODING,"gzip");
@@ -72,8 +90,10 @@ static void *http_thread(void *arg) {
  }while(running);
  if(code==CURLE_OK&&!w->error){int pending;CURLMsg *msg;bool found=false;while((msg=curl_multi_info_read(multi,&pending)))if(msg->msg==CURLMSG_DONE){code=msg->data.result;found=true;}if(!found)w->error="host_fault: libcurl missing terminal result";}
  if(code!=CURLE_OK&&!w->error)w->error=code==CURLE_OUT_OF_MEMORY?"host_fault: HTTP transport allocation":code==CURLE_ABORTED_BY_CALLBACK?"http: canceled":"http: transport failure";
+ if(!w->error&&w->decoded&&w->z_active&&!w->z_done)w->error="http: transport failure";
  long status=0;if(!w->error&&curl_easy_getinfo(easy,CURLINFO_RESPONSE_CODE,&status)!=CURLE_OK)w->error="host_fault: HTTP response status";w->status=(uint64_t)status;
 release:
+ gzip_end(w);
  if(acquisition)curl_multi_remove_handle(multi,easy);if(easy)curl_easy_cleanup(easy);if(multi)curl_multi_cleanup(multi);
  curl_slist_free_all(w->headers);w->headers=NULL;free(w->method);w->method=NULL;free(w->url);w->url=NULL;free(w->input);w->input=NULL;
  size_t errlen=w->error?strlen(w->error):0;

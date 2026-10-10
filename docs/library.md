@@ -4139,7 +4139,7 @@ Every entry lists:
 
 | Target | Status | Minimum | Native dependencies |
 | --- | --- | --- | --- |
-| c | experimental | A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads | OpenSSL 3 (libcrypto) for crypto, libcurl for HTTP, and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API. |
+| c | experimental | A C17 compiler on a 64-bit platform; bdwgc 8.x built with POSIX threads | OpenSSL 3 (libcrypto) for crypto, libcurl and zlib for HTTP (gzip responses are decoded with zlib), and the Boehm-Demers-Weiser collector (bdwgc 8.x) built with POSIX threads. IEEE CRC32 uses a slicing-by-8 fallback because standard C provides no CRC API. |
 | csharp | experimental | .NET 8 SDK (C# 12) | .NET 8 built-ins for crypto (System.Security.Cryptography) and HTTP (HttpClient); IEEE CRC32 uses the official Microsoft System.IO.Hashing 8.0.0 NuGet package with a content-hash lock, not the shared runtime. Host runtime controls acceleration. |
 | go | experimental | go1.25 | Go standard library only: crypto/* for crypto, net/http for HTTP, and hash/crc32.ChecksumIEEE for IEEE CRC32; host runtime controls acceleration. |
 | java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and EC private key imports, which derive the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |

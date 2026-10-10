@@ -685,7 +685,7 @@ func cNativeLibs(contracts []string) string {
 	}
 	libs := ""
 	if curl {
-		libs += " $(pkg-config --cflags --libs libcurl 2>/dev/null || echo -lcurl)"
+		libs += " $(pkg-config --cflags --libs libcurl 2>/dev/null || echo -lcurl) -lz"
 	}
 	if curl || crypto {
 		libs += " -lssl -lcrypto"
