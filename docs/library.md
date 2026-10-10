@@ -27,7 +27,7 @@ Why two importable roots:
 | [bytes](#stdbytes) | `github.com/eugenioenko/goalchemy/std/bytes` | Package bytes manipulates byte slices. |
 | [encoding/binary](#stdencodingbinary) | `github.com/eugenioenko/goalchemy/std/encoding/binary` | Package binary translates between unsigned integers and byte sequences, and encodes varints. |
 | [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
-| [encoding/json](#stdencodingjson) | `github.com/eugenioenko/goalchemy/std/encoding/json` | Package json encodes Go values as JSON with the semantics of Go's encoding/json. |
+| [encoding/json](#stdencodingjson) | `github.com/eugenioenko/goalchemy/std/encoding/json` | Package json encodes and decodes JSON with the semantics of Go's encoding/json. |
 | [encoding/jsonvalue](#stdencodingjsonvalue) | `github.com/eugenioenko/goalchemy/std/encoding/jsonvalue` | Package jsonvalue parses, inspects, builds and encodes JSON documents of any shape as a tree of Values, without declaring Go types. |
 | [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
 | [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
@@ -585,7 +585,7 @@ func (e InvalidByteError) Error() string
 import "github.com/eugenioenko/goalchemy/std/encoding/json"
 ```
 
-Package json encodes Go values as JSON with the semantics of Go's encoding/json. Without reflection, the compiler describes each statically known type passed to Marshal; values held in interfaces are encoded when they are JSON-shaped (nil, booleans, numbers and strings of predeclared types, []byte, []any, map[string]any) or implement Marshaler or encoding.TextMarshaler, as Number, RawMessage and jsonvalue.Value do. Other dynamic values return *UnsupportedTypeError.
+Package json encodes and decodes JSON with the semantics of Go's encoding/json. Without reflection, the compiler describes each statically known type passed to Marshal or pointed to by an Unmarshal target. Values held in interfaces are encoded when they are JSON-shaped (nil, booleans, numbers and strings of predeclared types, []byte, []any, map[string]any) or implement Marshaler or encoding.TextMarshaler, as Number, RawMessage and jsonvalue.Value do; other dynamic values return *UnsupportedTypeError.
 
 ### Compact
 
@@ -627,6 +627,14 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error)
 
 MarshalIndent is like Marshal but applies Indent to format the output. Each JSON element in the output will begin on a new line beginning with prefix followed by one or more copies of indent according to the indentation nesting.
 
+### Unmarshal
+
+```go
+func Unmarshal(data []byte, v any) error
+```
+
+Unmarshal parses the JSON-encoded data and stores the result in the value pointed to by v, as encoding/json.Unmarshal does.
+
 ### Valid
 
 ```go
@@ -634,6 +642,22 @@ func Valid(data []byte) bool
 ```
 
 Valid reports whether data is a valid JSON encoding.
+
+### type InvalidUnmarshalError
+
+```go
+type InvalidUnmarshalError struct {
+	Type string
+}
+```
+
+An InvalidUnmarshalError describes an invalid argument passed to Unmarshal. Type is the Go type name of the argument, or empty for nil.
+
+### InvalidUnmarshalError.Error
+
+```go
+func (e *InvalidUnmarshalError) Error() string
+```
 
 ### type Marshaler
 
@@ -711,6 +735,14 @@ func (n Number) String() string
 
 String returns the literal text of the number.
 
+### Number.UnmarshalJSON
+
+```go
+func (n *Number) UnmarshalJSON(data []byte) error
+```
+
+UnmarshalJSON sets *n to a number literal, or to the number in a JSON string; null leaves *n unchanged.
+
 ### type RawMessage
 
 ```go
@@ -751,6 +783,35 @@ A SyntaxError is a description of a JSON syntax error. [Unmarshal] will return a
 ```go
 func (e *SyntaxError) Error() string
 ```
+
+### type UnmarshalTypeError
+
+```go
+type UnmarshalTypeError struct {
+	Value  string
+	Type   string
+	Offset int64
+	Struct string
+	Field  string
+	Err    error
+}
+```
+
+An UnmarshalTypeError describes a JSON value that was not appropriate for a value of a specific Go type. Type is the Go type name.
+
+### UnmarshalTypeError.Error
+
+```go
+func (e *UnmarshalTypeError) Error() string
+```
+
+### UnmarshalTypeError.Unwrap
+
+```go
+func (e *UnmarshalTypeError) Unwrap() error
+```
+
+Unwrap returns the underlying error.
 
 ### type Unmarshaler
 
@@ -1201,6 +1262,14 @@ func (v Value) Uint64() uint64
 ```
 
 Uint64 returns the result of AsUint64, or 0.
+
+### Value.UnmarshalJSON
+
+```go
+func (v *Value) UnmarshalJSON(data []byte) error
+```
+
+UnmarshalJSON sets *v to Parse(data), so a Value can be the target of, or a field of the target of, json.Unmarshal.
 
 
 ## std/errors
