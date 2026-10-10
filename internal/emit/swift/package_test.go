@@ -111,7 +111,7 @@ func TestPackageOutput(t *testing.T) {
 					t.Fatalf("global %s declarations %d", global.Name, count)
 				}
 			}
-			if strings.Count(combined, "let gTypeRegistration: Void =") != 1 || strings.Count(combined, "GTypes.table = [") != 1 {
+			if strings.Count(combined, "let gTypeRegistration: Void =") != 1 || strings.Count(combined, "GTypes.table = table") != 1 {
 				t.Fatal("duplicated canonical type registration")
 			}
 			out := t.TempDir()
