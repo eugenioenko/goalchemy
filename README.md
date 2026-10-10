@@ -82,11 +82,11 @@ The `go get` makes Goalchemy's packages resolvable from your module. Source modu
 
 The Go standard library is replaced by packages that keep the standard names, so code still reads and runs as ordinary Go:
 
-- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `encoding/json` (`Marshal`, `Unmarshal`), `encoding/jsonvalue`, `encoding/protojson`, `time`, `errors`, `fmt`, `log/slog`, `os`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
+- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `encoding/json` (`Marshal`, `Unmarshal`), `encoding/jsonvalue`, `encoding/protojson`, `connect`, `time`, `errors`, `fmt`, `log/slog`, `os`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
 - [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `checksum`, `clock`, `log`, `os`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
 
 The [runtime library reference](docs/library.md) explains the split and documents every function.
-[`protoc-gen-goalchemy`](docs/protobuf.md) generates subset-Go messages with proto3 JSON encoding from `.proto` files.
+[`protoc-gen-goalchemy`](docs/protobuf.md) generates subset-Go messages with proto3 JSON encoding and Connect service clients from `.proto` files.
 The [IEEE CRC32 host mappings](docs/checksum.md) distinguish standard APIs,
 the official Microsoft package, and portable fallbacks.
 
@@ -197,7 +197,7 @@ cd examples/bank && goalchemy build
 | --- | --- |
 | Commands, configuration, output, libraries | [Usage guide](docs/usage.md) |
 | Runtime library: `std/` and `lib/` packages | [Library reference](docs/library.md) |
-| Protobuf messages and proto3 JSON | [Protobuf](docs/protobuf.md) |
+| Protobuf messages, proto3 JSON and Connect clients | [Protobuf](docs/protobuf.md) |
 | Accepted language and semantics | [Language specification](specs/language.md) |
 | Diagnostic codes | [Diagnostics](specs/diagnostics.md) |
 | Supported feature matrix | [`specs/features.yaml`](specs/features.yaml) |

@@ -107,18 +107,17 @@ func fixtureParam() string {
 	return "go_import_prefix=" + fixtureImport + ",include=" + strings.Join(fixtureTypes, ";")
 }
 
-// TestPlatformFixture checks that the committed generated packages of the
-// proto_platform fixture match the generator. Set GOALCHEMY_UPDATE_PROTO=1 to
-// rewrite them.
-func TestPlatformFixture(t *testing.T) {
-	files := generate(t, loadSet(t), fixtureParam())
+// checkGenerated compares files with the committed tree under dir, or
+// rewrites it when GOALCHEMY_UPDATE_PROTO is set.
+func checkGenerated(t *testing.T, dir string, files map[string]string, suffixes ...string) {
+	t.Helper()
 	var names []string
 	for n := range files {
 		names = append(names, n)
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		path := filepath.Join(fixture, filepath.FromSlash(n))
+		path := filepath.Join(dir, filepath.FromSlash(n))
 		if update {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				t.Fatal(err)
@@ -133,19 +132,57 @@ func TestPlatformFixture(t *testing.T) {
 			t.Errorf("%s is stale; run GOALCHEMY_UPDATE_PROTO=1 go test ./internal/protoc", path)
 		}
 	}
-	err := filepath.Walk(fixture, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".pb.go") {
+	err := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
 			return err
 		}
-		rel, _ := filepath.Rel(fixture, p)
+		generated := false
+		for _, s := range suffixes {
+			generated = generated || strings.HasSuffix(p, s)
+		}
+		if !generated {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
 		if _, ok := files[filepath.ToSlash(rel)]; !ok {
+			if update {
+				return os.Remove(p)
+			}
 			t.Errorf("%s is no longer generated", p)
 		}
 		return nil
 	})
-	if err != nil && !update {
+	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestPlatformFixture checks that the committed generated packages of the
+// proto_platform fixture match the generator. Set GOALCHEMY_UPDATE_PROTO=1 to
+// rewrite them.
+func TestPlatformFixture(t *testing.T) {
+	checkGenerated(t, fixture, generate(t, loadSet(t), fixtureParam()), ".pb.go", ".connect.go")
+}
+
+const connectGen = "../../tests/integration/testdata/connect/gen"
+
+var connectMethods = []string{
+	"policy.attributes.AttributesService.GetAttribute",
+	"policy.attributes.AttributesService.ListAttributes",
+	"authorization.v2.AuthorizationService.GetDecision",
+}
+
+// TestConnectFixture checks the generated clients used by the connect
+// integration test.
+func TestConnectFixture(t *testing.T) {
+	param := "go_import_prefix=connectprobe/gen,include=" + strings.Join(connectMethods, ";")
+	files := generate(t, loadSet(t), param)
+	for _, want := range []string{"policy/attributes/attributes.connect.go", "authorization/v2/authorization.connect.go"} {
+		if _, ok := files[want]; !ok {
+			t.Fatalf("%s was not generated", want)
+		}
+	}
+	checkGenerated(t, connectGen, files, ".pb.go", ".connect.go")
 }
 
 type corpusCase struct {
