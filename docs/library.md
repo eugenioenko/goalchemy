@@ -27,6 +27,7 @@ Why two importable roots:
 | [bytes](#stdbytes) | `github.com/eugenioenko/goalchemy/std/bytes` | Package bytes manipulates byte slices. |
 | [encoding/binary](#stdencodingbinary) | `github.com/eugenioenko/goalchemy/std/encoding/binary` | Package binary translates between unsigned integers and byte sequences, and encodes varints. |
 | [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
+| [encoding/jsonvalue](#stdencodingjsonvalue) | `github.com/eugenioenko/goalchemy/std/encoding/jsonvalue` | Package jsonvalue parses, inspects, builds and encodes JSON documents of any shape as a tree of Values, without declaring Go types. |
 | [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
 | [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
 | [log/slog](#stdlogslog) | `github.com/eugenioenko/goalchemy/std/log/slog` | Package slog provides structured logging with Go's log/slog API. |
@@ -575,6 +576,406 @@ InvalidByteError reports a byte that is not a hexadecimal digit.
 ```go
 func (e InvalidByteError) Error() string
 ```
+
+
+## std/encoding/jsonvalue
+
+```go
+import "github.com/eugenioenko/goalchemy/std/encoding/jsonvalue"
+```
+
+Package jsonvalue parses, inspects, builds and encodes JSON documents of any shape as a tree of Values, without declaring Go types. Numbers keep their exact source text, so integers beyond 2^53 and long decimals round-trip unchanged. Object members keep their order, and duplicate member names are rejected. Parsing and encoding are bounded by Limits. Accessors never panic: a missing member, an out-of-range index or a value of another kind yields the zero result.
+
+```go
+const MaxDepth = 128
+```
+
+MaxDepth is the largest nesting depth Limits may allow.
+
+### Encode
+
+```go
+func Encode(v Value) ([]byte, error)
+```
+
+Encode returns the compact JSON encoding of v with DefaultLimits.
+
+### EncodeWithLimits
+
+```go
+func EncodeWithLimits(v Value, l Limits) ([]byte, error)
+```
+
+EncodeWithLimits returns the compact JSON encoding of v. Strings are escaped exactly as encoding/json.Marshal escapes them, including <, > and & as <, > and &, U+2028 and U+2029, and invalid UTF-8 as �. Numbers are written from their source text.
+
+### type InvalidValueError
+
+```go
+type InvalidValueError struct {
+	Msg string
+}
+```
+
+InvalidValueError reports a Value that cannot be encoded: a number that is not valid JSON (including NaN and infinities), an object with duplicate member names, or an invalid Value.
+
+### InvalidValueError.Error
+
+```go
+func (e *InvalidValueError) Error() string
+```
+
+### type Kind
+
+```go
+type Kind int
+```
+
+Kind identifies the JSON type of a Value.
+
+```go
+const (
+	KindInvalid Kind = iota
+	KindNull
+	KindBool
+	KindNumber
+	KindString
+	KindArray
+	KindObject
+)
+```
+
+### Kind.String
+
+```go
+func (k Kind) String() string
+```
+
+### type LimitError
+
+```go
+type LimitError struct {
+	Limit string
+}
+```
+
+LimitError reports that parsing or encoding exceeded one of the Limits. Limit names it: "bytes", "depth", "nodes", "string bytes" or "limits" when the Limits themselves are invalid.
+
+### LimitError.Error
+
+```go
+func (e *LimitError) Error() string
+```
+
+### type Limits
+
+```go
+type Limits struct {
+	Bytes       int
+	Depth       int
+	Nodes       int
+	StringBytes int
+}
+```
+
+Limits bounds the work done by parsing and encoding. Depth counts nested arrays and objects, Nodes counts values, and StringBytes bounds each string after unescaping. Depth must not exceed MaxDepth.
+
+### DefaultLimits
+
+```go
+func DefaultLimits() Limits
+```
+
+DefaultLimits returns the limits Parse and Encode use: 16 MiB of input or output, nesting depth 128, 1Mi values and 16 MiB per string.
+
+### type SyntaxError
+
+```go
+type SyntaxError struct {
+	Msg    string
+	Offset int
+}
+```
+
+SyntaxError describes invalid JSON input. Offset is the byte offset at which the error was detected.
+
+### SyntaxError.Error
+
+```go
+func (e *SyntaxError) Error() string
+```
+
+### type Value
+
+```go
+type Value struct {
+}
+```
+
+Value is one JSON value. The zero Value is invalid: it is what lookups of missing members and out-of-range indexes return.
+
+### Array
+
+```go
+func Array(elems ...Value) Value
+```
+
+Array returns a JSON array of elems.
+
+### Bool
+
+```go
+func Bool(b bool) Value
+```
+
+Bool returns a JSON boolean.
+
+### Float
+
+```go
+func Float(f float64) Value
+```
+
+Float returns a JSON number formatted as encoding/json formats a float64: the shortest representation that round-trips, in exponent form below 1e-6 and from 1e21. NaN and infinities produce a Value that Encode rejects.
+
+### Int
+
+```go
+func Int(n int64) Value
+```
+
+Int returns a JSON number holding n exactly.
+
+### Null
+
+```go
+func Null() Value
+```
+
+Null returns the JSON null value.
+
+### Number
+
+```go
+func Number(text string) Value
+```
+
+Number returns a JSON number with the given source text, such as "12345678901234567890" or "1.50e+3". Encode rejects text that is not a valid JSON number.
+
+### Object
+
+```go
+func Object(keyvals ...any) Value
+```
+
+Object returns a JSON object from alternating string keys and Value values, in order. It panics if the arguments do not alternate that way.
+
+### Parse
+
+```go
+func Parse(data []byte) (Value, error)
+```
+
+Parse parses one JSON document with DefaultLimits.
+
+### ParseWithLimits
+
+```go
+func ParseWithLimits(data []byte, l Limits) (Value, error)
+```
+
+ParseWithLimits parses one JSON document. Surrounding whitespace is allowed; any other trailing input is an error. Invalid UTF-8 and unpaired surrogate escapes in strings become U+FFFD, as in encoding/json.
+
+### String
+
+```go
+func String(s string) Value
+```
+
+String returns a JSON string. Invalid UTF-8 is encoded as U+FFFD.
+
+### Uint
+
+```go
+func Uint(n uint64) Value
+```
+
+Uint returns a JSON number holding n exactly.
+
+### Value.Append
+
+```go
+func (v Value) Append(elems ...Value) Value
+```
+
+Append returns a copy of the array v with elems added at the end. If v is not an array, Append returns a new array holding only elems.
+
+### Value.AsBool
+
+```go
+func (v Value) AsBool() (bool, bool)
+```
+
+AsBool returns the value of a JSON boolean.
+
+### Value.AsFloat64
+
+```go
+func (v Value) AsFloat64() (float64, bool)
+```
+
+AsFloat64 returns the float64 nearest to a JSON number. Numbers beyond the float64 range are rejected.
+
+### Value.AsInt64
+
+```go
+func (v Value) AsInt64() (int64, bool)
+```
+
+AsInt64 returns a JSON number written as an integer that fits in int64. Numbers with a fraction or exponent, such as 1.0 or 1e3, are rejected.
+
+### Value.AsString
+
+```go
+func (v Value) AsString() (string, bool)
+```
+
+AsString returns the content of a JSON string.
+
+### Value.AsUint64
+
+```go
+func (v Value) AsUint64() (uint64, bool)
+```
+
+AsUint64 returns a JSON number written as a nonnegative integer that fits in uint64.
+
+### Value.Bool
+
+```go
+func (v Value) Bool() bool
+```
+
+Bool returns the value of a JSON boolean, or false.
+
+### Value.Exists
+
+```go
+func (v Value) Exists() bool
+```
+
+Exists reports whether v is a value rather than the result of a failed lookup.
+
+### Value.Float64
+
+```go
+func (v Value) Float64() float64
+```
+
+Float64 returns the result of AsFloat64, or 0.
+
+### Value.Get
+
+```go
+func (v Value) Get(key string) Value
+```
+
+Get returns the member key of the object v, or the zero Value.
+
+### Value.Has
+
+```go
+func (v Value) Has(key string) bool
+```
+
+Has reports whether the object v has a member key.
+
+### Value.Index
+
+```go
+func (v Value) Index(i int) Value
+```
+
+Index returns element i of the array v, or the zero Value.
+
+### Value.Int64
+
+```go
+func (v Value) Int64() int64
+```
+
+Int64 returns the result of AsInt64, or 0.
+
+### Value.IsNull
+
+```go
+func (v Value) IsNull() bool
+```
+
+IsNull reports whether v is JSON null.
+
+### Value.Keys
+
+```go
+func (v Value) Keys() []string
+```
+
+Keys returns the member names of the object v in order.
+
+### Value.Kind
+
+```go
+func (v Value) Kind() Kind
+```
+
+Kind returns the JSON type of v.
+
+### Value.Len
+
+```go
+func (v Value) Len() int
+```
+
+Len returns the number of elements of an array or members of an object, and 0 for other kinds.
+
+### Value.Lookup
+
+```go
+func (v Value) Lookup(key string) (Value, bool)
+```
+
+Lookup returns the member key of the object v.
+
+### Value.Number
+
+```go
+func (v Value) Number() string
+```
+
+Number returns the source text of a JSON number, or "".
+
+### Value.Set
+
+```go
+func (v Value) Set(key string, x Value) Value
+```
+
+Set returns a copy of the object v with member key set to x, replacing an existing member in place or appending a new one. If v is not an object, Set returns a new object holding only that member.
+
+### Value.String
+
+```go
+func (v Value) String() string
+```
+
+String returns the content of a JSON string, the compact encoding of any other value, and "" for the zero Value or a Value that cannot be encoded. Use AsString to require a string.
+
+### Value.Uint64
+
+```go
+func (v Value) Uint64() uint64
+```
+
+Uint64 returns the result of AsUint64, or 0.
 
 
 ## std/errors
@@ -2011,6 +2412,14 @@ func ParseBool(str string) (bool, error)
 ```
 
 ParseBool accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, and False.
+
+### ParseFloat
+
+```go
+func ParseFloat(s string, bitSize int) (float64, error)
+```
+
+ParseFloat converts the string s to a floating-point number with the precision specified by bitSize: 32 for float32, or 64 for float64. It accepts Go's decimal and hexadecimal floating-point syntax, with "NaN", "Inf" and "Infinity" in any case, and returns the nearest value under IEEE 754 round-half-to-even. Errors are *NumError values wrapping ErrSyntax or ErrRange; on ErrRange the result is ±Inf.
 
 ### ParseInt
 

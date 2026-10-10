@@ -203,13 +203,14 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | Import | Provides |
 | --- | --- |
 | `github.com/eugenioenko/goalchemy/std/strings` | `Builder`, `Split`, `Join`, `Fields`, `Index`, `Contains`, `Trim*`, `Cut`, `Replace`, `NewReplacer`, `ToLower`/`ToUpper`, `EqualFold`, and more |
-| `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`/`FormatFloat`, `Append*`, `Quote`/`QuoteRune` and their `ToASCII` forms, `CanBackquote`, `IsPrint`, `NumError` |
+| `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`/`FormatFloat`, `ParseFloat`, `Append*`, `Quote`/`QuoteRune` and their `ToASCII` forms, `CanBackquote`, `IsPrint`, `NumError` |
 | `github.com/eugenioenko/goalchemy/std/bytes` | `Buffer`, `Equal`, `Compare`, `Index`, `Split`, `Fields`, `TrimSpace`, and more |
 | `github.com/eugenioenko/goalchemy/std/sort` | `Sort`, `Stable`, `Ints`, `Strings`, `Search`, `Reverse` over `Len`/`Less`/`Swap` |
 | `github.com/eugenioenko/goalchemy/std/unicode` | `IsLetter`, `IsDigit`, `IsSpace`, `IsUpper`, `IsPrint`, `ToLower`, `ToUpper`, `SimpleFold`, and more |
 | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
 | `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
 | `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
+| `github.com/eugenioenko/goalchemy/std/encoding/jsonvalue` | `Parse`/`ParseWithLimits`, `Encode`/`EncodeWithLimits`, `Value` with `Kind`, `Get`/`Lookup`/`Has`, `Index`, `Len`, `Keys`, typed `String`/`Bool`/`Int64`/`Uint64`/`Float64` and checked `As*` forms, `Object`, `Array`, `String`, `Int`, `Uint`, `Float`, `Number`, `Bool`, `Null`, `Set`, `Append`, `Limits`, `SyntaxError`, `LimitError`, `InvalidValueError` (see below) |
 | `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 | `github.com/eugenioenko/goalchemy/std/errors` | `New`, `Is`, `As`, `Unwrap`, `Join`, `ErrUnsupported`, including `Unwrap() []error` trees |
 | `github.com/eugenioenko/goalchemy/std/fmt` | `Sprintf`, `Sprint`, `Sprintln`, `Errorf` with one or more `%w`, `Append`/`Appendf`/`Appendln`, `Stringer`, `GoStringer`, `Formatter`, `State`, `FormatString` (see below) |
@@ -269,6 +270,16 @@ Hosts install a sink before calling into a library. The handler runs synchronous
 | Swift | `setLogHandler({ record in ... }, level:)` exported by the module | `GoalchemyLogRecord` with `level`, `unixNano`, `time`, `message`, `attrs`, `text` |
 
 Passing a null handler (`nil`, `None`, `NULL`) restores the default standard error sink at `LevelWarn`. Strings reach the handler decoded as UTF-8, with invalid sequences replaced; C receives the raw bytes.
+
+`std/encoding/jsonvalue` handles JSON whose shape is not fixed, such as JWT claims or partly read responses, as a tree of values. It differs from Go's `encoding/json` in these ways:
+
+- There is no `Marshal`/`Unmarshal` into Go types; build and inspect `Value` trees instead.
+- Numbers keep their source text. `Number` returns it, `Int64`/`Uint64` accept only integer text that fits (`1.0` and `1e3` are rejected), and `Float64` rounds to the nearest float64.
+- Duplicate object member names are a syntax error when parsing and an `InvalidValueError` when encoding; Go keeps the last one.
+- Parsing and encoding are bounded by `Limits`: by default 16 MiB of input or output, nesting depth 128 (`MaxDepth`), 1Mi values and 16 MiB per string.
+- Accessors never panic. A missing member, an out-of-range index or a value of another kind returns the zero result, and `Exists` reports a failed lookup.
+- `String` returns the content of a JSON string and the compact encoding of any other value, so `fmt` prints values as JSON. Use `AsString` to require a string.
+- Strings are encoded as `json.Marshal` encodes them, including `\u003c`, `\u003e` and `\u0026` for `<`, `>` and `&`. Invalid UTF-8 and unpaired surrogate escapes become U+FFFD, as in Go.
 
 `std/os` reads and writes whole files:
 
