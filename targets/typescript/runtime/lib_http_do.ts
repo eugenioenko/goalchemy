@@ -2,10 +2,11 @@ import { sched,type Task } from './task_spawn.ts';
 import { observeContext,onContextCancel,type Context } from './std_context_err.ts';
 import { bytes,byteSlice,stringSlice,strings,errorBox,DeclaredFailure,MAX_BYTES,binaryInput } from '../types/native.ts';
 import { BYTE_NIL,NIL,type Slice } from '../types/slice.ts';
+import { bodyless,installedHttpHost } from '../types/http.ts';
 function fail(t:Task,message:string):void{t.rv=[0n,NIL,BYTE_NIL,errorBox(message)];}
 // Fetch forbids these request fields in browsers. Reject them in both targets
 // before submission instead of allowing native fetch to silently discard them.
-const forbidden=new Set(['accept-charset','accept-encoding','access-control-request-headers','access-control-request-method','connection','content-length','cookie','cookie2','date','dnt','expect','host','keep-alive','origin','referer','set-cookie','te','trailer','transfer-encoding','upgrade','via','proxy-authorization','proxy-connection']);
+const forbidden=new Set(['accept-charset','access-control-request-headers','access-control-request-method','connection','content-length','cookie','cookie2','date','dnt','expect','host','keep-alive','origin','referer','set-cookie','te','trailer','transfer-encoding','upgrade','via','proxy-authorization','proxy-connection']);
 function forbiddenHeader(name:string,value:string):boolean{
  const n=name.toLowerCase();return forbidden.has(n)||n.startsWith('proxy-')||n.startsWith('sec-')||(['x-http-method','x-http-method-override','x-method-override'].includes(n)&&value.split(',').some(v=>['CONNECT','TRACE','TRACK'].includes(v.trim().toUpperCase())));
 }
@@ -25,12 +26,12 @@ function fetchURL(raw:string):string{
 }
 export function libHttpDo(t:Task,ctx:Context|null,method:string,url:string,headers:Slice<string>,body:Slice<number>,max:bigint,timeout:bigint):void{
  if(ctx===null){fail(t,'http: invalid request or limit');return;}observeContext(ctx);if(ctx.err!==null){t.rv=[0n,NIL,BYTE_NIL,ctx.err];return;}
- let payload:Uint8Array<ArrayBuffer>,input:Headers,destination:string;
+ let payload:Uint8Array<ArrayBuffer>,input:Headers,destination:string;const pairs:[string,string][]=[];const host=installedHttpHost();
  try{
   if((method!=='GET'&&method!=='POST')||(method==='GET'&&body.l!==0)||body.l>MAX_BYTES||max<0n||max>BigInt(MAX_BYTES)||timeout<1n||timeout>300000n||headers.l%2||headers.l>32768||url.length>8192)throw new DeclaredFailure('invalid');
   destination=fetchURL(url);
   input=new Headers();const hs=strings(headers);let total=0;
-  for(let i=0;i<hs.length;i+=2){const n=hs[i],v=hs[i+1];total+=n.length+v.length+4;if(total>65536||!n||! /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(n)||/[\x00-\x08\x0a-\x1f\x7f]/.test(v)||forbiddenHeader(n,v))throw new DeclaredFailure('invalid');input.append(n,v);}
+  for(let i=0;i<hs.length;i+=2){const n=hs[i],v=hs[i+1];total+=n.length+v.length+4;if(total>65536||!n||! /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(n)||/[\x00-\x08\x0a-\x1f\x7f]/.test(v)||forbiddenHeader(n,v))throw new DeclaredFailure('invalid');if(host===undefined&&n.toLowerCase()==='accept-encoding'){fail(t,'http: Accept-Encoding is not supported in browsers');return;}input.append(n,v);pairs.push([n,v]);}
   payload=bytes(body);
  }catch(e){if(e instanceof DeclaredFailure||e instanceof TypeError){fail(t,'http: invalid request or limit');return;}throw e;}
  const controller=new AbortController(),owner=sched;let expired=false;
@@ -38,11 +39,17 @@ export function libHttpDo(t:Task,ctx:Context|null,method:string,url:string,heade
  const alarm=owner.host.alarm(Number(timeout),()=>{expired=true;stop();});
  const token=owner.registerHost(t,stop,()=>{unlink();alarm();},()=>{observeContext(ctx);return ctx.err===null?null:[0n,NIL,BYTE_NIL,ctx.err];},rv=>[BigInt(rv[0] as number),stringSlice(rv[1] as string[]|null),byteSlice(rv[2] as Uint8Array|null),errorBox(rv[3] as string|null)]);
  owner.launchHost(token,async()=>{
+  if(host!==undefined){
+   try{const out=await host.exchange({method,url:destination,headers:pairs,body:payload,max:Number(max),signal:controller.signal});
+    if('error' in out)return [0,null,null,expired?'http: deadline exceeded':out.error];return [out.status,out.headers,out.body,null];}
+   finally{alarm();}
+  }
   let reader:ReadableStreamDefaultReader<Uint8Array>|null=null;let response:Response|null=null;let transportFailure:TypeError|DOMException|null=null;
   try{
    response=await fetch(destination,{method,headers:input,body:method==='POST'?payload:undefined,signal:controller.signal,redirect:'manual',credentials:'omit'});
    if(response.type==='opaqueredirect'||response.type==='opaque'||response.status===0)return [0,null,null,'http: opaque response or redirect'];
-   const hs:string[]=[];let total=0;for(const [n,v]of response.headers){total+=n.length+v.length+4;if(total>65536)return [0,null,null,'http: response headers exceed limit'];hs.push(n.replace(/(^|-)([a-z])/g,(_,a:string,b:string)=>a+b.toUpperCase()),v);}
+   const decoded=!bodyless(response.status,response.headers.get('content-length'))&&(response.headers.get('content-encoding')??'').toLowerCase()==='gzip';
+   const hs:string[]=[];let total=0;for(const [n,v]of response.headers){if(decoded&&(n==='content-encoding'||n==='content-length'))continue;total+=n.length+v.length+4;if(total>65536)return [0,null,null,'http: response headers exceed limit'];hs.push(n.replace(/(^|-)([a-z])/g,(_,a:string,b:string)=>a+b.toUpperCase()),v);}
    const chunks:Uint8Array[]=[];let len=0;
    if(response.body!==null){reader=response.body.getReader();for(;;){const {value,done}=await reader.read();if(done)break;len+=value.length;if(len>Number(max))return [0,null,null,'http: response body exceeds limit'];chunks.push(new Uint8Array(value));}}
    const output=new Uint8Array(len);let p=0;for(const c of chunks){output.set(c,p);p+=c.length;}return [response.status,hs,output,null];

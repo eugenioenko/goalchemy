@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
   generated: tests/harness/harness_gen.ts
   command: [node, targets/typescript/tests/harness/harness.ts]
-support_files: [types/float.ts, types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/files.ts, types/node_fs.ts, types/node_files.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, types/log.ts, runtime/std_errors_new.ts]
+support_files: [types/float.ts, types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/files.ts, types/node_fs.ts, types/node_files.d.ts, types/http.ts, types/node_http.ts, types/node_net.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, types/log.ts, runtime/std_errors_new.ts]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.roundFloat", implementation: runtime/float_convert.ts}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.floatAdd_<k>", implementation: runtime/float_add.ts, harness: "rt.floatAdd_{T.kind}({0}, {1})"}
@@ -146,6 +146,6 @@ functions:
   - {id: lib.encoding.base64_encode, contract_version: 1.0.0, symbol: rt.libEncodingBase64Encode, implementation: runtime/lib_encoding_base64_encode.ts, harness: "rt.libEncodingBase64Encode({0})"}
   - {id: lib.encoding.base64_url_decode, contract_version: 1.0.0, symbol: rt.libEncodingBase64UrlDecode, implementation: runtime/lib_encoding_base64_url_decode.ts, harness: "rt.libEncodingBase64UrlDecode({0})"}
   - {id: lib.encoding.base64_url_encode, contract_version: 1.0.0, symbol: rt.libEncodingBase64UrlEncode, implementation: runtime/lib_encoding_base64_url_encode.ts, harness: "rt.libEncodingBase64UrlEncode({0})"}
-  - {id: lib.http.do, contract_version: 1.0.0, symbol: rt.libHttpDo, implementation: runtime/lib_http_do.ts, requires: [std.context.err], harness: "host: rt.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
+  - {id: lib.http.do, contract_version: 1.1.0, symbol: rt.libHttpDo, implementation: runtime/lib_http_do.ts, requires: [std.context.err], harness: "host: rt.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
 
   - {id: lib.checksum.crc32_ieee, contract_version: 1.0.0, symbol: rt.libChecksumCRC32IEEE, implementation: runtime/lib_checksum_crc32_ieee.ts, harness: "rt.libChecksumCRC32IEEE({0})"}
