@@ -73,12 +73,12 @@ directories; others contain explicit target lists or dispatch tables.
 | [`internal/naming/`](../internal/naming) | Shared readable and compact private identifier support. |
 | [`assets.go`](../assets.go) | Embeds `specs`, `targets`, `lib`, and `std` in the compiler. Files under the existing embedded trees are included automatically, subject to Go embed rules. |
 | [`internal/testutil/fixture.go`](../internal/testutil/fixture.go) | Add a target runner that builds and runs generated fixtures and preserves exit/output observations. |
-| [`tests/language/language_test.go`](../tests/language/language_test.go) | Extend the explicit target list once ready; `GOALCHEMY_TEST_TARGETS` supports focused development runs. |
+| [`tests/language/language_test.go`](../tests/language/language_test.go), [`tests/corpus/corpus_test.go`](../tests/corpus/corpus_test.go) | Extend both explicit target lists once ready; `GOALCHEMY_TEST_TARGETS` supports focused development runs. |
 | [`tests/contracts/`](../tests/contracts) | Runtime conformance discovers catalog harnesses; add target-specific byte, capability, and lifecycle checks. |
 | [`tests/integration/`](../tests/integration) | Add real library consumers and include the target in explicit reproducibility and float-library matrices. |
 | [`specs/features.yaml`](../specs/features.yaml) | Add support claims only after their listed fixtures pass on the target. |
 | [`toolchains.lock`](../toolchains.lock), [`scripts/`](../scripts), [`ci/`](../ci) | Pin and install compiler/toolchain/dependency prerequisites and prepare clean runners. |
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Install prerequisites in jobs that execute the target; preserve the aggregate `test` check. |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Add a `Language and corpus (<Name>)` matrix entry (`suite: language`) and the display name in `scripts/ci-suite.py`; install prerequisites in jobs that execute the target; preserve the aggregate `test` check. |
 
 Search for other explicit target switches and lists before final acceptance.
 Registration in one table does not update the others:
@@ -405,7 +405,7 @@ new target needs an adjustment, explain it rather than hiding omitted coverage.
 go vet ./...
 make spec-check
 go test -short -timeout 30m ./...
-GOALCHEMY_TEST_TARGETS=go,NEW_TARGET go test -v -timeout 30m ./tests/language -run '^TestFixtures$' -count=1
+python3 scripts/ci-suite.py language --target NEW_TARGET
 go test -v -timeout 15m ./tests/language -run '^TestNamingModes$' -count=1
 go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=1
 go test -v -timeout 15m ./tests/integration -run '^TestReproducibleOutput$/NEW_TARGET$' -count=1

@@ -20,7 +20,14 @@ jobs:
       matrix:
         include:
           - {name: Core compiler, suite: core}
-          - {name: Language and corpus, suite: fixtures}
+          - {name: Language and corpus (Go), suite: language, target: go}
+          - {name: Language and corpus (TypeScript), suite: language, target: typescript}
+          - {name: Language and corpus (Python), suite: language, target: python}
+          - {name: Language and corpus (Java), suite: language, target: java}
+          - {name: Language and corpus (C#), suite: language, target: csharp}
+          - {name: Language and corpus (Rust), suite: language, target: rust}
+          - {name: Language and corpus (C), suite: language, target: c}
+          - {name: Language and corpus (Swift), suite: language, target: swift}
           - {name: Native contracts and browser, suite: contracts}
           - {name: Integration 1 of 4, suite: integration, shard: 0}
           - {name: Integration 2 of 4, suite: integration, shard: 1}
@@ -29,7 +36,6 @@ jobs:
           - {name: Float differential all targets, suite: floats}
           - {name: Naming modes all targets, suite: naming}
           - {name: Runtime conformance all targets, suite: runtime}
-          - {name: Swift language and corpus, suite: swift}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -80,7 +86,7 @@ jobs:
       - name: Prepare pinned native and browser test dependencies
         run: bash scripts/ci-bootstrap.sh --with-browser-deps
       - name: Run selected checks
-        run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --shard '${{ matrix.shard || 0 }}'
+        run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --shard '${{ matrix.shard || 0 }}' --target '${{ matrix.target || '' }}'
 
   # Preserve the existing required check name and fail if any shard fails or skips.
   test:

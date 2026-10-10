@@ -13,13 +13,17 @@ MODULE = 'github.com/eugenioenko/goalchemy'
 INTEGRATION = MODULE + '/tests/integration'
 INTEGRATION_SHARDS = 4
 SPECIAL_PACKAGES = {
-    'fixtures': [MODULE + '/tests/language', MODULE + '/tests/corpus'],
+    'language': [MODULE + '/tests/language', MODULE + '/tests/corpus'],
     'contracts': [MODULE + '/tests/contracts'],
     'integration': [INTEGRATION],
 }
 FLOAT_FIXTURES = ('floats', 'co_floats', 'floats_panic32', 'floats_panic64',
                   'floats_panic_named32', 'floats_panic_named64')
-SUITES = ('core', 'fixtures', 'contracts', 'integration', 'floats', 'naming', 'runtime', 'swift')
+SUITES = ('core', 'language', 'contracts', 'integration', 'floats', 'naming', 'runtime')
+LANGUAGE_TARGET_SOURCES = ('tests/language/language_test.go', 'tests/corpus/corpus_test.go')
+TARGET_NAMES = {'go': 'Go', 'typescript': 'TypeScript', 'python': 'Python', 'java': 'Java',
+                'csharp': 'C#', 'rust': 'Rust', 'c': 'C', 'swift': 'Swift'}
+WORKFLOW = ROOT / '.github/workflows/ci.yml'
 
 
 def output(command):
@@ -54,6 +58,29 @@ def integration_shard(index):
     return selected
 
 
+def language_targets():
+    lists = []
+    for source in LANGUAGE_TARGET_SOURCES:
+        match = re.search(r'^var targets = \[\]string\{([^}]*)\}', (ROOT / source).read_text(), re.M)
+        if not match:
+            raise RuntimeError('missing targets list in ' + source)
+        lists.append(re.findall(r'"([^"]+)"', match.group(1)))
+    if any(targets != lists[0] for targets in lists) or len(lists[0]) != len(set(lists[0])):
+        raise RuntimeError('language and corpus target lists differ or repeat')
+    return lists[0]
+
+
+def language_jobs():
+    jobs = re.findall(r'\{name: ([^,]+), suite: language, target: ([\w]+)\}', WORKFLOW.read_text())
+    targets = language_targets()
+    if sorted(t for _, t in jobs) != sorted(targets):
+        raise RuntimeError('language jobs must cover every fixture and corpus target exactly once')
+    for name, target in jobs:
+        if target not in TARGET_NAMES or name != 'Language and corpus (' + TARGET_NAMES[target] + ')':
+            raise RuntimeError('language job has an unexpected name: ' + name)
+    return [target for _, target in jobs]
+
+
 def verify_plan():
     groups = package_groups()
     assigned = [p for group in groups.values() for p in group]
@@ -63,27 +90,33 @@ def verify_plan():
     shards = [names[i::INTEGRATION_SHARDS] for i in range(INTEGRATION_SHARDS)]
     if not all(shards) or sorted(n for shard in shards for n in shard) != names:
         raise RuntimeError('integration shards do not cover every test exactly once')
-    return {'short_suite_packages': groups, 'integration_shards': shards}
+    return {'short_suite_packages': groups, 'integration_shards': shards, 'language_targets': language_jobs()}
 
 
-def plan(suite, shard):
+def plan(suite, shard, target=None):
     environment = {}
     if suite == 'core':
         commands = [['go', 'vet', './...'],
                     ['go', 'run', './cmd/goalchemy', 'spec', 'generate', '-check'],
                     ['go', 'test', '-short', '-v', '-timeout', '30m', *package_groups()['core']]]
-    elif suite in ('fixtures', 'contracts'):
+    elif suite == 'language':
+        if target not in language_targets():
+            raise ValueError('language suite needs --target, one of: ' + ', '.join(language_targets()))
+        environment['GOALCHEMY_TEST_TARGETS'] = target
+        parallel = ['-parallel', '2'] if target == 'swift' else []
+        commands = [['go', 'test', '-v', *parallel, '-timeout', '40m', './tests/language',
+                     '-run', '^TestFixtures$', '-count=1'],
+                    ['go', 'test', '-v', *parallel, '-timeout', '40m', './tests/corpus',
+                     '-run', '^TestRegressions$', '-count=1']]
+        if target == language_targets()[0]:
+            commands.append(['go', 'test', '-v', '-timeout', '15m', './tests/language',
+                             '-run', '^TestFeatureManifest$', '-count=1'])
+    elif suite == 'contracts':
         commands = [['go', 'test', '-short', '-v', '-timeout', '30m', *SPECIAL_PACKAGES[suite]]]
     elif suite == 'integration':
         selected = integration_shard(shard)
         pattern = '^(?:' + '|'.join(re.escape(name) for name in selected) + ')$'
         commands = [['go', 'test', '-short', '-v', '-timeout', '30m', '-run', pattern, INTEGRATION]]
-    elif suite == 'swift':
-        environment['GOALCHEMY_TEST_TARGETS'] = 'go,swift'
-        commands = [['go', 'test', '-v', '-parallel', '2', '-timeout', '30m', './tests/language',
-                     '-run', '^TestFixtures$', '-count=1'],
-                    ['go', 'test', '-v', '-parallel', '2', '-timeout', '30m', './tests/corpus',
-                     '-run', '^TestRegressions$', '-count=1']]
     elif suite == 'floats':
         for fixture in FLOAT_FIXTURES:
             if not (ROOT / 'tests/language/testdata' / fixture / 'main.go').is_file():
@@ -98,13 +131,14 @@ def plan(suite, shard):
         # No -short or target filter: every canonical case runs on every harness.
         commands = [['go', 'test', '-v', '-timeout', '15m', './tests/contracts',
                      '-run', '^TestTargetConformance$', '-count=1']]
-    return {'suite': suite, 'shard': shard, 'environment': environment, 'commands': commands}
+    return {'suite': suite, 'shard': shard, 'target': target, 'environment': environment, 'commands': commands}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('suite', nargs='?', choices=SUITES)
     parser.add_argument('--shard', type=int, default=0)
+    parser.add_argument('--target', default=None, help='language suite target')
     parser.add_argument('--plan', action='store_true', help='print commands without running checks')
     parser.add_argument('--verify-plan', action='store_true', help='audit package and test coverage')
     args = parser.parse_args()
@@ -115,7 +149,7 @@ def main():
         parser.error('provide a suite or --verify-plan')
     if args.suite == 'core' and not args.plan:
         print(json.dumps(verify_plan(), indent=2), flush=True)
-    selected = plan(args.suite, args.shard)
+    selected = plan(args.suite, args.shard, args.target or None)
     print(json.dumps(selected, indent=2), flush=True)
     if args.plan:
         return
