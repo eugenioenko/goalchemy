@@ -1,6 +1,6 @@
 # CI prerequisites and coverage
 
-Linux x86_64 CI runs nineteen independent jobs in parallel. The original
+Linux x86_64 CI runs twenty independent jobs in parallel. The original
 `go test -short ./...` coverage is partitioned into core packages, native
 contracts/browser checks, and four integration shards. Float differential
 tests, readable/compact naming tests, and unshort runtime conformance each run
@@ -9,9 +9,13 @@ corpus (<target>)" job that runs every language fixture and corpus regression
 for that target without short mode; the Go job also runs the feature manifest
 check. "Examples and reproducible output all targets" runs `TestExamples` and
 `TestReproducibleOutput` without short mode, so every example program and the
-byte-for-byte reproducibility check cover all eight targets. Short mode still limits the example matrices, and retains the native
-integration, actual Chromium, and focused C ASan/UBSan checks. The full
-sanitizer/corpus/memory matrices keep their existing short-mode behavior.
+byte-for-byte reproducibility check cover all eight targets. "Memory and
+sanitizers" runs `tests/memory` (Rust and C heap stress) and `tests/sanitize`
+(every language fixture and corpus regression on C built with the pinned
+clang's address and undefined-behavior sanitizers) without short mode; a
+missing pinned clang fails the job rather than skipping it. The short-mode jobs
+retain the native integration, actual Chromium, and focused C ASan/UBSan
+checks.
 
 `scripts/ci-suite.py` discovers packages with `go list ./...`; packages outside
 the explicitly separated suites join the core job automatically. Integration
@@ -81,7 +85,7 @@ go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=
 ```
 
 To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
-`contracts`, `examples`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
+`contracts`, `examples`, `memory`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
 use `python3 scripts/ci-suite.py language --target <target>`, for example
 `--target rust`. Integration jobs use `python3 scripts/ci-suite.py integration
 --shard 0` through `--shard 3`. Add `--plan` to inspect commands without executing them,

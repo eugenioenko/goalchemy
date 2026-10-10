@@ -16,10 +16,11 @@ SPECIAL_PACKAGES = {
     'language': [MODULE + '/tests/language', MODULE + '/tests/corpus'],
     'contracts': [MODULE + '/tests/contracts'],
     'integration': [INTEGRATION],
+    'memory': [MODULE + '/tests/memory', MODULE + '/tests/sanitize'],
 }
 FLOAT_FIXTURES = ('floats', 'co_floats', 'floats_panic32', 'floats_panic64',
                   'floats_panic_named32', 'floats_panic_named64')
-SUITES = ('core', 'language', 'contracts', 'integration', 'examples', 'floats', 'naming', 'runtime')
+SUITES = ('core', 'language', 'contracts', 'integration', 'examples', 'memory', 'floats', 'naming', 'runtime')
 LANGUAGE_TARGET_SOURCES = ('tests/language/language_test.go', 'tests/corpus/corpus_test.go')
 TARGET_NAMES = {'go': 'Go', 'typescript': 'TypeScript', 'python': 'Python', 'java': 'Java',
                 'csharp': 'C#', 'rust': 'Rust', 'c': 'C', 'swift': 'Swift'}
@@ -120,6 +121,8 @@ def plan(suite, shard, target=None):
     elif suite == 'examples':
         commands = [['go', 'test', '-v', '-timeout', '40m', INTEGRATION,
                      '-run', '^(?:TestExamples|TestReproducibleOutput)$', '-count=1']]
+    elif suite == 'memory':
+        commands = [['go', 'test', '-v', '-timeout', '30m', *SPECIAL_PACKAGES[suite], '-count=1']]
     elif suite == 'floats':
         for fixture in FLOAT_FIXTURES:
             if not (ROOT / 'tests/language/testdata' / fixture / 'main.go').is_file():
