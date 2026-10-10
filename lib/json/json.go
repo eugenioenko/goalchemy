@@ -20,6 +20,10 @@ const (
 	MarshalerFailed
 	MarshalerSyntax
 	Other
+	UnmarshalType = iota + 4
+	UnmarshalTypeSyntax
+	Syntax
+	InvalidUnmarshal
 )
 
 // Marshal returns the JSON encoding of v. A failure is reported by kind with
@@ -35,6 +39,39 @@ func Marshal(v any) ([]byte, int, string, string, string, int64, error) {
 func MarshalIndent(v any, prefix, indent string) ([]byte, int, string, string, string, int64, error) {
 	b, err := json.MarshalIndent(v, prefix, indent)
 	return classify(b, err)
+}
+
+// Unmarshal decodes data into v. A failure is reported by kind with the
+// type error's value, type, offset, struct and field, the syntax error
+// message, and the underlying error, so std/encoding/json can rebuild its
+// own error values. Errors returned by methods of v are passed through.
+func Unmarshal(data []byte, v any) (int, string, string, int64, string, string, string, error) {
+	err := json.Unmarshal(data, v)
+	if err == nil {
+		return OK, "", "", 0, "", "", "", nil
+	}
+	var ute *json.UnmarshalTypeError
+	if errors.As(err, &ute) && error(ute) == err {
+		cause := errors.Unwrap(ute)
+		var se *json.SyntaxError
+		if errors.As(cause, &se) && error(se) == cause {
+			return UnmarshalTypeSyntax, ute.Value, ute.Type.String(), ute.Offset, ute.Struct, ute.Field, se.Error(), nil
+		}
+		return UnmarshalType, ute.Value, ute.Type.String(), ute.Offset, ute.Struct, ute.Field, "", cause
+	}
+	var se *json.SyntaxError
+	if errors.As(err, &se) && error(se) == err {
+		return Syntax, "", "", se.Offset, "", "", se.Error(), nil
+	}
+	var iue *json.InvalidUnmarshalError
+	if errors.As(err, &iue) && error(iue) == err {
+		name := ""
+		if iue.Type != nil {
+			name = iue.Type.String()
+		}
+		return InvalidUnmarshal, "", name, 0, "", "", "", nil
+	}
+	return Other, "", "", 0, "", "", "", err
 }
 
 func classify(b []byte, err error) ([]byte, int, string, string, string, int64, error) {

@@ -705,6 +705,17 @@ func Encode(v Value) ([]byte, error) { return EncodeWithLimits(v, DefaultLimits(
 // passed to, or is a field of a value passed to, json.Marshal.
 func (v Value) MarshalJSON() ([]byte, error) { return Encode(v) }
 
+// UnmarshalJSON sets *v to Parse(data), so a Value can be the target of, or
+// a field of the target of, json.Unmarshal.
+func (v *Value) UnmarshalJSON(data []byte) error {
+	x, err := Parse(data)
+	if err != nil {
+		return err
+	}
+	*v = x
+	return nil
+}
+
 // EncodeWithLimits returns the compact JSON encoding of v. Strings are
 // escaped exactly as encoding/json.Marshal escapes them, including <, > and
 // & as <, > and &, U+2028 and U+2029, and invalid UTF-8 as
