@@ -2,6 +2,7 @@ package rt
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -111,6 +112,14 @@ func errorValueType(t reflect.Type, seen map[reflect.Type]bool) bool {
 // Queued cancellation never changes the active owner. Active cancellation is
 // applied at driver boundaries and wakes an owner waiting for host operations.
 func RunLibrary(ctx context.Context, callbacks Callbacks, build func(Context) Frame, reset func(), own func([]any) []any) (rv []any, err error) {
+	var ownAll func(*Instance, []any) []any
+	if own != nil {
+		ownAll = func(_ *Instance, rv []any) []any { return own(rv) }
+	}
+	return runLibrary(ctx, callbacks, &LibraryState{Reset: reset}, nil, func(c Context, _ bool) Frame { return build(c) }, ownAll, nil)
+}
+
+func runLibrary(ctx context.Context, callbacks Callbacks, state *LibraryState, handles []*Handle, build func(Context, bool) Frame, own func(*Instance, []any) []any, closing *Handle) (rv []any, err error) {
 	// Covers native boundary failures before scheduler construction/reservation.
 	defer func() {
 		if recover() != nil {
@@ -126,28 +135,95 @@ func RunLibrary(ctx context.Context, callbacks Callbacks, build func(Context) Fr
 	for name, cb := range callbacks {
 		registry[name] = cb
 	}
+	var stop <-chan struct{}
+	var self *Handle
+	for _, h := range handles {
+		if h != nil {
+			self = h
+			break
+		}
+	}
+	if self != nil && self != closing {
+		stop = self.closing
+		select {
+		case <-stop:
+			return nil, &LibraryError{Kind: "closed"}
+		default:
+		}
+	}
 	select {
 	case libraryGate <- struct{}{}:
 	case <-ctx.Done():
 		return nil, &LibraryError{Kind: "canceled", Cause: ctx.Err()}
+	case <-stop:
+		return nil, &LibraryError{Kind: "closed"}
 	}
 	defer func() { <-libraryGate }()
 	if ctx.Err() != nil {
 		return nil, &LibraryError{Kind: "canceled", Cause: ctx.Err()}
 	}
+	var inst *Instance
+	for _, h := range handles {
+		if h == nil {
+			continue
+		}
+		if h.released || (h != closing && h.isClosed()) {
+			return nil, &LibraryError{Kind: "closed"}
+		}
+		if inst != nil && h.inst != inst {
+			return nil, &LibraryError{Kind: "instance_mismatch"}
+		}
+		inst = h.inst
+	}
+	fresh := inst == nil
+	if fresh {
+		inst = &Instance{objects: map[any]*instanceEntry{}}
+	} else if inst.poisoned {
+		return nil, &LibraryError{Kind: "poisoned"}
+	}
+	if self != nil && self != closing {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		if !self.setActive(cancel) {
+			return nil, &LibraryError{Kind: "closed"}
+		}
+		defer self.setActive(nil)
+	}
 	sched.shutdown()
 	s := &scheduler{rng: seed(), nextID: 1, harness: true, host: true, epoch: time.Now(), library: true}
 	sched = s
 	s.callbacks = registry
+	keep := false
 	defer func() {
+		p := recover()
+		if p != nil && !fresh {
+			inst.poisoned = true
+		}
+		if keep && p == nil {
+			if s.live > 0 {
+				LibraryWarn(fmt.Sprintf("%d goroutine(s) still running when a handle call returned were abandoned", s.live))
+			}
+			if state.Save != nil {
+				inst.globals = state.Save()
+			}
+			inst.retire = append(inst.retire, s.retire...)
+			s.retire = nil
+		}
 		s.shutdown()
 		s.callbacks = nil
-		if reset != nil {
-			reset()
+		if state.Reset != nil {
+			state.Reset()
+		}
+		if closing != nil {
+			closing.release()
+		}
+		if (keep || closing != nil) && inst.live == 0 {
+			inst.retireNow()
 		}
 		// No executable or old library owner survives retirement.
 		sched = &scheduler{rng: 1}
-		if p := recover(); p != nil {
+		if p != nil {
 			rv = nil
 			switch p.(type) {
 			case fatalPanicSignal:
@@ -161,6 +237,12 @@ func RunLibrary(ctx context.Context, callbacks Callbacks, build func(Context) Fr
 			}
 		}
 	}()
+	if !fresh && state.Load != nil {
+		state.Load(inst.globals)
+	}
+	if !fresh {
+		keep = true
+	}
 	root, cancel := StdContextWithCancel(StdContextBackground())
 	defer cancel()
 	if deadline, ok := ctx.Deadline(); ok {
@@ -191,7 +273,7 @@ func RunLibrary(ctx context.Context, callbacks Callbacks, build func(Context) Fr
 		}
 	}()
 	defer func() { close(watchDone); watch.Wait() }()
-	frame := build(root)
+	frame := build(root, fresh)
 	main := &Task{Frame: frame, deferTarget: -1}
 	s.main = main
 	s.ready(main)
@@ -204,7 +286,10 @@ func RunLibrary(ctx context.Context, callbacks Callbacks, build func(Context) Fr
 		return nil, &LibraryError{Kind: "canceled", Cause: ctx.Err()}
 	}
 	if own != nil {
-		rv = own(rv)
+		rv = own(inst, rv)
+	}
+	if fresh && inst.live > 0 {
+		keep = true
 	}
 	return rv, nil
 }

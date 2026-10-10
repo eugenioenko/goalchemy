@@ -81,9 +81,13 @@ _queue = []
 
 class LibraryOperation:
     def __init__(self):
-        self._future=Future(); self._cancel=threading.Event(); self._mailbox=None
+        self._future=Future(); self._cancel=threading.Event(); self._mailbox=None; self._user_cancel=False
     def cancel(self):
         if self._future.done(): return False
+        self._user_cancel=True
+        self._internal_cancel()
+        return True
+    def _internal_cancel(self):
         self._cancel.set()
         with _condition: _condition.notify_all()
         m=self._mailbox
@@ -109,7 +113,100 @@ class LibraryOperation:
             raise
     def __await__(self): return self.wait().__await__()
 
-def library_submit(factory, output, reset, inputs, options=None):
+def _library_warn_default(message):
+    import sys
+    try: sys.stderr.write('goalchemy: warning: '+message+'\n')
+    except BaseException: pass
+
+library_warn = _library_warn_default
+
+def set_library_warn(fn):
+    """Replaces the sink for boundary warnings such as leaked handles."""
+    global library_warn
+    library_warn = fn
+
+class Instance:
+    """Persistent source state behind a family of handles; only touched while
+    holding the library reservation."""
+    def __init__(self):
+        self.globals=None; self.native_keys={}; self.native_next_key=0; self.domain=object()
+        self.objects={}; self.live=0; self.poisoned=False; self.retired=False
+    def retire_now(self):
+        if self.retired: return
+        self.retired=True; self.globals=None; self.objects.clear(); self.native_keys.clear()
+
+class Handle:
+    """The host's reference to one source object of an instance."""
+    def __init__(self, inst, obj, name):
+        self.inst=inst; self.obj=obj; self.name=name
+        self.closed=False; self.released=False; self.active=None
+    def release(self):
+        if self.released: return
+        self.released=True
+        inst=self.inst
+        e=inst.objects.get(id(self.obj))
+        if e is not None and e[0] is self: del inst.objects[id(self.obj)]
+        inst.live-=1; self.obj=None
+        if inst.live==0: inst.retire_now()
+
+def _finalize(h):
+    with _condition:
+        if h.closed: return
+        h.closed=True
+    def worker():
+        reserve()
+        try:
+            if not h.released:
+                library_warn(h.name+' handle was not closed; releasing it without running Close')
+                h.release()
+        finally: unreserve()
+    threading.Thread(target=worker,name='goalchemy-finalize',daemon=True).start()
+
+def library_wrap(inst, obj, name, make):
+    """Returns the host wrapper for obj, reusing the live wrapper of the same
+    source object so host identity follows source identity."""
+    import weakref
+    if obj is None: return None
+    e=inst.objects.get(id(obj))
+    if e is not None and not e[0].closed:
+        w=e[1]()
+        if w is not None: return w
+    h=Handle(inst,obj,name); w=make(h)
+    inst.objects[id(obj)]=(h,weakref.ref(w)); inst.live+=1
+    weakref.finalize(w,_finalize,h)
+    return w
+
+def library_failed(e):
+    op=LibraryOperation(); op._future.set_exception(e); return op
+
+def library_obj(h):
+    return None if h is None else h.obj
+
+def library_handle(v, cls):
+    if v is None: return None
+    if type(v) is not cls: raise LibraryFailure('invalid_argument')
+    return v._h
+
+def library_close(h, state, factory, failure):
+    """Fails calls queued on h, cancels its active call, runs the source Close
+    when factory is given and the instance is healthy, then releases h."""
+    with _condition:
+        if h.closed:
+            op=LibraryOperation(); op._future.set_result(None); return op
+        h.closed=True
+        active=h.active
+        _condition.notify_all()
+    if active is not None: active._internal_cancel()
+    if factory is None:
+        from ..runtime.task_spawn import sync
+        factory=lambda ctx,owned,fresh: sync(lambda: [None])
+    def output(rv, inst):
+        err=failure(rv[0]) if rv else None
+        if err is not None: raise err
+        return None
+    return library_submit(factory, output, state, [], None, [h], closing=h)
+
+def library_submit(factory, output, state, inputs, options=None, handles=(), closing=None):
     from ..runtime.task_spawn import snapshot, _drive, sched
     from ..runtime.std_context_background import std_context_background
     from ..runtime.std_context_with_cancel import std_context_with_cancel
@@ -126,26 +223,52 @@ def library_submit(factory, output, reset, inputs, options=None):
         op._future.set_exception(e); return op
     except BaseException as e:
         op._future.set_exception(LibraryFailure('invalid_argument')); return op
-    with _condition: _queue.append(op)
+    handles=list(handles)
+    me=next((h for h in handles if h is not None), None)
+    if me is closing: me=None
+    with _condition:
+        if me is not None and me.closed:
+            op._future.set_exception(LibraryFailure('closed')); return op
+        _queue.append(op)
     def worker():
-        failure=None; result=None; acquired=False; state=None
+        failure=None; result=None; acquired=False; state_s=None; inst=None; fresh=True; keep=False; left=[0]
         try:
             with _condition:
                 while _queue[0] is not op:
                     if op._cancel.is_set(): raise LibraryFailure('canceled', {'CauseCategory':b'canceled'})
+                    if me is not None and me.closed: raise LibraryFailure('closed')
                     _condition.wait()
             if op._cancel.is_set(): raise LibraryFailure('canceled', {'CauseCategory':b'canceled'})
             reserve(); acquired=True
+            for h in handles:
+                if h is None: continue
+                if h.released or (h is not closing and h.closed): raise LibraryFailure('closed')
+                if inst is not None and h.inst is not inst: raise LibraryFailure('instance_mismatch')
+                inst=h.inst
+            fresh=inst is None
+            if fresh: inst=Instance()
+            elif inst.poisoned: raise LibraryFailure('poisoned')
+            keep=not fresh
+            if me is not None:
+                with _condition:
+                    if me.closed: raise LibraryFailure('closed')
+                    me.active=op
+            if not fresh and state.load is not None: state.load(inst.globals)
             def start():
-                nonlocal state
-                s=sched();state=s;s.native_keys={};s.native_next_key=0;s.library_callbacks=callbacks
+                nonlocal state_s
+                s=sched();state_s=s;s.native_keys=inst.native_keys;s.native_next_key=inst.native_next_key;s.domain=inst.domain;s.library_callbacks=callbacks
                 op._mailbox=s.mailbox
                 ctx,cancel=std_context_with_cancel(std_context_background())
                 s.library_poll=lambda: cancel() if op._cancel.is_set() else None
                 s.library_poll()
-                return factory(ctx,owned)
+                return factory(ctx,owned,fresh)
             def owned_output(rv):
-                value=output(rv)
+                nonlocal keep
+                if not fresh and op._cancel.is_set(): raise LibraryFailure('canceled', {'CauseCategory':b'canceled'})
+                value=output(rv,inst)
+                if fresh and inst.live>0: keep=True
+                s=state_s
+                left[0]=sum(1 for t in s.tasks if t is not s.main and not t.done)
                 if op._cancel.is_set(): raise LibraryFailure('canceled', {'CauseCategory':b'canceled'})
                 return value
             result=_drive(start,real=True,library=True,convert=owned_output)
@@ -157,17 +280,39 @@ def library_submit(factory, output, reset, inputs, options=None):
             failure=LibraryFailure('host_fault')
         finally:
             try:
-                if state is not None:
-                    state.check();state.native_keys.clear();state.library_callbacks={}
-                if acquired: reset()
+                poisoned=failure is not None and failure.kind in ('source_panic','source_fatal','host_fault')
+                if poisoned and not fresh and inst is not None: inst.poisoned=True
+                if state_s is not None:
+                    state_s.check()
+                    if keep and not inst.poisoned:
+                        inst.native_next_key=state_s.native_next_key
+                        if state.save is not None: inst.globals=state.save()
+                        if left[0]>0: library_warn('%d goroutine(s) still running when a handle call returned were abandoned' % left[0])
+                    else:
+                        state_s.native_keys.clear()
+                    state_s.native_keys={};state_s.library_callbacks={};state_s.domain=state_s
+                if acquired:
+                    if keep: state.zero()
+                    else: state.reset()
+                    if closing is not None: closing.release()
+                    elif keep and inst.live==0: inst.retire_now()
             except BaseException as e: failure=LibraryFailure('host_fault')
             finally:
                 owned.clear();callbacks.clear();op._mailbox=None
+                if me is not None and me.active is op: me.active=None
                 if acquired: unreserve()
                 with _condition:
                     _queue.remove(op);_condition.notify_all()
         # Native continuations execute outside reservation and queue locks.
-        if failure is not None: op._future.set_exception(failure)
+        if failure is not None:
+            if closing is not None and failure.kind=='poisoned':
+                reserve()
+                try: closing.release()
+                finally: unreserve()
+                op._future.set_result(None); return
+            if me is not None and me.closed and failure.kind=='canceled' and not op._user_cancel:
+                failure=LibraryFailure('canceled', {'CauseCategory':b'closed'})
+            op._future.set_exception(failure)
         else: op._future.set_result(result)
     try: threading.Thread(target=worker,name='goalchemy-library',daemon=True).start()
     except BaseException:
@@ -176,6 +321,11 @@ def library_submit(factory, output, reset, inputs, options=None):
         op._future.set_exception(LibraryFailure('host_fault'))
     return op
 
+class LibraryState:
+    """Saves, restores and zeroes the generated source globals. zero leaves
+    canonical field references intact for a persistent instance."""
+    def __init__(self, reset, zero=None, save=None, load=None):
+        self.reset=reset; self.zero=zero or reset; self.save=save; self.load=load
 
 def library_float(v, bits):
     if type(v) not in (float, int):

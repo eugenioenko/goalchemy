@@ -92,6 +92,8 @@ type scheduler struct {
 	callbacks any
 	boundary  func()
 	retire    []func()
+	// live counts spawned tasks that have not finished.
+	live int
 }
 
 // HostFault is an adapter implementation failure, never a source panic or
@@ -455,6 +457,9 @@ func (s *scheduler) finish(t *Task, f Frame) {
 	t.Frame = parent
 	if parent == nil {
 		t.done = true
+		if t != s.main {
+			s.live--
+		}
 		if p != nil {
 			if s.harness {
 				panic(fatalPanicSignal{p})
@@ -634,6 +639,7 @@ func Spawn(f Frame) {
 	s := sched
 	t := &Task{id: s.nextID, Frame: f, deferTarget: -1}
 	s.nextID++
+	s.live++
 	s.ready(t)
 }
 

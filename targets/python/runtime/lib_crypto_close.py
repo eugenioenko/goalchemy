@@ -28,7 +28,7 @@ def native_retire(s):
 
 def material(k):
     s=sched()
-    if type(k) is not Key or k.owner is not s: raise Reject('crypto: invalid input or key')
+    if type(k) is not Key or k.owner is not s.domain: raise Reject('crypto: invalid input or key')
     if k.identity not in s.native_keys: raise Reject('crypto: key is closed')
     return s.native_keys[k.identity]
 
@@ -36,7 +36,7 @@ def key(v):
     s=sched()
     if not hasattr(s,'native_keys'): native_begin({})
     s.native_next_key+=1;s.native_keys[s.native_next_key]=v
-    return Key(s,s.native_next_key)
+    return Key(s.domain,s.native_next_key)
 
 def byte_input(v,limit=MAX):
     if type(v) is not Slice or v.l>limit: raise Reject('crypto: invalid input or key')
@@ -167,6 +167,6 @@ def crypto_call(t,op,args,kind):
 def lib_crypto_close(t,k):
     sched().check()
     if k is not None:
-        if type(k) is not Key or k.owner is not sched():raise HostFault('foreign native key close')
+        if type(k) is not Key or k.owner is not sched().domain:raise HostFault('foreign native key close')
         sched().native_keys.pop(k.identity,None)
     t.rv=[]

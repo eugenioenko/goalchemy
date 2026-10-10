@@ -20,8 +20,9 @@ and Chromium147.0.7727.15. Browser applications bundle the ESM entry normally.
 ## Values and initialization
 
 This boundary supports bounded value trees: structs, arrays, slices and scalar
-values. Arbitrary pointers, opaque key handles, interfaces as arguments,
-variadic exports and persistent source clients remain unsupported. Struct
+values. Pointers to exported root structs cross as persistent
+[handles](library-handles.md). Other pointers, opaque key handles, interfaces as
+arguments and variadic exports remain unsupported. Struct
 properties use their exported source spelling. Omitted properties have source
 zero values. Source int and int64 use signed64 bigint; narrower integers use
 checked numbers. Conversion rejects rounding, overflow and malformed values.
