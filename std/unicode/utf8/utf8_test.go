@@ -59,6 +59,9 @@ func TestBytesMatchStd(t *testing.T) {
 		if utf8.RuneCount(b) != stdutf8.RuneCount(b) || utf8.RuneCountInString(s) != stdutf8.RuneCountInString(s) {
 			t.Fatalf("RuneCount(%x)", b)
 		}
+		if utf8.FullRune(b) != stdutf8.FullRune(b) || utf8.FullRuneInString(s) != stdutf8.FullRuneInString(s) {
+			t.Fatalf("FullRune(%x)", b)
+		}
 		if utf8.Valid(b) != stdutf8.Valid(b) || utf8.ValidString(s) != stdutf8.ValidString(s) {
 			t.Fatalf("Valid(%x)", b)
 		}
