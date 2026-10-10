@@ -227,7 +227,7 @@ var Runners = map[string]Runner{
 		}, "sh", "run.sh")
 	},
 	"rust": func(out string) (Observation, error) {
-		return run(out, 5*time.Minute, "sh", "run.sh")
+		return run(out, 15*time.Minute, "sh", "run.sh")
 	},
 }
 
