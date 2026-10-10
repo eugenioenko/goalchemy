@@ -111,12 +111,31 @@ int gcn_ecdh(void *private,void *public,uint8_t *out,size_t *size) {
 uint32_t gcn_crc32(const uint8_t *bytes,size_t n) {uLong crc=crc32(0L,Z_NULL,0);while(n){uInt chunk=n>UINT_MAX ? UINT_MAX:(uInt)n;crc=crc32(crc,bytes,chunk);bytes+=chunk;n-=chunk;}return (uint32_t)crc;}
 
 struct gcn_header { char *name;char *value;size_t sequence; };
-struct gcn_http { atomic_int canceled;uint8_t *body;size_t length,limit;struct gcn_header *headers;size_t count,header_bytes;int status;const char *error; };
+struct gcn_http { atomic_int canceled;uint8_t *body;size_t length,limit;struct gcn_header *headers;size_t count,header_bytes;int status;const char *error;int auto_gzip,decoded,line_status,z_active,z_done;z_stream z; };
 gcn_http *gcn_http_create(void){gcn_http *http=calloc(1,sizeof(*http));if(http)atomic_init(&http->canceled,0);return http;}
 void gcn_http_cancel(gcn_http *http){if(http)atomic_store(&http->canceled,1);}
 static int http_progress(void *data,curl_off_t a,curl_off_t b,curl_off_t c,curl_off_t d){(void)a;(void)b;(void)c;(void)d;return atomic_load(&((gcn_http *)data)->canceled);}
+static int http_append(gcn_http *http,const uint8_t *data,size_t n){
+    if(n>http->limit-http->length){http->error="http: response body exceeds limit";return 0;}
+    uint8_t *out=realloc(http->body,http->length+n+1);if(!out){http->error="http: allocation failed";return 0;}
+    http->body=out;memcpy(out+http->length,data,n);http->length+=n;return 1;
+}
+static void http_gzip_end(gcn_http *http){if(http->z_active){inflateEnd(&http->z);http->z_active=0;}}
+static int http_gunzip(gcn_http *http,const uint8_t *data,size_t n){
+    if(!http->z_active){memset(&http->z,0,sizeof http->z);if(inflateInit2(&http->z,16+MAX_WBITS)!=Z_OK){http->error="http: allocation failed";return 0;}http->z_active=1;http->z_done=0;}
+    uint8_t out[16384];http->z.next_in=(Bytef *)data;http->z.avail_in=(uInt)n;
+    do{
+        if(http->z_done){if(!http->z.avail_in)break;if(inflateReset(&http->z)!=Z_OK){http->error="http: transport failure";return 0;}http->z_done=0;}
+        http->z.next_out=out;http->z.avail_out=sizeof out;int r=inflate(&http->z,Z_NO_FLUSH);size_t got=sizeof out-http->z.avail_out;
+        if(got && !http_append(http,out,got))return 0;
+        if(r==Z_STREAM_END)http->z_done=1;else if(r==Z_BUF_ERROR && !got)break;else if(r!=Z_OK && r!=Z_BUF_ERROR){http->error="http: transport failure";return 0;}
+    }while(http->z.avail_in || !http->z.avail_out);
+    return 1;
+}
 static size_t http_body(char *data,size_t size,size_t count,void *opaque){
     gcn_http *http=opaque;if(count && size>SIZE_MAX/count)return 0;size_t n=size*count;
+    if(n>UINT_MAX){http->error="http: transport failure";return 0;}
+    if(http->decoded)return http_gunzip(http,(const uint8_t *)data,n) ? n:0;
     if(n>http->limit-http->length){http->error="http: response body exceeds limit";return 0;}
     uint8_t *out=realloc(http->body,http->length+n+1);if(!out){http->error="http: allocation failed";return 0;}
     http->body=out;memcpy(out+http->length,data,n);http->length+=n;return n;
@@ -126,8 +145,13 @@ static char *http_string(const char *p,size_t n){char *s=malloc(n+1);if(!s)retur
 static size_t http_header(char *data,size_t size,size_t count,void *opaque){
     gcn_http *http=opaque;if(count && size>SIZE_MAX/count)return 0;size_t n=size*count;
     http->header_bytes+=n;if(http->header_bytes>65536){http->error="http: response headers exceed limit";return 0;}
-    if(n>=5 && !memcmp(data,"HTTP/",5)){http_clear_headers(http);return n;}
-    if(n<=2)return n;
+    if(n>=5 && !memcmp(data,"HTTP/",5)){http_clear_headers(http);http_gzip_end(http);http->decoded=0;http->line_status=0;if(n>=12)for(size_t i=9;i<12;i++)http->line_status=http->line_status*10+(data[i]-'0');return n;}
+    if(n<=2){
+        const char *encoding=NULL,*length=NULL;for(size_t i=0;i<http->count;i++){if(!encoding && !strcmp(http->headers[i].name,"Content-Encoding"))encoding=http->headers[i].value;if(!length && !strcmp(http->headers[i].name,"Content-Length"))length=http->headers[i].value;}
+        int st=http->line_status,bodyless=st==204||st==304||(st>=100&&st<200)||(length && !strcmp(length,"0"));
+        http->decoded=http->auto_gzip && encoding && !strcasecmp(encoding,"gzip") && !bodyless;
+        return n;
+    }
     char *colon=memchr(data,':',n);if(!colon)return n;
     size_t name_size=(size_t)(colon-data);const char *start=colon+1,*end=data+n;
     while(start<end && (*start==' ' || *start=='\t'))start++;
@@ -141,20 +165,22 @@ static size_t http_header(char *data,size_t size,size_t count,void *opaque){
 }
 static int header_compare(const void *a,const void *b){const struct gcn_header *x=a,*y=b;int cmp=strcmp(x->name,y->name);return cmp ? cmp:x->sequence<y->sequence ? -1:x->sequence>y->sequence;}
 int gcn_http_run(gcn_http *http,const char *method,const char *url,const char *const *headers,size_t header_count,const uint8_t *body,size_t body_size,size_t limit,int64_t timeout){
-    CURL *curl=curl_easy_init();struct curl_slist *list=NULL;int ok=0,auto_gzip=1;if(!curl){http->error="http: transport initialization failed";return 0;}http->limit=limit;
-    for(size_t i=0;i<header_count;i+=2){size_t n=strlen(headers[i])+strlen(headers[i+1])+3;char *header=malloc(n);if(!header){http->error="http: allocation failed";goto done;}snprintf(header,n,"%s: %s",headers[i],headers[i+1]);struct curl_slist *next=curl_slist_append(list,header);free(header);if(!next){http->error="http: allocation failed";goto done;}list=next;if(!strcasecmp(headers[i],"accept-encoding"))auto_gzip=0;}
+    CURL *curl=curl_easy_init();struct curl_slist *list=NULL;int ok=0,auto_gzip=1,seen_encoding=0,seen_range=0;if(!curl){http->error="http: transport initialization failed";return 0;}http->limit=limit;
+    for(size_t i=0;i<header_count;i+=2){size_t n=strlen(headers[i])+strlen(headers[i+1])+3;char *header=malloc(n);if(!header){http->error="http: allocation failed";goto done;}snprintf(header,n,"%s: %s",headers[i],headers[i+1]);struct curl_slist *next=curl_slist_append(list,header);free(header);if(!next){http->error="http: allocation failed";goto done;}list=next;if(!strcasecmp(headers[i],"accept-encoding") && !seen_encoding++ && *headers[i+1])auto_gzip=0;if(!strcasecmp(headers[i],"range") && !seen_range++ && *headers[i+1])auto_gzip=0;}
     curl_easy_setopt(curl,CURLOPT_URL,url);curl_easy_setopt(curl,CURLOPT_HTTPHEADER,list);curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);
     curl_easy_setopt(curl,CURLOPT_FOLLOWLOCATION,0L);curl_easy_setopt(curl,CURLOPT_MAXREDIRS,0L);curl_easy_setopt(curl,CURLOPT_TIMEOUT_MS,(long)timeout);
     curl_easy_setopt(curl,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(curl,CURLOPT_SSL_VERIFYHOST,2L);curl_easy_setopt(curl,CURLOPT_PROTOCOLS,CURLPROTO_HTTP|CURLPROTO_HTTPS);
     curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,http_body);curl_easy_setopt(curl,CURLOPT_WRITEDATA,http);curl_easy_setopt(curl,CURLOPT_HEADERFUNCTION,http_header);curl_easy_setopt(curl,CURLOPT_HEADERDATA,http);
     curl_easy_setopt(curl,CURLOPT_XFERINFOFUNCTION,http_progress);curl_easy_setopt(curl,CURLOPT_XFERINFODATA,http);curl_easy_setopt(curl,CURLOPT_NOPROGRESS,0L);
-    if(auto_gzip)curl_easy_setopt(curl,CURLOPT_ACCEPT_ENCODING,"gzip");
+    http->auto_gzip=auto_gzip;curl_easy_setopt(curl,CURLOPT_HTTP_CONTENT_DECODING,0L);
+    if(auto_gzip){struct curl_slist *next=curl_slist_append(list,"Accept-Encoding: gzip");if(!next){http->error="http: allocation failed";goto done;}list=next;curl_easy_setopt(curl,CURLOPT_HTTPHEADER,list);}
     if(!strcmp(method,"POST")){curl_easy_setopt(curl,CURLOPT_POST,1L);curl_easy_setopt(curl,CURLOPT_POSTFIELDS,body ? (const char *)body:"");curl_easy_setopt(curl,CURLOPT_POSTFIELDSIZE_LARGE,(curl_off_t)body_size);}
     CURLcode result=curl_easy_perform(curl);
+    if(result==CURLE_OK && !http->error && http->decoded && http->z_active && !http->z_done){http->error="http: transport failure";http_gzip_end(http);goto done;}
+    http_gzip_end(http);
     if(result!=CURLE_OK){if(!http->error)http->error=result==CURLE_OPERATION_TIMEDOUT ? "context deadline exceeded":result==CURLE_ABORTED_BY_CALLBACK ? "context canceled":curl_easy_strerror(result);goto done;}
     long status=0;curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&status);http->status=(int)status;
-    if(auto_gzip){int compressed=0;for(size_t i=0;i<http->count;i++)if(!strcmp(http->headers[i].name,"Content-Encoding") && !strcasecmp(http->headers[i].value,"gzip"))compressed=1;
-        if(compressed){size_t out=0;for(size_t i=0;i<http->count;i++){if(!strcmp(http->headers[i].name,"Content-Encoding") || !strcmp(http->headers[i].name,"Content-Length")){free(http->headers[i].name);free(http->headers[i].value);}else{http->headers[out++]=http->headers[i];}}http->count=out;}}
+    if(http->decoded){{size_t out=0;for(size_t i=0;i<http->count;i++){if(!strcmp(http->headers[i].name,"Content-Encoding") || !strcmp(http->headers[i].name,"Content-Length")){free(http->headers[i].name);free(http->headers[i].value);}else{http->headers[out++]=http->headers[i];}}http->count=out;}}
     if(http->count)qsort(http->headers,http->count,sizeof(*http->headers),header_compare);ok=1;
 done:curl_easy_cleanup(curl);curl_slist_free_all(list);return ok;
 }
@@ -164,4 +190,4 @@ size_t gcn_http_headers(gcn_http *http){return http->count;}
 const char *gcn_http_header_name(gcn_http *http,size_t index){return http->headers[index].name;}
 const char *gcn_http_header_value(gcn_http *http,size_t index){return http->headers[index].value;}
 const char *gcn_http_error(gcn_http *http){return http->error ? http->error:"http: transport failure";}
-void gcn_http_release(gcn_http *http){if(http){http_clear_headers(http);free(http->body);free(http);}}
+void gcn_http_release(gcn_http *http){if(http){http_gzip_end(http);http_clear_headers(http);free(http->body);free(http);}}
