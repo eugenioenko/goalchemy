@@ -123,6 +123,10 @@ func (c *checker) file(f *ast.File) {
 			c.report(imp, "GCS002", "import time",
 				"import \"time\" is outside github.com/eugenioenko/goalchemy/std and github.com/eugenioenko/goalchemy/lib",
 				"Import \"github.com/eugenioenko/goalchemy/std/time\" for Time, Duration, Now, Format and Parse, and \"github.com/eugenioenko/goalchemy/lib/time\" for Sleep and scheduler durations.")
+		case path == "encoding/json":
+			c.report(imp, "GCS002", "import encoding/json",
+				"import \"encoding/json\" is outside github.com/eugenioenko/goalchemy/std and github.com/eugenioenko/goalchemy/lib",
+				"Import \"github.com/eugenioenko/goalchemy/std/encoding/jsonvalue\" to parse, inspect, build and encode JSON values; typed Marshal and Unmarshal are not supported yet.")
 		case replacement[path] != "":
 			c.report(imp, "GCS002", "import "+path,
 				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/%s", path, replacement[path]),
