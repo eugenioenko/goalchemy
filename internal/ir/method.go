@@ -1,60 +1,98 @@
 package ir
 
 import (
+	"go/token"
 	"go/types"
 	"hash/fnv"
 	"strconv"
+
+	"golang.org/x/tools/go/types/typeutil"
 )
 
-const fmtPackage = "github.com/eugenioenko/goalchemy/std/fmt"
+func signature(params []types.Type, results ...types.Type) *types.Signature {
+	tuple := func(ts []types.Type) *types.Tuple {
+		var vs []*types.Var
+		for _, t := range ts {
+			vs = append(vs, types.NewVar(token.NoPos, nil, "", t))
+		}
+		return types.NewTuple(vs...)
+	}
+	return types.NewSignatureType(nil, nil, nil, tuple(params), tuple(results), false)
+}
+
+var (
+	errorType  = types.Universe.Lookup("error").Type()
+	stringType = types.Typ[types.String]
+	boolType   = types.Typ[types.Bool]
+)
+
+// nativeMethods are the signatures runtimes look up by plain name, such as
+// Error when printing a panic value or Unwrap in errors.Is.
+var nativeMethods = map[string]*types.Signature{
+	"Error":        signature(nil, stringType),
+	"String":       signature(nil, stringType),
+	"Unwrap":       signature(nil, errorType),
+	"Is":           signature([]types.Type{errorType}, boolType),
+	"RuntimeError": signature(nil),
+	"Timeout":      signature(nil, boolType),
+	"Temporary":    signature(nil, boolType),
+}
+
+// methodSignature is one distinct signature of a method name. spelling is
+// the smallest spelling seen, so aliases and visit order do not change it.
+type methodSignature struct {
+	spelling string
+	plain    bool
+}
+
+func bareSignature(fn *types.Func) (*types.Signature, string) {
+	sig := fn.Signature()
+	bare := types.NewSignatureType(nil, nil, nil, sig.Params(), sig.Results(), sig.Variadic())
+	return bare, types.TypeString(bare, func(p *types.Package) string { return p.Path() })
+}
+
+// RecordMethod registers a method the program may dispatch. external marks
+// methods implemented outside the compiled source, whose names runtimes use
+// as is.
+func (ts *Types) RecordMethod(fn *types.Func, external bool) {
+	if ts.methods == nil {
+		ts.methods = map[string]*typeutil.Map{}
+	}
+	sigs := ts.methods[fn.Name()]
+	if sigs == nil {
+		sigs = &typeutil.Map{}
+		ts.methods[fn.Name()] = sigs
+	}
+	bare, spelling := bareSignature(fn)
+	e, _ := sigs.At(bare).(*methodSignature)
+	if e == nil {
+		e = &methodSignature{spelling: spelling}
+		sigs.Set(bare, e)
+	} else if spelling < e.spelling {
+		e.spelling = spelling
+	}
+	if native := nativeMethods[fn.Name()]; external || native != nil && types.Identical(bare, native) {
+		e.plain = true
+	}
+}
 
 // MethodID is the identity targets use to match methods in dispatch tables
-// and interface checks: Go's Id, plus a signature fingerprint when a method
-// reuses a well-known name with a different signature. Targets compare IDs
-// as strings, so without the fingerprint a type declaring Unwrap() []error
-// would satisfy interface{ Unwrap() error }.
-func MethodID(fn *types.Func) string {
-	sig := fn.Signature()
-	if canonical, known := wellKnown(fn.Name(), sig); !known || canonical {
+// and interface checks. Targets compare identities as strings, so when a
+// program uses one method name with several signatures, each signature other
+// than the native or external one carries a short fingerprint.
+func (ts *Types) MethodID(fn *types.Func) string {
+	sigs := ts.methods[fn.Name()]
+	if sigs == nil || sigs.Len() < 2 {
 		return fn.Id()
 	}
-	h := fnv.New32a()
-	h.Write([]byte(types.TypeString(types.NewSignatureType(nil, nil, nil, sig.Params(), sig.Results(), sig.Variadic()),
-		func(p *types.Package) string { return p.Path() })))
-	return fn.Id() + "#" + strconv.FormatUint(uint64(h.Sum32()), 16)
-}
-
-func wellKnown(name string, sig *types.Signature) (canonical, known bool) {
-	params, results := sig.Params(), sig.Results()
-	switch name {
-	case "Error", "String", "GoString":
-		return params.Len() == 0 && results.Len() == 1 && isBasic(results.At(0).Type(), types.String), true
-	case "Unwrap":
-		return params.Len() == 0 && results.Len() == 1 && isError(results.At(0).Type()), true
-	case "Is":
-		return !sig.Variadic() && params.Len() == 1 && isError(params.At(0).Type()) &&
-			results.Len() == 1 && isBasic(results.At(0).Type(), types.Bool), true
-	case "As":
-		if params.Len() != 1 || sig.Variadic() || results.Len() != 1 || !isBasic(results.At(0).Type(), types.Bool) {
-			return false, true
+	bare, spelling := bareSignature(fn)
+	if e, ok := sigs.At(bare).(*methodSignature); ok {
+		if e.plain {
+			return fn.Id()
 		}
-		i, ok := types.Unalias(params.At(0).Type()).(*types.Interface)
-		return ok && i.Empty(), true
-	case "Format":
-		if params.Len() != 2 || sig.Variadic() || results.Len() != 0 || !isBasic(params.At(1).Type(), types.Int32) {
-			return false, true
-		}
-		n, ok := types.Unalias(params.At(0).Type()).(*types.Named)
-		return ok && n.Obj().Name() == "State" && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == fmtPackage, true
+		spelling = e.spelling
 	}
-	return false, false
-}
-
-func isBasic(t types.Type, kind types.BasicKind) bool {
-	b, ok := types.Unalias(t).(*types.Basic)
-	return ok && b.Kind() == kind
-}
-
-func isError(t types.Type) bool {
-	return types.Identical(t, types.Universe.Lookup("error").Type())
+	h := fnv.New32a()
+	h.Write([]byte(spelling))
+	return fn.Id() + "#" + strconv.FormatUint(uint64(h.Sum32()), 16)
 }

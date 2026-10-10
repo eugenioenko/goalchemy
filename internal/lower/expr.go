@@ -441,7 +441,7 @@ func (fl *fnLowerer) selector(x *ast.SelectorExpr) ir.Value {
 		t := fl.typeOf(x)
 		dst := fl.temp(t)
 		if iface {
-			fl.emit(&ir.MakeIfaceBound{At: at(x), Dst: dst, Recv: recv, Method: ir.MethodID(m)})
+			fl.emit(&ir.MakeIfaceBound{At: at(x), Dst: dst, Recv: recv, Method: fl.l.ts.MethodID(m)})
 		} else {
 			var fn *ir.Func
 			if ext := fl.l.extern(m); ext != nil {

@@ -19,7 +19,7 @@ features:
   - {id: maps, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [maps_basic, map_iteration, composite_keys]}
   - {id: embedding_promotion, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [methods_embed, embed_iface]}
   - {id: pointers, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [pointers, globals_addr, trees_recursive]}
-  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [interfaces, variadic_any, runtime_panics, assert_method_signature]}
+  - {id: interfaces_assertions_type_switches, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [interfaces, variadic_any, runtime_panics, assert_method_signature, method_identity]}
   - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [control_flow, switch_forms]}
   - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [defer_recover, runtime_panics, panic_custom]}
   - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [errors_values, std_fmt_errors]}

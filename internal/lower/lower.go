@@ -69,6 +69,7 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 		sort.Strings(pkg.Imports)
 		l.out.Packages = append(l.out.Packages, pkg)
 	}
+	l.recordMethods()
 	for _, p := range prog.Source {
 		l.declare(p)
 	}
@@ -210,7 +211,7 @@ func (l *Lowerer) declare(p *packages.Package) {
 				}
 				irf := &ir.Func{Name: name, Sym: l.sym(symBase), Pkg: p.PkgPath, Sig: l.funcSig(sig), Pos: d.Pos()}
 				if recvT != nil {
-					irf.MethodID = ir.MethodID(obj)
+					irf.MethodID = l.ts.MethodID(obj)
 					irf.RecvType = recvT
 				}
 				l.addFunc(irf)
@@ -460,7 +461,7 @@ func (l *Lowerer) methodSet(t *ir.Type) []*ir.MethodEntry {
 	for i := 0; i < ms.Len(); i++ {
 		sel := ms.At(i)
 		fn := sel.Obj().(*types.Func)
-		t.MethodSet = append(t.MethodSet, &ir.MethodEntry{ID: ir.MethodID(fn), Name: fn.Name(), Func: l.methodFunc(t, sel)})
+		t.MethodSet = append(t.MethodSet, &ir.MethodEntry{ID: l.ts.MethodID(fn), Name: fn.Name(), Func: l.methodFunc(t, sel)})
 	}
 	sort.Slice(t.MethodSet, func(i, j int) bool { return t.MethodSet[i].ID < t.MethodSet[j].ID })
 	return t.MethodSet
@@ -474,4 +475,36 @@ func (l *Lowerer) declared(fn *types.Func) *ir.Func {
 		fail(fn.Pos(), "method %s is not included source", fn.FullName())
 	}
 	return f
+}
+
+// recordMethods registers every method name and signature the program can
+// dispatch, so method identities only grow a fingerprint where one name is
+// used with several signatures.
+func (l *Lowerer) recordMethods() {
+	record := func(fn *types.Func) {
+		l.ts.RecordMethod(fn, fn.Pkg() == nil || !l.prog.IsSource(fn.Pkg().Path()))
+	}
+	for _, p := range l.prog.Source {
+		for _, objs := range []map[*ast.Ident]types.Object{p.TypesInfo.Defs, p.TypesInfo.Uses} {
+			for _, obj := range objs {
+				switch o := obj.(type) {
+				case *types.Func:
+					if o.Signature().Recv() != nil {
+						record(o)
+					}
+				case *types.TypeName:
+					t := o.Type()
+					sets := []*types.MethodSet{types.NewMethodSet(t)}
+					if !types.IsInterface(t) {
+						sets = append(sets, types.NewMethodSet(types.NewPointer(t)))
+					}
+					for _, ms := range sets {
+						for i := 0; i < ms.Len(); i++ {
+							record(ms.At(i).Obj().(*types.Func))
+						}
+					}
+				}
+			}
+		}
+	}
 }

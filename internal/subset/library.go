@@ -6,7 +6,6 @@ import (
 	"go/types"
 
 	"github.com/eugenioenko/goalchemy/internal/catalog"
-	"github.com/eugenioenko/goalchemy/internal/ir"
 	"github.com/eugenioenko/goalchemy/internal/jsontype"
 )
 
@@ -314,10 +313,37 @@ func (c *checker) operand(a ast.Expr, what, why string) {
 		"Convert named basic types to their basic type, such as int(x), or give the type a String() string method.")
 }
 
+// hasMethod reports whether t's method set has the named method with the
+// signature std/fmt or std/log/slog asserts for.
 func hasMethod(t types.Type, name string) bool {
 	obj, _, _ := types.LookupFieldOrMethod(t, false, nil, name)
 	fn, ok := obj.(*types.Func)
-	return ok && ir.MethodID(fn) == fn.Id()
+	if !ok {
+		return false
+	}
+	sig := fn.Signature()
+	params, results := sig.Params(), sig.Results()
+	if sig.Variadic() {
+		return false
+	}
+	switch name {
+	case "Format":
+		return params.Len() == 2 && results.Len() == 0 && isNamed(params.At(0).Type(), fmtPackage, "State") &&
+			types.Identical(params.At(1).Type(), types.Typ[types.Int32])
+	case "GoString":
+		return params.Len() == 0 && results.Len() == 1 && types.Identical(results.At(0).Type(), types.Typ[types.String])
+	case "LogValue":
+		return params.Len() == 0 && results.Len() == 1 && isNamed(results.At(0).Type(), slogPackage, "Value")
+	case "MarshalText":
+		return params.Len() == 0 && results.Len() == 2 && types.Identical(results.At(0).Type(), types.NewSlice(types.Typ[types.Byte])) &&
+			types.Identical(results.At(1).Type(), types.Universe.Lookup("error").Type())
+	}
+	return false
+}
+
+func isNamed(t types.Type, pkg, name string) bool {
+	n, ok := types.Unalias(t).(*types.Named)
+	return ok && n.Obj().Name() == name && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == pkg
 }
 
 func typeName(t types.Type) string {
