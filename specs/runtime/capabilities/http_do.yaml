@@ -1,7 +1,7 @@
 {
   "id": "lib.http.do",
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "http.Do: one bounded HTTP GET or POST exchange that keeps TLS verification and does not follow redirects.",
   "signature": {
     "source": "declaration",
@@ -75,7 +75,7 @@
     "allocation": "Native buffers are host-managed. No guaranteed private-material erasure. Future async adapters retain inputs/keys until completion and do not borrow mutable host buffers.",
     "errors": "Transport, context cancellation/deadline and limit failures return zero status/nil headers/nil body and error. Non-2xx and redirects return ordinary responses.",
     "panics": "No deliberate panic on invalid input. Host allocation failures remain host failures.",
-    "observations": "Real timeoutMillis and earlier parent deadline bound request. Native std context cancellation is propagated. No redirects, normal trusted TLS verification, host-configured proxy. Automatic gzip decoding follows stdlib transport; body limit applies to decoded bytes; automatically decoded Content-Encoding/Length headers are removed. Response header names sorted/canonicalized; duplicate values retain server order; wire inter-name order is not retained."
+    "observations": "Real timeoutMillis and earlier parent deadline bound request. Native std context cancellation is propagated. No redirects, normal trusted TLS verification, host-configured proxy. Automatic gzip follows the Go stdlib transport: Accept-Encoding: gzip is sent unless the first Accept-Encoding or Range header has a non-empty value, in which case response bytes are returned as received; a response whose first Content-Encoding is gzip is decoded unless it has no body (Content-Length 0, 204, 304 or 1xx), in which case its headers are kept; concatenated gzip members are decoded; truncated or corrupt streams are transport errors; the body limit applies to decoded bytes; decoded Content-Encoding/Length headers are removed. Browser fetch decodes compression itself: browsers reject a caller Accept-Encoding with an unsupported error and may not report truncated or multi-member gzip like Go. Response header names sorted/canonicalized; duplicate values retain server order; wire inter-name order is not retained."
   },
   "notes": "Native acceptance tests in lib/http. Future host crypto/HTTP operations may suspend; completion must resume through the scheduler. ",
   "cases": [

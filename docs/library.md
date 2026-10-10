@@ -4144,7 +4144,7 @@ Every entry lists:
 | go | experimental | go1.25 | Go standard library only: crypto/* for crypto, net/http for HTTP, and hash/crc32.ChecksumIEEE for IEEE CRC32; host runtime controls acceleration. |
 | java | experimental | Java 21 | JDK 21 JCA providers plus the pinned Bouncy Castle 1.86 jar (bcprov-jdk18on, locked in targets/java/dependencies.lock.json) for HKDF and EC private key imports, which derive the public point; HTTP uses java.net.http; IEEE CRC32 uses standard java.util.zip.CRC32 and host-controlled acceleration. |
 | python | experimental | Python 3.10 (the release baseline for now; it can be raised later) | The maintained cryptography package for crypto; HTTP uses the standard library (http.client); IEEE CRC32 uses standard zlib.crc32 and host-controlled acceleration. |
-| rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP, and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration. |
+| rust | experimental | Rust 1.75 std-only; native package dependencies require Rust 1.88 | Pinned crates through Cargo: openssl (vendored) for crypto, reqwest with rustls and Tokio for HTTP (gzip responses decoded with pinned flate2 1.1.10), and base64. IEEE CRC32 uses pinned crc32fast 1.5.2 with its default std feature for runtime-selected CPU acceleration. |
 | swift | experimental | Swift 6.4.0 on Linux x86_64 | OpenSSL 3 libcrypto, zlib CRC32, and libcurl HTTP via a C module. All current output packages include these native prerequisites. |
 | typescript | experimental | Node.js 22.6 (ES2022) | No npm runtime dependencies: WebCrypto (crypto.subtle) for crypto and fetch for HTTP in Node.js or browsers; IEEE CRC32 uses node:zlib.crc32 in Node executable/package entries and a slicing-by-8 fallback in browsers and the portable main entry. Host runtime controls acceleration. |
 
@@ -4977,7 +4977,7 @@ One bounded HTTP GET or POST exchange that keeps TLS verification and does not f
 - **Determinism**: nondeterministic
 - **Bounds**: GET/POST only; GET has empty body. URL<=8192 bytes, request/reply body<=64MiB, header bytes<=64KiB, timeoutMillis=1..300000. Header input alternates name/value; odd length, invalid tokens, control bytes and framing/hop/proxy headers are rejected.
 - **Errors**: Transport, context cancellation/deadline and limit failures return zero status/nil headers/nil body and error. Non-2xx and redirects return ordinary responses.
-- **Contract**: `lib.http.do` 1.0.0
+- **Contract**: `lib.http.do` 1.1.0
 
 ## log
 

@@ -5,6 +5,7 @@ import socket
 import threading
 import urllib.parse
 import re
+import zlib
 from .task_spawn import sched, register_host, HostFault, fault_text
 from .std_context_err import check_context, host_boundary, CONTEXT_DEADLINE_EXCEEDED
 from .std_errors_new import std_errors_new
@@ -29,6 +30,24 @@ class Response(http.client.HTTPResponse):
     def begin(self):
         super().begin()
         if self.fp is not None:self.fp.headers=False
+
+class Gunzip:
+    def __init__(self,limit):self.limit=limit;self.out=[];self.count=0;self.d=None;self.done=False
+    def feed(self,data):
+        while data:
+            if self.d is None or self.done:self.d=zlib.decompressobj(16+zlib.MAX_WBITS);self.done=False
+            data=self.inflate(data)
+            if self.d.eof:self.done=True;data=self.d.unused_data
+    def inflate(self,data):
+        while True:
+            chunk=self.d.decompress(data,self.limit+1-self.count)
+            self.out.append(chunk);self.count+=len(chunk)
+            if self.count>self.limit:raise Reject('http: response body exceeds limit')
+            data=self.d.unconsumed_tail
+            if not data or self.d.eof:return data
+    def finish(self):
+        if self.d is not None and not self.done:raise zlib.error('truncated gzip stream')
+        return b''.join(self.out)
 
 class Lease:
     def __init__(self):self.stopped=threading.Event();self.lock=threading.Lock();self.connection=None
@@ -65,12 +84,16 @@ def lib_http_do(t,context,method,raw,headers,input,max_bytes,timeout):
         u=urllib.parse.urlsplit(url)
         if u.scheme not in ('http','https') or not u.hostname or u.username is not None or u.password is not None or u.fragment or u.port is not None and not 1<=u.port<=65535:raise Reject('invalid')
         if type(headers) is not Slice or headers.l%2:raise Reject('invalid')
-        pairs=[];total=0
+        pairs=[];total=0;automatic=True;seen=set()
         for i in range(0,headers.l,2):
             name=headers.a[headers.o+i];value=headers.a[headers.o+i+1]
             if type(name) is not bytes or type(value) is not bytes:raise Reject('invalid')
             total+=len(name)+len(value)+4
             if total>65536 or not re.fullmatch(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+",name) or name.decode('ascii').lower() in FORBIDDEN or any(c==127 or c<32 and c!=9 for c in value):raise Reject('invalid')
+            lower=name.decode('ascii').lower()
+            if lower in ('accept-encoding','range') and lower not in seen:
+                seen.add(lower)
+                if value:automatic=False
             pairs.append((name.decode('ascii'),value.decode('latin-1')))
         path=urllib.parse.quote(u.path or '/',safe="/%:@!$&'()*+,;=-._~")
         if u.query:path+='?'+urllib.parse.quote(u.query,safe="/%?:@!$&'()*+,;=-._~")
@@ -99,22 +122,31 @@ def lib_http_do(t,context,method,raw,headers,input,max_bytes,timeout):
             conn.connect()
             if lease.stopped.is_set():raise OSError('canceled')
             conn.putrequest(method.decode(),path,skip_accept_encoding=True)
-            for name,value in pairs:conn.putheader(name,value)
+            for name,value in pairs:
+                if automatic and name.lower()=='accept-encoding':continue
+                conn.putheader(name,value)
+            if automatic:conn.putheader('Accept-Encoding','gzip')
             if method==b'POST':conn.putheader('Content-Length',str(len(body)))
             conn.putheader('Connection','close');conn.endheaders(body if body else None)
             response=conn.getresponse()
+            encoding=response.getheader('Content-Encoding')
+            bodyless=response.status in (204,304) or 100<=response.status<200 or response.length==0
+            decoded=automatic and encoding is not None and encoding.lower()=='gzip' and not bodyless
+            gunzip=Gunzip(max_bytes) if decoded else None
             chunks=[];count=0
             while count <= max_bytes:
-                chunk=response.read(min(8192,max_bytes+1-count))
+                chunk=response.read(8192 if gunzip else min(8192,max_bytes+1-count))
                 if not chunk:
                     if response.length is not None and response.length>0:raise http.client.IncompleteRead(b'')
                     break
-                chunks.append(chunk);count+=len(chunk)
-            out=b''.join(chunks);chunks.clear()
+                if gunzip:gunzip.feed(chunk)
+                else:chunks.append(chunk);count+=len(chunk)
+            out=gunzip.finish() if gunzip else b''.join(chunks);chunks.clear()
             if len(out)>max_bytes:raise Reject('http: response body exceeds limit')
             mapped={}
             for name,value in response.getheaders():
                 canon='-'.join(p[:1].upper()+p[1:].lower() for p in name.split('-'))
+                if decoded and canon in ('Content-Encoding','Content-Length'):continue
                 mapped.setdefault(canon,[]).append(value)
             flat=[]
             for name in sorted(mapped):
@@ -122,7 +154,7 @@ def lib_http_do(t,context,method,raw,headers,input,max_bytes,timeout):
             record=[None,response.status,flat,out]
         except Reject as e:record=[str(e).encode(),0,[],b'']
         except HeaderLimit:record=[b'http: response headers exceed limit',0,[],b'']
-        except (OSError,http.client.HTTPException,UnicodeError,ValueError):record=[b'http: transport failure',0,[],b'']
+        except (OSError,http.client.HTTPException,UnicodeError,ValueError,zlib.error):record=[b'http: transport failure',0,[],b'']
         except BaseException as e:failure='HTTP adapter: '+fault_text(e)
         finally:
             try:

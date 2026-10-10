@@ -74,8 +74,8 @@ public final class LibHttpDo {
             byte[] body=Native.bytes(input);String[] pairs=Native.strings(headers);
             if(method.equals("GET")&&body.length!=0||pairs.length%2!=0||pairs.length>32768)throw new Native.Reject(INVALID);
             URI uri=new URI(Native.utf8(raw));if(!Set.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getRawUserInfo()!=null||uri.getRawFragment()!=null||uri.getPort()>65535||uri.getPort()==0)throw new Native.Reject(INVALID);
-            HttpRequest.Builder builder=HttpRequest.newBuilder(uri);int total=0;boolean encoded=false;
-            for(int i=0;i<pairs.length;i+=2){String name=pairs[i],value=pairs[i+1];total+=name.length()+value.length()+4;if(total>65536||!token(name)||badValue(value)||FORBIDDEN.contains(name.toLowerCase(Locale.ROOT)))throw new Native.Reject(INVALID);for(int j=0;j<value.length();j++)if(value.charAt(j)>127)throw new Native.Reject(INVALID);builder.header(name,value);if(name.equalsIgnoreCase("Accept-Encoding"))encoded=true;}
+            HttpRequest.Builder builder=HttpRequest.newBuilder(uri);int total=0;boolean encoded=false;Set<String> seen=new java.util.HashSet<>();
+            for(int i=0;i<pairs.length;i+=2){String name=pairs[i],value=pairs[i+1];total+=name.length()+value.length()+4;if(total>65536||!token(name)||badValue(value)||FORBIDDEN.contains(name.toLowerCase(Locale.ROOT)))throw new Native.Reject(INVALID);for(int j=0;j<value.length();j++)if(value.charAt(j)>127)throw new Native.Reject(INVALID);builder.header(name,value);String lower=name.toLowerCase(Locale.ROOT);if((lower.equals("accept-encoding")||lower.equals("range"))&&seen.add(lower)&&!value.isEmpty())encoded=true;}
             automaticGzip=!encoded;if(automaticGzip)builder.header("Accept-Encoding","gzip");
             long nanos=Math.max(1,boundary.deadline-TaskSpawn.sched.now());builder.timeout(Duration.ofNanos(nanos));builder.method(method,HttpRequest.BodyPublishers.ofByteArray(body));request=builder.build();
         }catch(Native.Reject|URISyntaxException|IllegalArgumentException e){boundary.close();task.rv=Native.failure(ZERO,INVALID);return;}
@@ -98,8 +98,10 @@ public final class LibHttpDo {
                     HttpRequest submitted=request;request=null;lease.attachWorker();
                     HttpClient client=HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(30)).build();lease.attachClient(client);
                     HttpResponse<InputStream> response=client.send(submitted,HttpResponse.BodyHandlers.ofInputStream());lease.attachBody(response.body());
-                    boolean gzip=automaticGzip&&response.headers().firstValue("Content-Encoding").orElse("").equalsIgnoreCase("gzip");
-                    InputStream reader=gzip?new GZIPInputStream(response.body()):response.body();if(gzip)lease.attachBody(reader);
+                    int status=response.statusCode();boolean bodyless=status==204||status==304||status/100==1||response.headers().firstValue("Content-Length").map(v->v.trim().equals("0")).orElse(false);
+                    boolean gzip=automaticGzip&&!bodyless&&response.headers().firstValue("Content-Encoding").orElse("").equalsIgnoreCase("gzip");
+                    InputStream reader=response.body();
+                    if(gzip){java.io.PushbackInputStream peek=new java.io.PushbackInputStream(reader);int first=peek.read();if(first>=0){peek.unread(first);reader=new GZIPInputStream(peek);}else reader=peek;lease.attachBody(reader);}
                     reader=bodyWrapper.apply(reader);if(reader==null)throw new IllegalStateException("null HTTP body wrapper");lease.attachBody(reader);
                     byte[] body=reader.readNBytes(limit+1);if(body.length>limit)wire[0]="http: response body exceeds limit";
                     else {

@@ -781,7 +781,7 @@ functions:
   symbol: GNative.lib_os_write_file
   implementation: runtime/lib_os_write_file.swift
 - id: lib.http.do
-  contract_version: 1.0.0
+  contract_version: 1.1.0
   symbol: GNative.lib_http_do
   implementation: runtime/lib_http_do.swift
   requires:

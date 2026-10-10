@@ -1,6 +1,7 @@
 //! Dedicated TLS-verifying transport. Native runtime teardown precedes ACK.
 #![cfg(feature = "native")]
 use super::*;
+use std::io::Write;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -31,6 +32,25 @@ fn wire_decode(w: Vec<HostWire>) -> Vec<V> {
         _ => host_fault("HTTP wire decode"),
     }
 }
+struct Capped {
+    out: Vec<u8>,
+    max: usize,
+    over: bool,
+}
+impl std::io::Write for Capped {
+    fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+        if b.len() > self.max - self.out.len() {
+            self.over = true;
+            return Err(std::io::Error::other("limit"));
+        }
+        self.out.extend_from_slice(b);
+        Ok(b.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 pub fn lib_http_do(
     t: &Rc<Task>,
     context: V,
@@ -127,9 +147,24 @@ pub fn lib_http_do(
             let value = reqwest::header::HeaderValue::from_bytes(&p[1]).map_err(|_| "invalid")?;
             pairs.push((name, value))
         }
-        Ok((method, url, pairs, body, max.i() as usize))
+        let mut automatic = true;
+        for key in ["accept-encoding", "range"] {
+            if let Some((_, v)) = pairs.iter().find(|(n, _)| n.as_str() == key) {
+                if !v.is_empty() {
+                    automatic = false
+                }
+            }
+        }
+        if automatic {
+            pairs.retain(|(n, _)| n.as_str() != "accept-encoding");
+            pairs.push((
+                reqwest::header::ACCEPT_ENCODING,
+                reqwest::header::HeaderValue::from_static("gzip"),
+            ));
+        }
+        Ok((method, url, pairs, body, max.i() as usize, automatic))
     })();
-    let (method, url, pairs, body, max) = match snapshot {
+    let (method, url, pairs, body, max, automatic) = match snapshot {
         Ok(v) => v,
         Err(_) => {
             t.set_rv(http_zero(invalid()));
@@ -162,8 +197,16 @@ pub fn lib_http_do(
  let work=async move{
  let mut request=client.request(if method=="GET"{reqwest::Method::GET}else{reqwest::Method::POST},url);for (n,v) in pairs{request=request.header(n,v)}
  let mut response=request.body(body).send().await.map_err(|_|"http: transport failure")?;
- let mut total=0usize;let mut headers=Vec::new();let mut names:Vec<_>=response.headers().keys().collect();names.sort_by(|a,b|a.as_str().cmp(b.as_str()));for name in names{let canonical=name.as_str().split('-').map(|s|{let mut s=s.to_owned();s[0..1].make_ascii_uppercase();s}).collect::<Vec<_>>().join("-");for value in response.headers().get_all(name){total+=canonical.len()+value.as_bytes().len()+4;if total>65536{return Err("http: response headers exceed limit")};headers.push(HostWire::Bytes(canonical.as_bytes().to_vec()));headers.push(HostWire::Bytes(value.as_bytes().to_vec()))}}
- let status=response.status().as_u16() as i64;let mut output=Vec::new();while let Some(chunk)=response.chunk().await.map_err(|_|"http: response body failure")?{if chunk.len()>max.saturating_sub(output.len()){return Err("http: response body exceeds limit")};output.extend_from_slice(&chunk)}
+ let code=response.status().as_u16();let bodyless=code==204||code==304||(100..200).contains(&code)||response.headers().get(reqwest::header::CONTENT_LENGTH).is_some_and(|v|v.as_bytes()==b"0");
+ let decoded=automatic&&!bodyless&&response.headers().get(reqwest::header::CONTENT_ENCODING).is_some_and(|v|v.as_bytes().eq_ignore_ascii_case(b"gzip"));
+ let mut total=0usize;let mut headers=Vec::new();let mut names:Vec<_>=response.headers().keys().collect();names.sort_by(|a,b|a.as_str().cmp(b.as_str()));for name in names{if decoded&&(name==reqwest::header::CONTENT_ENCODING||name==reqwest::header::CONTENT_LENGTH){continue}let canonical=name.as_str().split('-').map(|s|{let mut s=s.to_owned();s[0..1].make_ascii_uppercase();s}).collect::<Vec<_>>().join("-");for value in response.headers().get_all(name){total+=canonical.len()+value.as_bytes().len()+4;if total>65536{return Err("http: response headers exceed limit")};headers.push(HostWire::Bytes(canonical.as_bytes().to_vec()));headers.push(HostWire::Bytes(value.as_bytes().to_vec()))}}
+ let status=response.status().as_u16() as i64;let mut output=Vec::new();
+ if decoded{
+  let mut gz=flate2::write::MultiGzDecoder::new(Capped{out:Vec::new(),max,over:false});let mut any=false;
+  while let Some(chunk)=response.chunk().await.map_err(|_|"http: response body failure")?{any=true;if gz.write_all(&chunk).is_err(){return Err(if gz.get_ref().over{"http: response body exceeds limit"}else{"http: transport failure"})}}
+  if any&&gz.try_finish().is_err(){return Err(if gz.get_ref().over{"http: response body exceeds limit"}else{"http: transport failure"})}
+  output=std::mem::take(&mut gz.get_mut().out);
+ }else{while let Some(chunk)=response.chunk().await.map_err(|_|"http: response body failure")?{if chunk.len()>max.saturating_sub(output.len()){return Err("http: response body exceeds limit")};output.extend_from_slice(&chunk)}}
  drop(response);drop(client);Ok(vec![HostWire::Int(status),HostWire::List(headers),HostWire::Bytes(output)])};
  tokio::pin!(work);loop{tokio::select!{result=&mut work=>break result,_=tokio::time::sleep(Duration::from_millis(2))=>{if stopped.load(Ordering::Acquire){break Err("http: canceled")}}}}
  });

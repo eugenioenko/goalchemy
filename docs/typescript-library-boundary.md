@@ -82,11 +82,20 @@ deferred/go calls while native Go Close retains its original semantics.
 
 ## Portable transport observations
 
-Production uses native fetch with manual redirects and omitted ambient
-credentials. GET/POST input is bounded to64MiB, URL8192 bytes, header list32768
+Node entries (executables and the package's `node` export) install a
+`node:http`/`node:https` adapter with Go's transport semantics: it sends
+`Accept-Encoding: gzip` unless the caller sets a non-empty `Accept-Encoding` or
+`Range`, decodes `Content-Encoding: gzip` with `node:zlib` (multi-member streams;
+truncated or corrupt streams are transport errors), applies the body limit to
+decoded bytes, removes the decoded `Content-Encoding`/`Content-Length` headers,
+and leaves responses without a body (`Content-Length: 0`, 204, 304, 1xx)
+untouched. A caller's `Accept-Encoding` returns the raw bytes, as in Go.
+
+Browsers and other portable entries use native fetch with manual redirects and
+omitted ambient credentials. GET/POST input is bounded to64MiB, URL8192 bytes, header list32768
 entries/64KiB and timeout1..300000ms; parent cancellation/deadline can shorten
 work. Inputs reject framing/proxy restrictions and the Fetch Standard's forbidden
-request headers, including Proxy-/Sec- prefixes and method overrides containing
+request headers except Accept-Encoding, including Proxy-/Sec- prefixes and method overrides containing
 CONNECT/TRACE/TRACK, before contacting the network. Authorization, DPoP,
 Content-Type and Connect-Protocol-Version remain supported. Native Headers trims
 leading/trailing HTTP whitespace and merges repeated fields.
@@ -104,10 +113,14 @@ opaque redirects and a declared transport error. Browser opaque/CORS failures
 also reject safely. Response headers are the native exposed merged header list,
 sorted with canonical names; browser CORS filtering and Set-Cookie restrictions
 apply. The64KiB limit covers exposed headers, not inaccessible wire headers.
-The response body limit covers decoded stream bytes. Native fetch may negotiate
-compression and transparently decode it while preserving encoding/length
-headers; these observations differ from raw Go transport. Compression is not
-implemented by this adapter. Native TLS verification remains enabled. Reader
+The response body limit covers decoded stream bytes. Browser fetch negotiates
+and decodes compression itself; for `Content-Encoding: gzip` responses with a
+body, the adapter removes `Content-Encoding`/`Content-Length` as Go does. Browsers
+forbid setting `Accept-Encoding`, so a caller that sets it gets
+`http: Accept-Encoding is not supported in browsers`. A truncated gzip payload
+inside an otherwise complete HTTP response may not error, Chromium decodes only
+the first member of a multi-member gzip body, and `Range` does not turn off
+decoding; these differ from Go and cannot be controlled through fetch. Native TLS verification remains enabled. Reader
 cancel/release and alarms settle before ACK. An expected AbortError during
 cancel, or the identical stored stream error already classified as a failed
 read, preserves the declared transport or cancellation result. A distinct
