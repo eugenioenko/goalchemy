@@ -25,7 +25,7 @@ func main() {
 	for i := 0; i < 3; i++ {
 		println(<-out)
 	}
-	go napper{5 * time.Millisecond}.nap(out, "method")
+	go napper{30 * time.Millisecond}.nap(out, "method")
 	go napper{0}.nap(out, "zero")
 	println(<-out, <-out)
 	d, err := time.ParseDuration("10ms")
