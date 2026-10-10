@@ -85,8 +85,15 @@ func (e *emitter) types(b *bytes.Buffer) {
 		}
 		nativeSignatures[name] = types.NewSignatureType(nil, nil, nil, params, results, false)
 	}
-	fmt.Fprintf(b, "let gTypeRegistration: Void = {\n    var table: [GType] = []\n    table.reserveCapacity(%d)\n", len(e.p.Types.All))
-	for _, t := range e.p.Types.All {
+	const typeRowsPerFunc = 32
+	chunks := (len(e.p.Types.All) + typeRowsPerFunc - 1) / typeRowsPerFunc
+	for i, t := range e.p.Types.All {
+		if i%typeRowsPerFunc == 0 {
+			if i > 0 {
+				b.WriteString("}\n\n")
+			}
+			fmt.Fprintf(b, "private func gTypeRows%d(_ table: inout [GType]) {\n", i/typeRowsPerFunc)
+		}
 		u := t.U()
 		var fields, names, blank []string
 		for _, f := range u.Fields {
@@ -130,6 +137,13 @@ func (e *emitter) types(b *bytes.Buffer) {
 		}
 		comparable := t.Go != nil && t.Comparable()
 		fmt.Fprintf(b, "    table.append(GType(%s, %s, %d, %t, %d, %d, %d, [%s], [%s], [%s], [%s], %t, [%s], [%s], [%s])) // %s\n", quote(ir.TypeString(t)), quote(u.Kind.String()), bits, signed, id(u.Elem), id(u.Key), u.Len, strings.Join(fields, ", "), strings.Join(names, ", "), strings.Join(blank, ", "), strings.Join(methods, ", "), comparable, strings.Join(implementations, ", "), missing, strings.Join(nativeMethods, ", "), e.names.Type(t, "T_"))
+	}
+	if chunks > 0 {
+		b.WriteString("}\n\n")
+	}
+	fmt.Fprintf(b, "let gTypeRegistration: Void = {\n    var table: [GType] = []\n    table.reserveCapacity(%d)\n", len(e.p.Types.All))
+	for i := 0; i < chunks; i++ {
+		fmt.Fprintf(b, "    gTypeRows%d(&table)\n", i)
 	}
 	b.WriteString("    GTypes.table = table\n}()\n")
 }
