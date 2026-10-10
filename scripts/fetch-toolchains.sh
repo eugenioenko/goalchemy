@@ -23,7 +23,7 @@ fetch() {
   fi
   if [[ ! -f $archive ]]; then
     local partial="$archive.partial"
-    curl -fL --retry 3 --continue-at - --output "$partial" "$url"
+    curl -fL --retry 5 --retry-all-errors --retry-delay 2 --continue-at - --output "$partial" "$url"
     mv "$partial" "$archive"
   fi
   printf '%s  %s\n' "$hash" "$archive" | sha256sum -c
