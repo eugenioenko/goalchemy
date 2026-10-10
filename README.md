@@ -82,8 +82,8 @@ The `go get` makes Goalchemy's packages resolvable from your module. Source modu
 
 The Go standard library is replaced by packages that keep the standard names, so code still reads and runs as ordinary Go:
 
-- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `time`, `errors`, `fmt`, `log/slog`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
-- [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `checksum`, `clock`, `log`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
+- [`std/`](std): pure-logic packages (`strings`, `strconv`, `bytes`, `sort`, `unicode`, `unicode/utf8`, `encoding/hex`, `encoding/binary`, `time`, `errors`, `fmt`, `log/slog`, `os`) written once in the Goalchemy subset and compiled with your program. They behave identically on every target with no native dependencies.
+- [`lib/`](lib): capability packages that reach the host (`crypto`, `http`, `encoding`, `checksum`, `clock`, `log`, `os`, `callback`, `sync`, `context`, `time`, `errors`). Each has a native implementation per target, checked against a contract.
 
 The [runtime library reference](docs/library.md) explains the split and documents every function.
 The [IEEE CRC32 host mappings](docs/checksum.md) distinguish standard APIs,
@@ -97,7 +97,6 @@ These are the gaps most SDKs and programs hit today, in priority order. Each lan
 | --- | --- | --- |
 | `fmt`: `Print`, `Println` | `lib/` | Writes to stdout through a small host capability. |
 | `os.Getenv` | `lib/` | Reports "not set" where the host has no environment, such as browsers. |
-| `os.ReadFile`, `os.WriteFile` | `lib/` | Returns an error where the host has no file system, such as browsers. |
 | `os.Args`, `os.Exit`, stdin | `lib/` | For programs and examples; SDKs rarely need them. |
 | `net/url` | `std/` | URL parsing and query escaping. |
 | `encoding/json` | `std/` | Needs compiler-generated type descriptors because source reflection is excluded; a separate design project. |

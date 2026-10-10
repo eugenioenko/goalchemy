@@ -126,3 +126,10 @@ implemented in the framing code.
 Tests use TypeScript6.0.3 (Apache2), esbuild0.25.12 (MIT), and Playwright1.58.2
 (Apache2). These are test/build tooling only; emitted production needs no npm
 crypto, HTTP, Node polyfill or reference SDK dependency.
+
+## Files
+
+`std/os` uses the `node:fs` adapter that the package's `node` export (`dist/node.js`)
+installs alongside the CRC adapter. The browser and default exports leave it out,
+so `ReadFile` and `WriteFile` fail with `operation not supported` there and the
+browser graph keeps no Node dependency.
