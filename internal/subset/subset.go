@@ -44,7 +44,7 @@ type checker struct {
 	reported map[types.Object]bool
 	typeMemo map[types.Type]string
 	seenPos  map[string]bool
-	// called holds callee identifiers of direct errors.As calls.
+	// called holds callee identifiers of direct errors.As and json.Marshal calls.
 	called map[*ast.Ident]bool
 }
 
@@ -126,7 +126,7 @@ func (c *checker) file(f *ast.File) {
 		case path == "encoding/json":
 			c.report(imp, "GCS002", "import encoding/json",
 				"import \"encoding/json\" is outside github.com/eugenioenko/goalchemy/std and github.com/eugenioenko/goalchemy/lib",
-				"Import \"github.com/eugenioenko/goalchemy/std/encoding/jsonvalue\" to parse, inspect, build and encode JSON values; typed Marshal and Unmarshal are not supported yet.")
+				"Import \"github.com/eugenioenko/goalchemy/std/encoding/json\" for Marshal and MarshalIndent, and \"github.com/eugenioenko/goalchemy/std/encoding/jsonvalue\" to parse, inspect, build and encode JSON values; typed Unmarshal is not supported yet.")
 		case replacement[path] != "":
 			c.report(imp, "GCS002", "import "+path,
 				fmt.Sprintf("import %q is outside github.com/eugenioenko/goalchemy/%s", path, replacement[path]),
@@ -409,6 +409,12 @@ func (c *checker) ident(id *ast.Ident) {
 	if catalog.IsErrorsAs(obj) {
 		if !c.called[id] {
 			c.unsupported(id, "GCS006", "errors.As used as a function value", "Call errors.As directly with a pointer target.")
+		}
+		return
+	}
+	if name, ok := catalog.JSONMarshal(obj); ok {
+		if !c.called[id] {
+			c.unsupported(id, "GCS006", "json."+name+" used as a function value", "Call json."+name+" directly.")
 		}
 		return
 	}

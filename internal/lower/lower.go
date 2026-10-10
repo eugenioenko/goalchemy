@@ -91,6 +91,7 @@ func Lower(prog *frontend.Program, reg *catalog.Registry) (*ir.Program, []diagno
 		}
 	}
 	l.guard(token.NoPos, l.lowerInit)
+	l.guard(token.NoPos, l.jsonNilPointers)
 	l.completeMethodSets()
 	l.entry()
 	for _, f := range l.out.Funcs {
