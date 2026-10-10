@@ -789,10 +789,11 @@ rust-version = "1.88"
 license = "Apache-2.0"
 [features]
 default = ["native"]
-native = ["dep:openssl", "dep:reqwest", "dep:tokio", "dep:base64"]
+native = ["dep:openssl", "dep:reqwest", "dep:tokio", "dep:base64", "dep:flate2"]
 [dependencies]
 openssl = { version = "=0.10.81", features = ["vendored"], optional = true }
-reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "gzip"], optional = true }
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls"], optional = true }
+flate2 = { version = "=1.1.10", optional = true }
 tokio = { version = "=1.53.1", features = ["rt", "time", "sync", "macros"], optional = true }
 base64 = { version = "=0.22.1", optional = true }
 crc32fast = "=1.5.2"
