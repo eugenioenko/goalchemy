@@ -4977,7 +4977,7 @@ One bounded HTTP GET or POST exchange that keeps TLS verification and does not f
 - **Determinism**: nondeterministic
 - **Bounds**: GET/POST only; GET has empty body. URL<=8192 bytes, request/reply body<=64MiB, header bytes<=64KiB, timeoutMillis=1..300000. Header input alternates name/value; odd length, invalid tokens, control bytes and framing/hop/proxy headers are rejected.
 - **Errors**: Transport, context cancellation/deadline and limit failures return zero status/nil headers/nil body and error. Non-2xx and redirects return ordinary responses.
-- **Contract**: `lib.http.do` 1.0.0
+- **Contract**: `lib.http.do` 1.1.0
 
 ## log
 
