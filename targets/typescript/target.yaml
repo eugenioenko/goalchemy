@@ -26,7 +26,7 @@ harness:
   support: [tests/harness/harness.ts, tests/harness/codec.ts, tests/harness/runtime_index.ts]
   generated: tests/harness/harness_gen.ts
   command: [node, targets/typescript/tests/harness/harness.ts]
-support_files: [types/float.ts, types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, types/log.ts, runtime/std_errors_new.ts]
+support_files: [types/float.ts, types/integer.ts, types/panic.ts, types/iface.ts, types/ref.ts, types/slice.ts, types/map.ts, types/print.ts, types/bounds.ts, types/utf8.ts, types/program.ts, types/host.ts, types/node_host.ts, types/node_checksum.ts, types/node_zlib.d.ts, types/files.ts, types/node_fs.ts, types/node_files.d.ts, types/native.ts, types/der.ts, types/crypto.ts, types/callback.ts, types/log.ts, runtime/std_errors_new.ts]
 functions:
   - {id: core.float.convert, contract_version: 1.0.0, symbol: "rt.roundFloat", implementation: runtime/float_convert.ts}
   - {id: core.float.add, contract_version: 1.0.0, symbol: "rt.floatAdd_<k>", implementation: runtime/float_add.ts, harness: "rt.floatAdd_{T.kind}({0}, {1})"}
@@ -108,6 +108,8 @@ functions:
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: rt.libClockUnixNano, implementation: runtime/lib_clock_unix_nano.ts, harness: "rt.libClockUnixNano()"}
   - {id: lib.log.enabled, contract_version: 1.0.0, symbol: rt.libLogEnabled, implementation: runtime/lib_log_enabled.ts, harness: "rt.libLogEnabled({0})"}
   - {id: lib.log.emit, contract_version: 1.0.0, symbol: rt.libLogEmit, implementation: runtime/lib_log_emit.ts}
+  - {id: lib.os.read_file, contract_version: 1.0.0, symbol: rt.libOsReadFile, implementation: runtime/lib_os_read_file.ts}
+  - {id: lib.os.write_file, contract_version: 1.0.0, symbol: rt.libOsWriteFile, implementation: runtime/lib_os_write_file.ts}
   - {id: lib.crypto.aes256_gcm_decrypt, contract_version: 1.0.0, symbol: rt.libCryptoAes256GcmDecrypt, implementation: runtime/lib_crypto_aes256_gcm_decrypt.ts, requires: [lib.crypto.close], harness: "host: rt.libCryptoAes256GcmDecrypt(t,{0},{1},{2},{3})"}
   - {id: lib.crypto.aes256_gcm_encrypt, contract_version: 1.0.0, symbol: rt.libCryptoAes256GcmEncrypt, implementation: runtime/lib_crypto_aes256_gcm_encrypt.ts, requires: [lib.crypto.close], harness: "host: rt.libCryptoAes256GcmEncrypt(t,{0},{1},{2},{3})"}
   - {id: lib.crypto.close, contract_version: 1.0.0, symbol: rt.libCryptoClose, implementation: runtime/lib_crypto_close.ts, requires: [core.task.spawn], harness: "host: rt.libCryptoClose(t,{0})"}

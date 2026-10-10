@@ -79,6 +79,8 @@ export * from "../../runtime/lib_clock_unix.ts";
 export * from "../../runtime/lib_clock_unix_nano.ts";
 export * from "../../runtime/lib_log_enabled.ts";
 export * from "../../runtime/lib_log_emit.ts";
+export * from "../../runtime/lib_os_read_file.ts";
+export * from "../../runtime/lib_os_write_file.ts";
 export * from "../../runtime/lib_crypto_aes256_gcm_decrypt.ts";
 export * from "../../runtime/lib_crypto_aes256_gcm_encrypt.ts";
 export * from "../../runtime/lib_crypto_close.ts";

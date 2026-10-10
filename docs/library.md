@@ -30,6 +30,7 @@ Why two importable roots:
 | [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
 | [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
 | [log/slog](#stdlogslog) | `github.com/eugenioenko/goalchemy/std/log/slog` | Package slog provides structured logging with Go's log/slog API. |
+| [os](#stdos) | `github.com/eugenioenko/goalchemy/std/os` | Package os reads and writes whole files on the host file system. |
 | [sort](#stdsort) | `github.com/eugenioenko/goalchemy/std/sort` | Package sort sorts collections through the Len, Less, and Swap methods. |
 | [strconv](#stdstrconv) | `github.com/eugenioenko/goalchemy/std/strconv` | Package strconv converts between integers, Booleans, and their string forms, and formats floating-point numbers. |
 | [strings](#stdstrings) | `github.com/eugenioenko/goalchemy/std/strings` | Package strings manipulates UTF-8 encoded strings. |
@@ -45,6 +46,7 @@ Why two importable roots:
 | [lib/errors](#errors) | `github.com/eugenioenko/goalchemy/lib/errors` | Package errors provides Goalchemy's error values. |
 | [lib/http](#http) | `github.com/eugenioenko/goalchemy/lib/http` | Package http provides bounded HTTP exchanges, retaining TLS verification and returning redirect responses without following them. |
 | [lib/log](#log) | `github.com/eugenioenko/goalchemy/lib/log` | Package log routes structured log records from Goalchemy programs to a sink the host application installs. |
+| [lib/os](#os) | `github.com/eugenioenko/goalchemy/lib/os` | Package os reads and writes whole host files. |
 | [lib/runtime](#runtime) | `github.com/eugenioenko/goalchemy/lib/runtime` | Package runtime provides Goalchemy's scheduler controls. |
 | [lib/sync](#sync) | `github.com/eugenioenko/goalchemy/lib/sync` | Package sync provides Goalchemy's synchronization primitives. |
 | [lib/task](#task) | `github.com/eugenioenko/goalchemy/lib/task` | Package task provides structured waiting for Goalchemy programs. |
@@ -1619,6 +1621,80 @@ func (v Value) Uint64() uint64
 ```
 
 Uint64 returns v's value as a uint64. It panics if v is not an unsigned integer.
+
+
+## std/os
+
+```go
+import "github.com/eugenioenko/goalchemy/std/os"
+```
+
+Package os reads and writes whole files on the host file system. Errors are *PathError values whose Err matches ErrNotExist, ErrExist, ErrPermission or errors.ErrUnsupported through errors.Is, as in Go. Hosts without a file system, such as browsers, fail every call with an error matching errors.ErrUnsupported.
+
+```go
+const MaxFileBytes = os.MaxFileBytes
+```
+
+MaxFileBytes is the largest file ReadFile returns and WriteFile accepts.
+
+```go
+var (
+	ErrInvalid    = errors.New("invalid argument")
+	ErrPermission = errors.New("permission denied")
+	ErrExist      = errors.New("file already exists")
+	ErrNotExist   = errors.New("file does not exist")
+)
+```
+
+Portable analogs of the io/fs errors.
+
+### ReadFile
+
+```go
+func ReadFile(name string) ([]byte, error)
+```
+
+ReadFile reads the named file and returns its contents. A directory fails with op "read", as on Linux; other failures use op "open".
+
+### WriteFile
+
+```go
+func WriteFile(name string, data []byte, perm FileMode) error
+```
+
+WriteFile writes data to the named file, creating it if necessary. If the file does not exist, WriteFile creates it with permissions perm (before the umask); otherwise WriteFile truncates it before writing, without changing permissions.
+
+### type FileMode
+
+```go
+type FileMode uint32
+```
+
+A FileMode holds permission bits; only the low nine bits are applied.
+
+### type PathError
+
+```go
+type PathError struct {
+	Op   string
+	Path string
+	Err  error
+}
+```
+
+PathError records an error and the operation and file path that caused it.
+
+### PathError.Error
+
+```go
+func (e *PathError) Error() string
+```
+
+### PathError.Unwrap
+
+```go
+func (e *PathError) Unwrap() error
+```
 
 
 ## std/sort
@@ -4224,6 +4300,47 @@ Reports whether the host log sink accepts records at a level.
 - **Bounds**: Levels follow log/slog: -4 debug, 0 info, 4 warn, 8 error; any int is valid. The result is level >= the host's minimum level.
 - **Errors**: No error result.
 - **Contract**: `lib.log.enabled` 1.0.0
+
+## os
+
+```go
+import "github.com/eugenioenko/goalchemy/lib/os"
+```
+
+Package os reads and writes whole host files.
+
+| Function | c | csharp | go | java | python | rust | swift | typescript |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| `ReadFile` | yes | yes | yes | yes | yes | yes | yes | yes |
+| `WriteFile` | yes | yes | yes | yes | yes | yes | yes | yes |
+
+### ReadFile
+
+```go
+func ReadFile(name string) ([]byte, int)
+```
+
+Reads a whole host file and reports a portable status code.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: Files larger than MaxFileBytes (1 GiB) report TooLarge without returning data.
+- **Errors**: Missing paths report NotExist; access denial Permission; reading a directory IsDir; a non-directory path component NotDir; hosts without a file system Unsupported; other host failures IO.
+- **Contract**: `lib.os.read_file` 1.0.0
+
+### WriteFile
+
+```go
+func WriteFile(name string, data []byte, perm uint32) int
+```
+
+Creates or truncates a host file and writes data, reporting a portable status code.
+
+- **Gate**: `sequential` (never suspends)
+- **Determinism**: nondeterministic
+- **Bounds**: Data larger than MaxFileBytes (1 GiB) reports TooLarge without touching the file.
+- **Errors**: A missing parent directory reports NotExist; access denial Permission; a directory name IsDir; a non-directory path component NotDir; hosts without a file system Unsupported; other host failures IO. A failure after truncation can leave a partial file, as in Go.
+- **Contract**: `lib.os.write_file` 1.0.0
 
 ## runtime
 
