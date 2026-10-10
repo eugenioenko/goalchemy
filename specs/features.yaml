@@ -23,11 +23,11 @@ features:
   - {id: control_flow, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [control_flow, switch_forms]}
   - {id: defer_panic_recover, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [defer_recover, runtime_panics, panic_custom]}
   - {id: errors, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [errors_values, std_fmt_errors]}
-  - {id: std_packages, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [std_packages, std_time, std_fmt_errors, std_slog, std_os, std_jsonvalue]}
+  - {id: std_packages, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [std_packages, std_time, std_fmt_errors, std_slog, std_os, std_jsonvalue, std_json_marshal, std_json_marshalers, std_json_syntax, std_json_value]}
   - {id: evaluation_order, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [eval_order]}
   - {id: tasks_channels_select, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_pipeline, co_select_loop, co_buffered, co_select_default, co_chan_panics, co_sched_trace]}
   - {id: synchronization, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_waitgroup_mutex, co_unlock_fatal, co_waitgroup_negative]}
-  - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_context, co_sleep_order, co_std_time_sleep, co_std_slog]}
+  - {id: cancellation_and_virtual_time, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_context, co_sleep_order, co_std_time_sleep, co_std_slog, co_std_json_marshal]}
   - {id: task_all_series, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_task_all]}
   - {id: resumable_frames, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_frames, co_sched_trace]}
   - {id: deadlock_and_task_panics, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_deadlock, co_goroutine_panic]}
@@ -35,6 +35,6 @@ features:
   - {id: floating_point, gate: sequential, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [floats, floats_panic32, floats_panic64, floats_panic_named32, floats_panic_named64]}
   - {id: floating_point_channels, gate: cooperative, status: supported, targets: [go, typescript, python, java, csharp, rust, c, swift], fixtures: [co_floats]}
   - {id: complex_numbers, gate: rejected, status: rejected, targets: [], fixtures: [reject_complex]}
-  - {id: reflection_dependent_library_calls, gate: rejected, status: rejected, targets: [], fixtures: [reject_fmt_operand, reject_errors_as, reject_slog_operand]}
+  - {id: reflection_dependent_library_calls, gate: rejected, status: rejected, targets: [], fixtures: [reject_fmt_operand, reject_errors_as, reject_slog_operand, reject_json_marshal]}
   - {id: element_pointers, gate: rejected, status: rejected, targets: [], fixtures: [reject_elem_addr]}
   - {id: goroutines_in_sequential, gate: rejected, status: rejected, targets: [], fixtures: [reject_goroutine]}
