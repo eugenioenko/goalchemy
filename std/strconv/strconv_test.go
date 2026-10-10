@@ -163,3 +163,35 @@ func TestFormatFloatMatchesStd(t *testing.T) {
 		t.Errorf("AppendFloat = %s want %s", g, w)
 	}
 }
+
+var parseFloatInputs = []string{
+	"", "0", "-0", "+0", "1", "-1", "1.5", ".5", "5.", ".", "-.", "1e", "1e+", "1e-5", "1E5", "1e400", "-1e400", "1e-400",
+	"4.9e-324", "2.4703282292062327e-324", "2.4703282292062328e-324", "2.2250738585072011e-308",
+	"2.2250738585072012e-308", "1.7976931348623157e308", "1.7976931348623158e308", "1.7976931348623159e308",
+	"179769313486231580793728971405301e276", "0.1", "0.2", "0.3", "123456789012345678901234567890",
+	"9007199254740993", "9007199254740992.5", "1_000.5", "1__0", "_1", "0x1p-2", "0x1.8p1", "0X1P+3", "0x1", "0x.8p1",
+	"0x1.fffffffffffff8p1023", "0x1p-1074", "0x1p-1075", "0x1.0000000000001p-1075", "inf", "-Inf", "+INF", "infinity",
+	"-Infinity", "infin", "nan", "NaN", "-nan", "+nan", "nanx", "1x", "1.2.3", " 1", "1 ", "0.000000000000000000000000000001",
+	"3.4028235e38", "3.4028236e38", "1.401298464324817e-45", "7e-46", "1e23", "8.98846567431158e307",
+	"100000000000000016777215", "100000000000000016777216", "1.00000017881393432617187499", "1.000000178813934326171875",
+	"6.9294956446009195e15", "0.500000000000000166533453693773481063544750213623046875",
+}
+
+func TestParseFloatMatchesStd(t *testing.T) {
+	r := rand.New(rand.NewSource(2))
+	inputs := append([]string(nil), parseFloatInputs...)
+	for i := 0; i < 4000; i++ {
+		f := math.Float64frombits(r.Uint64())
+		inputs = append(inputs, stdstrconv.FormatFloat(f, 'g', -1, 64), stdstrconv.FormatFloat(f, 'e', r.Intn(25), 64),
+			stdstrconv.FormatFloat(f, 'x', -1, 64), stdstrconv.FormatFloat(float64(math.Float32frombits(r.Uint32())), 'g', 17, 32))
+	}
+	for _, s := range inputs {
+		for _, bits := range []int{32, 64} {
+			g, gerr := strconv.ParseFloat(s, bits)
+			w, werr := stdstrconv.ParseFloat(s, bits)
+			if math.Float64bits(g) != math.Float64bits(w) && !(g != g && w != w) || errText(gerr) != errText(werr) {
+				t.Fatalf("ParseFloat(%q, %d) = %v, %v want %v, %v", s, bits, g, gerr, w, werr)
+			}
+		}
+	}
+}
