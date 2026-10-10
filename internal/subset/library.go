@@ -125,12 +125,13 @@ func (c *checker) jsonMarshal(n *ast.CallExpr, fn *types.Func) {
 		c.unsupported(n, "GCS006", "lib/"+name, "Import github.com/eugenioenko/goalchemy/std/encoding/json and call "+name+".")
 		return
 	}
-	want := 1
-	if fn.Name() == "MarshalIndent" {
-		want = 3
-	}
+	want := map[string]int{"Marshal": 1, "MarshalIndent": 3, "Unmarshal": 2}[fn.Name()]
 	if len(n.Args) != want {
 		c.unsupported(n, "GCS006", name+" with a multi-value argument", "Pass each argument separately.")
+		return
+	}
+	if fn.Name() == "Unmarshal" {
+		c.jsonUnmarshal(n.Args[1])
 		return
 	}
 	tv := c.info.Types[n.Args[0]]
@@ -145,6 +146,39 @@ func (c *checker) jsonMarshal(n *ast.CallExpr, fn *types.Func) {
 		}
 	}
 	c.jsonLiteral(n.Args[0])
+}
+
+// jsonUnmarshal checks that an Unmarshal target decodes exactly as with
+// encoding/json: a pointer whose reachable types the compiler can describe,
+// or an interface whose visibly stored value std/encoding/json can decode.
+func (c *checker) jsonUnmarshal(target ast.Expr) {
+	tv := c.info.Types[target]
+	if tv.Type == nil || tv.IsNil() {
+		return
+	}
+	if types.IsInterface(tv.Type) {
+		if call, ok := ast.Unparen(target).(*ast.CallExpr); ok {
+			if ft := c.info.Types[call.Fun]; ft.IsType() && len(call.Args) == 1 {
+				if at := c.info.TypeOf(call.Args[0]); at != nil && !types.IsInterface(at) && !jsontype.DynamicDecode(at) {
+					c.report(call.Args[0], "GCS006", "json.Unmarshal target in an interface",
+						"json.Unmarshal cannot decode into a "+typeName(at)+" stored in an interface",
+						"Pass the pointer to json.Unmarshal directly, without converting it to an interface.")
+				}
+			}
+		}
+		return
+	}
+	p, ok := tv.Type.Underlying().(*types.Pointer)
+	if !ok {
+		c.report(target, "GCS006", "json.Unmarshal target",
+			"json.Unmarshal target of static type "+typeName(tv.Type)+" is not a pointer",
+			"Pass a pointer, such as &value.")
+		return
+	}
+	if prob := jsontype.CheckDecode(p.Elem()); prob != nil {
+		c.report(target, "GCS006", "json.Unmarshal target", "json.Unmarshal cannot decode "+prob.Path+": "+prob.Msg,
+			"Give the field a supported type, implement json.Unmarshaler, or exclude it with a `json:\"-\"` tag.")
+	}
 }
 
 func (c *checker) jsonLiteral(e ast.Expr) {

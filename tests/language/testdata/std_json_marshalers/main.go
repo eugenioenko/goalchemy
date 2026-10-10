@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/eugenioenko/goalchemy/std/bytes"
 	"github.com/eugenioenko/goalchemy/std/encoding/json"
+	"github.com/eugenioenko/goalchemy/std/encoding/jsonvalue"
 	"github.com/eugenioenko/goalchemy/std/errors"
 )
 
@@ -78,7 +80,23 @@ func (label label) show(b []byte, err error) {
 	println(string(label), string(b))
 }
 
-func main() {
+type Out string
+
+func (o Out) MarshalJSON() ([]byte, error) { return []byte(o), nil }
+
+type Nest struct {
+	Name string
+	Out  Out
+	List []Out
+}
+
+type Envelope struct {
+	Kind string          `json:"kind"`
+	Body jsonvalue.Value `json:"body"`
+	Meta any             `json:"meta,omitempty"`
+}
+
+func marshalers() {
 	deg := Celsius(1)
 	h := Holder{C: 2, CP: &deg, P: 1, PS: []Ptr{1, 2}, PM: map[string]Ptr{"k": 3}, PA: [1]Ptr{4}, Col: 1, PT: 5, B: 6,
 		Raw: json.RawMessage(` [ 1 , {"a" : "<"} ] `), Num: "12.50",
@@ -122,4 +140,53 @@ func main() {
 	println("fail-text", err.Error())
 	_, err = json.Marshal(map[FailText]int{1: 1})
 	println("fail-text-key", err.Error())
+}
+
+func syntaxCases() {
+	var se *json.SyntaxError
+	var err error
+	for _, out := range []Out{"[1 2]", `{"a":`, "1 2", "", "nul", "\"a\x01\"", "\"\\x\"", "{1:2}", `{"a" 1}`, `{"a":1 "b":2}`,
+		"-", "--1", "1.", "1e+", "01", "[,1]", "[1,]", "\"\\u12\"", "tru", "}", " \t[ 1 , true ,null] ", "\"\xff<\"", `{"a":1,"a":2}`} {
+		b, err := json.Marshal(Nest{Name: "n", Out: "0", List: []Out{"1", out}})
+		if errors.As(err, &se) {
+			println("syntax", string(out), se.Offset, err.Error())
+		} else {
+			println("syntax", string(out), string(b), err == nil)
+		}
+	}
+	println("valid", json.Valid([]byte(`{"a":[1,2,{"b":null}]}`)), json.Valid([]byte(`{"a":}`)), json.Valid([]byte(` 1 `)), json.Valid(nil))
+	var buf bytes.Buffer
+	err = json.Compact(&buf, []byte(" { \"a\" : [ 1 , \"<\" ] } "))
+	println("compact", buf.String(), err == nil)
+	buf.Reset()
+	err = json.Compact(&buf, []byte(`{"a":`))
+	println("compact-bad", buf.Len(), err.Error())
+	buf.Reset()
+	err = json.Indent(&buf, []byte(`{"a":[1,{}],"b":[]}`), "> ", "\t")
+	println("indent-fn", buf.String(), err == nil)
+	buf.Reset()
+	err = json.Indent(&buf, []byte(`[1 2]`), "", " ")
+	println("indent-bad", err.Error())
+	buf.Reset()
+	json.HTMLEscape(&buf, []byte("{\"<a>\":\"& \"}"))
+	println("html-escape", buf.String())
+}
+
+func values() {
+	doc, err := jsonvalue.Parse([]byte(`{"z":1,"a":["<x>",2.50,true,null],"n":{}}`))
+	println(err == nil)
+	b, err := json.Marshal(Envelope{Kind: "doc", Body: doc, Meta: []any{doc, jsonvalue.String("&")}})
+	println(string(b), err == nil)
+	b, err = json.MarshalIndent(Envelope{Kind: "built", Body: jsonvalue.Object("k", jsonvalue.Array(jsonvalue.Int(1), jsonvalue.Float(0.5)))}, "", "  ")
+	println(string(b), err == nil)
+	_, err = json.Marshal(Envelope{Kind: "invalid"})
+	println(err.Error())
+	_, err = json.Marshal(jsonvalue.Number("NaN"))
+	println(err.Error())
+}
+
+func main() {
+	marshalers()
+	syntaxCases()
+	values()
 }

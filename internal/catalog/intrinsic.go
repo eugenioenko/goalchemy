@@ -19,13 +19,14 @@ func IsErrorsAs(obj types.Object) bool {
 // JSONPackage is the standard encoding/json package compiled as source.
 const JSONPackage = StdModule + "encoding/json"
 
-// JSONMarshal reports whether obj is json.Marshal or json.MarshalIndent from
-// std/encoding/json or its native lib/json counterpart, returning the name.
+// JSONMarshal reports whether obj is json.Marshal, json.MarshalIndent or
+// json.Unmarshal from std/encoding/json or its native lib/json counterpart,
+// returning the name.
 // The compiler describes the static type of the operand instead of using
 // reflection.
 func JSONMarshal(obj types.Object) (string, bool) {
 	fn, ok := obj.(*types.Func)
-	if !ok || fn.Pkg() == nil || fn.Signature().Recv() != nil || fn.Name() != "Marshal" && fn.Name() != "MarshalIndent" {
+	if !ok || fn.Pkg() == nil || fn.Signature().Recv() != nil || fn.Name() != "Marshal" && fn.Name() != "MarshalIndent" && fn.Name() != "Unmarshal" {
 		return "", false
 	}
 	p := fn.Pkg().Path()

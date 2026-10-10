@@ -26,6 +26,9 @@ func (fl *fnLowerer) jsonMarshal(e *ast.CallExpr, obj types.Object, name string)
 		return zero
 	}
 	g := &jsonGen{l: fl.l, pkg: pkg}
+	if name == "Unmarshal" {
+		return fl.jsonUnmarshal(e, g)
+	}
 	anyT := fl.ts().Any()
 	arg := e.Args[0]
 	tv := fl.info.Types[arg]
@@ -47,7 +50,7 @@ func (fl *fnLowerer) jsonMarshal(e *ast.CallExpr, obj types.Object, name string)
 		args = append(args, fl.exprTo(e.Args[1], fl.ts().String()), fl.exprTo(e.Args[2], fl.ts().String()))
 	}
 	if helper == "marshalTyped" || helper == "marshalIndentTyped" {
-		desc := g.desc(tv.Type)
+		desc := g.desc(tv.Type, false)
 		d := fl.temp(desc.Sig.U().Results[0])
 		fl.emit(&ir.Call{At: at(e), Kind: ir.CallStatic, Func: desc, Dsts: []*ir.Local{d}})
 		args = append(args[:1], append([]ir.Value{d}, args[1:]...)...)
@@ -63,6 +66,41 @@ func (fl *fnLowerer) jsonMarshal(e *ast.CallExpr, obj types.Object, name string)
 	}
 	fl.emit(c)
 	return out
+}
+
+// jsonUnmarshal lowers json.Unmarshal. A target of static pointer type
+// decodes through a generated descriptor of the pointed-to type; interface
+// targets decode into their dynamic value.
+func (fl *fnLowerer) jsonUnmarshal(e *ast.CallExpr, g *jsonGen) []ir.Value {
+	anyT := fl.ts().Any()
+	data := fl.exprTo(e.Args[0], g.paramType("unmarshalAny", 0))
+	arg := e.Args[1]
+	tv := fl.info.Types[arg]
+	var f *ir.Func
+	var args []ir.Value
+	if tv.IsNil() || types.IsInterface(tv.Type) {
+		f = g.helper("unmarshalAny")
+		args = []ir.Value{data, fl.exprTo(arg, anyT)}
+	} else {
+		elem := tv.Type.Underlying().(*types.Pointer).Elem()
+		pt := fl.ts().PointerTo(fl.typ(elem))
+		var x ir.Value = fl.snap(fl.exprTo(arg, fl.typ(tv.Type)))
+		if x.IRType() != pt {
+			c := fl.temp(pt)
+			fl.emit(&ir.Convert{At: at(e), Dst: c, X: x, Kind: ir.ConvNop})
+			x = c
+		}
+		isNil := fl.temp(fl.ts().Bool())
+		fl.emit(&ir.BinOp{At: at(e), Dst: isNil, Op: ir.Eq, X: x, Y: &ir.Const{Type: pt, Nil: true}})
+		desc := g.desc(elem, true)
+		d := fl.temp(desc.Sig.U().Results[0])
+		fl.emit(&ir.Call{At: at(e), Kind: ir.CallStatic, Func: desc, Dsts: []*ir.Local{d}})
+		f = g.helper("unmarshalTyped")
+		args = []ir.Value{data, fl.conv(x, anyT, e), d, isNil, strConst(fl.ts(), jsontype.RootName(elem))}
+	}
+	out := fl.temp(f.Sig.U().Results[0])
+	fl.emit(&ir.Call{At: at(e), Kind: ir.CallStatic, Func: f, Args: args, Dsts: []*ir.Local{out}})
+	return []ir.Value{out}
 }
 
 type jsonGen struct {
@@ -104,11 +142,16 @@ func boolConst(ts *ir.Types, b bool) ir.Value {
 }
 
 // desc returns the function that builds, once, the std/encoding/json
-// descriptor of t. The descriptor is cached in a global before its children
-// are described, so recursive types terminate.
-func (g *jsonGen) desc(t types.Type) *ir.Func {
+// descriptor of t for encoding or, with dec, for decoding. The descriptor is
+// cached in a global before its children are described, so recursive types
+// terminate.
+func (g *jsonGen) desc(t types.Type, dec bool) *ir.Func {
 	l := g.l
-	key := "json.desc|" + g.typeID(t)
+	mode := "desc"
+	if dec {
+		mode = "ddesc"
+	}
+	key := "json." + mode + "|" + g.typeID(t)
 	if f, ok := l.wrappers[key]; ok {
 		return f
 	}
@@ -117,10 +160,10 @@ func (g *jsonGen) desc(t types.Type) *ir.Func {
 	infoT := newType.Sig.U().Results[0]
 	sig := ts.Of(types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewVar(token.NoPos, nil, "", infoT.Go)), false))
 	base := sanitize(jsontype.TypeString(t))
-	f := l.addFunc(&ir.Func{Name: "json.describe[" + jsontype.TypeString(t) + "]", Sym: l.sym("json_desc_" + base),
+	f := l.addFunc(&ir.Func{Name: "json." + mode + "[" + jsontype.TypeString(t) + "]", Sym: l.sym("json_" + mode + "_" + base),
 		Sig: sig, Pkg: g.pkg.Path(), Wrapper: true})
 	l.wrappers[key] = f
-	cache := &ir.Global{ID: len(l.out.Globals), Name: "desc_" + base, Pkg: g.pkg.Path(), Sym: l.sym("json_cache_" + base), Type: infoT}
+	cache := &ir.Global{ID: len(l.out.Globals), Name: mode + "_" + base, Pkg: g.pkg.Path(), Sym: l.sym("json_" + mode + "_cache_" + base), Type: infoT}
 	l.out.Globals = append(l.out.Globals, cache)
 
 	fl := l.newFn(nil, f)
@@ -143,66 +186,144 @@ func (g *jsonGen) desc(t types.Type) *ir.Func {
 	kind := jsontype.KindOf(t)
 	flags := jsontype.Flags(t)
 	leaf := jsontype.Leaf(t)
+	if dec {
+		flags = jsontype.DecodeFlags(t)
+		leaf = jsontype.DecodeLeaf(t)
+	}
 	var n int64
 	if a, ok := t.Underlying().(*types.Array); ok {
 		n = a.Len()
 	}
 	info := fl.temp(infoT)
 	fl.emit(&ir.Call{Kind: ir.CallStatic, Func: newType, Dsts: []*ir.Local{info},
-		Args: []ir.Value{strConst(ts, jsontype.TypeString(t)), intConst(ts, int64(kind)), intConst(ts, int64(flags)), intConst(ts, n)}})
+		Args: []ir.Value{strConst(ts, jsontype.TypeString(t)), intConst(ts, int64(kind)), intConst(ts, int64(flags)), intConst(ts, n),
+			intConst(ts, int64(jsontype.Bits(t)))}})
 	fl.emit(&ir.Store{Place: cachePlace, V: info})
 
 	nilInfo := &ir.Const{Type: infoT, Nil: true}
 	elem, keyDesc := ir.Value(nilInfo), ir.Value(nilInfo)
-	accessor := func(i int) ir.Value { return &ir.Const{Type: g.paramType("describe", i), Nil: true} }
-	load, value, deref, length, index, entries := accessor(3), accessor(4), accessor(5), accessor(6), accessor(7), accessor(8)
+	none := func(helper string, i int) ir.Value { return &ir.Const{Type: g.paramType(helper, i), Nil: true} }
+	acc := func(helper string, i int, what string) ir.Value { return g.accessor(t, what, g.paramType(helper, i)) }
+	var enc [6]ir.Value
+	for i := range enc {
+		enc[i] = none("describe", i+3)
+	}
+	var decAcc [10]ir.Value
+	for i := range decAcc {
+		decAcc[i] = none("describeDecode", i+1)
+	}
 	call := func(d *ir.Func) ir.Value {
 		dst := fl.temp(infoT)
 		fl.emit(&ir.Call{Kind: ir.CallStatic, Func: d, Dsts: []*ir.Local{dst}})
 		return dst
 	}
-	if flags&(jsontype.MarshalJSON|jsontype.MarshalText) != 0 && kind != jsontype.Pointer {
-		value = g.accessor(t, "value", g.paramType("describe", 4))
+	if !dec && flags&(jsontype.MarshalJSON|jsontype.MarshalText) != 0 && kind != jsontype.Pointer {
+		enc[1] = acc("describe", 4, "value")
 	}
+	const (
+		dStore = iota
+		dSetNil
+		dAlloc
+		dResize
+		dSetIndex
+		dNewElem
+		dNewKey
+		dMapInit
+		dMapStore
+		dSetIface
+	)
+	decodeChildren := dec && !leaf
 	switch kind {
-	case jsontype.Bool, jsontype.Int, jsontype.Uint, jsontype.Float32, jsontype.Float64, jsontype.String, jsontype.Bytes:
-		load = g.accessor(t, "load", g.paramType("describe", 3))
+	case jsontype.Bool, jsontype.Int, jsontype.Uint, jsontype.Float32, jsontype.Float64, jsontype.String:
+		if dec {
+			decAcc[dStore] = acc("describeDecode", 1, "store")
+		} else {
+			enc[0] = acc("describe", 3, "load")
+		}
+	case jsontype.Bytes:
+		if dec {
+			decAcc[dStore] = acc("describeDecode", 1, "store")
+			decAcc[dSetNil] = acc("describeDecode", 2, "setNil")
+			if decodeChildren {
+				enc[3] = acc("describe", 6, "length")
+				enc[4] = acc("describe", 7, "index")
+				decAcc[dResize] = acc("describeDecode", 4, "resize")
+				decAcc[dSetIndex] = acc("describeDecode", 5, "setIndex")
+				elem = call(g.desc(t.Underlying().(*types.Slice).Elem(), true))
+			}
+		} else {
+			enc[0] = acc("describe", 3, "load")
+		}
 	case jsontype.Interface:
-		value = g.accessor(t, "value", g.paramType("describe", 4))
+		enc[1] = acc("describe", 4, "value")
+		if dec {
+			decAcc[dSetNil] = acc("describeDecode", 2, "setNil")
+			if flags&jsontype.NonEmptyInterface == 0 {
+				decAcc[dSetIface] = acc("describeDecode", 10, "setIface")
+			}
+		}
 	case jsontype.Pointer:
-		deref = g.accessor(t, "deref", g.paramType("describe", 5))
+		enc[2] = acc("describe", 5, "deref")
+		if dec {
+			decAcc[dSetNil] = acc("describeDecode", 2, "setNil")
+			decAcc[dAlloc] = acc("describeDecode", 3, "alloc")
+		}
 		if !leaf {
-			elem = call(g.desc(t.Underlying().(*types.Pointer).Elem()))
+			elem = call(g.desc(t.Underlying().(*types.Pointer).Elem(), dec))
 		}
 	case jsontype.Slice:
-		length = g.accessor(t, "length", g.paramType("describe", 6))
+		enc[3] = acc("describe", 6, "length")
+		if dec {
+			decAcc[dSetNil] = acc("describeDecode", 2, "setNil")
+		}
 		if !leaf {
-			index = g.accessor(t, "index", g.paramType("describe", 7))
-			elem = call(g.desc(t.Underlying().(*types.Slice).Elem()))
+			enc[4] = acc("describe", 7, "index")
+			elem = call(g.desc(t.Underlying().(*types.Slice).Elem(), dec))
+			if dec {
+				decAcc[dResize] = acc("describeDecode", 4, "resize")
+				decAcc[dSetIndex] = acc("describeDecode", 5, "setIndex")
+			}
 		}
 	case jsontype.Array:
 		if !leaf {
-			index = g.accessor(t, "index", g.paramType("describe", 7))
-			elem = call(g.desc(t.Underlying().(*types.Array).Elem()))
+			enc[4] = acc("describe", 7, "index")
+			elem = call(g.desc(t.Underlying().(*types.Array).Elem(), dec))
+			if dec {
+				decAcc[dSetIndex] = acc("describeDecode", 5, "setIndex")
+				decAcc[dNewElem] = acc("describeDecode", 6, "newElem")
+			}
 		}
 	case jsontype.Map:
-		length = g.accessor(t, "length", g.paramType("describe", 6))
+		enc[3] = acc("describe", 6, "length")
+		if dec {
+			decAcc[dSetNil] = acc("describeDecode", 2, "setNil")
+		}
 		if !leaf {
 			m := t.Underlying().(*types.Map)
-			entries = g.accessor(t, "entries", g.paramType("describe", 8))
-			keyDesc = call(g.desc(m.Key()))
-			elem = call(g.desc(m.Elem()))
+			keyDesc = call(g.desc(m.Key(), dec))
+			elem = call(g.desc(m.Elem(), dec))
+			if dec {
+				decAcc[dNewElem] = acc("describeDecode", 6, "newElem")
+				decAcc[dNewKey] = acc("describeDecode", 7, "newKey")
+				decAcc[dMapInit] = acc("describeDecode", 8, "mapInit")
+				decAcc[dMapStore] = acc("describeDecode", 9, "mapStore")
+			} else {
+				enc[5] = acc("describe", 8, "entries")
+			}
 		}
 	}
 	fl.emit(&ir.Call{Kind: ir.CallStatic, Func: g.helper("describe"),
-		Args: []ir.Value{info, elem, keyDesc, load, value, deref, length, index, entries}})
+		Args: append([]ir.Value{info, elem, keyDesc}, enc[:]...)})
+	if dec {
+		fl.emit(&ir.Call{Kind: ir.CallStatic, Func: g.helper("describeDecode"), Args: append([]ir.Value{info}, decAcc[:]...)})
+	}
 	if kind == jsontype.Struct && !leaf {
 		addField := g.helper("addField")
-		addrT := g.paramType("addField", 6)
+		addrT := g.paramType("addField", 7)
 		for _, fd := range jsontype.Fields(t) {
-			ft := call(g.desc(fd.Type))
-			fl.emit(&ir.Call{Kind: ir.CallStatic, Func: addField, Args: []ir.Value{info, strConst(ts, fd.Key),
-				boolConst(ts, fd.OmitEmpty), boolConst(ts, fd.Quoted), boolConst(ts, fd.ViaPtr), ft, g.fieldAccessor(t, fd, addrT)}})
+			ft := call(g.desc(fd.Type, dec))
+			fl.emit(&ir.Call{Kind: ir.CallStatic, Func: addField, Args: []ir.Value{info, strConst(ts, fd.Name), strConst(ts, fd.Key),
+				boolConst(ts, fd.OmitEmpty), boolConst(ts, fd.Quoted), boolConst(ts, fd.ViaPtr), ft, g.fieldAccessor(t, fd, addrT, dec)}})
 		}
 	}
 	fl.emit(&ir.Store{Place: localPlace(result), V: info})
@@ -242,6 +363,9 @@ func (g *jsonGen) accessor(t types.Type, what string, sig *ir.Type) ir.Value {
 	key := "json." + what + "|" + g.typeID(t)
 	if f, ok := g.l.wrappers[key]; ok {
 		return &ir.FuncRef{Func: f, Type: sig}
+	}
+	if what == "newElem" || what == "newKey" {
+		return g.allocator(t, what, sig, key)
 	}
 	fl, f, ptr := g.newAccessor(t, what, sig)
 	g.l.wrappers[key] = f
@@ -317,9 +441,183 @@ func (g *jsonGen) accessor(t types.Type, what string, sig *ir.Type) ir.Value {
 		fl.jump(head)
 		fl.b = done
 		fl.term(&ir.Return{})
+	case "store":
+		fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: g.fromCanonical(fl, f.Params[1], t)})
+		fl.term(&ir.Return{})
+	case "setNil":
+		fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: &ir.Const{Type: tt, Nil: true}})
+		fl.term(&ir.Return{})
+	case "setIface":
+		fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: fl.conv(f.Params[1], tt, nil)})
+		fl.term(&ir.Return{})
+	case "alloc":
+		e := t.Underlying().(*types.Pointer).Elem()
+		np := fl.temp(ts.PointerTo(ts.Of(e)))
+		fl.emit(&ir.New{Dst: np})
+		var pv ir.Value = np
+		if np.Type != tt {
+			c := fl.temp(tt)
+			fl.emit(&ir.Convert{Dst: c, X: np, Kind: ir.ConvNop})
+			pv = c
+		}
+		fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: pv})
+		ret(fl.conv(np, anyT, nil))
+	case "resize":
+		n := f.Params[1]
+		store := func(x ir.Value) {
+			fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: x})
+			fl.term(&ir.Return{})
+		}
+		c := fl.temp(ts.IntT())
+		fl.emit(&ir.Cap{Dst: c, X: v})
+		branch := func(op ir.BinOpKind, x, y ir.Value) *ir.Block {
+			cond := fl.temp(ts.Bool())
+			fl.emit(&ir.BinOp{Dst: cond, Op: op, X: x, Y: y})
+			yes, no := f.NewBlock("then"), f.NewBlock("else")
+			fl.term(&ir.If{Cond: cond, Then: yes, Else: no})
+			fl.b = no
+			return yes
+		}
+		neg := branch(ir.Lt, n, intConst(ts, 0))
+		zero := branch(ir.Eq, n, intConst(ts, 0))
+		fits := branch(ir.Le, n, c)
+		size := fl.temp(ts.IntT())
+		fl.emit(&ir.BinOp{Dst: size, Op: ir.Add, X: n, Y: c})
+		grown := fl.temp(tt)
+		fl.emit(&ir.MakeSlice{Dst: grown, Len: n, Cap: size})
+		copied := fl.temp(ts.IntT())
+		fl.emit(&ir.Copy{N: copied, Dst: grown, Src: v})
+		store(grown)
+		fl.b = neg
+		full := fl.temp(tt)
+		fl.emit(&ir.SliceOp{Dst: full, X: v, Hi: c})
+		store(full)
+		fl.b = zero
+		empty := fl.temp(tt)
+		fl.emit(&ir.MakeSlice{Dst: empty, Len: intConst(ts, 0), Cap: intConst(ts, 0)})
+		store(empty)
+		fl.b = fits
+		cut := fl.temp(tt)
+		fl.emit(&ir.SliceOp{Dst: cut, X: v, Hi: n})
+		store(cut)
+	case "setIndex":
+		var et *ir.Type
+		switch u := t.Underlying().(type) {
+		case *types.Slice:
+			et = ts.Of(u.Elem())
+		case *types.Array:
+			et = ts.Of(u.Elem())
+		}
+		ep := g.assertPointer(fl, f.Params[2], et)
+		ev := fl.load(&ir.Place{Root: ir.DerefRoot{Ptr: ep}, Type: et}, nil)
+		if _, ok := t.Underlying().(*types.Slice); ok {
+			fl.emit(&ir.Store{Place: &ir.Place{Root: ir.SliceRoot{Slice: v, Index: f.Params[1]}, Type: et}, V: ev})
+		} else {
+			fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Path: []ir.Proj{{Index: f.Params[1], Type: et}}, Type: et}, V: ev})
+		}
+		fl.term(&ir.Return{})
+	case "mapInit":
+		yes, no := isNil(v)
+		fl.b = yes
+		m := fl.temp(tt)
+		fl.emit(&ir.MakeMap{Dst: m})
+		fl.emit(&ir.Store{Place: &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: tt}, V: m})
+		fl.term(&ir.Return{})
+		fl.b = no
+		fl.term(&ir.Return{})
+	case "mapStore":
+		m := t.Underlying().(*types.Map)
+		kt, vt := ts.Of(m.Key()), ts.Of(m.Elem())
+		k := fl.load(&ir.Place{Root: ir.DerefRoot{Ptr: g.assertPointer(fl, f.Params[1], kt)}, Type: kt}, nil)
+		val := fl.load(&ir.Place{Root: ir.DerefRoot{Ptr: g.assertPointer(fl, f.Params[2], vt)}, Type: vt}, nil)
+		fl.emit(&ir.MapStore{M: v, K: k, V: val})
+		fl.term(&ir.Return{})
 	}
 	fl.finish()
 	return &ir.FuncRef{Func: f, Type: sig}
+}
+
+func (g *jsonGen) assertPointer(fl *fnLowerer, x ir.Value, elem *ir.Type) *ir.Local {
+	pt := fl.ts().PointerTo(elem)
+	fl.markBoxed(pt)
+	p := fl.temp(pt)
+	fl.emit(&ir.TypeAssert{Dst: p, X: x, T: pt})
+	return p
+}
+
+// allocator returns func() any yielding a pointer to a new zero element or
+// key of the slice, array or map type t.
+func (g *jsonGen) allocator(t types.Type, what string, sig *ir.Type, key string) ir.Value {
+	l := g.l
+	var e types.Type
+	switch u := t.Underlying().(type) {
+	case *types.Map:
+		e = u.Elem()
+		if what == "newKey" {
+			e = u.Key()
+		}
+	case *types.Slice:
+		e = u.Elem()
+	case *types.Array:
+		e = u.Elem()
+	}
+	f := l.addFunc(&ir.Func{Name: "json." + what + "[" + jsontype.TypeString(t) + "]", Sym: l.sym("json_" + what + "_" + sanitize(jsontype.TypeString(t))),
+		Sig: sig, Pkg: g.pkg.Path(), Wrapper: true})
+	l.wrappers[key] = f
+	fl := l.newFn(nil, f)
+	fl.start()
+	r := f.NewLocal("", sig.U().Results[0], ir.LResult)
+	f.Results = append(f.Results, r)
+	fl.emit(&ir.DeclVar{L: r})
+	np := fl.temp(l.ts.PointerTo(l.ts.Of(e)))
+	fl.emit(&ir.New{Dst: np})
+	fl.emit(&ir.Store{Place: localPlace(r), V: fl.conv(np, l.ts.Any(), nil)})
+	fl.term(&ir.Return{})
+	fl.finish()
+	return &ir.FuncRef{Func: f, Type: sig}
+}
+
+// fromCanonical converts the canonical value boxed in v (bool, int64,
+// uint64, float64, string or []byte) to t.
+func (g *jsonGen) fromCanonical(fl *fnLowerer, v ir.Value, t types.Type) ir.Value {
+	tt := fl.typ(t)
+	ct := g.canonicalType(t)
+	fl.markBoxed(ct)
+	c := fl.temp(ct)
+	fl.emit(&ir.TypeAssert{Dst: c, X: v, T: ct})
+	if ct == tt {
+		return c
+	}
+	fu, tu := ct.U(), tt.U()
+	kind := ir.ConvNop
+	switch {
+	case fu.Kind == ir.KFloat:
+		kind = ir.ConvFloat
+	case fu.Kind == ir.KInt && tu.Kind == ir.KInt && fu.Int != tu.Int:
+		kind = ir.ConvInt
+	}
+	dst := fl.temp(tt)
+	fl.emit(&ir.Convert{Dst: dst, X: c, Kind: kind})
+	return dst
+}
+
+func (g *jsonGen) canonicalType(t types.Type) *ir.Type {
+	var to types.Type
+	switch jsontype.KindOf(t) {
+	case jsontype.Bool:
+		to = types.Typ[types.Bool]
+	case jsontype.Int:
+		to = types.Typ[types.Int64]
+	case jsontype.Uint:
+		to = types.Typ[types.Uint64]
+	case jsontype.Float32, jsontype.Float64:
+		to = types.Typ[types.Float64]
+	case jsontype.String:
+		to = types.Typ[types.String]
+	case jsontype.Bytes:
+		to = types.NewSlice(types.Typ[types.Uint8])
+	}
+	return g.l.ts.Of(to)
 }
 
 func (g *jsonGen) copyOf(fl *fnLowerer, v *ir.Local) ir.Value {
@@ -367,8 +665,12 @@ func (g *jsonGen) canonical(fl *fnLowerer, v ir.Value, t types.Type) ir.Value {
 
 // fieldAccessor returns func(p any) any yielding a pointer to the field at
 // fd.Index within *p, or nil when an embedded pointer on the path is nil.
-func (g *jsonGen) fieldAccessor(t types.Type, fd jsontype.Field, sig *ir.Type) ir.Value {
-	fl, f, ptr := g.newAccessor(t, "field_"+fd.Name, sig)
+func (g *jsonGen) fieldAccessor(t types.Type, fd jsontype.Field, sig *ir.Type, dec bool) ir.Value {
+	what := "field_" + fd.Name
+	if dec && fd.ViaPtr {
+		what = "dfield_" + fd.Name
+	}
+	fl, f, ptr := g.newAccessor(t, what, sig)
 	ts := g.l.ts
 	place := &ir.Place{Root: ir.DerefRoot{Ptr: ptr}, Type: ts.Of(t)}
 	st := t
@@ -381,8 +683,16 @@ func (g *jsonGen) fieldAccessor(t types.Type, fd jsontype.Field, sig *ir.Type) i
 				yes, no := f.NewBlock("nil"), f.NewBlock("embedded")
 				fl.term(&ir.If{Cond: c, Then: yes, Else: no})
 				fl.b = yes
-				fl.term(&ir.Return{})
+				if dec {
+					np := fl.temp(ts.PointerTo(ts.Of(p.Elem())))
+					fl.emit(&ir.New{Dst: np})
+					fl.emit(&ir.Store{Place: place, V: fl.conv(np, place.Type, nil)})
+					fl.jump(no)
+				} else {
+					fl.term(&ir.Return{})
+				}
 				fl.b = no
+				pv = fl.load(place, nil)
 				st = p.Elem()
 				place = &ir.Place{Root: ir.DerefRoot{Ptr: pv}, Type: ts.Of(st)}
 			}
@@ -430,7 +740,7 @@ func (l *Lowerer) jsonNilPointers() {
 		if !t.Boxed || t.U().Kind != ir.KPointer {
 			continue
 		}
-		if jsontype.Flags(t.Go)&(jsontype.MarshalJSON|jsontype.MarshalText) != 0 {
+		if jsontype.HasMethods(t.Go) {
 			ptrs = append(ptrs, t)
 		}
 	}

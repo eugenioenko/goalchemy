@@ -130,3 +130,57 @@ func TestCheck(t *testing.T) {
 		t.Errorf("Values: got %+v, want the func field rejected", p)
 	}
 }
+
+const decodeSrc = `package d
+
+type T int
+
+func (*T) UnmarshalText([]byte) error { return nil }
+
+type J struct{}
+
+func (*J) UnmarshalJSON([]byte) error { return nil }
+
+type hidden struct{ X int }
+
+type Good struct {
+	K map[T]int
+	J J
+	P *J
+	A any
+	L []map[string][2]*int
+}
+
+type FloatKey struct{ M map[float32]int }
+
+type Hidden struct{ *hidden }
+
+type Shape interface{ Area() int }
+`
+
+func TestCheckDecode(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "d.go", decodeSrc, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := (&types.Config{Importer: importer.Default()}).Check("d", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := func(name string) types.Type { return pkg.Scope().Lookup(name).Type() }
+	if p := CheckDecode(lookup("Good")); p != nil {
+		t.Errorf("Good: unexpected problem %+v", p)
+	}
+	for _, name := range []string{"FloatKey", "Hidden"} {
+		if p := CheckDecode(lookup(name)); p == nil {
+			t.Errorf("%s: want a problem", name)
+		}
+	}
+	if DecodeFlags(lookup("T")) != UnmarshalText || DecodeFlags(lookup("J")) != UnmarshalJSON || DecodeFlags(types.NewPointer(lookup("J"))) != 0 {
+		t.Errorf("decode flags")
+	}
+	if DecodeFlags(lookup("Shape")) != NonEmptyInterface || RootName(lookup("Good")) != "Good" || RootName(types.Typ[types.Int]) != "int" {
+		t.Errorf("interface flags or root names")
+	}
+}

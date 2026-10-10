@@ -38,6 +38,9 @@ const (
 	AddrMarshalJSON
 	MarshalText
 	AddrMarshalText
+	UnmarshalJSON
+	UnmarshalText
+	NonEmptyInterface
 )
 
 var (
@@ -45,7 +48,157 @@ var (
 	errorType   = types.Universe.Lookup("error").Type()
 	marshaler   = method("MarshalJSON", nil, byteSlice, errorType)
 	textMarshal = method("MarshalText", nil, byteSlice, errorType)
+	unmarshaler = method("UnmarshalJSON", []types.Type{byteSlice}, errorType)
+	textUnmarsh = method("UnmarshalText", []types.Type{byteSlice}, errorType)
 )
+
+// DecodeFlags reports which unmarshal methods encoding/json would call for
+// an addressable value of type t, and whether t is a non-empty interface.
+func DecodeFlags(t types.Type) int {
+	if i, ok := t.Underlying().(*types.Interface); ok {
+		if i.NumMethods() > 0 {
+			return NonEmptyInterface
+		}
+		return 0
+	}
+	if _, ok := t.Underlying().(*types.Pointer); ok {
+		return 0
+	}
+	f := 0
+	p := types.NewPointer(t)
+	if types.Implements(p, unmarshaler) {
+		f |= UnmarshalJSON
+	}
+	if types.Implements(p, textUnmarsh) {
+		f |= UnmarshalText
+	}
+	return f
+}
+
+// HasMethods reports whether t implements json.Marshaler, json.Unmarshaler,
+// encoding.TextMarshaler or encoding.TextUnmarshaler.
+func HasMethods(t types.Type) bool {
+	return types.Implements(t, marshaler) || types.Implements(t, textMarshal) ||
+		types.Implements(t, unmarshaler) || types.Implements(t, textUnmarsh)
+}
+
+// DecodeLeaf reports whether decoding t never inspects its structure
+// except to store null.
+func DecodeLeaf(t types.Type) bool { return DecodeFlags(t)&(UnmarshalJSON|UnmarshalText) != 0 }
+
+// Bits is the size in bits of an integer or floating-point type.
+func Bits(t types.Type) int {
+	b, ok := t.Underlying().(*types.Basic)
+	if !ok {
+		return 0
+	}
+	switch b.Kind() {
+	case types.Int8, types.Uint8:
+		return 8
+	case types.Int16, types.Uint16:
+		return 16
+	case types.Int32, types.Uint32, types.Float32:
+		return 32
+	}
+	return 64
+}
+
+// RootName is the name encoding/json reports as UnmarshalTypeError.Struct
+// for a pointer to t: the unqualified name of a named or predeclared type.
+func RootName(t types.Type) string {
+	switch t := types.Unalias(t).(type) {
+	case *types.Named:
+		return t.Obj().Name()
+	case *types.Basic:
+		return TypeString(t)
+	}
+	return ""
+}
+
+// CheckDecode walks the types reachable when decoding into t and reports
+// the first one Goalchemy cannot decode exactly like encoding/json.
+func CheckDecode(t types.Type) *Problem {
+	return checkDecode(t, TypeString(t), map[string]bool{})
+}
+
+func checkDecode(t types.Type, path string, seen map[string]bool) *Problem {
+	id := typeID(t)
+	if seen[id] {
+		return nil
+	}
+	seen[id] = true
+	if DecodeLeaf(t) {
+		return nil
+	}
+	switch u := t.Underlying().(type) {
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if p := checkTag(u, i, path); p != nil {
+				return p
+			}
+			f := u.Field(i)
+			if p, ok := types.Unalias(f.Type()).(*types.Pointer); ok && f.Embedded() && !f.Exported() {
+				if _, isStruct := p.Elem().Underlying().(*types.Struct); isStruct {
+					return &Problem{f.Type(), path + "." + f.Name(), "decoding through an embedded pointer to the unexported type " + TypeString(p.Elem()) + " is not supported"}
+				}
+			}
+		}
+		for _, f := range Fields(t) {
+			if p := checkDecode(f.Type, path+"."+f.Var.Name(), seen); p != nil {
+				return p
+			}
+		}
+		return nil
+	case *types.Slice:
+		return checkDecode(u.Elem(), path+"[]", seen)
+	case *types.Array:
+		return checkDecode(u.Elem(), path+"[]", seen)
+	case *types.Map:
+		switch KindOf(u.Key()) {
+		case String, Int, Uint:
+		default:
+			if !types.Implements(types.NewPointer(u.Key()), textUnmarsh) {
+				return &Problem{t, path, "map key type " + TypeString(u.Key()) + " is not supported"}
+			}
+		}
+		return checkDecode(u.Elem(), path+"[]", seen)
+	case *types.Pointer:
+		return checkDecode(u.Elem(), path, seen)
+	case *types.Interface:
+		return nil
+	}
+	if KindOf(t) == 0 {
+		return &Problem{t, path, "type " + TypeString(t) + " is not supported"}
+	}
+	return nil
+}
+
+// DynamicDecode reports whether std/encoding/json decodes into a value of
+// pointer type t held in an interface exactly as encoding/json does.
+func DynamicDecode(t types.Type) bool {
+	if types.IsInterface(t) {
+		return true
+	}
+	if types.Implements(t, unmarshaler) || types.Implements(t, textUnmarsh) {
+		return true
+	}
+	p, ok := types.Unalias(t).(*types.Pointer)
+	if !ok {
+		return false
+	}
+	switch e := types.Unalias(p.Elem()).(type) {
+	case *types.Basic:
+		return e.Kind() == types.String || e.Kind() == types.Bool || e.Kind() == types.Float64
+	case *types.Interface:
+		return e.Empty()
+	case *types.Slice:
+		return isEmptyInterface(e.Elem())
+	case *types.Map:
+		k, ok := types.Unalias(e.Key()).(*types.Basic)
+		return ok && k.Kind() == types.String && isEmptyInterface(e.Elem())
+	}
+	return false
+}
 
 func method(name string, params []types.Type, results ...types.Type) *types.Interface {
 	var ps, rs []*types.Var

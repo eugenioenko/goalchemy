@@ -50,6 +50,24 @@ func (*Text) MarshalText() ([]byte, error) { return nil, nil }
 
 type Value int
 
+type hiddenBase struct{ X int }
+
+type HiddenPointer struct {
+	*hiddenBase
+}
+
+type FloatKeys struct {
+	M map[float64]string
+}
+
+type TextKey int
+
+func (k *TextKey) UnmarshalText([]byte) error { return nil }
+
+type TextKeys struct {
+	M map[TextKey]int
+}
+
 func (Value) MarshalJSON() ([]byte, error) { return nil, nil }
 
 func main() {
@@ -71,4 +89,21 @@ func main() {
 	f := json.Marshal // want GCS006
 	_ = f
 	defer json.Marshal(1) // want GCS006
+
+	var p Point
+	data := []byte(`{}`)
+	_ = json.Unmarshal(data, &p)
+	_ = json.Unmarshal(data, p)                // want GCS006
+	_ = json.Unmarshal(data, &Fn{})            // want GCS006
+	_ = json.Unmarshal(data, &FloatKeys{})     // want GCS006
+	_ = json.Unmarshal(data, &HiddenPointer{}) // want GCS006
+	_ = json.Unmarshal(data, &Zero{})          // want GCS006
+	_ = json.Unmarshal(data, any(&p))          // want GCS006
+	_ = json.Unmarshal(data, &TextKeys{})
+	_ = json.Unmarshal(data, any(new(map[string]any)))
+	_ = json.Unmarshal(data, nil)
+	var v jsonvalue.Value
+	_ = json.Unmarshal(data, &v)
+	u := json.Unmarshal // want GCS006
+	_ = u
 }

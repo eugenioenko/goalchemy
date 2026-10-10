@@ -1,9 +1,10 @@
-// Package json encodes Go values as JSON with the semantics of Go's
+// Package json encodes and decodes JSON with the semantics of Go's
 // encoding/json. Without reflection, the compiler describes each statically
-// known type passed to Marshal; values held in interfaces are encoded when
-// they are JSON-shaped (nil, booleans, numbers and strings of predeclared
-// types, []byte, []any, map[string]any) or implement Marshaler or
-// encoding.TextMarshaler, as Number, RawMessage and jsonvalue.Value do. Other dynamic values return *UnsupportedTypeError.
+// known type passed to Marshal or pointed to by an Unmarshal target. Values
+// held in interfaces are encoded when they are JSON-shaped (nil, booleans,
+// numbers and strings of predeclared types, []byte, []any, map[string]any)
+// or implement Marshaler or encoding.TextMarshaler, as Number, RawMessage and
+// jsonvalue.Value do; other dynamic values return *UnsupportedTypeError.
 package json
 
 import (
@@ -179,25 +180,40 @@ const (
 	flagAddrMarshalJSON
 	flagMarshalText
 	flagAddrMarshalText
+	flagUnmarshalJSON
+	flagUnmarshalText
+	flagNonEmptyInterface
 )
 
 type typeInfo struct {
-	name    string
-	kind    int
-	flags   int
-	n       int
-	elem    *typeInfo
-	key     *typeInfo
-	fields  []field
-	load    func(any) any
-	value   func(any) any
-	deref   func(any) any
-	length  func(any) int
-	index   func(any, int) any
-	entries func(any) ([]any, []any, bool)
+	name     string
+	kind     int
+	flags    int
+	n        int
+	bits     int
+	elem     *typeInfo
+	key      *typeInfo
+	fields   []field
+	load     func(any) any
+	value    func(any) any
+	deref    func(any) any
+	length   func(any) int
+	index    func(any, int) any
+	entries  func(any) ([]any, []any, bool)
+	store    func(any, any)
+	setNil   func(any)
+	alloc    func(any) any
+	resize   func(any, int)
+	setIndex func(any, int, any)
+	newElem  func() any
+	newKey   func() any
+	mapInit  func(any)
+	mapStore func(any, any, any)
+	setIface func(any, any)
 }
 
 type field struct {
+	name      string
 	key       string
 	omitEmpty bool
 	quoted    bool
@@ -206,8 +222,14 @@ type field struct {
 	addr      func(any) any
 }
 
-func newType(name string, kind, flags, n int) *typeInfo {
-	return &typeInfo{name: name, kind: kind, flags: flags, n: n}
+func newType(name string, kind, flags, n, bits int) *typeInfo {
+	return &typeInfo{name: name, kind: kind, flags: flags, n: n, bits: bits}
+}
+
+func describeDecode(t *typeInfo, store func(any, any), setNil func(any), alloc func(any) any, resize func(any, int),
+	setIndex func(any, int, any), newElem, newKey func() any, mapInit func(any), mapStore func(any, any, any), setIface func(any, any)) {
+	t.store, t.setNil, t.alloc, t.resize, t.setIndex = store, setNil, alloc, resize, setIndex
+	t.newElem, t.newKey, t.mapInit, t.mapStore, t.setIface = newElem, newKey, mapInit, mapStore, setIface
 }
 
 func describe(t, elem, key *typeInfo, load, value, deref func(any) any, length func(any) int,
@@ -217,8 +239,8 @@ func describe(t, elem, key *typeInfo, load, value, deref func(any) any, length f
 	t.length, t.index, t.entries = length, index, entries
 }
 
-func addField(t *typeInfo, key string, omitEmpty, quoted, viaPtr bool, ft *typeInfo, addr func(any) any) {
-	t.fields = append(t.fields, field{key: key, omitEmpty: omitEmpty, quoted: quoted, viaPtr: viaPtr, t: ft, addr: addr})
+func addField(t *typeInfo, name, key string, omitEmpty, quoted, viaPtr bool, ft *typeInfo, addr func(any) any) {
+	t.fields = append(t.fields, field{name: name, key: key, omitEmpty: omitEmpty, quoted: quoted, viaPtr: viaPtr, t: ft, addr: addr})
 }
 
 const (

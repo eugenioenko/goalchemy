@@ -31,6 +31,9 @@ func invalidCharacter(b []byte, where string) *fault {
 }
 
 func invalidEscape(what []byte) *fault {
+	if len(what) > 6 {
+		return &fault{kind: faultText, label: "surrogate pair", what: string(what), where: "in string"}
+	}
 	return &fault{kind: faultText, label: "escape sequence", what: string(what), where: "in string"}
 }
 
@@ -51,6 +54,12 @@ func (f *fault) syntaxError(pos int) *SyntaxError {
 		msg = strings.ReplaceAll(msg, r[0], r[1])
 	}
 	return &SyntaxError{msg, int64(pos + len(f.what))}
+}
+
+func (f *fault) atStart() error {
+	e := f.syntaxError(0)
+	e.Offset = 0
+	return e
 }
 
 func quoteWhat(what string) string {
@@ -86,8 +95,16 @@ func consumeWhitespace(b []byte) int {
 // Compact, Indent and the output of MarshalJSON methods. base is the output
 // offset at which the value starts and depth the current nesting depth.
 func checkTopLevel(src []byte, base, depth int) *SyntaxError {
+	return checkInput(src, base, depth, false)
+}
+
+// checkDecodeInput validates src the way encoding/json's Unmarshal does,
+// which words a few errors differently from Compact and Indent.
+func checkDecodeInput(src []byte) *SyntaxError { return checkInput(src, 0, 1, true) }
+
+func checkInput(src []byte, base, depth int, dec bool) *SyntaxError {
 	n := consumeWhitespace(src)
-	m, f := checkValue(src[n:], depth)
+	m, f := checkValue(src[n:], depth, dec)
 	if f != nil {
 		return f.syntaxError(base + n + m)
 	}
@@ -99,7 +116,7 @@ func checkTopLevel(src []byte, base, depth int) *SyntaxError {
 	return nil
 }
 
-func checkValue(src []byte, depth int) (int, *fault) {
+func checkValue(src []byte, depth int, dec bool) (int, *fault) {
 	if len(src) == 0 {
 		return 0, eofFault
 	}
@@ -113,11 +130,15 @@ func checkValue(src []byte, depth int) (int, *fault) {
 	case c == '"':
 		return checkString(src)
 	case c == '-' || '0' <= c && c <= '9':
-		return checkNumber(src)
+		n, f := checkNumber(src)
+		if f == eofFault && dec {
+			return 0, f
+		}
+		return n, f
 	case c == '{':
-		return checkObject(src, depth)
+		return checkObject(src, depth, dec)
 	case c == '[':
-		return checkArray(src, depth)
+		return checkArray(src, depth, dec)
 	}
 	return 0, invalidCharacter(src, "at start of value")
 }
@@ -270,7 +291,7 @@ func checkNumber(b []byte) (int, *fault) {
 	return n, nil
 }
 
-func checkObject(src []byte, depth int) (int, *fault) {
+func checkObject(src []byte, depth int, dec bool) (int, *fault) {
 	if depth == maxNestingDepth+1 {
 		return 0, depthFault
 	}
@@ -305,7 +326,7 @@ func checkObject(src []byte, depth int) (int, *fault) {
 		if n >= len(src) {
 			return n, eofFault
 		}
-		m, f = checkValue(src[n:], depth)
+		m, f = checkValue(src[n:], depth, dec)
 		if f != nil {
 			return n + m, f
 		}
@@ -325,7 +346,7 @@ func checkObject(src []byte, depth int) (int, *fault) {
 	}
 }
 
-func checkArray(src []byte, depth int) (int, *fault) {
+func checkArray(src []byte, depth int, dec bool) (int, *fault) {
 	if depth == maxNestingDepth+1 {
 		return 0, depthFault
 	}
@@ -343,7 +364,7 @@ func checkArray(src []byte, depth int) (int, *fault) {
 		if n >= len(src) {
 			return n, eofFault
 		}
-		m, f := checkValue(src[n:], depth)
+		m, f := checkValue(src[n:], depth, dec)
 		if f != nil {
 			return n + m, f
 		}
@@ -358,6 +379,9 @@ func checkArray(src []byte, depth int) (int, *fault) {
 		case ']':
 			return n + 1, nil
 		default:
+			if dec {
+				return n, invalidCharacter(src[n:], "after array element (expecting ',' or ']')")
+			}
 			return n, invalidCharacter(src[n:], "after array value (expecting ',' or ']')")
 		}
 	}
