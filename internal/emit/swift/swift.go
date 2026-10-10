@@ -85,7 +85,7 @@ func (e *emitter) types(b *bytes.Buffer) {
 		}
 		nativeSignatures[name] = types.NewSignatureType(nil, nil, nil, params, results, false)
 	}
-	b.WriteString("let gTypeRegistration: Void = {\n    GTypes.table = [\n")
+	fmt.Fprintf(b, "let gTypeRegistration: Void = {\n    var table: [GType] = []\n    table.reserveCapacity(%d)\n", len(e.p.Types.All))
 	for _, t := range e.p.Types.All {
 		u := t.U()
 		var fields, names, blank []string
@@ -129,9 +129,9 @@ func (e *emitter) types(b *bytes.Buffer) {
 			bits = u.FloatBits
 		}
 		comparable := t.Go != nil && t.Comparable()
-		fmt.Fprintf(b, "        GType(%s, %s, %d, %t, %d, %d, %d, [%s], [%s], [%s], [%s], %t, [%s], [%s], [%s]), // %s\n", quote(ir.TypeString(t)), quote(u.Kind.String()), bits, signed, id(u.Elem), id(u.Key), u.Len, strings.Join(fields, ", "), strings.Join(names, ", "), strings.Join(blank, ", "), strings.Join(methods, ", "), comparable, strings.Join(implementations, ", "), missing, strings.Join(nativeMethods, ", "), e.names.Type(t, "T_"))
+		fmt.Fprintf(b, "    table.append(GType(%s, %s, %d, %t, %d, %d, %d, [%s], [%s], [%s], [%s], %t, [%s], [%s], [%s])) // %s\n", quote(ir.TypeString(t)), quote(u.Kind.String()), bits, signed, id(u.Elem), id(u.Key), u.Len, strings.Join(fields, ", "), strings.Join(names, ", "), strings.Join(blank, ", "), strings.Join(methods, ", "), comparable, strings.Join(implementations, ", "), missing, strings.Join(nativeMethods, ", "), e.names.Type(t, "T_"))
 	}
-	b.WriteString("    ]\n}()\n")
+	b.WriteString("    GTypes.table = table\n}()\n")
 }
 
 func (e *emitter) constant(c *ir.Const) string {
