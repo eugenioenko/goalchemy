@@ -4,6 +4,7 @@ package bytes
 
 import (
 	"github.com/eugenioenko/goalchemy/lib/errors"
+	"github.com/eugenioenko/goalchemy/std/io"
 	"github.com/eugenioenko/goalchemy/std/strings"
 	"github.com/eugenioenko/goalchemy/std/unicode"
 	"github.com/eugenioenko/goalchemy/std/unicode/utf8"
@@ -305,15 +306,222 @@ func (b *Buffer) Next(n int) []byte {
 	return data
 }
 
-// ReadByte returns the next byte, or an error when the buffer is empty.
+// ReadByte returns the next byte, or io.EOF when the buffer is empty.
 func (b *Buffer) ReadByte() (byte, error) {
 	if b.off >= len(b.buf) {
 		b.Reset()
-		return 0, errEOF
+		return 0, io.EOF
 	}
 	c := b.buf[b.off]
 	b.off++
 	return c, nil
 }
 
-var errEOF = errors.New("EOF")
+// Read reads the next len(p) bytes from the buffer, or until it is drained. It
+// returns io.EOF when the buffer has no data and p is not empty.
+func (b *Buffer) Read(p []byte) (int, error) {
+	if b.off >= len(b.buf) {
+		b.Reset()
+		if len(p) == 0 {
+			return 0, nil
+		}
+		return 0, io.EOF
+	}
+	n := copy(p, b.buf[b.off:])
+	b.off += n
+	return n, nil
+}
+
+// ReadFrom appends data from r until io.EOF and returns the number of bytes
+// read. Errors other than io.EOF are returned.
+func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
+	var total int64
+	for {
+		b.Grow(512)
+		n, err := r.Read(b.buf[len(b.buf):cap(b.buf)])
+		if n < 0 {
+			panic("bytes.Buffer: reader returned negative count from Read")
+		}
+		b.buf = b.buf[:len(b.buf)+n]
+		total += int64(n)
+		if err == io.EOF {
+			return total, nil
+		}
+		if err != nil {
+			return total, err
+		}
+	}
+}
+
+// WriteTo writes the unread data to w until the buffer is drained or an error
+// occurs.
+func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
+	var total int64
+	if n := b.Len(); n > 0 {
+		m, err := w.Write(b.buf[b.off:])
+		if m > n {
+			panic("bytes.Buffer.WriteTo: invalid Write count")
+		}
+		b.off += m
+		total = int64(m)
+		if err != nil {
+			return total, err
+		}
+		if m != n {
+			return total, io.ErrShortWrite
+		}
+	}
+	b.Reset()
+	return total, nil
+}
+
+var (
+	errNegativePosition = errors.New("bytes.Reader.Seek: negative position")
+	errNegativeOffset   = errors.New("bytes.Reader.ReadAt: negative offset")
+	errInvalidWhence    = errors.New("bytes.Reader.Seek: invalid whence")
+	errUnreadByte       = errors.New("bytes.Reader.UnreadByte: at beginning of slice")
+	errUnreadRune       = errors.New("bytes.Reader.UnreadRune: previous operation was not ReadRune")
+	errUnreadRuneStart  = errors.New("bytes.Reader.UnreadRune: at beginning of slice")
+)
+
+// Reader implements io.Reader, io.ReaderAt, io.Seeker, io.WriterTo,
+// io.ByteScanner and io.RuneScanner over a byte slice. It does not modify the
+// slice. The zero value reads nothing.
+type Reader struct {
+	s        []byte
+	i        int64
+	prevRune int
+}
+
+// NewReader returns a Reader reading from b.
+func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }
+
+// Len returns the number of unread bytes.
+func (r *Reader) Len() int {
+	if r.i >= int64(len(r.s)) {
+		return 0
+	}
+	return int(int64(len(r.s)) - r.i)
+}
+
+// Size returns the original length of the underlying slice.
+func (r *Reader) Size() int64 { return int64(len(r.s)) }
+
+// Read implements io.Reader.
+func (r *Reader) Read(b []byte) (n int, err error) {
+	if r.i >= int64(len(r.s)) {
+		return 0, io.EOF
+	}
+	r.prevRune = -1
+	n = copy(b, r.s[r.i:])
+	r.i += int64(n)
+	return n, nil
+}
+
+// ReadAt implements io.ReaderAt. It does not change the read position.
+func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errNegativeOffset
+	}
+	if off >= int64(len(r.s)) {
+		return 0, io.EOF
+	}
+	n = copy(b, r.s[off:])
+	if n < len(b) {
+		err = io.EOF
+	}
+	return n, err
+}
+
+// ReadByte implements io.ByteReader.
+func (r *Reader) ReadByte() (byte, error) {
+	r.prevRune = -1
+	if r.i >= int64(len(r.s)) {
+		return 0, io.EOF
+	}
+	b := r.s[r.i]
+	r.i++
+	return b, nil
+}
+
+// UnreadByte steps back one byte.
+func (r *Reader) UnreadByte() error {
+	if r.i <= 0 {
+		return errUnreadByte
+	}
+	r.prevRune = -1
+	r.i--
+	return nil
+}
+
+// ReadRune implements io.RuneReader.
+func (r *Reader) ReadRune() (ch rune, size int, err error) {
+	if r.i >= int64(len(r.s)) {
+		r.prevRune = -1
+		return 0, 0, io.EOF
+	}
+	r.prevRune = int(r.i)
+	if c := r.s[r.i]; c < utf8.RuneSelf {
+		r.i++
+		return rune(c), 1, nil
+	}
+	ch, size = utf8.DecodeRune(r.s[r.i:])
+	r.i += int64(size)
+	return ch, size, nil
+}
+
+// UnreadRune steps back over the rune returned by the previous ReadRune.
+func (r *Reader) UnreadRune() error {
+	if r.i <= 0 {
+		return errUnreadRuneStart
+	}
+	if r.prevRune < 0 {
+		return errUnreadRune
+	}
+	r.i = int64(r.prevRune)
+	r.prevRune = -1
+	return nil
+}
+
+// Seek implements io.Seeker. Seeking past the end is allowed.
+func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	r.prevRune = -1
+	var abs int64
+	switch whence {
+	case io.SeekStart:
+		abs = offset
+	case io.SeekCurrent:
+		abs = r.i + offset
+	case io.SeekEnd:
+		abs = int64(len(r.s)) + offset
+	default:
+		return 0, errInvalidWhence
+	}
+	if abs < 0 {
+		return 0, errNegativePosition
+	}
+	r.i = abs
+	return abs, nil
+}
+
+// WriteTo implements io.WriterTo, writing the unread data to w.
+func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	r.prevRune = -1
+	if r.i >= int64(len(r.s)) {
+		return 0, nil
+	}
+	b := r.s[r.i:]
+	m, err := w.Write(b)
+	if m > len(b) {
+		panic("bytes.Reader.WriteTo: invalid Write count")
+	}
+	r.i += int64(m)
+	n = int64(m)
+	if m != len(b) && err == nil {
+		err = io.ErrShortWrite
+	}
+	return n, err
+}
+
+// Reset resets the Reader to read from b.
+func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }

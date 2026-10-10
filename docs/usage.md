@@ -202,9 +202,10 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 
 | Import | Provides |
 | --- | --- |
-| `github.com/eugenioenko/goalchemy/std/strings` | `Builder`, `Split`, `Join`, `Fields`, `Index`, `Contains`, `Trim*`, `Cut`, `Replace`, `NewReplacer`, `ToLower`/`ToUpper`, `EqualFold`, and more |
+| `github.com/eugenioenko/goalchemy/std/strings` | `Builder`, `Reader`, `Split`, `Join`, `Fields`, `Index`, `Contains`, `Trim*`, `Cut`, `Replace`, `NewReplacer`, `ToLower`/`ToUpper`, `EqualFold`, and more |
 | `github.com/eugenioenko/goalchemy/std/strconv` | `Itoa`, `Atoi`, `ParseInt`/`ParseUint`/`ParseBool`, `FormatInt`/`FormatUint`/`FormatBool`/`FormatFloat`, `ParseFloat`, `Append*`, `Quote`/`QuoteRune` and their `ToASCII` forms, `CanBackquote`, `IsPrint`, `NumError` |
-| `github.com/eugenioenko/goalchemy/std/bytes` | `Buffer`, `Equal`, `Compare`, `Index`, `Split`, `Fields`, `TrimSpace`, and more |
+| `github.com/eugenioenko/goalchemy/std/bytes` | `Buffer` (also an `io.Reader`, `io.ReaderFrom` and `io.WriterTo`), `Reader`, `Equal`, `Compare`, `Index`, `Split`, `Fields`, `TrimSpace`, and more |
+| `github.com/eugenioenko/goalchemy/std/io` | `Reader`, `Writer`, `Closer`, `Seeker`, `ReaderAt`, `WriterAt`, `ReaderFrom`, `WriterTo` and their compositions, `EOF` and the other `Err*` values, `Seek*` constants, `Copy`/`CopyN`/`CopyBuffer`, `ReadAll`, `ReadFull`, `ReadAtLeast`, `WriteString`, `LimitReader`, `SectionReader`, `OffsetWriter`, `MultiReader`, `MultiWriter`, `TeeReader`, `NopCloser`, `Discard`; no `Pipe` |
 | `github.com/eugenioenko/goalchemy/std/sort` | `Sort`, `Stable`, `Ints`, `Strings`, `Search`, `Reverse` over `Len`/`Less`/`Swap` |
 | `github.com/eugenioenko/goalchemy/std/unicode` | `IsLetter`, `IsDigit`, `IsSpace`, `IsUpper`, `IsPrint`, `ToLower`, `ToUpper`, `SimpleFold`, and more |
 | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
