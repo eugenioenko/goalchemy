@@ -13,7 +13,7 @@ Compile with `goalchemy compile -gate cooperative -target typescript -out DIR
 its Node or browser entry automatically. Node callers can also import
 `DIR/dist/node.js` directly. Direct `DIR/dist/main.js` imports select the portable
 entry and CRC fallback even in Node. Compilation needs TypeScript with
-`rewriteRelativeImportExtensions` (verified with 6.0.3). Node requires 22.6 or
+`rewriteRelativeImportExtensions` (verified with 6.0.3 and 7.0.2). Node requires 22.6 or
 later with WebCrypto, fetch and AbortSignal; current evidence uses Node24.15.0
 and Chromium147.0.7727.15. Browser applications bundle the ESM entry normally.
 
@@ -136,7 +136,7 @@ support SPKI/PKCS8, RSA PKCS1 and certificate SPKI extraction through bounded DE
 framing. Native algorithms validate key material; no cryptographic math is
 implemented in the framing code.
 
-Tests use TypeScript6.0.3 (Apache2), esbuild0.25.12 (MIT), and Playwright1.58.2
+Tests use TypeScript7.0.2 (Apache2), esbuild0.25.12 (MIT), and Playwright1.58.2
 (Apache2). These are test/build tooling only; emitted production needs no npm
 crypto, HTTP, Node polyfill or reference SDK dependency.
 
