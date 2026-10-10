@@ -6,6 +6,7 @@ type decimal struct {
 	d     []byte
 	nd    int
 	dp    int
+	neg   bool
 	trunc bool
 }
 
@@ -270,4 +271,22 @@ func (a *decimal) RoundUp(nd int) {
 	a.d[0] = '1'
 	a.nd = 1
 	a.dp++
+}
+
+func (a *decimal) RoundedInteger() uint64 {
+	if a.dp > 20 {
+		return 0xFFFFFFFFFFFFFFFF
+	}
+	var i int
+	n := uint64(0)
+	for i = 0; i < a.dp && i < a.nd; i++ {
+		n = n*10 + uint64(a.d[i]-'0')
+	}
+	for ; i < a.dp; i++ {
+		n *= 10
+	}
+	if shouldRoundUp(a, a.dp) {
+		n++
+	}
+	return n
 }

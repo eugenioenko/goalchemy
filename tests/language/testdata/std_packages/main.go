@@ -71,4 +71,17 @@ func main() {
 	bb.WriteRune('世')
 	parts := bytes.Fields([]byte("  a b  c "))
 	println(bb.String(), bb.Len(), len(parts), string(bytes.TrimSpace([]byte("  x  "))), bytes.Equal(nil, []byte{}))
+	for _, in := range []string{"0.1", "-2.5e-3", "123456789012345678901234567890", "4.9e-324", "2.2250738585072011e-308",
+		"1.7976931348623159e308", "0x1.8p1", "0x1p-1074", "1_000.5", "-Inf", "nan", "1e", "3.4028236e38"} {
+		f64, err64 := strconv.ParseFloat(in, 64)
+		f32, err32 := strconv.ParseFloat(in, 32)
+		e64, e32 := "", ""
+		if err64 != nil {
+			e64 = err64.Error()
+		}
+		if err32 != nil {
+			e32 = err32.Error()
+		}
+		println(in, strconv.FormatFloat(f64, 'g', -1, 64), e64, strconv.FormatFloat(f32, 'g', -1, 32), e32)
+	}
 }
