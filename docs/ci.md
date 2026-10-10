@@ -1,13 +1,15 @@
 # CI prerequisites and coverage
 
-Linux x86_64 CI runs eighteen independent jobs in parallel. The original
+Linux x86_64 CI runs nineteen independent jobs in parallel. The original
 `go test -short ./...` coverage is partitioned into core packages, native
 contracts/browser checks, and four integration shards. Float differential
 tests, readable/compact naming tests, and unshort runtime conformance each run
 in their own job across all targets. Each target has its own "Language and
 corpus (<target>)" job that runs every language fixture and corpus regression
 for that target without short mode; the Go job also runs the feature manifest
-check. Short mode still limits the example matrices, and retains the native
+check. "Examples and reproducible output all targets" runs `TestExamples` and
+`TestReproducibleOutput` without short mode, so every example program and the
+byte-for-byte reproducibility check cover all eight targets. Short mode still limits the example matrices, and retains the native
 integration, actual Chromium, and focused C ASan/UBSan checks. The full
 sanitizer/corpus/memory matrices keep their existing short-mode behavior.
 
@@ -79,7 +81,7 @@ go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=
 ```
 
 To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
-`contracts`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
+`contracts`, `examples`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
 use `python3 scripts/ci-suite.py language --target <target>`, for example
 `--target rust`. Integration jobs use `python3 scripts/ci-suite.py integration
 --shard 0` through `--shard 3`. Add `--plan` to inspect commands without executing them,
