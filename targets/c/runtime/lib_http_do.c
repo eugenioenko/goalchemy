@@ -52,15 +52,19 @@ static size_t header_write(char *data,size_t a,size_t b,void *arg) {
  if((n==2&&data[0]=='\r'&&data[1]=='\n')||(n==1&&data[0]=='\n')){
   /* Go's automatic mode decodes gzip only; explicit Accept-Encoding and Range
    * leave the wire body intact. */
-  bool gzip=false;size_t start=w->response_start;
+  bool gzip=false,encoding_seen=false,empty=false,length_seen=false;size_t start=w->response_start;
+  int status=0;if(w->header_len-start>=12)for(size_t i=start+9;i<start+12;i++)status=status*10+(p[i]-'0');
   for(size_t i=start;i<w->header_len;i++)if(p[i]=='\n'){
    size_t end=i;if(end>start&&p[end-1]=='\r')end--;
-   if(end-start>=17&&!strncasecmp((const char *)p+start,"Content-Encoding:",17)){
-    size_t v=start+17;while(v<end&&(p[v]==' '||p[v]=='\t'))v++;while(end>v&&(p[end-1]==' '||p[end-1]=='\t'))end--;
-    gzip=end-v==4&&!strncasecmp((const char *)p+v,"gzip",4);break;
+   bool ce=!encoding_seen&&end-start>=17&&!strncasecmp((const char *)p+start,"Content-Encoding:",17);
+   bool cl=!length_seen&&end-start>=15&&!strncasecmp((const char *)p+start,"Content-Length:",15);
+   if(ce||cl){
+    size_t v=start+(ce?17:15);while(v<end&&(p[v]==' '||p[v]=='\t'))v++;while(end>v&&(p[end-1]==' '||p[end-1]=='\t'))end--;
+    if(ce){encoding_seen=true;gzip=end-v==4&&!strncasecmp((const char *)p+v,"gzip",4);}
+    else{length_seen=true;empty=end-v==1&&p[v]=='0';}
    }start=i+1;
   }
-  w->decoded=w->automatic_gzip&&gzip;
+  w->decoded=w->automatic_gzip&&gzip&&!empty&&status!=204&&status!=304&&(status<100||status>=200);
  }
  return n;
 }
