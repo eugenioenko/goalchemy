@@ -23,7 +23,13 @@ func (fl *fnLowerer) callee(e *ast.CallExpr) types.Object {
 
 func (fl *fnLowerer) intrinsic(e *ast.CallExpr) ([]ir.Value, bool) {
 	obj := fl.callee(e)
-	if obj == nil || !catalog.IsErrorsAs(obj) {
+	if obj == nil {
+		return nil, false
+	}
+	if name, ok := catalog.JSONMarshal(obj); ok {
+		return fl.jsonMarshal(e, obj, name), true
+	}
+	if !catalog.IsErrorsAs(obj) {
 		return nil, false
 	}
 	if obj.Pkg().Path() != catalog.ErrorsPackage {

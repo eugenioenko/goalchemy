@@ -701,6 +701,10 @@ func (p *parser) str() (string, error) {
 // Encode returns the compact JSON encoding of v with DefaultLimits.
 func Encode(v Value) ([]byte, error) { return EncodeWithLimits(v, DefaultLimits()) }
 
+// MarshalJSON returns Encode(v), so a Value encodes as itself when it is
+// passed to, or is a field of a value passed to, json.Marshal.
+func (v Value) MarshalJSON() ([]byte, error) { return Encode(v) }
+
 // EncodeWithLimits returns the compact JSON encoding of v. Strings are
 // escaped exactly as encoding/json.Marshal escapes them, including <, > and
 // & as <, > and &, U+2028 and U+2029, and invalid UTF-8 as

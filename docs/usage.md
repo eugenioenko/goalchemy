@@ -210,6 +210,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/unicode/utf8` | `DecodeRune`, `EncodeRune`, `AppendRune`, `RuneCountInString`, `ValidString`, and more |
 | `github.com/eugenioenko/goalchemy/std/encoding/hex` | `EncodeToString`, `DecodeString`, `Encode`, `Decode` |
 | `github.com/eugenioenko/goalchemy/std/encoding/binary` | `BigEndian`/`LittleEndian` `Uint16/32/64`, `PutUint*`, `AppendUint*`, varints |
+| `github.com/eugenioenko/goalchemy/std/encoding/json` | `Marshal`, `MarshalIndent`, `Marshaler`, `Unmarshaler`, `RawMessage`, `Number`, `Valid`, `Compact`, `Indent`, `HTMLEscape`, `SyntaxError`, `UnsupportedTypeError`, `UnsupportedValueError`, `MarshalerError` (see below) |
 | `github.com/eugenioenko/goalchemy/std/encoding/jsonvalue` | `Parse`/`ParseWithLimits`, `Encode`/`EncodeWithLimits`, `Value` with `Kind`, `Get`/`Lookup`/`Has`, `Index`, `Len`, `Keys`, typed `String`/`Bool`/`Int64`/`Uint64`/`Float64` and checked `As*` forms, `Object`, `Array`, `String`, `Int`, `Uint`, `Float`, `Number`, `Bool`, `Null`, `Set`, `Append`, `Limits`, `SyntaxError`, `LimitError`, `InvalidValueError` (see below) |
 | `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 | `github.com/eugenioenko/goalchemy/std/errors` | `New`, `Is`, `As`, `Unwrap`, `Join`, `ErrUnsupported`, including `Unwrap() []error` trees |
@@ -271,9 +272,19 @@ Hosts install a sink before calling into a library. The handler runs synchronous
 
 Passing a null handler (`nil`, `None`, `NULL`) restores the default standard error sink at `LevelWarn`. Strings reach the handler decoded as UTF-8, with invalid sequences replaced; C receives the raw bytes.
 
+`std/encoding/json` encodes Go values exactly as the reference toolchain's `encoding/json` does, without reflection:
+
+- The compiler describes the static type of each `Marshal` and `MarshalIndent` operand and every type reachable from it, following Go's rules for struct tags, embedded fields, `omitempty`, the `string` option, map key ordering, `[]byte` as base64, nil slices and maps as `null`, pointer cycles, `Marshaler` and `encoding.TextMarshaler` (including pointer-receiver methods on addressable values), HTML escaping and float formatting.
+- Types encoding/json cannot encode, such as channels, functions, complex numbers and maps with other key types, are rejected at compile time (`GCS006`) unless the field is excluded with `json:"-"`.
+- Struct tags are limited to names made of letters, digits and the punctuation encoding/json has always accepted, and to the `omitempty` and `string` options. Other names and options, `omitzero`, the `string` option on `json.Number`, and `json` tags on unexported fields are rejected (`GCS006`), because their meaning differs between Go releases.
+- Values held in interfaces, such as `any` fields, `[]any` and `map[string]any`, are encoded from their dynamic value when it is nil, a boolean, integer, float or string of a predeclared type, `[]byte`, `[]any`, `map[string]any`, or implements `Marshaler` or `encoding.TextMarshaler`, as `json.Number`, `json.RawMessage` and `jsonvalue.Value` do. Other dynamic values, such as structs and named types without these methods, are rejected when the compiler sees them stored in an interface in the `Marshal` operand, and return `*UnsupportedTypeError` otherwise; Go encodes them by reflection.
+- `UnsupportedTypeError.Type` and `MarshalerError.Type` are type names (`string`) rather than `reflect.Type` values, and `UnsupportedValueError` has no `Value` field. Their `Error` text matches Go.
+- `json.Number` implements `MarshalJSON`, so an invalid number literal is reported as a `*MarshalerError`.
+- `Marshal` and `MarshalIndent` cannot be used as function values or with `defer` or `go` (`GCS006`). `Unmarshal`, `Encoder` and `Decoder` are not available yet.
+
 `std/encoding/jsonvalue` handles JSON whose shape is not fixed, such as JWT claims or partly read responses, as a tree of values. It differs from Go's `encoding/json` in these ways:
 
-- There is no `Marshal`/`Unmarshal` into Go types; build and inspect `Value` trees instead.
+- There is no `Unmarshal` into Go types; build and inspect `Value` trees instead. A `Value` implements `json.Marshaler`, so it can be passed to, or be a field of a value passed to, `json.Marshal`.
 - Numbers keep their source text. `Number` returns it, `Int64`/`Uint64` accept only integer text that fits (`1.0` and `1e3` are rejected), and `Float64` rounds to the nearest float64.
 - Duplicate object member names are a syntax error when parsing and an `InvalidValueError` when encoding; Go keeps the last one.
 - Parsing and encoding are bounded by `Limits`: by default 16 MiB of input or output, nesting depth 128 (`MaxDepth`), 1Mi values and 16 MiB per string.

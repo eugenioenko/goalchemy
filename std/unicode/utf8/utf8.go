@@ -125,6 +125,50 @@ func DecodeLastRuneInString(s string) (rune, int) {
 	return r, size
 }
 
+// FullRune reports whether the bytes in p begin with a full UTF-8 encoding
+// of a rune. An invalid encoding is considered a full rune since it will
+// convert as a width-1 error rune.
+func FullRune(p []byte) bool {
+	if len(p) == 0 {
+		return false
+	}
+	c := p[0]
+	need := 0
+	switch {
+	case c < 0xC2:
+		return true
+	case c < 0xE0:
+		need = 2
+	case c < 0xF0:
+		need = 3
+	case c < 0xF5:
+		need = 4
+	default:
+		return true
+	}
+	if len(p) >= need {
+		return true
+	}
+	lo, hi := byte(0x80), byte(0xBF)
+	switch c {
+	case 0xE0:
+		lo = 0xA0
+	case 0xED:
+		hi = 0x9F
+	case 0xF0:
+		lo = 0x90
+	case 0xF4:
+		hi = 0x8F
+	}
+	if len(p) > 1 && (p[1] < lo || hi < p[1]) {
+		return true
+	}
+	return len(p) > 2 && (p[2] < 0x80 || 0xBF < p[2])
+}
+
+// FullRuneInString is like FullRune but its input is a string.
+func FullRuneInString(s string) bool { return FullRune([]byte(s)) }
+
 // RuneStart reports whether b could be the first byte of an encoded rune.
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/goalchemy/internal/catalog"
 	"github.com/eugenioenko/goalchemy/internal/ir"
+	"github.com/eugenioenko/goalchemy/internal/jsontype"
 )
 
 const (
@@ -40,6 +41,9 @@ func (c *checker) libraryCall(n *ast.CallExpr, fun ast.Expr) {
 	case catalog.IsErrorsAs(fn):
 		c.called[id] = true
 		c.errorsAs(n, fn)
+	case isJSONMarshal(fn):
+		c.called[id] = true
+		c.jsonMarshal(n, fn)
 	case fn.Pkg().Path() == fmtPackage && fn.Signature().Variadic() && !n.Ellipsis.IsValid():
 		params := fn.Signature().Params()
 		for _, a := range n.Args[min(params.Len()-1, len(n.Args)):] {
@@ -90,9 +94,129 @@ func (c *checker) errorsAs(n *ast.CallExpr, fn *types.Func) {
 }
 
 func (c *checker) deferredIntrinsic(call *ast.CallExpr, stmt string) {
-	if id := calleeIdent(call.Fun); id != nil && catalog.IsErrorsAs(c.info.Uses[id]) {
+	id := calleeIdent(call.Fun)
+	if id == nil {
+		return
+	}
+	if catalog.IsErrorsAs(c.info.Uses[id]) {
 		c.unsupported(call, "GCS006", stmt+" errors.As", "Call errors.As directly and use its result.")
 	}
+	if name, ok := catalog.JSONMarshal(c.info.Uses[id]); ok {
+		c.unsupported(call, "GCS006", stmt+" json."+name, "Call json."+name+" directly and use its results.")
+	}
+}
+
+func isJSONMarshal(obj types.Object) bool {
+	_, ok := catalog.JSONMarshal(obj)
+	return ok
+}
+
+const jsonDynamicRemedy = "Pass the value to json.Marshal directly or through a field of its own type, or build dynamic JSON with jsonvalue.Value."
+
+// jsonMarshal checks that every type reachable from a json.Marshal operand
+// has an encoder that behaves exactly like encoding/json's, and that values
+// visibly stored in interfaces are JSON-shaped.
+func (c *checker) jsonMarshal(n *ast.CallExpr, fn *types.Func) {
+	if c.pkg.PkgPath == catalog.JSONPackage {
+		return
+	}
+	name := "json." + fn.Name()
+	if fn.Pkg().Path() != catalog.JSONPackage {
+		c.unsupported(n, "GCS006", "lib/"+name, "Import github.com/eugenioenko/goalchemy/std/encoding/json and call "+name+".")
+		return
+	}
+	want := 1
+	if fn.Name() == "MarshalIndent" {
+		want = 3
+	}
+	if len(n.Args) != want {
+		c.unsupported(n, "GCS006", name+" with a multi-value argument", "Pass each argument separately.")
+		return
+	}
+	tv := c.info.Types[n.Args[0]]
+	if tv.Type == nil || tv.IsNil() {
+		return
+	}
+	if !types.IsInterface(tv.Type) {
+		if p := jsontype.Check(tv.Type); p != nil {
+			c.report(n.Args[0], "GCS006", name+" operand", name+" cannot encode "+p.Path+": "+p.Msg,
+				"Give the field a supported type, implement json.Marshaler, or exclude it with a `json:\"-\"` tag.")
+			return
+		}
+	}
+	c.jsonLiteral(n.Args[0])
+}
+
+func (c *checker) jsonLiteral(e ast.Expr) {
+	switch x := ast.Unparen(e).(type) {
+	case *ast.UnaryExpr:
+		if x.Op == token.AND {
+			c.jsonLiteral(x.X)
+		}
+	case *ast.CallExpr:
+		if tv := c.info.Types[x.Fun]; tv.IsType() && len(x.Args) == 1 {
+			if types.IsInterface(tv.Type) {
+				c.jsonInterfaceValue(x.Args[0])
+			} else {
+				c.jsonLiteral(x.Args[0])
+			}
+		}
+	case *ast.CompositeLit:
+		lt := c.info.TypeOf(x)
+		if lt == nil {
+			return
+		}
+		if p, ok := lt.Underlying().(*types.Pointer); ok {
+			lt = p.Elem()
+		}
+		for i, el := range x.Elts {
+			v := el
+			kv, isKV := el.(*ast.KeyValueExpr)
+			if isKV {
+				v = kv.Value
+			}
+			var slot types.Type
+			switch u := lt.Underlying().(type) {
+			case *types.Struct:
+				if isKV {
+					if k, ok := kv.Key.(*ast.Ident); ok {
+						for j := 0; j < u.NumFields(); j++ {
+							if u.Field(j).Name() == k.Name {
+								slot = u.Field(j).Type()
+							}
+						}
+					}
+				} else if i < u.NumFields() {
+					slot = u.Field(i).Type()
+				}
+			case *types.Slice:
+				slot = u.Elem()
+			case *types.Array:
+				slot = u.Elem()
+			case *types.Map:
+				slot = u.Elem()
+			}
+			if slot != nil && types.IsInterface(slot) {
+				c.jsonInterfaceValue(v)
+			} else {
+				c.jsonLiteral(v)
+			}
+		}
+	}
+}
+
+func (c *checker) jsonInterfaceValue(v ast.Expr) {
+	tv := c.info.Types[v]
+	if tv.Type == nil || tv.IsNil() {
+		return
+	}
+	if !types.IsInterface(tv.Type) && !jsontype.Dynamic(tv.Type) {
+		c.report(v, "GCS006", "json value in an interface",
+			"json.Marshal cannot encode a "+typeName(tv.Type)+" stored in an interface; only JSON-shaped values, json.Marshaler and encoding.TextMarshaler are encoded dynamically",
+			jsonDynamicRemedy)
+		return
+	}
+	c.jsonLiteral(v)
 }
 
 var errorInterface = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
