@@ -25,7 +25,7 @@ plugins:
 | Parameter | Effect |
 | --- | --- |
 | `go_import_prefix=<path>` | Places each file's package at `<path>/<proto directory>` instead of its `go_package`. |
-| `include=<full.Name>[;<full.Name>...]` | Generates only these messages and enums and the types they reference, across files. Without it every message in the requested files is generated. |
+| `include=<full.Name>[;<full.Name>...]` | Generates only these messages, enums, services and methods (`pkg.Service.Method`) and the types they reference, across files. Without it every message and unary method in the requested files is generated. |
 | `getters=false` | Omits the nil-safe `GetX` accessors. |
 
 Generate only what a program uses: every message adds code, and Swift and
@@ -65,6 +65,41 @@ for _, a := range resp.GetAttributes() {
 	println(a.GetFqn())
 }
 ```
+
+## Services
+
+Each service with unary methods gets a `<file>.connect.go` file holding a
+client over [`std/connect`](../std/connect), the Connect protocol with the
+JSON codec. Streaming methods are skipped. Calls suspend on the host HTTP
+client, so programs that make them compile with the cooperative gate.
+
+```go
+client := connect.NewClient("https://platform.example.com")
+client.Headers = []string{"Authorization", "Bearer " + token}
+attrs := attributes.NewAttributesServiceClient(client)
+
+resp, err := attrs.GetAttribute(ctx, &attributes.GetAttributeRequest{
+	Identifier: &attributes.GetAttributeRequest_Fqn{Fqn: "https://example.com/attr/classification"},
+})
+if connect.CodeOf(err) == connect.CodeNotFound {
+	// ...
+}
+```
+
+Each method also has a `<Service><Method>Procedure` constant, and
+`Client.CallUnary` calls any procedure with per-call headers and returns the
+response headers. Requests are POSTed as `application/json` with
+`Connect-Protocol-Version: 1` and `Connect-Timeout-Ms`. Failures are
+`*connect.Error` values with the code, message, details (type URL, binary
+value and JSON debug form) and response headers that connect-go reports for
+the same response, including the HTTP-status fallbacks for non-Connect
+error bodies. A context that is already cancelled or past its deadline
+yields `canceled` or `deadline_exceeded`; other transport failures are
+`unavailable`.
+
+`Client.TimeoutMillis` (default 30 s) bounds each call and is sent as the
+Connect deadline; `Client.MaxResponseBytes` (default 16 MiB) bounds the
+reply.
 
 ## Differences from `google.golang.org/protobuf/encoding/protojson`
 
