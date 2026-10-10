@@ -27,6 +27,7 @@ Why two importable roots:
 | [bytes](#stdbytes) | `github.com/eugenioenko/goalchemy/std/bytes` | Package bytes manipulates byte slices. |
 | [encoding/binary](#stdencodingbinary) | `github.com/eugenioenko/goalchemy/std/encoding/binary` | Package binary translates between unsigned integers and byte sequences, and encodes varints. |
 | [encoding/hex](#stdencodinghex) | `github.com/eugenioenko/goalchemy/std/encoding/hex` | Package hex encodes and decodes hexadecimal strings. |
+| [encoding/json](#stdencodingjson) | `github.com/eugenioenko/goalchemy/std/encoding/json` | Package json encodes Go values as JSON with the semantics of Go's encoding/json. |
 | [encoding/jsonvalue](#stdencodingjsonvalue) | `github.com/eugenioenko/goalchemy/std/encoding/jsonvalue` | Package jsonvalue parses, inspects, builds and encodes JSON documents of any shape as a tree of Values, without declaring Go types. |
 | [errors](#stderrors) | `github.com/eugenioenko/goalchemy/std/errors` | Package errors implements functions to manipulate errors: creation, wrapping inspection with Is and As, and joining. |
 | [fmt](#stdfmt) | `github.com/eugenioenko/goalchemy/std/fmt` | Package fmt formats values into strings and errors with Go's verbs, flags, widths, precisions and argument indexes. |
@@ -578,6 +579,222 @@ func (e InvalidByteError) Error() string
 ```
 
 
+## std/encoding/json
+
+```go
+import "github.com/eugenioenko/goalchemy/std/encoding/json"
+```
+
+Package json encodes Go values as JSON with the semantics of Go's encoding/json. Without reflection, the compiler describes each statically known type passed to Marshal; values held in interfaces are encoded when they are JSON-shaped (nil, booleans, numbers and strings of predeclared types, []byte, []any, map[string]any) or implement Marshaler or encoding.TextMarshaler, as Number, RawMessage and jsonvalue.Value do. Other dynamic values return *UnsupportedTypeError.
+
+### Compact
+
+```go
+func Compact(dst *bytes.Buffer, src []byte) error
+```
+
+Compact appends to dst the JSON-encoded src with insignificant space characters elided.
+
+### HTMLEscape
+
+```go
+func HTMLEscape(dst *bytes.Buffer, src []byte)
+```
+
+HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029 characters inside string literals changed to \u003c, \u003e, \u0026, \u2028, \u2029 so that the JSON will be safe to embed inside HTML <script> tags. For historical reasons, web browsers don't honor standard HTML escaping within <script> tags, so an alternative JSON encoding must be used.
+
+### Indent
+
+```go
+func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error
+```
+
+Indent appends to dst an indented form of the JSON-encoded src. Each element in a JSON object or array begins on a new, indented line beginning with prefix followed by one or more copies of indent according to the indentation nesting. The data appended to dst does not begin with the prefix nor any indentation, to make it easier to embed inside other formatted JSON data. Although leading space characters (space, tab, carriage return, newline) at the beginning of src are dropped, trailing space characters at the end of src are preserved and copied to dst. For example, if src has no trailing spaces, neither will dst; if src ends in a trailing newline, so will dst.
+
+### Marshal
+
+```go
+func Marshal(v any) ([]byte, error)
+```
+
+Marshal returns the JSON encoding of v, as encoding/json.Marshal does.
+
+### MarshalIndent
+
+```go
+func MarshalIndent(v any, prefix, indent string) ([]byte, error)
+```
+
+MarshalIndent is like Marshal but applies Indent to format the output. Each JSON element in the output will begin on a new line beginning with prefix followed by one or more copies of indent according to the indentation nesting.
+
+### Valid
+
+```go
+func Valid(data []byte) bool
+```
+
+Valid reports whether data is a valid JSON encoding.
+
+### type Marshaler
+
+```go
+type Marshaler interface {
+	MarshalJSON() ([]byte, error)
+}
+```
+
+Marshaler is the interface implemented by types that can marshal themselves into valid JSON.
+
+### type MarshalerError
+
+```go
+type MarshalerError struct {
+	Type string
+	Err  error
+	// contains filtered or unexported fields
+}
+```
+
+A MarshalerError represents an error from calling a MarshalJSON or MarshalText method. Type is the Go type name.
+
+### MarshalerError.Error
+
+```go
+func (e *MarshalerError) Error() string
+```
+
+### MarshalerError.Unwrap
+
+```go
+func (e *MarshalerError) Unwrap() error
+```
+
+Unwrap returns the underlying error.
+
+### type Number
+
+```go
+type Number string
+```
+
+A Number represents a JSON number literal.
+
+### Number.Float64
+
+```go
+func (n Number) Float64() (float64, error)
+```
+
+Float64 returns the number as a float64.
+
+### Number.Int64
+
+```go
+func (n Number) Int64() (int64, error)
+```
+
+Int64 returns the number as an int64.
+
+### Number.MarshalJSON
+
+```go
+func (n Number) MarshalJSON() ([]byte, error)
+```
+
+MarshalJSON returns the number literal, or 0 when n is empty.
+
+### Number.String
+
+```go
+func (n Number) String() string
+```
+
+String returns the literal text of the number.
+
+### type RawMessage
+
+```go
+type RawMessage []byte
+```
+
+RawMessage is a raw encoded JSON value.
+
+### RawMessage.MarshalJSON
+
+```go
+func (m RawMessage) MarshalJSON() ([]byte, error)
+```
+
+MarshalJSON returns m as the JSON encoding of m.
+
+### RawMessage.UnmarshalJSON
+
+```go
+func (m *RawMessage) UnmarshalJSON(data []byte) error
+```
+
+UnmarshalJSON sets *m to a copy of data.
+
+### type SyntaxError
+
+```go
+type SyntaxError struct {
+	Offset int64
+	// contains filtered or unexported fields
+}
+```
+
+A SyntaxError is a description of a JSON syntax error. [Unmarshal] will return a SyntaxError if the JSON can't be parsed.
+
+### SyntaxError.Error
+
+```go
+func (e *SyntaxError) Error() string
+```
+
+### type Unmarshaler
+
+```go
+type Unmarshaler interface {
+	UnmarshalJSON([]byte) error
+}
+```
+
+Unmarshaler is the interface implemented by types that can unmarshal a JSON description of themselves.
+
+### type UnsupportedTypeError
+
+```go
+type UnsupportedTypeError struct {
+	Type string
+}
+```
+
+An UnsupportedTypeError is returned by Marshal when attempting to encode an unsupported value type. Type is the Go type name.
+
+### UnsupportedTypeError.Error
+
+```go
+func (e *UnsupportedTypeError) Error() string
+```
+
+### type UnsupportedValueError
+
+```go
+type UnsupportedValueError struct {
+	Str string
+}
+```
+
+An UnsupportedValueError is returned by Marshal when attempting to encode an unsupported value.
+
+### UnsupportedValueError.Error
+
+```go
+func (e *UnsupportedValueError) Error() string
+```
+
+
 ## std/encoding/jsonvalue
 
 ```go
@@ -944,6 +1161,14 @@ func (v Value) Lookup(key string) (Value, bool)
 ```
 
 Lookup returns the member key of the object v.
+
+### Value.MarshalJSON
+
+```go
+func (v Value) MarshalJSON() ([]byte, error)
+```
+
+MarshalJSON returns Encode(v), so a Value encodes as itself when it is passed to, or is a field of a value passed to, json.Marshal.
 
 ### Value.Number
 
@@ -3759,6 +3984,22 @@ func EncodeRune(p []byte, r rune) int
 ```
 
 EncodeRune writes the UTF-8 encoding of r into p, which must be large enough, and returns the number of bytes written.
+
+### FullRune
+
+```go
+func FullRune(p []byte) bool
+```
+
+FullRune reports whether the bytes in p begin with a full UTF-8 encoding of a rune. An invalid encoding is considered a full rune since it will convert as a width-1 error rune.
+
+### FullRuneInString
+
+```go
+func FullRuneInString(s string) bool
+```
+
+FullRuneInString is like FullRune but its input is a string.
 
 ### RuneCount
 
