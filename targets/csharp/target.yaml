@@ -144,6 +144,8 @@ functions:
   - {id: lib.clock.unix_nano, contract_version: 1.0.0, symbol: R.libClockUnixNano, implementation: runtime/LibClockUnixNano.cs, harness: "R.libClockUnixNano()"}
   - {id: lib.log.enabled, contract_version: 1.0.0, symbol: R.libLogEnabled, implementation: runtime/LibLogEnabled.cs, harness: "R.libLogEnabled({0})"}
   - {id: lib.log.emit, contract_version: 1.0.0, symbol: R.libLogEmit, implementation: runtime/LibLogEmit.cs}
+  - {id: lib.os.read_file, contract_version: 1.0.0, symbol: R.libOsReadFile, implementation: runtime/LibOsReadFile.cs}
+  - {id: lib.os.write_file, contract_version: 1.0.0, symbol: R.libOsWriteFile, implementation: runtime/LibOsWriteFile.cs, requires: [lib.os.read_file]}
   - {id: lib.callback.request, contract_version: 1.0.0, symbol: R.libCallbackRequest, implementation: runtime/LibCallbackRequest.cs, requires: [std.context.err], harness: "host: R.libCallbackRequest(t,{0},{1},{2})"}
   - {id: lib.http.do, contract_version: 1.0.0, symbol: R.libHttpDo, implementation: runtime/LibHttpDo.cs, requires: [std.context.err], harness: "host: R.libHttpDo(t,{0},{1},{2},{3},{4},{5},{6})"}
 

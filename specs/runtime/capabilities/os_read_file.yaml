@@ -1,0 +1,48 @@
+{
+  "id": "lib.os.read_file",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "os.ReadFile: reads a whole host file and reports a portable status code.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/os.ReadFile",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "data",
+        "type": "[]byte"
+      },
+      {
+        "name": "status",
+        "type": "int"
+      }
+    ]
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "An empty name reports NotExist. An empty file returns an empty, non-nil slice and OK.",
+    "nil": "Failures return a nil slice.",
+    "bounds": "Files larger than MaxFileBytes (1 GiB) report TooLarge without returning data.",
+    "conversions": "The name is a byte string passed to the host unchanged where the host accepts byte paths (POSIX hosts, Node Buffer paths, Python bytes); Java, C# and Swift decode it as UTF-8. A NUL byte reports Invalid.",
+    "overflow": "Not applicable.",
+    "mutations": "The file is not modified.",
+    "aliasing": "The result is independently owned.",
+    "allocation": "One host buffer per call, plus the returned slice.",
+    "errors": "Missing paths report NotExist; access denial Permission; reading a directory IsDir; a non-directory path component NotDir; hosts without a file system Unsupported; other host failures IO.",
+    "panics": "No deliberate panic.",
+    "observations": "Blocking synchronous host I/O on the calling thread; it never suspends the cooperative scheduler. Relative names resolve against the host process working directory."
+  },
+  "notes": "Status codes: 0 OK, 1 NotExist, 2 Exist, 3 Permission, 4 IsDir, 5 NotDir, 6 TooLarge, 7 Unsupported, 8 Invalid, 9 IO. std/os maps them to *PathError values. Native acceptance tests in lib/os.",
+  "cases": [],
+  "native_tests": [
+    "lib/os/os_test.go"
+  ]
+}

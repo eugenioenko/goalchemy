@@ -1,0 +1,52 @@
+{
+  "id": "lib.os.write_file",
+  "schema_version": 1,
+  "version": "1.0.0",
+  "summary": "os.WriteFile: creates or truncates a host file and writes data, reporting a portable status code.",
+  "signature": {
+    "source": "declaration",
+    "symbol": "github.com/eugenioenko/goalchemy/lib/os.WriteFile",
+    "type_parameters": [],
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "data",
+        "type": "[]byte"
+      },
+      {
+        "name": "perm",
+        "type": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "status",
+        "type": "int"
+      }
+    ]
+  },
+  "depends_on": [],
+  "suspension": "never",
+  "determinism": "nondeterministic",
+  "behavior": {
+    "zero": "An empty name reports NotExist. Empty data creates or truncates the file to zero bytes.",
+    "nil": "Nil data is empty.",
+    "bounds": "Data larger than MaxFileBytes (1 GiB) reports TooLarge without touching the file.",
+    "conversions": "perm keeps its low nine bits. A new file is created with perm minus the process umask on POSIX hosts; hosts without POSIX permissions ignore perm. Name conversion follows lib.os.read_file; a NUL byte reports Invalid.",
+    "overflow": "Not applicable.",
+    "mutations": "An existing file is truncated and rewritten in place; its permissions are unchanged. data is not modified.",
+    "aliasing": "data is copied or written before the call returns; no reference escapes.",
+    "allocation": "Host-managed write buffers only.",
+    "errors": "A missing parent directory reports NotExist; access denial Permission; a directory name IsDir; a non-directory path component NotDir; hosts without a file system Unsupported; other host failures IO. A failure after truncation can leave a partial file, as in Go.",
+    "panics": "No deliberate panic.",
+    "observations": "Blocking synchronous host I/O on the calling thread; it never suspends the cooperative scheduler."
+  },
+  "notes": "Status codes: 0 OK, 1 NotExist, 2 Exist, 3 Permission, 4 IsDir, 5 NotDir, 6 TooLarge, 7 Unsupported, 8 Invalid, 9 IO. std/os maps them to *PathError values. Native acceptance tests in lib/os.",
+  "cases": [],
+  "native_tests": [
+    "lib/os/os_test.go"
+  ]
+}

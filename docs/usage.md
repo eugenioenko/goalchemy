@@ -213,6 +213,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/std/time` | `Time`, `Duration`, `Now`, `Sleep` (cooperative gate), `Unix`, `Date`, `Since`, `Until`, `Add`/`Sub`/`AddDate`, `Truncate`/`Round`, `Format`/`Parse` for `RFC3339` and `RFC3339Nano`, `ParseDuration` (UTC only; see below) |
 | `github.com/eugenioenko/goalchemy/std/errors` | `New`, `Is`, `As`, `Unwrap`, `Join`, `ErrUnsupported`, including `Unwrap() []error` trees |
 | `github.com/eugenioenko/goalchemy/std/fmt` | `Sprintf`, `Sprint`, `Sprintln`, `Errorf` with one or more `%w`, `Append`/`Appendf`/`Appendln`, `Stringer`, `GoStringer`, `Formatter`, `State`, `FormatString` (see below) |
+| `github.com/eugenioenko/goalchemy/std/os` | `ReadFile`, `WriteFile`, `PathError`, `FileMode`, `ErrNotExist`, `ErrExist`, `ErrPermission`, `ErrInvalid`, `MaxFileBytes` (see below) |
 | `github.com/eugenioenko/goalchemy/std/log/slog` | `Logger`, `Default`/`SetDefault`, `New`, `Debug`/`Info`/`Warn`/`Error`, their `Context` forms, `Log`/`LogAttrs`, `With`/`WithGroup`, `Attr`, `Value`, `Level`, `LevelVar`, `Record`, `Handler`, `HandlerOptions`, `LogValuer`, `DiscardHandler` and `NewHostHandler` (see below) |
 | `github.com/eugenioenko/goalchemy/lib/errors` | `New`, `Is`, `Unwrap`; the native layer under `std/errors`, whose `Is` does not follow `Unwrap() []error` |
 | `github.com/eugenioenko/goalchemy/lib/sync` | `Mutex`, `WaitGroup` (cooperative gate) |
@@ -225,6 +226,7 @@ The split, and the core runtime layer behind both, is explained in [the runtime 
 | `github.com/eugenioenko/goalchemy/lib/http` | `Do`, a bounded GET or POST exchange |
 | `github.com/eugenioenko/goalchemy/lib/clock` | `Unix` and `UnixNano`, host wall-clock seconds and nanoseconds |
 | `github.com/eugenioenko/goalchemy/lib/log` | `Enabled` and `Emit`, the host log sink behind `std/log/slog` |
+| `github.com/eugenioenko/goalchemy/lib/os` | `ReadFile` and `WriteFile` with portable status codes, the host file system behind `std/os` |
 | `github.com/eugenioenko/goalchemy/lib/callback` | `Request`, a bounded call to a host-registered callback |
 
 The [runtime library reference](library.md) documents every function. For `lib/` it lists the gate, bounds, error behavior, per-target availability and native dependencies. It is generated from the `std/` and `lib/` sources and the contracts with `make spec-generate`.
@@ -267,6 +269,15 @@ Hosts install a sink before calling into a library. The handler runs synchronous
 | Swift | `setLogHandler({ record in ... }, level:)` exported by the module | `GoalchemyLogRecord` with `level`, `unixNano`, `time`, `message`, `attrs`, `text` |
 
 Passing a null handler (`nil`, `None`, `NULL`) restores the default standard error sink at `LevelWarn`. Strings reach the handler decoded as UTF-8, with invalid sequences replaced; C receives the raw bytes.
+
+`std/os` reads and writes whole files:
+
+- Errors are `*PathError` values with Go's `Op`, `Path` and Linux error text, for example `open key.pem: no such file or directory`. `errors.Is` matches `ErrNotExist`, `ErrExist`, `ErrPermission` and `errors.ErrUnsupported` as in Go, and `errors.As` finds the `*PathError`. Reading a directory fails with op `read`, as on Linux; other failures use op `open`.
+- Failures are reported in these classes: not found, exists, permission denied, is a directory, not a directory, file too large, operation not supported, invalid argument (for a NUL byte in the name), and input/output error for anything else.
+- Files and data larger than `MaxFileBytes` (1 GiB) are rejected with `file too large`.
+- `WriteFile` creates a missing file with `perm` minus the process umask and keeps the permissions of an existing file it truncates, as in Go. Only the low nine permission bits are applied; hosts without POSIX permissions ignore them.
+- Names are byte strings passed to the host unchanged on Go, TypeScript (Node), Python, Rust, C and Swift. Java and C# decode them as UTF-8, replacing invalid sequences. Relative names resolve against the process working directory.
+- Calls are synchronous and never suspend the cooperative scheduler. TypeScript reads files only through the Node entry points (executables and the library package's `node` export, which install the `node:fs` adapter); in browsers and other portable hosts every call fails with `operation not supported`.
 
 Every package is ordinary Go, so programs still build and run with the Go toolchain. Importing a standard package such as `"sync"`, `"strings"` or `"fmt"` directly is rejected with a remedy naming its `std/` or `lib/` replacement.
 

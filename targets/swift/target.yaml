@@ -65,6 +65,7 @@ representations:
 support_files:
 - types/Channels.swift
 - types/Collections.swift
+- types/Files.swift
 - types/Crypto.swift
 - types/HTTP.swift
 - types/Library.swift
@@ -771,6 +772,14 @@ functions:
   contract_version: 1.0.0
   symbol: GNative.lib_log_emit
   implementation: runtime/lib_log_emit.swift
+- id: lib.os.read_file
+  contract_version: 1.0.0
+  symbol: GNative.lib_os_read_file
+  implementation: runtime/lib_os_read_file.swift
+- id: lib.os.write_file
+  contract_version: 1.0.0
+  symbol: GNative.lib_os_write_file
+  implementation: runtime/lib_os_write_file.swift
 - id: lib.http.do
   contract_version: 1.0.0
   symbol: GNative.lib_http_do

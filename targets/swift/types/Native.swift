@@ -329,6 +329,8 @@ enum GNative {
     case "lib.log.emit":
       GLog.emit(args)
       return []
+    case "lib.os.read_file": return GFiles.readFile(args[0])
+    case "lib.os.write_file": return try GFiles.writeFile(args[0], args[1], args[2])
     default:
       if contract.hasPrefix("lib.encoding.") { return try encoding(contract, args) }
       if contract == "lib.checksum.crc32_ieee" { return [try GCrypto.crc32(args[0])] }
