@@ -39,14 +39,26 @@ func (e *emitter) library() (string, error) {
 	e.use("std.context.err")
 	var b strings.Builder
 	b.WriteString("export { LibraryError } from './rt/runtime/library.ts';\nexport type { CallOptions, Callback, Settlement } from './rt/runtime/library.ts';\nexport { setLogHandler } from './rt/types/log.ts';\nexport type { LogRecord, LogHandler } from './rt/types/log.ts';\n")
+	abi, err := e.p.LibraryHandles(func(t *ir.Type) bool { return libraryValue(t, map[*ir.Type]bool{}) })
+	if err != nil {
+		return "", err
+	}
 	roots := map[string]bool{}
 	for _, f := range e.p.Exports {
 		roots[f.Pkg] = true
 	}
 	names := map[*ir.Type]string{}
 	used := map[string]bool{"LibraryError": true, "CallOptions": true, "Callback": true, "LogRecord": true, "LogHandler": true}
+	handleElems := map[*ir.Type]bool{}
+	for _, h := range abi.Handles {
+		if used[h.Name] {
+			return "", fmt.Errorf("duplicate library public name %s", h.Name)
+		}
+		used[h.Name] = true
+		handleElems[h.Elem] = true
+	}
 	for _, t := range e.p.Types.All {
-		if t.Kind == ir.KNamed && roots[t.Pkg] && token.IsExported(t.Obj) && libraryValue(t, map[*ir.Type]bool{}) {
+		if t.Kind == ir.KNamed && roots[t.Pkg] && token.IsExported(t.Obj) && !handleElems[t] && libraryValue(t, map[*ir.Type]bool{}) {
 			if used[t.Obj] {
 				return "", fmt.Errorf("duplicate library public name %s", t.Obj)
 			}
@@ -56,6 +68,9 @@ func (e *emitter) library() (string, error) {
 	}
 	var typ func(*ir.Type) string
 	typ = func(t *ir.Type) string {
+		if h := abi.Handle(t); h != nil {
+			return h.Name + " | null"
+		}
 		if n := names[t]; n != "" {
 			return n
 		}
@@ -179,15 +194,17 @@ func (e *emitter) library() (string, error) {
 		}
 		b.WriteString("}\n")
 	}
-	for _, f := range e.p.Exports {
-		if f.Sig.Variadic {
-			return "", fmt.Errorf("variadic export %s", f.Name)
+	funcs := append([]*ir.Func{}, e.p.Exports...)
+	for _, h := range abi.Handles {
+		funcs = append(funcs, h.Methods...)
+	}
+	for _, f := range funcs {
+		params := f.Sig.Params
+		if f.Recv != nil {
+			params = params[1:]
 		}
-		for _, t := range f.Sig.Params {
-			if !sourceContext(t) {
-				if !libraryValue(t, map[*ir.Type]bool{}) {
-					return "", fmt.Errorf("unsupported export parameter %s", t.Name)
-				}
+		for _, t := range params {
+			if !sourceContext(t) && abi.Handle(t) == nil {
 				converter(t)
 			}
 		}
@@ -195,10 +212,9 @@ func (e *emitter) library() (string, error) {
 			if i == len(f.Sig.Results)-1 && sourceError(t) {
 				continue
 			}
-			if !libraryValue(t, map[*ir.Type]bool{}) {
-				return "", fmt.Errorf("unsupported export result %s", t.Name)
+			if abi.Handle(t) == nil {
+				converter(t)
 			}
-			converter(t)
 		}
 	}
 	for _, t := range e.p.Types.All {
@@ -220,49 +236,31 @@ func (e *emitter) library() (string, error) {
 			fmt.Fprintf(&b, "%s=%s;\n", e.symbol(g.Sym), e.zero(g.Type))
 		}
 	}
-	b.WriteString("}\n")
-	for _, f := range e.p.Exports {
-		name := f.Name[strings.LastIndex(f.Name, ".")+1:]
-		if used[name] {
-			return "", fmt.Errorf("duplicate export name %s", name)
+	b.WriteString("}\nfunction librarySave():unknown{\nreturn [")
+	for _, g := range e.p.Globals {
+		if g.AddrTaken && !g.Type.IsAggregate() {
+			fmt.Fprintf(&b, "%s.v,", e.symbol(g.Sym))
+		} else {
+			fmt.Fprintf(&b, "%s,", e.symbol(g.Sym))
 		}
-		used[name] = true
-		var ps, as []string
-		for i, t := range f.Sig.Params {
-			if sourceContext(t) {
-				as = append(as, "ctx")
-				continue
-			}
-			a := fmt.Sprintf("a%d", i)
-			ps = append(ps, a+": "+typ(t))
-			as = append(as, a)
+	}
+	b.WriteString("];\n}\nfunction libraryLoad(saved:unknown):void{\nconst v=saved as any[];\n")
+	for i, g := range e.p.Globals {
+		if g.AddrTaken && !g.Type.IsAggregate() {
+			fmt.Fprintf(&b, "%s.v=v[%d];\n", e.symbol(g.Sym), i)
+		} else {
+			fmt.Fprintf(&b, "%s=v[%d];\n", e.symbol(g.Sym), i)
 		}
-		ps = append(ps, "options: rt.CallOptions = {}")
-		n := len(f.Sig.Results)
-		hasErr := n > 0 && sourceError(f.Sig.Results[n-1])
-		if hasErr {
-			n--
-		}
-		result := "void"
-		if n == 1 {
-			result = typ(f.Sig.Results[0])
-		} else if n > 1 {
-			var rs []string
-			for i := 0; i < n; i++ {
-				rs = append(rs, typ(f.Sig.Results[i]))
-			}
-			result = "[" + strings.Join(rs, ",") + "]"
-		}
-		fmt.Fprintf(&b, "export async function %s(%s):Promise<%s>{\noptions=rt.snapshotOptions(options);\n", name, strings.Join(ps, ","), result)
-		for i, t := range f.Sig.Params {
-			if !sourceContext(t) {
-				fmt.Fprintf(&b, "a%d=%s(a%d);\n", i, e.names.Type(t.U(), "input$"), i)
-			}
-		}
-		init := e.symbol(e.p.Init.Sym) + "()"
-		if !e.p.Init.MaySuspend {
-			init = "rt.sync(()=>{ " + e.symbol(e.p.Init.Sym) + "();return [];})"
-		}
+	}
+	b.WriteString("}\nconst libraryState:rt.LibraryState={reset:libraryReset,save:librarySave,load:libraryLoad};\n")
+	if len(abi.Handles) > 0 {
+		b.WriteString("const H=Symbol('handle');\n")
+	}
+	init := e.symbol(e.p.Init.Sym) + "()"
+	if !e.p.Init.MaySuspend {
+		init = "rt.sync(()=>{ " + e.symbol(e.p.Init.Sym) + "();return [];})"
+	}
+	frame := func(f *ir.Func, as []string) string {
 		call := e.symbol(f.Sym) + "(" + strings.Join(as, ",") + ")"
 		if !f.MaySuspend {
 			body := call
@@ -275,23 +273,109 @@ func (e *emitter) library() (string, error) {
 			}
 			call = "rt.sync(()=>{ " + body + ";})"
 		}
-		fmt.Fprintf(&b, "const owned=await rt.runLibrary(options,ctx=>rt.librarySequence(%s,()=>%s),libraryReset,rv=>{\nreturn [", init, call)
+		return "(ctx,fresh)=>fresh?rt.librarySequence(" + init + ",()=>" + call + "):" + call
+	}
+	for _, h := range abi.Handles {
+		fmt.Fprintf(&b, "/** Handle to a source *%s owned by a library instance. Call close() when\n * done; a collected handle is released without running Close. */\nexport class %s {\nreadonly [H]:rt.Handle;\n/** @internal */\nconstructor(h:rt.Handle){this[H]=h;}\n", h.Name, h.Name)
+		run := "null"
+		if h.Close != nil {
+			run = frame(h.Close, []string{"rt.obj(this[H])"})
+		}
+		fmt.Fprintf(&b, "/** Runs the source Close, if any, and releases the handle. Queued calls\n * fail and an active call is canceled first. */\nclose():Promise<void>{return rt.closeHandle(this[H],libraryState,%s,sourceFailure);}\n[Symbol.asyncDispose]():Promise<void>{return this.close();}\n", run)
+		for _, f := range h.Methods {
+			if err := e.libraryWrapper(&b, abi, ir.MethodName(f), h, f, typ, frame); err != nil {
+				return "", err
+			}
+		}
+		b.WriteString("}\n")
+		fmt.Fprintf(&b, "function wrap$%s(inst:rt.Instance,v:unknown):%s|null{return rt.wrap(inst,v,%q,h=>new %s(h));}\n", h.Name, h.Name, h.Name, h.Name)
+		fmt.Fprintf(&b, "function handle$%s(v:unknown):rt.Handle|null{if(v===null||v===undefined)return null;if(!(v instanceof %s))rt.invalidBoundary();return v[H];}\n", h.Name, h.Name)
+	}
+	for _, f := range e.p.Exports {
+		name := f.Name[strings.LastIndex(f.Name, ".")+1:]
+		if used[name] {
+			return "", fmt.Errorf("duplicate export name %s", name)
+		}
+		used[name] = true
+		if err := e.libraryWrapper(&b, abi, name, nil, f, typ, frame); err != nil {
+			return "", err
+		}
+	}
+	return b.String(), nil
+}
+
+func (e *emitter) libraryWrapper(b *strings.Builder, abi *ir.LibraryABI, name string, recv *ir.Handle, f *ir.Func, typ func(*ir.Type) string, frame func(*ir.Func, []string) string) error {
+	{
+		params := f.Sig.Params
+		var ps, as, hs []string
+		if recv != nil {
+			params = params[1:]
+			as = append(as, "rt.obj(this[H])")
+			hs = append(hs, "this[H]")
+		}
+		var conv []string
+		for i, t := range params {
+			if sourceContext(t) {
+				as = append(as, "ctx")
+				continue
+			}
+			a := fmt.Sprintf("a%d", i)
+			ps = append(ps, a+": "+typ(t))
+			if h := abi.Handle(t); h != nil {
+				conv = append(conv, fmt.Sprintf("const h%d=handle$%s(a%d);\n", i, h.Name, i))
+				hs = append(hs, fmt.Sprintf("h%d", i))
+				as = append(as, fmt.Sprintf("rt.obj(h%d)", i))
+				continue
+			}
+			conv = append(conv, fmt.Sprintf("a%d=%s(a%d);\n", i, e.names.Type(t.U(), "input$"), i))
+			as = append(as, a)
+		}
+		ps = append(ps, "options: rt.CallOptions = {}")
+		results := f.Sig.Results
+		n := len(results)
+		hasErr := n > 0 && sourceError(results[n-1])
+		if hasErr {
+			n--
+		}
+		result := "void"
+		if n == 1 {
+			result = typ(results[0])
+		} else if n > 1 {
+			var rs []string
+			for i := 0; i < n; i++ {
+				rs = append(rs, typ(results[i]))
+			}
+			result = "[" + strings.Join(rs, ",") + "]"
+		}
+		if recv != nil {
+			fmt.Fprintf(b, "async %s(%s):Promise<%s>{\noptions=rt.snapshotOptions(options);\n", name, strings.Join(ps, ","), result)
+		} else {
+			fmt.Fprintf(b, "export async function %s(%s):Promise<%s>{\noptions=rt.snapshotOptions(options);\n", name, strings.Join(ps, ","), result)
+		}
+		for _, c := range conv {
+			b.WriteString(c)
+		}
+		fmt.Fprintf(b, "const owned=await rt.runLibraryCall(options,libraryState,[%s],%s,(inst,rv)=>{\nreturn [", strings.Join(hs, ","), frame(f, as))
 		for i := 0; i < n; i++ {
-			fmt.Fprintf(&b, "%s(rv[%d]),", e.names.Type(f.Sig.Results[i].U(), "output$"), i)
+			if h := abi.Handle(results[i]); h != nil {
+				fmt.Fprintf(b, "wrap$%s(inst,rv[%d]),", h.Name, i)
+				continue
+			}
+			fmt.Fprintf(b, "%s(rv[%d]),", e.names.Type(results[i].U(), "output$"), i)
 		}
 		if hasErr {
-			fmt.Fprintf(&b, "sourceFailure(rv[%d]),", n)
+			fmt.Fprintf(b, "sourceFailure(rv[%d]),", n)
 		}
 		b.WriteString("];});\n")
 		if hasErr {
-			fmt.Fprintf(&b, "if(owned[%d]!==null)throw owned[%d];\n", n, n)
+			fmt.Fprintf(b, "if(owned[%d]!==null)throw owned[%d];\n", n, n)
 		}
 		if n == 1 {
 			b.WriteString("return owned[0] as any;\n")
 		} else if n > 1 {
-			fmt.Fprintf(&b, "return owned.slice(0,%d) as any;\n", n)
+			fmt.Fprintf(b, "return owned.slice(0,%d) as any;\n", n)
 		}
 		b.WriteString("}\n")
 	}
-	return b.String(), nil
+	return nil
 }

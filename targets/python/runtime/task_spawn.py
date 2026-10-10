@@ -96,6 +96,9 @@ class Scheduler:
         self.harness = False
         self.library_poll = None
         self.library_results = False
+        # Identity shared by the schedulers of one library instance; native
+        # objects created by any of its calls remain usable by later calls.
+        self.domain = self
 
     def choose(self, n):
         """xorshift32 choice source, identical on every target."""

@@ -117,11 +117,17 @@ export class Scheduler {
   readonly operations = new Map<number, HostOperation>();
   readonly tasks = new Set<Task>();
   readonly disposers = new Set<() => void>();
+  /** Native resources owned by source values; a library instance keeps them
+   * past the call that created them. */
+  readonly retained = new Set<() => void>();
   nextOperation = 0;
   closed = false;
   hostMode = false;
   libraryMode = false;
   boundary: (()=>void)|null = null;
+  /** Identity shared by the schedulers of one library instance; native
+   * objects created by any of its calls remain usable by later calls. */
+  domain: object = this;
   host: RuntimeHost;
   epoch: number;
   constructor(main: Task, host: RuntimeHost = runtimeHost) {
@@ -254,10 +260,12 @@ export class Scheduler {
     this.mail.cleaned.clear();
     this.mail.live.clear();
     this.mail.wake = null;
+    this.boundary = null;
     this.runq = [];
     this.timers = [];
-    for (const dispose of this.disposers) { try { dispose(); } catch (e) { failure ??= e; } }
+    for (const dispose of [...this.disposers, ...this.retained]) { try { dispose(); } catch (e) { failure ??= e; } }
     this.disposers.clear();
+    this.retained.clear();
     for (const t of this.tasks) {
       try { t.cleanup?.(); } catch (e) { failure ??= e; }
       t.cleanup = null; t.frame = null; t.rv = []; t.blocked = false; t.done = true; t.curPanic = null; t.resumePanic = null; t.deferTarget = undefined;
@@ -611,13 +619,15 @@ export function resetScheduler(): void {
 }
 
 /** Library drives return owned results and categorized failures, never executable exit. */
+export interface LibraryHooks { domain?: object; retire?: (s: Scheduler, failure: unknown) => void; }
 export async function driveLibrary(entry: () => Frame, capture: (rv: unknown[]) => unknown[],
-  signal?: AbortSignal, onAbort: () => void = () => {}): Promise<unknown[]> {
+  signal?: AbortSignal, onAbort: () => void = () => {}, hooks: LibraryHooks = {}): Promise<unknown[]> {
   if (activeHost) throw new HostFault("overlapping runtime entry is unsupported");
   const main = new Task(0, null as unknown as Frame);
   const s = install(main, false);
   s.hostMode = true;
   s.libraryMode = true;
+  if (hooks.domain) s.domain = hooks.domain;
   activeHost = true;
   let failure: unknown;
   let owned: unknown[] = [];
@@ -638,6 +648,7 @@ export async function driveLibrary(entry: () => Frame, capture: (rv: unknown[]) 
     owned = capture(main.rv);
     if (aborted) throw new NativeCanceled();
   } catch (e) { failure = e; }
+  if (hooks.retire) { try { hooks.retire(s, failure); } catch (e) { failure ??= e; } }
   try { await s.shutdown(); } catch (e) { failure ??= e; }
   signal?.removeEventListener("abort", wake);
   activeHost = false;

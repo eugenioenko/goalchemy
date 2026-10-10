@@ -50,7 +50,7 @@ func KeyRace(ctx context.Context)([]byte,error){key,e:=crypto.GenerateRSA2048();
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(generated), "rt.runLibrary(") || strings.Contains(string(generated), "$run()") {
+	if !strings.Contains(string(generated), "rt.runLibraryCall(") || strings.Contains(string(generated), "$run()") {
 		t.Fatal("missing actual generated exports")
 	}
 	suite, err := os.ReadFile(filepath.Join(root, "targets/typescript/tests/library_suite.ts.in"))

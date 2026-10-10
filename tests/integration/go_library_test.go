@@ -53,7 +53,7 @@ func KeyProvider(ctx context.Context,name string)([]byte,error){key,e:=crypto.Ge
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(generated), "package generated") || !strings.Contains(string(generated), "rt.RunLibrary(") {
+	if !strings.Contains(string(generated), "package generated") || !strings.Contains(string(generated), "rt.RunLibraryCall(") {
 		t.Fatal("missing generated library boundary")
 	}
 	consumerMod := fmt.Sprintf("module independent\n\ngo 1.25\nrequire goalchemyout v0.0.0\nreplace goalchemyout => %s\n", out)

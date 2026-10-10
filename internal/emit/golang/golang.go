@@ -36,6 +36,7 @@ type emitter struct {
 	symbols     map[string]string
 	typeNames   map[*ir.Type]string
 	publicTypes map[*ir.Type]string
+	abi         *ir.LibraryABI
 	methodNames map[string]string
 	syms        map[string]bool
 	contracts   map[string]bool

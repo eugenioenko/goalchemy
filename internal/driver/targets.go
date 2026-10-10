@@ -54,7 +54,7 @@ func emitGo(res *Result, out string) []diagnostics.Diagnostic {
 		return emitErr("GCE005", err.Error())
 	}
 	if res.IR.Library {
-		for _, name := range []string{"library.go", "lib_callback_request.go"} {
+		for _, name := range []string{"library.go", "library_handle.go", "lib_callback_request.go"} {
 			linked := false
 			for _, file := range rtFiles {
 				if file == "rt/"+name {
@@ -194,7 +194,7 @@ func emitTS(res *Result, out string) []diagnostics.Diagnostic {
 	}
 	if res.IR.Library {
 		gen["node.ts"] = []byte("// Node library entry: install standard-library CRC, file system and HTTP adapters without executable I/O or process exit.\nimport \"./rt/types/node_checksum.ts\";\nimport \"./rt/types/node_fs.ts\";\nimport \"./rt/types/node_http.ts\";\nexport * from \"./main.ts\";\n")
-		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","DOM","DOM.Iterable"]},"include":["*.ts","rt/**/*.ts"]}`)
+		gen["tsconfig.json"] = []byte(`{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","rewriteRelativeImportExtensions":true,"declaration":true,"outDir":"dist","strict":true,"skipLibCheck":true,"lib":["ES2022","ESNext.Disposable","DOM","DOM.Iterable"]},"include":["*.ts","rt/**/*.ts"]}`)
 		gen["package.json"] = []byte(`{"name":"goalchemy-generated","version":"0.0.0","type":"module","private":true,"exports":{".":{"types":"./dist/main.d.ts","node":"./dist/node.js","browser":"./dist/main.js","default":"./dist/main.js"}},"files":["dist"],"engines":{"node":">=22.6"},"scripts":{"build":"tsc -p ."}}`)
 		gen["README.md"] = []byte(readme("typescript", "tsc -p . (TypeScript >=5.7)", "Portable Node/browser Promise library; Uint8Array bytes and bigint int64. Import the package to select the Node standard-library CRC adapter automatically, or import ./dist/node.js directly in Node. Browser/default package imports and direct ./dist/main.js imports use the portable CRC fallback. Hardware acceleration is determined by the host runtime and is not guaranteed."))
 	} else if res.IR.Cooperative {

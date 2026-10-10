@@ -4,7 +4,8 @@ The Go emitter accepts source library roots and exports real lowered IR through
 native context-aware functions. Library parameters/results admit bool, integer,
 string, arrays/slices and public struct value trees. Source context parameters
 map to one native context.Context. Source final error results are preserved;
-exports without a source error gain a boundary error result. Unsupported pointer,
+exports without a source error gain a boundary error result. Pointers to
+exported root structs cross as [handles](library-handles.md); other pointer,
 map, channel, callback and opaque-key public parameters/results are rejected.
 This deliberately avoids arbitrary source type/method ABI parity.
 
