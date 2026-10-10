@@ -5,6 +5,7 @@ package corpus
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eugenioenko/goalchemy/internal/project"
@@ -17,6 +18,9 @@ func TestRegressions(t *testing.T) {
 	targets := targets
 	if testing.Short() {
 		targets = targets[:2]
+	}
+	if only := os.Getenv("GOALCHEMY_TEST_TARGETS"); only != "" {
+		targets = strings.Split(only, ",")
 	}
 	fixtures, err := testutil.Discover(".")
 	if err != nil {

@@ -1,12 +1,13 @@
 # CI prerequisites and coverage
 
-Linux x86_64 CI runs eleven independent jobs in parallel. The original
-`go test -short ./...` coverage is partitioned into core packages, language and
-corpus fixtures, native contracts/browser checks, and four integration shards.
-Float differential tests, readable/compact naming tests, and unshort runtime
-conformance each run in their own job across all targets. A dedicated Swift
-job runs its full language fixtures and corpus checks. Short mode
-still limits the general language/example matrices, and retains the native
+Linux x86_64 CI runs eighteen independent jobs in parallel. The original
+`go test -short ./...` coverage is partitioned into core packages, native
+contracts/browser checks, and four integration shards. Float differential
+tests, readable/compact naming tests, and unshort runtime conformance each run
+in their own job across all targets. Each target has its own "Language and
+corpus (<target>)" job that runs every language fixture and corpus regression
+for that target without short mode; the Go job also runs the feature manifest
+check. Short mode still limits the example matrices, and retains the native
 integration, actual Chromium, and focused C ASan/UBSan checks. The full
 sanitizer/corpus/memory matrices keep their existing short-mode behavior.
 
@@ -15,7 +16,9 @@ the explicitly separated suites join the core job automatically. Integration
 shards discover top-level tests, fuzz seed tests and examples with `go test
 -list .`, sort their names and distribute them across four jobs. Subtests stay
 with their parent. The core job audits that the partitions cover the discovered
-packages and integration tests without overlap. No test-source changes or
+packages and integration tests without overlap, and that the workflow has
+exactly one correctly named language job for every target listed in
+`tests/language` and `tests/corpus`. No test-source changes or
 new skip conditions are needed. All runners retain the existing pinned native
 and browser prerequisites. The final `test` job preserves the existing check
 name and succeeds only when every matrix job succeeds; failures do not cancel
@@ -76,9 +79,10 @@ go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=
 ```
 
 To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
-`fixtures`, `contracts`, `floats`, `naming`, `runtime`, or `swift` after bootstrap.
-Integration jobs use `python3 scripts/ci-suite.py integration --shard 0`
-through `--shard 3`. Add `--plan` to inspect commands without executing them,
+`contracts`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
+use `python3 scripts/ci-suite.py language --target <target>`, for example
+`--target rust`. Integration jobs use `python3 scripts/ci-suite.py integration
+--shard 0` through `--shard 3`. Add `--plan` to inspect commands without executing them,
 or use `python3 scripts/ci-suite.py --verify-plan` to audit coverage.
 
 Use `--with-browser-deps` when bootstrap should also install Chromium's OS

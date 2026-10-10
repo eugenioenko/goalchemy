@@ -10,10 +10,10 @@ for d in json.loads(pathlib.Path(sys.argv[1]).read_text())['dependencies']:
  if not p.exists():
   fd,name=tempfile.mkstemp(prefix=p.name+'.',suffix='.part',dir=p.parent);os.close(fd);part=pathlib.Path(name)
   try:
-   for attempt in range(5):
+   for attempt in range(3):
     try:urllib.request.urlretrieve(d['url'],part);break
     except OSError as e:
-     if attempt==4:raise
+     if attempt==2:raise
      print(f"retrying {d['url']} after {e}",file=sys.stderr);time.sleep(2**attempt)
    if hashlib.sha256(part.read_bytes()).hexdigest()!=d['sha256']:raise SystemExit('Java downloaded dependency checksum mismatch')
    part.replace(p)
