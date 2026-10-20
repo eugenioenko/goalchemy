@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shlex
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = 'github.com/eugenioenko/goalchemy'
@@ -288,9 +289,11 @@ def main():
     if args.plan:
         return
     environment = dict(os.environ, **selected['environment'])
-    for command in selected['commands']:
-        print('RUN ' + shlex.join(command), flush=True)
-        subprocess.run(command, cwd=ROOT, env=environment, check=True)
+    with tempfile.TemporaryDirectory(prefix='goalchemy-fixture-builds-') as cache:
+        environment['GOALCHEMY_TEST_BUILD_CACHE'] = cache
+        for command in selected['commands']:
+            print('RUN ' + shlex.join(command), flush=True)
+            subprocess.run(command, cwd=ROOT, env=environment, check=True)
 
 
 if __name__ == '__main__':

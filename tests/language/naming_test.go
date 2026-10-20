@@ -19,6 +19,7 @@ func TestNamingModes(t *testing.T) {
 		t.Fatal(err)
 	}
 	wanted := map[string]bool{"naming": true, "structs_values": true, "co_frames": true, "shadow_scopes": true, "multipkg": true}
+	suite := testutil.NewSuite(t)
 	for _, fixture := range fixtures {
 		if !wanted[fixture.Name] {
 			continue
@@ -26,7 +27,7 @@ func TestNamingModes(t *testing.T) {
 		delete(wanted, fixture.Name)
 		for _, mode := range []string{"source", "readable", "compact"} {
 			t.Run(fixture.Name+"/"+mode, func(t *testing.T) {
-				testutil.RunFixtureOptions(t, fixture, selected, driver.EmitOptions{Names: mode})
+				suite.RunFixture(t, fixture, selected, driver.EmitOptions{Names: mode})
 			})
 		}
 	}

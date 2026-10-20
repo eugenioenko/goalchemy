@@ -7,11 +7,13 @@ waiting jobs queue without occupying runners or replacing one another. Each
 group can hold up to 100 pending jobs. These groups enforce the four-runner cap
 without a second matrix limit holding up jobs for an available slot.
 New commits cancel superseded runs of the same workflow,
-including older pushes to `main`. Closing or merging a PR also cancels its
-remaining workflows. A `pull_request_target: closed` event shares the PR's
+including older documentation pushes to `main`. Closing or merging a PR also
+cancels its remaining workflows. A `pull_request_target: closed` event shares the PR's
 workflow concurrency group, with every job skipped. This cancellation needs
-no runner and executes no PR code. Post-merge `push` runs have a separate group,
-so tests and documentation publishing on `main` continue.
+no runner and executes no PR code. Compiler CI and the SDK documentation template
+checks run on pull requests only. Merging does not repeat those test suites on
+`main`. Documentation builds and publishing still run for matching pushes to
+`main`, or a manual docs dispatch, in a separate concurrency group.
 
 Every new runner job must use one of these four groups. Workflow-level
 cancellation groups stay separate so workflows do not block their own jobs.
@@ -58,6 +60,25 @@ conformance prebuilds the Rust harness but does not install a browser.
 selection. Omitting the suite preserves full local setup. Dependency selection
 is covered by focused tests, including the shell bootstrap and toolchain cache
 validation. CI runs these tests in the core job.
+
+Fixture suites validate the contract catalog once per suite and load each
+fixture once before emitting its targets. Frames/native comparisons also share
+the loaded source. Source and IR are released with the fixture rather than
+retained in a global cache. Standalone compiler calls still load their inputs
+and catalog afresh.
+
+The suite runner creates a temporary `GOALCHEMY_TEST_BUILD_CACHE`, shared by
+its test processes and removed when the suite exits. Go, Swift, Rust, Java
+and C# fixtures reuse compiled artifacts only when the emitted source,
+runtime, build scripts, manifests and build environment match. Cache entries
+are published after successful builds under a per-entry file lock. Each test
+gets its own copy of the artifacts and runs a fresh process. Observations,
+failures and test assertions are never cached. Scheduler seeds and the runtime
+GC threshold do not change the build key, so forced-GC runs can reuse the same
+binary while exercising a different runtime setting. Interpreted targets and
+sanitizer builds keep their existing execution paths. The cache is not saved
+between jobs or workflow runs. Running `go test` directly without the variable
+keeps builds uncached.
 
 Installed .NET, LLVM and Swift toolchains have separate caches keyed by the
 OS, architecture and toolchain lock. Restored installations must have their

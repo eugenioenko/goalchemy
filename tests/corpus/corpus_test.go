@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/project"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
@@ -26,6 +27,7 @@ func TestRegressions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	suite := testutil.NewSuite(t)
 	for _, f := range fixtures {
 		t.Run(f.Name, func(t *testing.T) {
 			t.Parallel()
@@ -35,7 +37,7 @@ func TestRegressions(t *testing.T) {
 			if _, err := project.LoadMeta(filepath.Join(f.Dir, "meta.yaml")); err != nil {
 				t.Fatal(err)
 			}
-			testutil.RunFixture(t, f, targets)
+			suite.RunFixture(t, f, targets, driver.EmitOptions{})
 		})
 	}
 }

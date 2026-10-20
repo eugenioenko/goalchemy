@@ -1,4 +1,6 @@
+import contextlib
 import importlib.util
+import io
 import os
 from pathlib import Path
 import re
@@ -6,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('ci_suite', ROOT / 'scripts/ci-suite.py')
@@ -14,6 +17,32 @@ spec.loader.exec_module(ci)
 
 
 class SetupTests(unittest.TestCase):
+    def test_fixture_build_cache_is_shared_only_within_one_suite(self):
+        for fail in (False, True):
+            with self.subTest(fail=fail):
+                caches = []
+
+                def run(command, *, cwd, env, check):
+                    cache = Path(env['GOALCHEMY_TEST_BUILD_CACHE'])
+                    self.assertTrue(cache.is_dir())
+                    self.assertEqual(cwd, ROOT)
+                    self.assertTrue(check)
+                    caches.append(cache)
+                    if fail:
+                        raise subprocess.CalledProcessError(1, command)
+
+                with mock.patch('sys.argv', ['ci-suite.py', 'pause-swift']), \
+                        mock.patch.object(ci.subprocess, 'run', side_effect=run), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    if fail:
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            ci.main()
+                    else:
+                        ci.main()
+                self.assertEqual(len(caches), 1 if fail else 4)
+                self.assertEqual(len(set(caches)), 1)
+                self.assertFalse(caches[0].exists())
+
     def test_language_dependencies(self):
         for target in ci.TARGET_NAMES:
             with self.subTest(target=target):
@@ -78,9 +107,14 @@ class SetupTests(unittest.TestCase):
 
     def test_manual_docs_publishing_is_preserved(self):
         workflow = (ROOT / '.github/workflows/docs.yml').read_text()
+        self.assertIn('  push:\n    branches: [main]', workflow)
         deploy = workflow.split('\n  deploy:\n', 1)[1]
         self.assertIn("github.event_name == 'workflow_dispatch'", deploy)
         self.assertIn("github.ref == 'refs/heads/main'", deploy)
+        for name in ('ci.yml', 'api-docs-template.yml'):
+            triggers = (ROOT / '.github/workflows' / name).read_text().split('\npermissions:', 1)[0]
+            self.assertIn('  pull_request:', triggers)
+            self.assertNotIn('  push:', triggers)
 
     def test_bootstrap_does_not_prepare_unselected_targets(self):
         for target in ('go', 'typescript'):

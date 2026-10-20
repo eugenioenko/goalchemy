@@ -30,12 +30,32 @@ type Result struct {
 	IR         *ir.Program
 }
 
-// Build loads and validates the source and lowers it to IR.
-func Build(ctx context.Context, opts Options) (*Result, []diagnostics.Diagnostic) {
+// Builder reuses a validated catalog across independent source builds.
+// Its catalog and the catalogs exposed by its results must not be modified.
+type Builder struct {
+	catalog *contracts.Catalog
+}
+
+func NewBuilder() (*Builder, []diagnostics.Diagnostic) {
 	cat, ds := catalog.Load(catalog.FS())
 	if diagnostics.HasErrors(ds) {
 		return nil, ds
 	}
+	return &Builder{catalog: cat}, ds
+}
+
+// Build loads and validates the source and lowers it to IR.
+func Build(ctx context.Context, opts Options) (*Result, []diagnostics.Diagnostic) {
+	builder, ds := NewBuilder()
+	if diagnostics.HasErrors(ds) {
+		return nil, ds
+	}
+	return builder.Build(ctx, opts)
+}
+
+// Build reloads source for each call while retaining this builder's catalog.
+func (b *Builder) Build(ctx context.Context, opts Options) (*Result, []diagnostics.Diagnostic) {
+	cat := b.catalog
 	reg := catalog.NewRegistry(cat)
 	prog, ds := frontend.Load(ctx, frontend.Options{Dir: opts.Dir, Patterns: opts.Patterns, Tags: opts.Tags, External: reg.Package, SourceLib: catalog.IsStd})
 	res := &Result{Catalog: cat, Registry: reg, Program: prog}
