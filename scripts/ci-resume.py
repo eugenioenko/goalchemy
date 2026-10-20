@@ -48,7 +48,8 @@ def resume_plan(jobs, attempt):
 
 
 def same_attempt(run, event):
-    return (run['status'] == 'completed' and run['run_attempt'] == event['run_attempt']
+    return (run['event'] == 'pull_request' and run['status'] == 'completed'
+            and run['run_attempt'] == event['run_attempt']
             and run['head_sha'] == event['head_sha'])
 
 

@@ -4,8 +4,8 @@ Linux x86_64 CI uses at most four runners across the repository, including
 overlapping PRs, optional tests, documentation builds and deployments. Jobs
 share four `repository-runner-*` concurrency groups with `queue: max`, so
 waiting jobs queue without occupying runners or replacing one another. Each
-group can hold up to 100 pending jobs. The test matrix also uses
-`max-parallel: 4`. New commits cancel superseded PR runs of the same workflow.
+group can hold up to 100 pending jobs. The shared groups enforce the cap directly, leaving
+free slots available even when another group has a long-running job. New commits cancel superseded PR runs of the same workflow.
 
 Every new runner job must use one of these four groups. Workflow-level
 cancellation groups stay separate so workflows do not block their own jobs.
@@ -36,8 +36,8 @@ exactly one correctly named language job for every target listed in
 `tests/language` and `tests/corpus`. No test-source changes or
 new skip conditions are needed. All runners retain the existing pinned native
 and browser prerequisites. The final `test` job preserves the existing check
-name and succeeds only when every matrix job succeeds; failures do not cancel
-the other shards.
+name and succeeds only when every required matrix job succeeds across all
+attempts. Optional native Swift/Rust rows remain non-blocking.
 
 `scripts/ci-bootstrap.sh` prepares the prerequisites rather than skipping
 checks. Native C needs a C compiler, pkg-config, Boehm GC, libcurl, OpenSSL and
@@ -103,3 +103,22 @@ or use `python3 scripts/ci-suite.py --verify-plan` to audit coverage.
 Use `--with-browser-deps` when bootstrap should also install Chromium's OS
 prerequisites. CI writes its runtime paths to `GITHUB_PATH`/`GITHUB_ENV`; local
 bootstrap writes only ignored `out/ci/environment.sh` and changes no profiles.
+
+## PR failures and retries
+
+PR test matrices use fail-fast: one required failure cancels their queued and
+running siblings, including optional native checks. Main-branch runs continue
+collecting results after a failure. Documentation workflows remain independent.
+
+Retry the failed job from its Actions page. Once that retry passes and no other
+required failure remains, `Resume CI after retry` requests a retry of the
+remaining failed or cancelled jobs. Successful jobs retain their prior results.
+The required `test` check stays red until all required matrix jobs have passed,
+including jobs cancelled in an earlier attempt.
+
+The resume handler runs trusted default-branch code, checks the PR is still
+open at the same commit, and rechecks the attempt before requesting a retry.
+It ignores cancelled retry attempts and never retries an unresolved failure
+automatically. A source fix needs a new commit because job retries use the
+original commit. The resume workflow must be merged into the default branch
+before automatic continuation is available.

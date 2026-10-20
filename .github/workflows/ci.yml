@@ -19,13 +19,15 @@ jobs:
       cancel-in-progress: false
       queue: max
     timeout-minutes: ${{ matrix.timeout || 45 }}
+    continue-on-error: ${{ matrix.optional || false }}
     strategy:
       fail-fast: ${{ github.event_name == 'pull_request' }}
-      max-parallel: 4
       matrix:
         include:
           - {name: Core compiler, suite: core, runner_slot: 1}
           - {name: Language and corpus (Go), suite: language, target: go, runner_slot: 2}
+          - {name: "Native pause model (Swift, optional)", suite: pause-swift, target: swift, runner_slot: 4, timeout: 150, optional: true}
+          - {name: "Native pause model (Rust, optional)", suite: pause-rust, target: rust, runner_slot: 3, timeout: 180, optional: true}
           - {name: Language and corpus (TypeScript), suite: language, target: typescript, runner_slot: 3}
           - {name: Language and corpus (Python), suite: language, target: python, runner_slot: 4}
           - {name: Language and corpus (Java), suite: language, target: java, runner_slot: 1}
@@ -106,70 +108,6 @@ jobs:
         run: bash scripts/ci-bootstrap.sh --with-browser-deps
       - name: Run selected checks
         run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --shard '${{ matrix.shard || 0 }}' --target '${{ matrix.target || '' }}'
-
-  # Swift under the native pause model, including a collection at every
-  # safepoint. Optional: it is not part of the required check.
-  swift-native:
-    name: Native pause model (Swift, optional)
-    runs-on: ubuntu-latest
-    concurrency:
-      group: repository-runner-4
-      cancel-in-progress: false
-      queue: max
-    timeout-minutes: 150
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - name: Install native build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libcurl4-openssl-dev libssl-dev zlib1g-dev libedit2 libxml2
-      - name: Cache pinned toolchain downloads
-        uses: actions/cache@v5
-        with:
-          path: .toolchains/downloads
-          key: ${{ runner.os }}-native-tools-${{ hashFiles('toolchains.lock') }}
-      - name: Prepare the pinned Swift toolchain
-        run: bash scripts/fetch-toolchains.sh swift
-      - name: Run Swift native pause model checks
-        run: python3 scripts/ci-suite.py pause-swift
-
-  # Native Rust has its own optional job to keep Cargo builds out of the
-  # required native-pause suite while the parent redesign is in progress.
-  rust-native:
-    name: Native pause model (Rust, optional)
-    runs-on: ubuntu-latest
-    concurrency:
-      group: repository-runner-3
-      cancel-in-progress: false
-      queue: max
-    timeout-minutes: 180
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - uses: dtolnay/rust-toolchain@stable
-        id: rust
-      - name: Install native build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev cmake perl
-      - name: Cache locked Cargo dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
-      - name: Cache the shared Cargo target of generated Rust fixtures
-        uses: actions/cache@v5
-        with:
-          path: out/fixture-cargo
-          key: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-
-      - name: Run Rust native pause model checks
-        run: python3 scripts/ci-suite.py pause-rust
 
   # Preserve the existing required check name and fail if any shard fails or skips.
   test:
