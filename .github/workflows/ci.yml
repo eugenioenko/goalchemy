@@ -1,17 +1,23 @@
 name: CI
 
 on:
+  pull_request_target:
+    types: [closed]
   push:
     branches: [main]
   pull_request:
     branches: [main, proto/go-native-pause]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   checks:
+    if: github.event_name != 'pull_request_target'
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     concurrency:
@@ -21,7 +27,6 @@ jobs:
     timeout-minutes: ${{ matrix.timeout || 45 }}
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         include:
           - {name: Core compiler, suite: core, runner_slot: 1}
@@ -49,10 +54,14 @@ jobs:
           - {name: Native pause model (Java), suite: pause-java, runner_slot: 3}
     steps:
       - uses: actions/checkout@v7
+      - name: Select suite dependencies
+        id: setup
+        run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --target '${{ matrix.target || '' }}' --setup --github-output "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: actions/setup-node@v7
+        if: steps.setup.outputs.typescript == 'true'
         with:
           node-version: '22'
           cache: npm
@@ -60,32 +69,53 @@ jobs:
             ci/browser-tooling/package-lock.json
             targets/typescript/package-lock.json
       - uses: actions/setup-python@v7
+        if: steps.setup.outputs.python == 'true'
         with:
           python-version: '3.10'
       - uses: actions/setup-java@v6
+        if: steps.setup.outputs.java == 'true'
         with:
           distribution: temurin
           java-version: '21'
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '8.0.x'
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.setup.outputs.rust == 'true'
         id: rust
       - name: Install native build prerequisites
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgc-dev libcurl4-openssl-dev libssl-dev zlib1g-dev libedit2 libxml2 perl ripgrep
+        if: steps.setup.outputs.apt != ''
+        env:
+          CI_APT_PACKAGES: ${{ steps.setup.outputs.apt }}
+        run: sudo apt-get update && sudo apt-get install -y $CI_APT_PACKAGES
       - name: Cache the shared Cargo target of generated Rust fixtures
-        if: matrix.target == 'rust'
+        if: steps.setup.outputs.rust == 'true'
         uses: actions/cache@v5
         with:
-          path: out/fixture-cargo
-          key: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-
-      - name: Cache pinned toolchain downloads
+          path: |
+            out/fixture-cargo
+            out/rust-tdf-library/sdk/target
+          key: ${{ runner.os }}-fixture-cargo-v2-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-fixture-cargo-v2-${{ steps.rust.outputs.cachekey }}-
+      - name: Cache installed pinned .NET
+        if: steps.setup.outputs.csharp == 'true'
         uses: actions/cache@v5
         with:
-          path: .toolchains/downloads
-          key: ${{ runner.os }}-native-tools-${{ hashFiles('toolchains.lock') }}
+          path: .toolchains/dotnet
+          key: ${{ runner.os }}-${{ runner.arch }}-installed-dotnet-v1-${{ hashFiles('toolchains.lock') }}
+      - name: Cache installed pinned LLVM
+        if: steps.setup.outputs.llvm == 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            .toolchains/llvm-*
+            .toolchains/libtinfo5
+          key: ${{ runner.os }}-${{ runner.arch }}-installed-llvm-v1-${{ hashFiles('toolchains.lock') }}
+      - name: Cache installed pinned Swift
+        if: steps.setup.outputs.swift == 'true'
+        uses: actions/cache@v5
+        with:
+          path: .toolchains/swift-*
+          key: ${{ runner.os }}-${{ runner.arch }}-installed-swift-v1-${{ hashFiles('toolchains.lock') }}
       - name: Cache locked Cargo dependencies
+        if: steps.setup.outputs.rust == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -93,23 +123,38 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
       - name: Cache pinned Playwright browsers
+        if: steps.setup.outputs.browser == 'true'
         uses: actions/cache@v5
         with:
           path: .toolchains/playwright
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('ci/browser-tooling/package-lock.json') }}
       - name: Cache pinned Java dependencies
+        if: steps.setup.outputs.java == 'true'
         uses: actions/cache@v5
         with:
           path: out/java-dependencies
           key: ${{ runner.os }}-java-dependencies-${{ hashFiles('targets/java/dependencies.lock.json') }}
-      - name: Prepare pinned native and browser test dependencies
-        run: bash scripts/ci-bootstrap.sh --with-browser-deps
+      - name: Cache Python wheels
+        if: steps.setup.outputs.python == 'true'
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-${{ runner.arch }}-python310-${{ hashFiles('ci/python-requirements.txt') }}
+      - name: Cache locked NuGet dependencies
+        if: steps.setup.outputs.csharp == 'true'
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('targets/csharp/packages.lock.json') }}
+      - name: Prepare suite dependencies
+        run: bash scripts/ci-bootstrap.sh --suite '${{ matrix.suite }}' --target '${{ matrix.target || '' }}' --with-browser-deps
       - name: Run selected checks
         run: python3 scripts/ci-suite.py '${{ matrix.suite }}' --shard '${{ matrix.shard || 0 }}' --target '${{ matrix.target || '' }}'
 
   # Swift under the native pause model, including a collection at every
   # safepoint. Optional: it is not part of the required check.
   swift-native:
+    if: github.event_name != 'pull_request_target'
     name: Native pause model (Swift, optional)
     runs-on: ubuntu-latest
     concurrency:
@@ -125,11 +170,11 @@ jobs:
           go-version-file: go.mod
       - name: Install native build prerequisites
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libcurl4-openssl-dev libssl-dev zlib1g-dev libedit2 libxml2
-      - name: Cache pinned toolchain downloads
+      - name: Cache installed pinned Swift
         uses: actions/cache@v5
         with:
-          path: .toolchains/downloads
-          key: ${{ runner.os }}-native-tools-${{ hashFiles('toolchains.lock') }}
+          path: .toolchains/swift-*
+          key: ${{ runner.os }}-${{ runner.arch }}-installed-swift-v1-${{ hashFiles('toolchains.lock') }}
       - name: Prepare the pinned Swift toolchain
         run: bash scripts/fetch-toolchains.sh swift
       - name: Run Swift native pause model checks
@@ -138,6 +183,7 @@ jobs:
   # Native Rust has its own optional job to keep Cargo builds out of the
   # required native-pause suite while the parent redesign is in progress.
   rust-native:
+    if: github.event_name != 'pull_request_target'
     name: Native pause model (Rust, optional)
     runs-on: ubuntu-latest
     concurrency:
@@ -165,16 +211,18 @@ jobs:
       - name: Cache the shared Cargo target of generated Rust fixtures
         uses: actions/cache@v5
         with:
-          path: out/fixture-cargo
-          key: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-
+          path: |
+            out/fixture-cargo
+            out/rust-tdf-library/sdk/target
+          key: ${{ runner.os }}-fixture-cargo-v2-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('targets/rust/tests/harness/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-fixture-cargo-v2-${{ steps.rust.outputs.cachekey }}-
       - name: Run Rust native pause model checks
         run: python3 scripts/ci-suite.py pause-rust
 
   # Preserve the existing required check name and fail if any shard fails or skips.
   test:
     needs: checks
-    if: always()
+    if: always() && github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     concurrency:
       group: repository-runner-2

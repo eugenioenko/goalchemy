@@ -1,6 +1,8 @@
 name: SDK documentation template
 
 on:
+  pull_request_target:
+    types: [closed]
   pull_request:
     paths:
       - '.github/workflows/api-docs-template.yml'
@@ -25,11 +27,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   template:
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     concurrency:
       group: repository-runner-2

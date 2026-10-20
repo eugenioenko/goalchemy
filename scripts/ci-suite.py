@@ -28,6 +28,52 @@ TARGET_NAMES = {'go': 'Go', 'typescript': 'TypeScript', 'python': 'Python', 'jav
 WORKFLOW = ROOT / '.github/workflows/ci.yml'
 
 
+def setup(suite=None, target=None):
+    targets = set(TARGET_NAMES)
+    extras = set()
+    if suite == 'language':
+        if target not in TARGET_NAMES:
+            raise ValueError('language setup needs a supported --target')
+        targets = {target}
+    elif suite == 'pause':
+        if target not in (None, 'python'):
+            raise ValueError('pause setup only accepts --target python')
+        targets = {'python'} if target == 'python' else {'go', 'typescript', 'csharp'}
+        if target is None:
+            extras.add('go-probe')
+    elif suite in ('pause-java', 'pause-rust', 'pause-swift'):
+        targets = {suite.removeprefix('pause-')}
+    elif suite == 'memory':
+        targets = {'rust', 'c'}
+        extras.add('llvm')
+    elif suite in (None, 'core', 'contracts', 'integration'):
+        extras.update(('browser', 'llvm', 'rust-harness', 'go-probe'))
+    elif suite == 'runtime':
+        extras.add('rust-harness')
+    elif suite not in ('examples', 'floats', 'naming'):
+        raise ValueError('unknown setup suite: ' + str(suite))
+    features = sorted(targets | extras | {'go'})
+    packages = set()
+    if targets & {'rust', 'c', 'swift'} or 'go-probe' in extras:
+        packages.update(('build-essential', 'pkg-config', 'libssl-dev'))
+    if 'rust' in targets:
+        packages.update(('cmake', 'perl'))
+    if targets & {'c', 'swift'}:
+        packages.update(('libcurl4-openssl-dev', 'zlib1g-dev'))
+    if 'c' in targets:
+        packages.update(('libgc-dev', 'ripgrep'))
+    if 'swift' in targets:
+        packages.update(('libedit2', 'libxml2'))
+    return {'features': features, 'apt': ' '.join(sorted(packages))}
+
+
+def write_setup_outputs(path, selected):
+    with open(path, 'a') as stream:
+        for feature in (*TARGET_NAMES, 'browser', 'llvm', 'rust-harness', 'go-probe'):
+            print(feature.replace('-', '_') + '=' + str(feature in selected['features']).lower(), file=stream)
+        print('apt=' + selected['apt'], file=stream)
+
+
 def output(command):
     return subprocess.check_output(command, cwd=ROOT, text=True)
 
@@ -219,8 +265,16 @@ def main():
     parser.add_argument('--shard', type=int, default=0)
     parser.add_argument('--target', default=None, help='language or pause suite target')
     parser.add_argument('--plan', action='store_true', help='print commands without running checks')
+    parser.add_argument('--setup', action='store_true', help='print required dependencies without running checks')
+    parser.add_argument('--github-output', help='write setup outputs for workflow steps')
     parser.add_argument('--verify-plan', action='store_true', help='audit package and test coverage')
     args = parser.parse_args()
+    if args.setup:
+        selected = setup(args.suite, args.target or None)
+        print(json.dumps(selected, indent=2))
+        if args.github_output:
+            write_setup_outputs(args.github_output, selected)
+        return
     if args.verify_plan:
         print(json.dumps(verify_plan(), indent=2))
         return
@@ -228,6 +282,7 @@ def main():
         parser.error('provide a suite or --verify-plan')
     if args.suite == 'core' and not args.plan:
         print(json.dumps(verify_plan(), indent=2), flush=True)
+        subprocess.run(['python3', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_ci_setup.py'], cwd=ROOT, check=True)
     selected = plan(args.suite, args.shard, args.target or None)
     print(json.dumps(selected, indent=2), flush=True)
     if args.plan:

@@ -52,6 +52,16 @@ install_tar() {
   mv "$staging" "$dest"
 }
 
+fetch_tar() {
+  local url=$1 hash=$2 archive=$3 dest=$4 strip=$5 expected=$6
+  if [[ -x $expected && -f $dest/.goalchemy-sha256 ]] &&
+      [[ $(cat "$dest/.goalchemy-sha256") == "$hash" ]]; then
+    return
+  fi
+  fetch "$url" "$hash" "$archive"
+  install_tar "$archive" "$dest" "$strip" "$expected" "$hash"
+}
+
 if [[ $only == all || $only == jdk ]]; then
   archive="$tc/downloads/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz"
   fetch "$JDK_URL" "$JDK_SHA256" "$archive"
@@ -60,8 +70,7 @@ fi
 
 if [[ $only == all || $only == dotnet ]]; then
   archive="$tc/downloads/dotnet-sdk-$DOTNET_VERSION-linux-x64.tar.gz"
-  fetch "$DOTNET_URL" "$DOTNET_SHA256" "$archive"
-  install_tar "$archive" "$tc/dotnet" 0 "$tc/dotnet/dotnet" "$DOTNET_SHA256"
+  fetch_tar "$DOTNET_URL" "$DOTNET_SHA256" "$archive" "$tc/dotnet" 0 "$tc/dotnet/dotnet"
 fi
 
 if [[ $only == all || $only == bdwgc ]]; then
@@ -84,13 +93,12 @@ fi
 
 if [[ $only == all || $only == llvm ]]; then
   archive="$tc/downloads/clang+llvm-$LLVM_VERSION-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
-  fetch "$LLVM_URL" "$LLVM_SHA256" "$archive"
-  install_tar "$archive" "$tc/llvm-$LLVM_VERSION" 1 "$tc/llvm-$LLVM_VERSION/bin/clang" "$LLVM_SHA256"
+  fetch_tar "$LLVM_URL" "$LLVM_SHA256" "$archive" "$tc/llvm-$LLVM_VERSION" 1 "$tc/llvm-$LLVM_VERSION/bin/clang"
   archive="$tc/downloads/libtinfo5_${LIBTINFO5_VERSION}_amd64.deb"
-  fetch "$LIBTINFO5_URL" "$LIBTINFO5_SHA256" "$archive"
   if [[ ! -f $tc/libtinfo5/lib/x86_64-linux-gnu/libtinfo.so.5 ||
         ! -f $tc/libtinfo5/.goalchemy-sha256 ]] ||
       [[ $(cat "$tc/libtinfo5/.goalchemy-sha256" 2>/dev/null || true) != "$LIBTINFO5_SHA256" ]]; then
+    fetch "$LIBTINFO5_URL" "$LIBTINFO5_SHA256" "$archive"
     staging=$(mktemp -d "$tc/.install.XXXXXXXX")
     dpkg-deb -x "$archive" "$staging"
     printf '%s\n' "$LIBTINFO5_SHA256" > "$staging/.goalchemy-sha256"
@@ -101,8 +109,7 @@ fi
 
 if [[ $only == all || $only == swift ]]; then
   archive="$tc/downloads/swift-$SWIFT_VERSION-RELEASE-ubuntu22.04.tar.gz"
-  fetch "$SWIFT_URL" "$SWIFT_SHA256" "$archive"
-  install_tar "$archive" "$tc/swift-$SWIFT_VERSION" 1 "$tc/swift-$SWIFT_VERSION/usr/bin/swiftc" "$SWIFT_SHA256"
+  fetch_tar "$SWIFT_URL" "$SWIFT_SHA256" "$archive" "$tc/swift-$SWIFT_VERSION" 1 "$tc/swift-$SWIFT_VERSION/usr/bin/swiftc"
 fi
 
 if [[ $only == all || $only == tinygo ]]; then

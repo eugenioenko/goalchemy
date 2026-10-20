@@ -1,6 +1,8 @@
 name: Docs
 
 on:
+  pull_request_target:
+    types: [closed]
   push:
     branches: [main]
     paths:
@@ -27,11 +29,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: docs-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    if: github.event_name != 'pull_request_target'
     name: Build documentation
     runs-on: ubuntu-latest
     concurrency:
@@ -53,14 +56,14 @@ jobs:
       - name: Build and check links
         run: pnpm docs:build
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs-web/dist
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
     concurrency:
