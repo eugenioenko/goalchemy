@@ -69,6 +69,27 @@ class RetryTests(unittest.TestCase):
         jobs[0]['conclusion'] = 'success'
         self.assertEqual(RESUME.resume_plan(jobs, 2), [])
 
+    def test_github_carried_cancellations_are_not_new_manual_cancellations(self):
+        jobs = repaired_jobs()
+        jobs[1]['completed_at'] = '2026-10-20T00:11:04Z'
+        clone = job('language', 7, 2, 'cancelled')
+        clone.update(started_at='2026-10-20T00:11:21Z', completed_at=jobs[1]['completed_at'])
+        self.assertEqual(RESUME.resume_plan(jobs + [clone], 2), ['language'])
+
+    def test_fresh_cancellation_with_same_name_still_stops_resume(self):
+        jobs = repaired_jobs()
+        jobs[1]['completed_at'] = '2026-10-20T00:11:04Z'
+        fresh = job('language', 7, 2, 'cancelled')
+        fresh.update(started_at='2026-10-20T00:11:21Z', completed_at='2026-10-20T00:11:22Z')
+        self.assertEqual(RESUME.resume_plan(jobs + [fresh], 2), [])
+
+    def test_carried_records_without_a_repaired_failure_do_not_resume(self):
+        old = job('language', 1, 1, 'cancelled')
+        old['completed_at'] = '2026-10-20T00:11:04Z'
+        clone = job('language', 2, 2, 'cancelled')
+        clone.update(started_at='2026-10-20T00:11:21Z', completed_at=old['completed_at'])
+        self.assertEqual(RESUME.resume_plan([old, clone], 2), [])
+
     def test_completed_resume_does_not_loop(self):
         jobs = repaired_jobs() + [job('language', 7, 3, 'success')]
         self.assertEqual(RESUME.resume_plan(jobs, 3), [])

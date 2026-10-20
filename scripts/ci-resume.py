@@ -34,14 +34,23 @@ def required(job):
     return job['name'] != 'test' and job['name'] not in OPTIONAL_JOBS
 
 
+def carried_cancellation(job, previous):
+    old = previous.get(job['name'], {})
+    return (job['conclusion'] == old.get('conclusion') == 'cancelled'
+            and bool(job.get('completed_at')) and bool(job.get('started_at'))
+            and job['completed_at'] == old.get('completed_at')
+            and job['completed_at'] < job['started_at'])
+
+
 def resume_plan(jobs, attempt):
-    current = [job for job in jobs if job['run_attempt'] == attempt]
+    previous = latest_jobs([job for job in jobs if job['run_attempt'] < attempt])
+    current = [job for job in jobs if job['run_attempt'] == attempt
+               and not carried_cancellation(job, previous)]
     if not current or any(job['status'] != 'completed' or job['conclusion'] == 'cancelled' for job in current):
         return []
     latest = [job for job in latest_jobs(jobs).values() if required(job)]
     if any(job['status'] != 'completed' or job['conclusion'] not in ('success', 'cancelled', 'skipped', 'neutral') for job in latest):
         return []
-    previous = latest_jobs([job for job in jobs if job['run_attempt'] < attempt])
     repaired = [job for job in current if required(job) and job['conclusion'] == 'success'
                 and previous.get(job['name'], {}).get('conclusion') in FAILED]
     return [job['name'] for job in latest if job['conclusion'] == 'cancelled'] if repaired else []

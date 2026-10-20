@@ -118,7 +118,7 @@ including jobs cancelled in an earlier attempt.
 
 The resume handler runs trusted default-branch code, checks the PR is still
 open at the same commit, and rechecks the attempt before requesting a retry.
-It ignores cancelled retry attempts and never retries an unresolved failure
-automatically. A source fix needs a new commit because job retries use the
+It distinguishes GitHub's carried cancellation records from newly cancelled
+retry jobs, and never retries an unresolved test failure automatically. A source fix needs a new commit because job retries use the
 original commit. The resume workflow must be merged into the default branch
 before automatic continuation is available.
