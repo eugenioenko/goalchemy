@@ -203,6 +203,7 @@ func TestPreparedRuntimeUsesToolchainEnvironment(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("fixture shell")
 	}
+	t.Chdir(t.TempDir())
 	t.Setenv("GOALCHEMY_TEST_BUILD_CACHE", "")
 	tools := t.TempDir()
 	if err := os.Mkdir(filepath.Join(tools, "bin"), 0o755); err != nil {
