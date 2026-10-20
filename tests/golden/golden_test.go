@@ -46,11 +46,15 @@ func TestFutures(t *testing.T) {
 }
 
 func generated(t *testing.T, fixture, prefix string) {
+	res, ds := testutil.NewSuite(t).Build(testutil.Fixture{Dir: fixture, Gate: "cooperative"})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
 	for _, v := range variants {
 		t.Run(v.name, func(t *testing.T) {
 			out := t.TempDir()
 			opts := driver.EmitOptions{Names: "source", PauseModel: v.pause, NoLineDirectives: true}
-			if ds := testutil.CompileGateOptions(fixture, v.target, out, "cooperative", opts); len(ds) > 0 {
+			if ds := driver.EmitWithOptions(v.target, res, out, opts); len(ds) > 0 {
 				t.Fatalf("compile: %v", ds)
 			}
 			got := normalizeSource(source(t, out, v.ext))

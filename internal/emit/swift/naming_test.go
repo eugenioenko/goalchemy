@@ -2,7 +2,6 @@ package swift_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,11 +11,15 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/diagnostics"
 	"github.com/eugenioenko/goalchemy/internal/driver"
 	swiftemit "github.com/eugenioenko/goalchemy/internal/emit/swift"
-	"github.com/eugenioenko/goalchemy/internal/subset"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 func buildSwift(t *testing.T, source string) *driver.Result {
+	t.Helper()
+	return buildSwiftSource(t, testutil.NewSuite(t), source)
+}
+
+func buildSwiftSource(t *testing.T, suite *testutil.Suite, source string) *driver.Result {
 	t.Helper()
 	root, err := filepath.Abs("../../..")
 	if err != nil {
@@ -28,7 +31,7 @@ func buildSwift(t *testing.T, source string) *driver.Result {
 			t.Fatal(err)
 		}
 	}
-	result, ds := driver.Build(context.Background(), driver.Options{Dir: dir, Gate: subset.Cooperative})
+	result, ds := suite.Build(testutil.Fixture{Dir: dir, Gate: "cooperative"})
 	if diagnostics.HasErrors(ds) {
 		t.Fatal(ds)
 	}
@@ -107,10 +110,11 @@ func TestNamingModes(t *testing.T) {
 }
 
 func TestReservedPublicNamesRenamed(t *testing.T) {
-	for _, compact := range []bool{false, true} {
-		for _, name := range []string{"Error", "String", "Array", "Result", "Data", "Task", "GoalchemyKey", "GBuffer", "GCryptoKey", "DispatchTime"} {
+	suite := testutil.NewSuite(t)
+	for _, name := range []string{"Error", "String", "Array", "Result", "Data", "Task", "GoalchemyKey", "GBuffer", "GCryptoKey", "DispatchTime"} {
+		result := buildSwiftSource(t, suite, "package boundary\ntype "+name+" struct { Value int };func Export(v "+name+")("+name+",error){return v,nil}")
+		for _, compact := range []bool{false, true} {
 			t.Run(fmt.Sprintf("compact=%v/%s", compact, name), func(t *testing.T) {
-				result := buildSwift(t, "package boundary\ntype "+name+" struct { Value int };func Export(v "+name+")("+name+",error){return v,nil}")
 				result.IR.Names = testutil.Names(compact)
 				o, err := swiftemit.Emit(result.IR, nil)
 				if err != nil {

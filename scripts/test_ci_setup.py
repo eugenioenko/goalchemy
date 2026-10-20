@@ -43,6 +43,39 @@ class SetupTests(unittest.TestCase):
                 self.assertEqual(len(set(caches)), 1)
                 self.assertFalse(caches[0].exists())
 
+    def test_full_integration_tests_do_not_repeat_in_short_shards(self):
+        names = ['TestZ', *ci.INTEGRATION_FULL_TESTS, 'TestA', 'TestB', 'TestC', 'TestD']
+        with mock.patch.object(ci, 'integration_tests', return_value=sorted(names)):
+            shards = [ci.integration_shard(i) for i in range(ci.INTEGRATION_SHARDS)]
+        assigned = [name for shard in shards for name in shard] + list(ci.INTEGRATION_FULL_TESTS)
+        self.assertEqual(sorted(assigned), sorted(names))
+        self.assertEqual(len(assigned), len(set(assigned)))
+        full = ci.plan('examples', 0)['commands'][0]
+        for name in ci.INTEGRATION_FULL_TESTS:
+            self.assertRegex(name, full[full.index('-run') + 1])
+        self.assertNotIn('-short', full)
+
+    def test_full_runtime_conformance_does_not_repeat_in_contract_shards(self):
+        command = ci.plan('contracts', 0)['commands'][0]
+        skip = command[command.index('-skip') + 1]
+        self.assertRegex('TestTargetConformance', skip)
+        self.assertNotRegex('TestChecksumCapabilities', skip)
+        full = ci.plan('runtime', 0)['commands'][0]
+        self.assertEqual(full[full.index('-run') + 1], '^TestTargetConformance$')
+        self.assertNotIn('-short', full)
+
+    def test_float_fixtures_keep_every_language_target(self):
+        workflow = ci.WORKFLOW.read_text()
+        self.assertNotIn('suite: floats', workflow)
+        self.assertEqual(set(ci.language_jobs()), set(ci.TARGET_NAMES))
+        for fixture in ci.FLOAT_FIXTURES:
+            self.assertTrue((ROOT / 'tests/language/testdata' / fixture / 'main.go').is_file())
+        for target in ci.TARGET_NAMES:
+            selected = ci.plan('language', 0, target)
+            self.assertNotIn('FIXTURE', selected['environment'])
+            command = selected['commands'][0]
+            self.assertRegex('TestFixtures', command[command.index('-run') + 1])
+
     def test_language_dependencies(self):
         for target in ci.TARGET_NAMES:
             with self.subTest(target=target):

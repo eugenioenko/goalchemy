@@ -241,6 +241,9 @@ var swiftBuilds = make(chan struct{}, 2)
 func BuildSwift(out string) error {
 	swiftBuilds <- struct{}{}
 	defer func() { <-swiftBuilds }()
+	if os.Getenv("GOALCHEMY_TEST_BUILD_CACHE") != "" && runtime.GOOS == "linux" {
+		return buildSwiftObjects(out)
+	}
 	o, err := run(out, 5*time.Minute, "sh", "-c", "sed '/^exec /d' run.sh | sh")
 	if err == nil && o.Exit != 0 {
 		err = fmt.Errorf("swift build failed:\n%s", o.Stderr)
@@ -502,6 +505,15 @@ func (s *Suite) Build(f Fixture) (*driver.Result, []diagnostics.Diagnostic) {
 		return nil, []diagnostics.Diagnostic{{Code: "GCL001", Severity: diagnostics.Error, Message: err.Error()}}
 	}
 	return s.builder.Build(context.Background(), driver.Options{Dir: abs, Gate: subset.Gate(f.Gate)})
+}
+
+// Compile reloads a fixture while sharing this suite's validated catalog.
+func (s *Suite) Compile(fixtureDir, target, out, gate string, opts driver.EmitOptions) []diagnostics.Diagnostic {
+	res, ds := s.Build(Fixture{Dir: fixtureDir, Gate: gate})
+	if diagnostics.HasErrors(ds) {
+		return ds
+	}
+	return driver.EmitWithOptions(target, res, out, opts)
 }
 
 func (s *Suite) RunFixture(t *testing.T, f Fixture, targets []string, opts driver.EmitOptions) {

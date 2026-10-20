@@ -7,48 +7,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/eugenioenko/goalchemy/internal/catalog"
-	"github.com/eugenioenko/goalchemy/internal/conformance"
-	"github.com/eugenioenko/goalchemy/internal/contracts"
 	"github.com/eugenioenko/goalchemy/internal/driver"
 )
 
-// Exercise the checksum capability cases through every actual host harness.
-func TestChecksumTargetConformance(t *testing.T) {
-	for _, kv := range driver.ToolEnv() {
-		k, v, _ := strings.Cut(kv, "=")
-		if os.Getenv(k) != v {
-			t.Setenv(k, v)
-		}
-	}
+// Canonical checksum cases run in TestTargetConformance with every other capability.
+func TestChecksumCapabilities(t *testing.T) {
 	cat, ds := catalog.Load(os.DirFS(root))
 	if len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	const id = "lib.checksum.crc32_ieee"
 	for _, name := range []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"} {
 		t.Run(name, func(t *testing.T) {
-			target := cat.Targets[name]
-			impl, ok := target.Function(id)
-			if !ok {
-				t.Fatal("missing CRC capability")
-			}
-			target.Functions = []contracts.Implementation{impl}
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-			defer cancel()
-			results, err := conformance.RunContext(ctx, cat, root, name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(results) != len(cat.Functions[id].Cases) {
-				t.Fatalf("got %d cases", len(results))
-			}
-			for _, r := range results {
-				if !r.Pass {
-					t.Errorf("%s: %s", r.Case, r.Detail)
-				}
+			impl, ok := cat.Targets[name].Function("lib.checksum.crc32_ieee")
+			if !ok || impl.Harness == "" {
+				t.Fatal("missing CRC harness capability")
 			}
 		})
 	}
