@@ -20,7 +20,7 @@ jobs:
       queue: max
     timeout-minutes: ${{ matrix.timeout || 45 }}
     strategy:
-      fail-fast: false
+      fail-fast: ${{ github.event_name == 'pull_request' }}
       max-parallel: 4
       matrix:
         include:
@@ -173,6 +173,9 @@ jobs:
 
   # Preserve the existing required check name and fail if any shard fails or skips.
   test:
+    permissions:
+      contents: read
+      actions: read
     needs: checks
     if: always()
     runs-on: ubuntu-latest
@@ -182,6 +185,11 @@ jobs:
       queue: max
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v7
+      - name: Require every matrix check across all attempts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci-resume.py check --run-id "${{ github.run_id }}"
       - name: Require all CI checks
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}

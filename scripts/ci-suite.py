@@ -98,7 +98,8 @@ def verify_plan():
 def plan(suite, shard, target=None):
     environment = {}
     if suite == 'core':
-        commands = [['go', 'vet', './...'],
+        commands = [['python3', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_ci_resume.py'],
+                    ['go', 'vet', './...'],
                     ['go', 'run', './cmd/goalchemy', 'spec', 'generate', '-check'],
                     ['go', 'test', '-short', '-v', '-timeout', '30m', *package_groups()['core']]]
     elif suite == 'language':
