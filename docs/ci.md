@@ -4,8 +4,14 @@ Linux x86_64 CI uses at most four runners across the repository, including
 overlapping PRs, optional tests, documentation builds and deployments. Jobs
 share four `repository-runner-*` concurrency groups with `queue: max`, so
 waiting jobs queue without occupying runners or replacing one another. Each
-group can hold up to 100 pending jobs. The test matrix also uses
-`max-parallel: 4`. New commits cancel superseded PR runs of the same workflow.
+group can hold up to 100 pending jobs. These groups enforce the four-runner cap
+without a second matrix limit holding up jobs for an available slot.
+New commits cancel superseded runs of the same workflow,
+including older pushes to `main`. Closing or merging a PR also cancels its
+remaining workflows. A `pull_request_target: closed` event shares the PR's
+workflow concurrency group, with every job skipped. This cancellation needs
+no runner and executes no PR code. Post-merge `push` runs have a separate group,
+so tests and documentation publishing on `main` continue.
 
 Every new runner job must use one of these four groups. Workflow-level
 cancellation groups stay separate so workflows do not block their own jobs.
@@ -34,13 +40,34 @@ with their parent. The core job audits that the partitions cover the discovered
 packages and integration tests without overlap, and that the workflow has
 exactly one correctly named language job for every target listed in
 `tests/language` and `tests/corpus`. No test-source changes or
-new skip conditions are needed. All runners retain the existing pinned native
-and browser prerequisites. The final `test` job preserves the existing check
+new test skip conditions are needed. Setup selects the prerequisites for each
+suite without changing its test commands. The final `test` job preserves the existing check
 name and succeeds only when every matrix job succeeds; failures do not cancel
 the other shards.
 
-`scripts/ci-bootstrap.sh` prepares the prerequisites rather than skipping
-checks. Native C needs a C compiler, pkg-config, Boehm GC, libcurl, OpenSSL and
+`scripts/ci-suite.py <suite> --target <target> --setup` lists each job's
+prerequisites before any language toolchains are installed. Language jobs
+prepare only their selected target. Native pause jobs prepare their selected
+targets; the combined Go/TypeScript/C# job also prewarms the Go library probe.
+Mixed core, contracts and integration suites retain full setup. Examples,
+floats and naming need all language runtimes but no browser, sanitizer LLVM or
+runtime harness prebuild. Memory checks need C, Rust and LLVM. Runtime
+conformance prebuilds the Rust harness but does not install a browser.
+
+`scripts/ci-bootstrap.sh --suite <suite> --target <target>` prepares that
+selection. Omitting the suite preserves full local setup. Dependency selection
+is covered by focused tests, including the shell bootstrap and toolchain cache
+validation. CI runs these tests in the core job.
+
+Installed .NET, LLVM and Swift toolchains have separate caches keyed by the
+OS, architecture and toolchain lock. Restored installations must have their
+expected executable and matching pin marker; a mismatch invokes the existing
+hash-verified download and installation path. Jobs cache Python wheel downloads,
+locked NuGet packages, Java dependencies, and the shared Cargo dependency and
+build directories they actually use. Rust caches include the native harness's
+build directory as well as generated fixture builds.
+
+Native C needs a C compiler, pkg-config, Boehm GC, libcurl, OpenSSL and
 Perl development tools. Its fault-output assertions also require ripgrep. CI
 installs those OS packages and Playwright's browser
 OS dependencies. The existing hash-verified `toolchains.lock` fetcher provides
@@ -67,8 +94,8 @@ The Rust harness copies `Cargo.lock` into its temporary build and runs with
 `--locked --offline`. Bootstrap first fetches that locked native dependency
 graph, so a clean runner does not depend on a developer's Cargo cache. Cached
 downloads are optional; their lock/checksum checks still run.
-Bootstrap also builds the actual harness with empty input before timed contract
-checks and parallel tests begin. This keeps a cold vendored OpenSSL build out
+Suites that run runtime contracts also prebuild the actual harness with empty
+input before timed checks begin. This keeps a cold vendored OpenSSL build out
 of the CRC harness's startup deadline without changing cases or timeouts.
 
 C# checksum builds use Microsoft's `System.IO.Hashing` 8.0.0 NuGet package.
@@ -94,12 +121,20 @@ go test -v -timeout 15m ./tests/contracts -run '^TestTargetConformance$' -count=
 ```
 
 To reproduce a specific CI job, run `python3 scripts/ci-suite.py core`,
-`contracts`, `examples`, `memory`, `floats`, `naming`, or `runtime` after bootstrap. Language jobs
+`contracts`, `examples`, `memory`, `floats`, `naming`, or `runtime` after matching bootstrap. Language jobs
 use `python3 scripts/ci-suite.py language --target <target>`, for example
 `--target rust`. Integration jobs use `python3 scripts/ci-suite.py integration
 --shard 0` through `--shard 3`. Add `--plan` to inspect commands without executing them,
 or use `python3 scripts/ci-suite.py --verify-plan` to audit coverage.
 
-Use `--with-browser-deps` when bootstrap should also install Chromium's OS
-prerequisites. CI writes its runtime paths to `GITHUB_PATH`/`GITHUB_ENV`; local
+For a Python language job, for example:
+
+```sh
+bash scripts/ci-bootstrap.sh --suite language --target python
+source out/ci/environment.sh
+python3 scripts/ci-suite.py language --target python
+```
+
+Use `--with-browser-deps` when a selected browser suite should also install
+Chromium's OS prerequisites. CI writes its runtime paths to `GITHUB_PATH`/`GITHUB_ENV`; local
 bootstrap writes only ignored `out/ci/environment.sh` and changes no profiles.
