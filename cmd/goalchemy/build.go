@@ -151,6 +151,7 @@ var runners = map[string]func(ctx context.Context, out string) *exec.Cmd{
 	"csharp":     shellRunner,
 	"rust":       shellRunner,
 	"rust-nostd": shellRunner,
+	"tinygo":     shellRunner,
 	"c":          shellRunner,
 	"swift":      shellRunner,
 }
