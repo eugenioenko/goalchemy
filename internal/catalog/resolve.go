@@ -37,7 +37,9 @@ const DeclarationModule = "github.com/eugenioenko/goalchemy/specs/declarations/"
 // Resolver type-checks Go declaration packages from the catalog filesystem
 // and returns their signatures in contract type syntax.
 func Resolver(fsys fs.FS) contracts.SymbolResolver {
-	cache := map[string]*types.Package{}
+	fset := token.NewFileSet()
+	loader := declarationLoader{fsys: fsys, fset: fset,
+		imports: importer.ForCompiler(fset, "source", nil), packages: map[string]*types.Package{}}
 	return func(symbol string) ([]string, []string, error) {
 		i := strings.LastIndex(symbol, ".")
 		if i < 0 {
@@ -47,7 +49,7 @@ func Resolver(fsys fs.FS) contracts.SymbolResolver {
 		var pkg *types.Package
 		if !strings.Contains(symbol, ".(") {
 			var err error
-			if pkg, err = lookupPackage(fsys, cache, pkgPath); err != nil {
+			if pkg, err = loader.lookupPackage(pkgPath); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -60,7 +62,7 @@ func Resolver(fsys fs.FS) contracts.SymbolResolver {
 				return nil, nil, fmt.Errorf("malformed method symbol %s", symbol)
 			}
 			typeName, method := rest[:k], rest[k+2:]
-			pkg, err := lookupPackage(fsys, cache, pkgPath)
+			pkg, err := loader.lookupPackage(pkgPath)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -92,25 +94,32 @@ func Resolver(fsys fs.FS) contracts.SymbolResolver {
 	}
 }
 
-func lookupPackage(fsys fs.FS, cache map[string]*types.Package, pkgPath string) (*types.Package, error) {
-	if pkg, ok := cache[pkgPath]; ok {
+type declarationLoader struct {
+	fsys     fs.FS
+	fset     *token.FileSet
+	imports  types.Importer
+	packages map[string]*types.Package
+}
+
+func (l *declarationLoader) lookupPackage(pkgPath string) (*types.Package, error) {
+	if pkg, ok := l.packages[pkgPath]; ok {
 		return pkg, nil
 	}
 	var pkg *types.Package
 	var err error
 	if strings.HasPrefix(pkgPath, DeclarationModule) {
-		pkg, err = checkDir(fsys, "specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
+		pkg, err = l.checkDir("specs/declarations/"+strings.TrimPrefix(pkgPath, DeclarationModule), pkgPath)
 	} else if strings.HasPrefix(pkgPath, LibModule) {
-		pkg, err = checkDir(fsys, "lib/"+strings.TrimPrefix(pkgPath, LibModule), pkgPath)
+		pkg, err = l.checkDir("lib/"+strings.TrimPrefix(pkgPath, LibModule), pkgPath)
 	} else if stdPackages[pkgPath] {
-		pkg, err = importer.ForCompiler(token.NewFileSet(), "source", nil).Import(pkgPath)
+		pkg, err = l.imports.Import(pkgPath)
 	} else {
 		err = fmt.Errorf("package %s is neither standard nor under %s or %s", pkgPath, DeclarationModule, LibModule)
 	}
 	if err != nil {
 		return nil, err
 	}
-	cache[pkgPath] = pkg
+	l.packages[pkgPath] = pkg
 	return pkg, nil
 }
 
@@ -127,27 +136,26 @@ func tupleTypes(t *types.Tuple) []string {
 	return out
 }
 
-func checkDir(fsys fs.FS, dir, pkgPath string) (*types.Package, error) {
-	entries, err := fs.ReadDir(fsys, dir)
+func (l *declarationLoader) checkDir(dir, pkgPath string) (*types.Package, error) {
+	entries, err := fs.ReadDir(l.fsys, dir)
 	if err != nil {
 		return nil, err
 	}
-	fset := token.NewFileSet()
 	var files []*ast.File
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
 			continue
 		}
-		src, err := fs.ReadFile(fsys, path.Join(dir, e.Name()))
+		src, err := fs.ReadFile(l.fsys, path.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err
 		}
-		f, err := parser.ParseFile(fset, path.Join(dir, e.Name()), src, 0)
+		f, err := parser.ParseFile(l.fset, path.Join(dir, e.Name()), src, 0)
 		if err != nil {
 			return nil, err
 		}
 		files = append(files, f)
 	}
-	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil), GoVersion: "go1.25"}
-	return conf.Check(pkgPath, fset, files, nil)
+	conf := types.Config{Importer: l.imports, GoVersion: "go1.25"}
+	return conf.Check(pkgPath, l.fset, files, nil)
 }
