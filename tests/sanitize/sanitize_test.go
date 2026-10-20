@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
@@ -19,6 +20,7 @@ func TestSanitizedC(t *testing.T) {
 	if _, err := testutil.SanitizerClang(); err != nil {
 		t.Fatal(err)
 	}
+	suite := testutil.NewSuite(t)
 	for _, root := range []string{"../language/testdata", "../corpus"} {
 		fixtures, err := testutil.Discover(root)
 		if err != nil {
@@ -30,7 +32,7 @@ func TestSanitizedC(t *testing.T) {
 			}
 			t.Run(filepath.Base(root)+"/"+f.Name, func(t *testing.T) {
 				t.Parallel()
-				testutil.RunFixture(t, f, []string{"c-sanitize"})
+				suite.RunFixture(t, f, []string{"c-sanitize"}, driver.EmitOptions{})
 			})
 		}
 	}

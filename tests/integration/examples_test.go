@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/project"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
@@ -23,6 +24,7 @@ func TestExamples(t *testing.T) {
 	if len(dirs) == 0 {
 		t.Fatal("no examples")
 	}
+	suite := testutil.NewSuite(t)
 	for _, dir := range dirs {
 		cfg, err := project.Load(filepath.Join(dir, project.FileName))
 		if err != nil {
@@ -43,7 +45,7 @@ func TestExamples(t *testing.T) {
 			if testing.Short() {
 				targets = []string{"go", "typescript"}
 			}
-			testutil.RunFixture(t, f, targets)
+			suite.RunFixture(t, f, targets, driver.EmitOptions{})
 		})
 	}
 }

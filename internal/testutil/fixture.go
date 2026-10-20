@@ -268,6 +268,10 @@ func BuildJava(out string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return javaCommand(out)
+}
+
+func javaCommand(out string) ([]string, error) {
 	script, err := os.ReadFile(filepath.Join(out, "run.sh"))
 	if err != nil {
 		return nil, err
@@ -285,15 +289,10 @@ var Runners = map[string]Runner{
 		return run(out, 5*time.Minute, "sh", "run.sh")
 	},
 	"swift": func(out string) (Observation, error) {
-		swiftBuilds <- struct{}{}
-		defer func() { <-swiftBuilds }()
-		return run(out, 5*time.Minute, "sh", "run.sh")
+		return runPrepared("swift", out, 5*time.Minute)
 	},
 	"go": func(out string) (Observation, error) {
-		if o, err := run(out, 2*time.Minute, "go", "build", "-o", "prog", "."); err != nil || o.Exit != 0 {
-			return o, fmt.Errorf("go build failed: %v\n%s", err, o.Stderr)
-		}
-		return run(out, time.Minute, filepath.Join(out, "prog"))
+		return runPrepared("go", out, time.Minute)
 	},
 	"typescript": func(out string) (Observation, error) {
 		return run(out, time.Minute, "node", "--stack-size=4000", "main.ts")
@@ -302,10 +301,10 @@ var Runners = map[string]Runner{
 		return run(out, 2*time.Minute, "python3", "main.py")
 	},
 	"java": func(out string) (Observation, error) {
-		return run(out, 3*time.Minute, "sh", "run.sh")
+		return runPrepared("java", out, 3*time.Minute)
 	},
 	"csharp": func(out string) (Observation, error) {
-		return run(out, 3*time.Minute, "sh", "run.sh")
+		return runPrepared("csharp", out, 3*time.Minute)
 	},
 	"c": func(out string) (Observation, error) {
 		return run(out, 3*time.Minute, "sh", "run.sh")
@@ -325,12 +324,16 @@ var Runners = map[string]Runner{
 	},
 	"rust-nostd": func(out string) (Observation, error) { return run(out, 3*time.Minute, "sh", "run.sh") },
 	"rust": func(out string) (Observation, error) {
-		bin, err := BuildRust(out)
-		if err != nil {
-			return Observation{}, err
-		}
-		return run(out, 3*time.Minute, bin)
+		return runPrepared("rust", out, 3*time.Minute)
 	},
+}
+
+func runPrepared(target, out string, timeout time.Duration) (Observation, error) {
+	program, err := Prepare(target, out)
+	if err != nil {
+		return Observation{}, err
+	}
+	return program.Run(timeout)
 }
 
 // Programs that use native library contracts build with Cargo and depend on
@@ -476,10 +479,43 @@ func RunFixture(t *testing.T, f Fixture, targets []string) {
 
 // RunFixtureOptions compares a selected emission mode with the native oracle.
 func RunFixtureOptions(t *testing.T, f Fixture, targets []string, opts driver.EmitOptions) {
+	NewSuite(t).RunFixture(t, f, targets, opts)
+}
+
+// Suite shares catalog validation across fixtures, without retaining their IR.
+type Suite struct {
+	builder *driver.Builder
+}
+
+func NewSuite(t *testing.T) *Suite {
+	t.Helper()
+	builder, ds := driver.NewBuilder()
+	if diagnostics.HasErrors(ds) {
+		t.Fatalf("catalog: %v", ds)
+	}
+	return &Suite{builder: builder}
+}
+
+func (s *Suite) Build(f Fixture) (*driver.Result, []diagnostics.Diagnostic) {
+	abs, err := filepath.Abs(f.Dir)
+	if err != nil {
+		return nil, []diagnostics.Diagnostic{{Code: "GCL001", Severity: diagnostics.Error, Message: err.Error()}}
+	}
+	return s.builder.Build(context.Background(), driver.Options{Dir: abs, Gate: subset.Gate(f.Gate)})
+}
+
+func (s *Suite) RunFixture(t *testing.T, f Fixture, targets []string, opts driver.EmitOptions) {
 	t.Helper()
 	work := t.TempDir()
+	res, ds := s.Build(f)
+	emit := func(target, out string) []diagnostics.Diagnostic {
+		if diagnostics.HasErrors(ds) {
+			return ds
+		}
+		return driver.EmitWithOptions(EmitTarget(target), res, out, opts)
+	}
 	if len(f.Reject) > 0 {
-		ds := CompileGateOptions(f.Dir, targets[0], filepath.Join(work, targets[0]), f.Gate, opts)
+		ds := emit(targets[0], filepath.Join(work, targets[0]))
 		got := map[string]bool{}
 		for _, d := range ds {
 			got[d.Code] = true
@@ -504,7 +540,7 @@ func RunFixtureOptions(t *testing.T, f Fixture, targets []string, opts driver.Em
 	var first *Observation
 	for _, target := range targets {
 		out := filepath.Join(work, target)
-		if ds := CompileGateOptions(f.Dir, EmitTarget(target), out, f.Gate, opts); len(ds) > 0 {
+		if ds := emit(target, out); len(ds) > 0 {
 			for _, d := range ds {
 				t.Errorf("%s: %s", target, d)
 			}

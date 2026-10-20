@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
@@ -25,13 +26,14 @@ func TestFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	only := os.Getenv("FIXTURE")
+	suite := testutil.NewSuite(t)
 	for _, f := range fixtures {
 		if only != "" && !strings.Contains(f.Name, only) {
 			continue
 		}
 		t.Run(f.Name, func(t *testing.T) {
 			t.Parallel()
-			testutil.RunFixture(t, f, targets)
+			suite.RunFixture(t, f, targets, driver.EmitOptions{})
 		})
 	}
 }
