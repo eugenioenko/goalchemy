@@ -1,0 +1,33 @@
+name: Retry behavior probe
+
+on:
+  pull_request:
+    branches: [ci/fail-fast-retry]
+    paths: [.github/workflows/ci-retry-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: repository-runner-1
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 2
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        case: [repair, remaining-a, remaining-b]
+    steps:
+      - name: Exercise retry sequence
+        env:
+          PROBE_CASE: ${{ matrix.case }}
+          PROBE_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if [ "$PROBE_CASE" = repair ] && [ "$PROBE_ATTEMPT" = 1 ]; then
+            exit 1
+          fi
+          printf 'Pass %s on attempt %s\n' "$PROBE_CASE" "$PROBE_ATTEMPT"
