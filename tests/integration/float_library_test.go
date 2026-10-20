@@ -22,6 +22,23 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixtures := filepath.Join(root, "tests/integration/testdata/float_library")
+	source := t.TempDir()
+	data, err := os.ReadFile(filepath.Join(fixtures, "library.go.in"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string][]byte{
+		"go.mod":     []byte(fmt.Sprintf("module floatlibraryprobe\n\ngo 1.25\nrequire github.com/eugenioenko/goalchemy v0.0.0\nreplace github.com/eugenioenko/goalchemy => %q\n", root)),
+		"library.go": data,
+	} {
+		if err := os.WriteFile(filepath.Join(source, name), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res, ds := testutil.NewSuite(t).Build(testutil.Fixture{Dir: source, Gate: "cooperative"})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
 	targets := []string{"go", "typescript", "python", "java", "csharp", "rust", "c", "swift"}
 	for _, compact := range []bool{false, true} {
 		mode := "readable"
@@ -30,7 +47,7 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 		}
 		for _, target := range targets {
 			t.Run(mode+"/"+target, func(t *testing.T) {
-				source, parent, consumer := t.TempDir(), t.TempDir(), t.TempDir()
+				parent, consumer := t.TempDir(), t.TempDir()
 				out := filepath.Join(parent, "probe")
 				write := func(dir, name, text string) {
 					t.Helper()
@@ -46,9 +63,7 @@ func TestGeneratedFloatLibraries(t *testing.T) {
 					}
 					write(dir, dest, string(data))
 				}
-				write(source, "go.mod", fmt.Sprintf("module floatlibraryprobe\n\ngo 1.25\nrequire github.com/eugenioenko/goalchemy v0.0.0\nreplace github.com/eugenioenko/goalchemy => %q\n", root))
-				copyFixture("library.go.in", source, "library.go")
-				if ds := testutil.CompileGateOptions(source, target, out, "cooperative", driver.EmitOptions{Names: testutil.Names(compact)}); len(ds) > 0 {
+				if ds := driver.EmitWithOptions(target, res, out, driver.EmitOptions{Names: testutil.Names(compact)}); len(ds) > 0 {
 					t.Fatal(ds)
 				}
 				env := driver.ToolEnv()

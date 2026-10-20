@@ -2,6 +2,7 @@ package java_test
 
 import (
 	"fmt"
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ func TestLibraryBoundaryDiagnostics(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	suite := testutil.NewSuite(t)
 	for name, source := range map[string]string{
 		"map":             "func Export()(map[string]string,error){return nil,nil}",
 		"pointer":         "func Export(v *int)(int,error){return 0,nil}",
@@ -32,7 +34,7 @@ func TestLibraryBoundaryDiagnostics(t *testing.T) {
 					t.Fatal(e)
 				}
 			}
-			ds := testutil.CompileGate(dir, "java", t.TempDir(), "cooperative")
+			ds := suite.Compile(dir, "java", t.TempDir(), "cooperative", driver.EmitOptions{})
 			found := false
 			for _, d := range ds {
 				if d.Code == "GCE007" {

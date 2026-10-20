@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODULE = 'github.com/eugenioenko/goalchemy'
 INTEGRATION = MODULE + '/tests/integration'
 INTEGRATION_SHARDS = 4
+INTEGRATION_FULL_TESTS = ("TestExamples", "TestReproducibleOutput")
 SPECIAL_PACKAGES = {
     'language': [MODULE + '/tests/language', MODULE + '/tests/corpus'],
     'contracts': [MODULE + '/tests/contracts'],
@@ -101,7 +102,7 @@ def integration_tests():
 def integration_shard(index):
     if index < 0 or index >= INTEGRATION_SHARDS:
         raise ValueError('integration shard must be between 0 and 3')
-    selected = integration_tests()[index::INTEGRATION_SHARDS]
+    selected = [name for name in integration_tests() if name not in INTEGRATION_FULL_TESTS][index::INTEGRATION_SHARDS]
     if not selected:
         raise RuntimeError('integration shard is empty')
     return selected
@@ -136,10 +137,14 @@ def verify_plan():
     if len(assigned) != len(set(assigned)):
         raise RuntimeError('short-suite packages overlap')
     names = integration_tests()
-    shards = [names[i::INTEGRATION_SHARDS] for i in range(INTEGRATION_SHARDS)]
-    if not all(shards) or sorted(n for shard in shards for n in shard) != names:
+    dedicated = sorted(INTEGRATION_FULL_TESTS)
+    if not set(dedicated).issubset(names):
+        raise RuntimeError('dedicated integration tests are missing')
+    short = [name for name in names if name not in dedicated]
+    shards = [short[i::INTEGRATION_SHARDS] for i in range(INTEGRATION_SHARDS)]
+    if not all(shards) or sorted([n for shard in shards for n in shard] + dedicated) != names:
         raise RuntimeError('integration shards do not cover every test exactly once')
-    return {'short_suite_packages': groups, 'integration_shards': shards, 'language_targets': language_jobs()}
+    return {'short_suite_packages': groups, 'integration_shards': shards, 'full_integration_tests': dedicated, 'language_targets': language_jobs()}
 
 
 def plan(suite, shard, target=None):
@@ -153,8 +158,9 @@ def plan(suite, shard, target=None):
             raise ValueError('language suite needs --target, one of: ' + ', '.join(language_targets()))
         environment['GOALCHEMY_TEST_TARGETS'] = target
         parallel = ['-parallel', '2'] if target == 'swift' else []
+        selection = '^(?:TestFixtures|TestSwiftStandaloneBuild)$' if target == 'swift' else '^TestFixtures$'
         commands = [['go', 'test', '-v', *parallel, '-timeout', '40m', './tests/language',
-                     '-run', '^TestFixtures$', '-count=1'],
+                     '-run', selection, '-count=1'],
                     ['go', 'test', '-v', *parallel, '-timeout', '40m', './tests/corpus',
                      '-run', '^TestRegressions$', '-count=1']]
         if target == language_targets()[0]:
@@ -163,7 +169,7 @@ def plan(suite, shard, target=None):
     elif suite == 'contracts':
         if shard not in (0, 1):
             raise ValueError('contracts shard must be 0 or 1')
-        selection = ['-skip', '^TestHTTP'] if shard == 0 else ['-run', '^TestHTTP']
+        selection = ['-skip', '^(?:TestHTTP|TestTargetConformance$)'] if shard == 0 else ['-run', '^TestHTTP']
         commands = [['go', 'test', '-short', '-v', '-timeout', '30m', *selection, *SPECIAL_PACKAGES[suite]]]
     elif suite == 'integration':
         selected = integration_shard(shard)
@@ -234,7 +240,7 @@ def plan(suite, shard, target=None):
         environment['GOALCHEMY_TEST_TARGETS'] = 'swift'
         environment['GOALCHEMY_PAUSE_MODEL'] = 'native'
         commands = [['go', 'test', '-v', '-parallel', '2', '-timeout', '60m', './tests/language',
-                     '-run', '^(?:TestFixtures|TestSwiftPauseModelsAgree)$', '-count=1'],
+                     '-run', '^(?:TestFixtures|TestSwiftPauseModelsAgree|TestSwiftStandaloneBuild)$', '-count=1'],
                     ['env', 'GOALCHEMY_GC_THRESHOLD=1', 'FIXTURE=co_', 'go', 'test', '-v', '-parallel', '2',
                      '-timeout', '40m', './tests/language', '-run', '^TestFixtures$', '-count=1'],
                     ['go', 'test', '-v', '-parallel', '2', '-timeout', '60m', './tests/corpus',

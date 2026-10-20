@@ -44,7 +44,6 @@ jobs:
           - {name: Integration 4 of 4, suite: integration, shard: 3, runner_slot: 3}
           - {name: Examples and reproducible output all targets, suite: examples, runner_slot: 4}
           - {name: Memory and sanitizers, suite: memory, runner_slot: 1}
-          - {name: Float differential all targets, suite: floats, runner_slot: 2}
           - {name: Naming modes all targets, suite: naming, runner_slot: 3}
           - {name: Runtime conformance all targets, suite: runtime, runner_slot: 4}
           - {name: Native pause model, suite: pause, runner_slot: 1}

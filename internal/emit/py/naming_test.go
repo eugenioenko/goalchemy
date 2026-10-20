@@ -1,7 +1,6 @@
 package py_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,11 +13,15 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/emit/py"
 	"github.com/eugenioenko/goalchemy/internal/naming"
-	"github.com/eugenioenko/goalchemy/internal/subset"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 func buildNamingFixture(t *testing.T, source string) *driver.Result {
+	t.Helper()
+	return buildNamingSource(t, testutil.NewSuite(t), source)
+}
+
+func buildNamingSource(t *testing.T, suite *testutil.Suite, source string) *driver.Result {
 	t.Helper()
 	dir := t.TempDir()
 	root, err := filepath.Abs("../../..")
@@ -33,7 +36,7 @@ func buildNamingFixture(t *testing.T, source string) *driver.Result {
 			t.Fatal(err)
 		}
 	}
-	res, ds := driver.Build(context.Background(), driver.Options{Dir: dir, Gate: subset.Cooperative})
+	res, ds := suite.Build(testutil.Fixture{Dir: dir, Gate: "cooperative"})
 	if diagnostics.HasErrors(ds) {
 		t.Fatalf("build: %v", ds)
 	}
@@ -167,8 +170,9 @@ func TestLibraryPublicNamesStableAcrossNamingModes(t *testing.T) {
 }
 
 func TestLibraryReservedPublicFunctions(t *testing.T) {
+	suite := testutil.NewSuite(t)
 	for _, name := range []string{"None", "True", "False"} {
-		res := buildNamingFixture(t, fmt.Sprintf("package boundary\nfunc %s(v int)(int,error){return v,nil}\n", name))
+		res := buildNamingSource(t, suite, fmt.Sprintf("package boundary\nfunc %s(v int)(int,error){return v,nil}\n", name))
 		for _, compact := range []bool{false, true} {
 			res.IR.Names = testutil.Names(compact)
 			_, err := py.Emit(res.IR, nil)

@@ -1,7 +1,6 @@
 package rust_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,11 +13,15 @@ import (
 	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/emit/rust"
 	"github.com/eugenioenko/goalchemy/internal/naming"
-	"github.com/eugenioenko/goalchemy/internal/subset"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
 
 func buildNamingFixture(t *testing.T, source string) *driver.Result {
+	t.Helper()
+	return buildNamingSource(t, testutil.NewSuite(t), source)
+}
+
+func buildNamingSource(t *testing.T, suite *testutil.Suite, source string) *driver.Result {
 	t.Helper()
 	dir := t.TempDir()
 	root, err := filepath.Abs("../../..")
@@ -33,7 +36,7 @@ func buildNamingFixture(t *testing.T, source string) *driver.Result {
 			t.Fatal(err)
 		}
 	}
-	res, ds := driver.Build(context.Background(), driver.Options{Dir: dir, Gate: subset.Cooperative})
+	res, ds := suite.Build(testutil.Fixture{Dir: dir, Gate: "cooperative"})
 	if diagnostics.HasErrors(ds) {
 		t.Fatalf("build: %v", ds)
 	}
@@ -195,8 +198,9 @@ func TestLibraryAnonymousPublicNameCollision(t *testing.T) {
 }
 
 func TestLibraryReservedPublicNames(t *testing.T) {
+	suite := testutil.NewSuite(t)
 	for _, name := range []string{"V", "LibraryError", "Vec"} {
-		res := buildNamingFixture(t, fmt.Sprintf("package boundary\ntype %s struct { Value int }\nfunc Export(v %s)(%s,error){return v,nil}\n", name, name, name))
+		res := buildNamingSource(t, suite, fmt.Sprintf("package boundary\ntype %s struct { Value int }\nfunc Export(v %s)(%s,error){return v,nil}\n", name, name, name))
 		for _, compact := range []bool{false, true} {
 			res.IR.Names = testutil.Names(compact)
 			_, err := rust.Emit(res.IR, nil)
@@ -209,8 +213,9 @@ func TestLibraryReservedPublicNames(t *testing.T) {
 }
 
 func TestLibraryReservedPublicFunctions(t *testing.T) {
+	suite := testutil.NewSuite(t)
 	for _, name := range []string{"Some", "None", "Ok", "Err"} {
-		res := buildNamingFixture(t, fmt.Sprintf("package boundary\nfunc %s(v int)(int,error){return v,nil}\n", name))
+		res := buildNamingSource(t, suite, fmt.Sprintf("package boundary\nfunc %s(v int)(int,error){return v,nil}\n", name))
 		for _, compact := range []bool{false, true} {
 			res.IR.Names = testutil.Names(compact)
 			_, err := rust.Emit(res.IR, nil)
