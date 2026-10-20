@@ -1,0 +1,21 @@
+name: Close cancellation probe
+on:
+  pull_request:
+    branches: [ci/targeted-setup]
+    types: [opened, synchronize, closed]
+permissions:
+  contents: read
+concurrency:
+  group: close-probe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  hold:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: repository-runner-1
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 2
+    steps:
+      - run: sleep 60
