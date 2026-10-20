@@ -12,7 +12,7 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     concurrency:
-      group: repository-runner-1
+      group: repository-runner-2
       cancel-in-progress: false
       queue: max
     timeout-minutes: 2
