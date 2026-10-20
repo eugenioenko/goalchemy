@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/eugenioenko/goalchemy/internal/driver"
 	"github.com/eugenioenko/goalchemy/internal/link"
 	"github.com/eugenioenko/goalchemy/internal/testutil"
 )
@@ -36,14 +37,28 @@ func TestReproducibleOutput(t *testing.T) {
 	if testing.Short() {
 		targets = targets[:2]
 	}
+	builds := map[string][2]*driver.Result{}
+	// Preserve independent catalog and source loads for both runs.
+	first, second := testutil.NewSuite(t), testutil.NewSuite(t)
+	for _, f := range fixtures {
+		var pair [2]*driver.Result
+		for i, suite := range []*testutil.Suite{first, second} {
+			res, ds := suite.Build(testutil.Fixture{Dir: f})
+			if len(ds) > 0 {
+				t.Fatal(ds)
+			}
+			pair[i] = res
+		}
+		builds[f] = pair
+	}
 	for _, target := range targets {
 		t.Run(target, func(t *testing.T) {
 			for _, f := range fixtures {
 				a, b := t.TempDir(), t.TempDir()
-				if ds := testutil.Compile(f, target, a); len(ds) > 0 {
+				if ds := driver.EmitWithOptions(target, builds[f][0], a, driver.EmitOptions{}); len(ds) > 0 {
 					t.Fatal(ds)
 				}
-				if ds := testutil.Compile(f, target, b); len(ds) > 0 {
+				if ds := driver.EmitWithOptions(target, builds[f][1], b, driver.EmitOptions{}); len(ds) > 0 {
 					t.Fatal(ds)
 				}
 				ta, tb := readTree(t, a), readTree(t, b)
