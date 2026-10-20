@@ -107,9 +107,14 @@ class SetupTests(unittest.TestCase):
 
     def test_manual_docs_publishing_is_preserved(self):
         workflow = (ROOT / '.github/workflows/docs.yml').read_text()
+        self.assertIn('  push:\n    branches: [main]', workflow)
         deploy = workflow.split('\n  deploy:\n', 1)[1]
         self.assertIn("github.event_name == 'workflow_dispatch'", deploy)
         self.assertIn("github.ref == 'refs/heads/main'", deploy)
+        for name in ('ci.yml', 'api-docs-template.yml'):
+            triggers = (ROOT / '.github/workflows' / name).read_text().split('\npermissions:', 1)[0]
+            self.assertIn('  pull_request:', triggers)
+            self.assertNotIn('  push:', triggers)
 
     def test_bootstrap_does_not_prepare_unselected_targets(self):
         for target in ('go', 'typescript'):

@@ -7,11 +7,13 @@ waiting jobs queue without occupying runners or replacing one another. Each
 group can hold up to 100 pending jobs. These groups enforce the four-runner cap
 without a second matrix limit holding up jobs for an available slot.
 New commits cancel superseded runs of the same workflow,
-including older pushes to `main`. Closing or merging a PR also cancels its
-remaining workflows. A `pull_request_target: closed` event shares the PR's
+including older documentation pushes to `main`. Closing or merging a PR also
+cancels its remaining workflows. A `pull_request_target: closed` event shares the PR's
 workflow concurrency group, with every job skipped. This cancellation needs
-no runner and executes no PR code. Post-merge `push` runs have a separate group,
-so tests and documentation publishing on `main` continue.
+no runner and executes no PR code. Compiler CI and the SDK documentation template
+checks run on pull requests only. Merging does not repeat those test suites on
+`main`. Documentation builds and publishing still run for matching pushes to
+`main`, or a manual docs dispatch, in a separate concurrency group.
 
 Every new runner job must use one of these four groups. Workflow-level
 cancellation groups stay separate so workflows do not block their own jobs.
